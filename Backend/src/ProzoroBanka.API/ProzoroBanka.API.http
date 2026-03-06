@@ -1,0 +1,6 @@
+@ProzoroBanka.API_HostAddress = http://localhost:5258
+
+GET {{ProzoroBanka.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

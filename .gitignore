@@ -1,0 +1,44 @@
+# ---- .NET ----
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+*.nupkg
+*.snupkg
+appsettings.*.json
+# ---- Node / Frontend ----
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+
+# ---- IDE ----
+.vs/
+.vscode
+.idea/
+*.swp
+*.swo
+
+# ---- Terraform ----
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+
+# ---- Docker ----
+docker-compose.override.yml
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+*.md

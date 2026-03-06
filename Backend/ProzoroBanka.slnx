@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ProzoroBanka.API/ProzoroBanka.API.csproj" />
+    <Project Path="src/ProzoroBanka.Application/ProzoroBanka.Application.csproj" />
+    <Project Path="src/ProzoroBanka.Domain/ProzoroBanka.Domain.csproj" />
+    <Project Path="src/ProzoroBanka.Infrastructure/ProzoroBanka.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ProzoroBanka.IntegrationTests/ProzoroBanka.IntegrationTests.csproj" />
+    <Project Path="tests/ProzoroBanka.UnitTests/ProzoroBanka.UnitTests.csproj" />
+  </Folder>
+</Solution>
