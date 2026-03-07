@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { LaptopMinimal, MoonStar, SunMedium } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
@@ -19,18 +18,9 @@ const themeOptions = [
 
 export function ThemeToggle() {
   const { setTheme, resolvedTheme, theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const activeOption = themeOptions.find((option) => option.value === (theme ?? 'system')) ?? themeOptions[2];
-  const ActiveIcon = mounted
-    ? resolvedTheme === 'dark'
-      ? MoonStar
-      : SunMedium
-    : activeOption.icon;
+  const ActiveIcon = theme === 'system' ? (resolvedTheme === 'dark' ? MoonStar : SunMedium) : activeOption.icon;
 
   return (
     <DropdownMenu>

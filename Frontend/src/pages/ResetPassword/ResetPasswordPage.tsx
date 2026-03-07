@@ -54,8 +54,6 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    setRedirectCountdown(REDIRECT_DELAY_SECONDS);
-
     const countdownInterval = window.setInterval(() => {
       setRedirectCountdown((currentValue) => {
         if (currentValue === null || currentValue <= 1) {
@@ -81,6 +79,7 @@ export default function ResetPasswordPage() {
 
   const onSubmit = handleSubmit(async (values) => {
     const response = await resetPasswordMutation.mutateAsync(values);
+    setRedirectCountdown(REDIRECT_DELAY_SECONDS);
     setSuccessMessage(response.message || 'Пароль успішно змінено.');
   });
 
