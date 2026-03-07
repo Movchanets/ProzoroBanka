@@ -4,18 +4,22 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-[transform,box-shadow,background-color,opacity,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 hover:-translate-y-px',
   {
     variants: {
       variant: {
         default: 'bg-primary text-primary-foreground shadow-sm hover:opacity-95',
         outline: 'border border-border bg-card text-foreground hover:bg-muted',
         ghost: 'text-foreground hover:bg-muted',
+        secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/90',
+        soft: 'bg-secondary/15 text-secondary hover:bg-secondary/20',
       },
       size: {
         default: 'h-10 px-4 py-2',
         sm: 'h-9 rounded-md px-3',
         icon: 'h-10 w-10',
+        pill: 'h-auto rounded-full px-5 py-3.5',
+        pillWide: 'h-14 rounded-full px-6 text-[0.98rem] font-extrabold',
       },
     },
     defaultVariants: {

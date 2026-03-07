@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useLogoutMutation } from '../hooks/queries/useAuth';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 
 function getInitials(firstName?: string, lastName?: string) {
   return `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.trim().toUpperCase() || 'PB';
@@ -23,39 +24,45 @@ export default function AppShell({ children }: AppShellProps) {
   };
 
   return (
-    <div className="workspace-shell">
-      <header className="workspace-header">
-        <div>
-          <span className="workspace-header__eyebrow">ProzoroBanka</span>
-          <h1>Кабінет волонтера</h1>
-          <p>Оновлюйте профіль, фото і підтримуйте готовність до завантаження чеків без окремого адмін-кроку.</p>
-        </div>
-
-        <div className="workspace-user">
-          {user?.profilePhotoUrl ? (
-            <img className="workspace-user__avatar" src={user.profilePhotoUrl} alt="Фото профілю" />
-          ) : (
-            <div className="workspace-user__avatar workspace-user__avatar--fallback">
-              {getInitials(user?.firstName, user?.lastName)}
+    <div className="mx-auto min-h-screen w-[min(1180px,calc(100%-32px))] py-6 pb-10 max-sm:w-[min(1180px,calc(100%-20px))]">
+      <Card className="mb-6 rounded-[1.75rem] border border-border bg-card/80 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl max-sm:rounded-[1.5rem]">
+        <CardContent className="flex flex-col gap-6 p-7 pt-7 lg:flex-row lg:items-center lg:justify-between max-sm:p-6 max-sm:pt-6">
+          <div className="space-y-4">
+            <span className="inline-flex items-center gap-2 rounded-full bg-card/70 px-3.5 py-2 text-[0.82rem] font-extrabold uppercase tracking-[0.08em] text-primary">
+              ProzoroBanka
+            </span>
+            <div className="space-y-4">
+              <h1 className="text-[clamp(2.1rem,3vw,3rem)] font-semibold leading-none tracking-tight">
+                Кабінет волонтера
+              </h1>
+              <p className="max-w-3xl text-base leading-7 text-muted-foreground">
+                Оновлюйте профіль, фото і підтримуйте готовність до завантаження чеків без окремого адмін-кроку.
+              </p>
             </div>
-          )}
-
-          <div className="workspace-user__meta">
-            <strong>{user?.firstName} {user?.lastName}</strong>
-            <span>{user?.email}</span>
           </div>
 
-          <Button
-            type="button"
-            className="ghost-button"
-            onClick={handleLogout}
-            disabled={logoutMutation.isPending}
-            variant="ghost"
-          >
-            {logoutMutation.isPending ? 'Вихід…' : 'Вийти'}
-          </Button>
-        </div>
-      </header>
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+          {user?.profilePhotoUrl ? (
+              <img className="h-[72px] w-[72px] rounded-[24px] object-cover" src={user.profilePhotoUrl} alt="Фото профілю" />
+          ) : (
+              <div className="grid h-[72px] w-[72px] place-items-center rounded-[24px] bg-gradient-to-br from-secondary to-accent text-xl font-extrabold text-secondary-foreground">
+                {getInitials(user?.firstName, user?.lastName)}
+              </div>
+          )}
+
+            <div className="grid gap-1">
+              <strong className="text-base font-semibold text-foreground">
+                {user?.firstName} {user?.lastName}
+              </strong>
+              <span className="text-sm text-muted-foreground">{user?.email}</span>
+            </div>
+
+            <Button type="button" size="pill" onClick={handleLogout} disabled={logoutMutation.isPending} variant="soft">
+              {logoutMutation.isPending ? 'Вихід…' : 'Вийти'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <main>{children}</main>
     </div>

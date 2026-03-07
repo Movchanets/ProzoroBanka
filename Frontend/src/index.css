@@ -29,6 +29,8 @@
   --shadow-strong: hsl(18 86% 53% / 0.26);
   --hero-surface: linear-gradient(150deg, hsl(0 0% 100% / 0.86), hsl(31 100% 96% / 0.82)), linear-gradient(135deg, hsl(0 0% 100%), hsl(32 38% 94%));
   --hero-panel: linear-gradient(135deg, hsl(216 64% 21% / 0.96), hsl(191 66% 28% / 0.88));
+  --hero-panel-foreground: hsl(36 100% 98%);
+  --hero-panel-muted: hsl(36 100% 98% / 0.74);
   --hero-dot: hsl(31 100% 71%);
   --page-glow-1: hsl(25 100% 70% / 0.38);
   --page-glow-2: hsl(212 100% 63% / 0.2);
@@ -76,7 +78,9 @@
   --shadow-soft: hsl(220 40% 4% / 0.34);
   --shadow-strong: hsl(23 95% 63% / 0.22);
   --hero-surface: linear-gradient(160deg, hsl(220 27% 16% / 0.92), hsl(220 24% 13% / 0.88)), linear-gradient(135deg, hsl(220 27% 16%), hsl(217 28% 12%));
-  --hero-panel: linear-gradient(135deg, hsl(24 84% 58% / 0.92), hsl(190 78% 34% / 0.88));
+  --hero-panel: linear-gradient(135deg, hsl(220 30% 14% / 0.96), hsl(205 62% 18% / 0.92));
+  --hero-panel-foreground: hsl(35 45% 96%);
+  --hero-panel-muted: hsl(35 45% 96% / 0.74);
   --hero-dot: hsl(43 100% 78%);
   --page-glow-1: hsl(23 95% 63% / 0.16);
   --page-glow-2: hsl(191 100% 60% / 0.12);

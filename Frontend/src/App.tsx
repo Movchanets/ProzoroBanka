@@ -1,16 +1,29 @@
+import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './services/queryClient';
 import { useAuthStore } from './stores/authStore';
-import LoginPage from './pages/Login/LoginPage';
-import RegisterPage from './pages/Register/RegisterPage';
-import ForgotPasswordPage from './pages/ForgotPassword/ForgotPasswordPage';
-import ProfilePage from './pages/Profile/ProfilePage';
-import ResetPasswordPage from './pages/ResetPassword/ResetPasswordPage';
-import AppShell from './components/AppShell';
 import { ThemeToggle } from './components/theme-toggle';
-import './App.css';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+
+const LoginPage = lazy(() => import('./pages/Login/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/Register/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPassword/ResetPasswordPage'));
+const ProfilePage = lazy(() => import('./pages/Profile/ProfilePage'));
+const AppShell = lazy(() => import('./components/AppShell'));
+const ReactQueryDevtools = import.meta.env.DEV
+  ? lazy(() => import('@tanstack/react-query-devtools').then((module) => ({ default: module.ReactQueryDevtools })))
+  : null;
+
+function RouteFallback() {
+  return (
+    <div className="mx-auto flex min-h-screen w-[min(1180px,calc(100%-32px))] items-center justify-center py-8 max-sm:w-[min(1180px,calc(100%-20px))]">
+      <div className="rounded-4xl border border-border bg-card/80 px-6 py-4 text-sm font-semibold text-muted-foreground shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl">
+        Завантаження інтерфейсу...
+      </div>
+    </div>
+  );
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -31,26 +44,32 @@ function App() {
             <ThemeToggle />
           </div>
         </div>
-        <Routes>
-          <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
-          <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
-          <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
-          <Route path="/reset-password" element={<GuestRoute><ResetPasswordPage /></GuestRoute>} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <AppShell>
-                  <ProfilePage />
-                </AppShell>
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/profile" element={<Navigate to="/" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+            <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
+            <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
+            <Route path="/reset-password" element={<GuestRoute><ResetPasswordPage /></GuestRoute>} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <AppShell>
+                    <ProfilePage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/profile" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
-      {import.meta.env.DEV ? <ReactQueryDevtools initialIsOpen={false} /> : null}
+      {ReactQueryDevtools ? (
+        <Suspense fallback={null}>
+          <ReactQueryDevtools initialIsOpen={false} />
+        </Suspense>
+      ) : null}
     </QueryClientProvider>
   );
 }

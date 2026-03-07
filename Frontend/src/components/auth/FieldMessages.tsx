@@ -26,9 +26,11 @@ export function FieldMessages({ error }: FieldMessagesProps) {
   }
 
   return (
-    <div className="field-messages" aria-live="polite">
+    <div className="grid gap-1.5" aria-live="polite">
       {messages.map((message) => (
-        <small key={message}>{message}</small>
+        <p key={message} className="text-sm font-medium leading-5 text-destructive">
+          {message}
+        </p>
       ))}
     </div>
   );

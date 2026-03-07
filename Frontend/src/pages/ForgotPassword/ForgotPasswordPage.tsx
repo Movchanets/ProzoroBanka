@@ -51,9 +51,11 @@ export default function ForgotPasswordPage() {
       alternateHref="/login"
       alternateAction="Повернутися до входу"
     >
-      <div className="auth-card__header">
-        <h2>Скидання пароля</h2>
-        <p>Вкажіть адресу, з якою ви реєструвалися в системі.</p>
+      <div className="space-y-2">
+        <h2 className="text-[2rem] font-semibold leading-none tracking-tight">Скидання пароля</h2>
+        <p className="text-base leading-7 text-muted-foreground">
+          Вкажіть адресу, з якою ви реєструвалися в системі.
+        </p>
       </div>
 
       {submitted ? (
@@ -63,17 +65,27 @@ export default function ForgotPasswordPage() {
           <AlertDescription>{submitted}</AlertDescription>
         </Alert>
       ) : (
-        <form onSubmit={onSubmit} className="auth-form">
-          <div className="field field--icon">
+        <form onSubmit={onSubmit} className="grid gap-4">
+          <div className="grid gap-2.5">
             <Label htmlFor="forgot-email">Email</Label>
-            <div className="field-control">
-              <Mail className="field-icon" aria-hidden="true" />
-              <Input id="forgot-email" type="email" autoComplete="email" inputMode="email" maxLength={254} spellCheck={false} placeholder="volunteer@example.com" {...register('email')} />
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-4 top-1/2 z-10 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Input
+                id="forgot-email"
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                maxLength={254}
+                spellCheck={false}
+                placeholder="volunteer@example.com"
+                className="pl-14 pr-4"
+                {...register('email')}
+              />
             </div>
             <FieldMessages error={errors.email} />
           </div>
 
-          <div className="turnstile-box">
+          <div className="grid justify-items-center gap-2.5 rounded-[20px] border border-border bg-muted/70 p-3.5">
             <TurnstileWidget onVerify={handleTurnstileVerify} />
             <FieldMessages error={errors.turnstileToken} />
           </div>
@@ -89,13 +101,13 @@ export default function ForgotPasswordPage() {
             </Alert>
           )}
 
-          <Button type="submit" className="primary-button auth-submit" disabled={forgotPasswordMutation.isPending}>
+          <Button type="submit" size="pillWide" className="w-full shadow-[0_18px_30px_var(--shadow-strong)]" disabled={forgotPasswordMutation.isPending}>
             {forgotPasswordMutation.isPending ? 'Надсилаю…' : 'Надіслати посилання'}
           </Button>
         </form>
       )}
 
-      <Link className="auth-card__subtle-link" to="/reset-password">
+      <Link className="inline-flex text-sm font-bold text-accent transition-colors hover:text-accent/80" to="/reset-password">
         Маєте токен? Перейдіть одразу до встановлення нового пароля
       </Link>
     </AuthShell>
