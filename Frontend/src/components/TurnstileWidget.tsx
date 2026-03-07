@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { useTheme } from 'next-themes';
 
 interface TurnstileWidgetProps {
   siteKey?: string;
@@ -31,9 +32,16 @@ export function TurnstileWidget({
   theme = 'auto',
   size = 'normal',
 }: TurnstileWidgetProps) {
+  const { resolvedTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
+  const callbackRefs = useRef({ onVerify, onExpire, onError });
   const [isLoaded, setIsLoaded] = useState(!!window.turnstile);
+  const effectiveTheme = theme === 'auto' ? (resolvedTheme === 'dark' ? 'dark' : 'light') : theme;
+
+  useEffect(() => {
+    callbackRefs.current = { onVerify, onExpire, onError };
+  }, [onVerify, onExpire, onError]);
 
   const renderWidget = useCallback(() => {
     if (!containerRef.current || !window.turnstile || widgetIdRef.current) return;
@@ -46,13 +54,13 @@ export function TurnstileWidget({
 
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
       sitekey: key,
-      callback: onVerify,
-      'expired-callback': onExpire,
-      'error-callback': onError,
-      theme,
+      callback: (token: string) => callbackRefs.current.onVerify(token),
+      'expired-callback': () => callbackRefs.current.onExpire?.(),
+      'error-callback': () => callbackRefs.current.onError?.(),
+      theme: effectiveTheme,
       size,
     });
-  }, [siteKey, onVerify, onExpire, onError, theme, size]);
+  }, [siteKey, effectiveTheme, size]);
 
   useEffect(() => {
     if (window.turnstile) {
@@ -78,19 +86,26 @@ export function TurnstileWidget({
       document.head.appendChild(script);
     }
 
+  }, [renderWidget]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      if (widgetIdRef.current && window.turnstile) {
+        window.turnstile.remove(widgetIdRef.current);
+        widgetIdRef.current = null;
+      }
+      renderWidget();
+    }
+  }, [isLoaded, renderWidget]);
+
+  useEffect(() => {
     return () => {
       if (widgetIdRef.current && window.turnstile) {
         window.turnstile.remove(widgetIdRef.current);
         widgetIdRef.current = null;
       }
     };
-  }, [renderWidget]);
-
-  useEffect(() => {
-    if (isLoaded) {
-      renderWidget();
-    }
-  }, [isLoaded, renderWidget]);
+  }, []);
 
   return <div ref={containerRef} />;
 }

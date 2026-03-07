@@ -151,8 +151,15 @@ try
                 .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
         });
     }
-
+    var contentRoot = builder.Environment.ContentRootPath;
+    var webRoot = Path.Combine(contentRoot, "wwwroot");
+    // Якщо папки немає - створюємо її фізично
+    if (!Directory.Exists(webRoot))
+    {
+        Directory.CreateDirectory(webRoot);
+    }
     app.UseHttpsRedirection();
+    app.UseStaticFiles();
     app.UseCors("Frontend");
     app.UseRateLimiter();
     app.UseAuthentication();

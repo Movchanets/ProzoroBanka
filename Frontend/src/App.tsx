@@ -4,6 +4,13 @@ import { queryClient } from './services/queryClient';
 import { useAuthStore } from './stores/authStore';
 import LoginPage from './pages/Login/LoginPage';
 import RegisterPage from './pages/Register/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPassword/ForgotPasswordPage';
+import ProfilePage from './pages/Profile/ProfilePage';
+import ResetPasswordPage from './pages/ResetPassword/ResetPasswordPage';
+import AppShell from './components/AppShell';
+import { ThemeToggle } from './components/theme-toggle';
+import './App.css';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -15,50 +22,35 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
 }
 
-function DashboardPlaceholder() {
-  const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
-  return (
-    <div style={{ padding: '2rem', textAlign: 'center' }}>
-      <h1>Привіт, {user?.firstName}! 👋</h1>
-      <p>Дашборд ProzoroBanka (в розробці)</p>
-      <button
-        onClick={logout}
-        style={{
-          marginTop: '1rem',
-          padding: '0.5rem 1.5rem',
-          background: '#e74c3c',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          fontSize: '1rem',
-        }}
-      >
-        Вийти
-      </button>
-    </div>
-  );
-}
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <div className="fixed right-4 top-4 z-50 flex pointer-events-none md:right-6 md:top-6">
+          <div className="pointer-events-auto">
+            <ThemeToggle />
+          </div>
+        </div>
         <Routes>
           <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
           <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
+          <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
+          <Route path="/reset-password" element={<GuestRoute><ResetPasswordPage /></GuestRoute>} />
           <Route
             path="/"
             element={
               <ProtectedRoute>
-                <DashboardPlaceholder />
+                <AppShell>
+                  <ProfilePage />
+                </AppShell>
               </ProtectedRoute>
             }
           />
+          <Route path="/profile" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      {import.meta.env.DEV ? <ReactQueryDevtools initialIsOpen={false} /> : null}
     </QueryClientProvider>
   );
 }

@@ -11,6 +11,8 @@ using ProzoroBanka.Application.Users.Commands.GoogleLogin;
 using ProzoroBanka.Application.Users.Commands.RefreshToken;
 using ProzoroBanka.Application.Users.Commands.RegisterUser;
 using ProzoroBanka.Application.Users.Commands.ResetPassword;
+using ProzoroBanka.Application.Users.Commands.UpdateProfile;
+using ProzoroBanka.Application.Users.Commands.UploadProfilePhoto;
 using ProzoroBanka.Application.Users.Queries.Profile;
 
 namespace ProzoroBanka.API.Controllers;
@@ -161,7 +163,7 @@ public class AuthController : ApiControllerBase
 	/// </summary>
 	[Authorize]
 	[HttpGet("me")]
-	[ProducesResponseType(typeof(UserInfoDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Me(CancellationToken ct)
 	{
 		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -173,5 +175,61 @@ public class AuthController : ApiControllerBase
 		return result.IsSuccess
 			? Ok(result.Payload)
 			: NotFound(new { Error = result.Message });
+	}
+
+	/// <summary>
+	/// Оновлення базових даних профілю поточного користувача.
+	/// </summary>
+	[Authorize]
+	[HttpPut("me")]
+	[ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request, CancellationToken ct)
+	{
+		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+		if (userId is null)
+			return Unauthorized();
+
+		var command = new UpdateProfileCommand(
+			Guid.Parse(userId),
+			request.FirstName,
+			request.LastName,
+			request.PhoneNumber);
+
+		var result = await _sender.Send(command, ct);
+		return result.IsSuccess
+			? Ok(result.Payload)
+			: BadRequest(new { Error = result.Message });
+	}
+
+	/// <summary>
+	/// Завантаження або оновлення фото профілю.
+	/// </summary>
+	[Authorize]
+	[HttpPost("me/avatar")]
+	[Consumes("multipart/form-data")]
+	[ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> UploadProfilePhoto([FromForm] IFormFile? file, CancellationToken ct)
+	{
+		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+		if (userId is null)
+			return Unauthorized();
+
+		if (file is null || file.Length == 0)
+			return BadRequest(new { Error = "Файл зображення обов'язковий." });
+
+		await using var fileStream = file.OpenReadStream();
+		var command = new UploadProfilePhotoCommand(
+			Guid.Parse(userId),
+			fileStream,
+			file.FileName,
+			file.ContentType,
+			file.Length);
+
+		var result = await _sender.Send(command, ct);
+		return result.IsSuccess
+			? Ok(result.Payload)
+			: BadRequest(new { Error = result.Message });
 	}
 }

@@ -184,13 +184,73 @@ public class UserService : IUserService
 
 		var roles = await _userManager.GetRolesAsync(identityUser);
 
-		return ServiceResponse<UserProfile>.Success(new UserProfile(
-			domainUser?.Id ?? Guid.Empty,
-			identityUser.Email!,
-			domainUser?.FirstName ?? "",
-			domainUser?.LastName ?? "",
-			BuildProfilePhotoUrl(domainUser?.ProfilePhotoStorageKey),
-			roles));
+		return ServiceResponse<UserProfile>.Success(CreateUserProfile(identityUser, domainUser, roles));
+	}
+
+	public async Task<ServiceResponse<UserProfile>> UpdateProfileAsync(
+		Guid applicationUserId,
+		string firstName,
+		string lastName,
+		string? phoneNumber,
+		CancellationToken ct)
+	{
+		var identityUser = await _userManager.FindByIdAsync(applicationUserId.ToString());
+		if (identityUser is null)
+			return ServiceResponse<UserProfile>.Failure("Користувача не знайдено.");
+
+		var domainUser = await FindDomainUserAsync(identityUser, ct);
+		if (domainUser is null)
+			return ServiceResponse<UserProfile>.Failure("Профіль користувача не знайдено.");
+
+		domainUser.FirstName = firstName.Trim();
+		domainUser.LastName = lastName.Trim();
+		domainUser.PhoneNumber = NormalizeOptionalValue(phoneNumber);
+
+		await _dbContext.SaveChangesAsync(ct);
+
+		var roles = await _userManager.GetRolesAsync(identityUser);
+		_logger.LogInformation("Profile updated for {ApplicationUserId}", applicationUserId);
+
+		return ServiceResponse<UserProfile>.Success(CreateUserProfile(identityUser, domainUser, roles));
+	}
+
+	public async Task<ServiceResponse<UserProfile>> UpdateProfilePhotoAsync(
+		Guid applicationUserId,
+		Stream fileStream,
+		string fileName,
+		string contentType,
+		CancellationToken ct)
+	{
+		var identityUser = await _userManager.FindByIdAsync(applicationUserId.ToString());
+		if (identityUser is null)
+			return ServiceResponse<UserProfile>.Failure("Користувача не знайдено.");
+
+		var domainUser = await FindDomainUserAsync(identityUser, ct);
+		if (domainUser is null)
+			return ServiceResponse<UserProfile>.Failure("Профіль користувача не знайдено.");
+
+		var previousStorageKey = domainUser.ProfilePhotoStorageKey;
+		var storageKey = await _fileStorage.UploadAsync(fileStream, fileName, contentType, ct);
+
+		domainUser.ProfilePhotoStorageKey = storageKey;
+		await _dbContext.SaveChangesAsync(ct);
+
+		if (!string.IsNullOrWhiteSpace(previousStorageKey))
+		{
+			try
+			{
+				await _fileStorage.DeleteAsync(previousStorageKey, ct);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Failed to delete previous profile photo {StorageKey}", previousStorageKey);
+			}
+		}
+
+		var roles = await _userManager.GetRolesAsync(identityUser);
+		_logger.LogInformation("Profile photo updated for {ApplicationUserId}", applicationUserId);
+
+		return ServiceResponse<UserProfile>.Success(CreateUserProfile(identityUser, domainUser, roles));
 	}
 
 	public async Task<ServiceResponse> CreateRoleAsync(string roleName, string? description, CancellationToken ct)
@@ -321,6 +381,11 @@ public class UserService : IUserService
 		return $"{normalizedOrigin}/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
 	}
 
+	private static string? NormalizeOptionalValue(string? value)
+	{
+		return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+	}
+
 	private static string BuildPasswordResetBody(string callbackUrl)
 	{
 		return $"""
@@ -336,6 +401,18 @@ public class UserService : IUserService
 			return null;
 
 		return _fileStorage.GetPublicUrl(storageKey);
+	}
+
+	private UserProfile CreateUserProfile(ApplicationUser identityUser, User? domainUser, IList<string> roles)
+	{
+		return new UserProfile(
+			domainUser?.Id ?? Guid.Empty,
+			identityUser.Email ?? string.Empty,
+			domainUser?.FirstName ?? string.Empty,
+			domainUser?.LastName ?? string.Empty,
+			domainUser?.PhoneNumber,
+			BuildProfilePhotoUrl(domainUser?.ProfilePhotoStorageKey),
+			roles);
 	}
 
 	private async Task<ServiceResponse> EnsureRoleDefinitionExistsAsync(ApplicationRoleDefinition roleDefinition)

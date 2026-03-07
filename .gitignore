@@ -12,6 +12,7 @@ x86/
 *.nupkg
 *.snupkg
 appsettings.*.json
+
 # ---- Node / Frontend ----
 node_modules/
 dist/
@@ -40,5 +41,9 @@ docker-compose.override.yml
 # ---- OS ----
 .DS_Store
 Thumbs.db
+
+# ignore API static output
+
+Backend/src/ProzoroBanka.API/wwwroot/
 
 *.md

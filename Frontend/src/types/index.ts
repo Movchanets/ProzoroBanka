@@ -3,7 +3,9 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
+  phoneNumber?: string | null;
   profilePhotoUrl?: string;
+  roles?: string[];
 }
 
 export interface AuthResponse {
@@ -21,11 +23,18 @@ export interface TokenResponse {
 }
 
 export interface ApiError {
+  message?: string;
   error?: string;
   type?: string;
   title?: string;
   status?: number;
   errors?: Record<string, string[]>;
+}
+
+export interface ProfileUpdatePayload {
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string | null;
 }
 
 export interface Receipt {
