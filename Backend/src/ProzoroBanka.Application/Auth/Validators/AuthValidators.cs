@@ -104,3 +104,15 @@ public class RefreshTokenRequestValidator : AbstractValidator<RefreshTokenReques
 			.NotEmpty().WithMessage("Refresh token обов'язковий");
 	}
 }
+
+public class GoogleLoginRequestValidator : AbstractValidator<GoogleLoginRequest>
+{
+	public GoogleLoginRequestValidator()
+	{
+		RuleFor(x => x.IdToken)
+			.NotEmpty().WithMessage("Google токен обов'язковий");
+
+		RuleFor(x => x.TurnstileToken)
+			.NotEmpty().WithMessage("Turnstile верифікація обов'язкова");
+	}
+}

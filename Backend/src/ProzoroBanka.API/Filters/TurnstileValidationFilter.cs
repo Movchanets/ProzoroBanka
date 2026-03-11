@@ -22,10 +22,16 @@ public sealed class TurnstileValidationFilter : IAsyncActionFilter
 	{
 		try
 		{
-			var token = ExtractTokenFromArguments(context);
-			if (string.IsNullOrWhiteSpace(token))
+			var (hasTurnstileToken, token) = ExtractTokenFromArguments(context);
+			if (!hasTurnstileToken)
 			{
 				await next();
+				return;
+			}
+
+			if (string.IsNullOrWhiteSpace(token))
+			{
+				context.Result = new BadRequestObjectResult(new { Error = "Turnstile верифікація обов'язкова" });
 				return;
 			}
 
@@ -51,15 +57,15 @@ public sealed class TurnstileValidationFilter : IAsyncActionFilter
 		}
 	}
 
-	private static string? ExtractTokenFromArguments(ActionExecutingContext context)
+	private static (bool HasTurnstileToken, string? Token) ExtractTokenFromArguments(ActionExecutingContext context)
 	{
-		foreach (var (_, value) in context.ActionArguments)
+		foreach (var (key, value) in context.ActionArguments)
 		{
 			if (value is null)
 				continue;
 
-			if (value is string text && !string.IsNullOrWhiteSpace(text))
-				return text;
+			if (value is string text && string.Equals(key, "turnstileToken", StringComparison.OrdinalIgnoreCase))
+				return (true, text);
 
 			var property = value.GetType().GetProperty(
 				"TurnstileToken",
@@ -68,11 +74,9 @@ public sealed class TurnstileValidationFilter : IAsyncActionFilter
 			if (property?.PropertyType != typeof(string))
 				continue;
 
-			var token = property.GetValue(value) as string;
-			if (!string.IsNullOrWhiteSpace(token))
-				return token;
+			return (true, property.GetValue(value) as string);
 		}
 
-		return null;
+		return (false, null);
 	}
 }

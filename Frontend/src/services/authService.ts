@@ -21,6 +21,11 @@ export interface ForgotPasswordPayload {
   turnstileToken: string;
 }
 
+export interface GoogleLoginPayload {
+  idToken: string;
+  turnstileToken: string;
+}
+
 export interface ResetPasswordPayload {
   email: string;
   token: string;
@@ -37,6 +42,12 @@ export const authService = {
 
   register: (payload: RegisterPayload) =>
     apiFetch<AuthResponse>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  googleLogin: (payload: GoogleLoginPayload) =>
+    apiFetch<AuthResponse>('/api/auth/google', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

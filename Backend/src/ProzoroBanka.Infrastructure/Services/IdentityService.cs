@@ -21,6 +21,7 @@ public class UserService : IUserService
 	private readonly IEmailNotificationService _emailNotificationService;
 	private readonly IFileStorage _fileStorage;
 	private readonly IApplicationDbContext _dbContext;
+	private readonly IGoogleTokenValidator _googleTokenValidator;
 	private readonly ILogger<UserService> _logger;
 
 	public UserService(
@@ -31,6 +32,7 @@ public class UserService : IUserService
 		IEmailNotificationService emailNotificationService,
 		IFileStorage fileStorage,
 		IApplicationDbContext dbContext,
+		IGoogleTokenValidator googleTokenValidator,
 		ILogger<UserService> logger)
 	{
 		_userManager = userManager;
@@ -40,6 +42,7 @@ public class UserService : IUserService
 		_emailNotificationService = emailNotificationService;
 		_fileStorage = fileStorage;
 		_dbContext = dbContext;
+		_googleTokenValidator = googleTokenValidator;
 		_logger = logger;
 	}
 
@@ -148,9 +151,124 @@ public class UserService : IUserService
 
 	public async Task<ServiceResponse<AuthResult>> GoogleLoginAsync(string idToken, CancellationToken ct)
 	{
-		// TODO: Імплементувати Google OAuth token validation
-		_logger.LogWarning("Google login not yet implemented");
-		return ServiceResponse<AuthResult>.Failure("Google login ще не реалізовано.");
+		var googleValidationResult = await _googleTokenValidator.ValidateAsync(idToken, ct);
+		if (!googleValidationResult.IsSuccess)
+			return ServiceResponse<AuthResult>.Failure(googleValidationResult.Message);
+
+		var payload = googleValidationResult.Payload!;
+		var email = payload.Email.Trim();
+		var firstName = NormalizeGoogleName(payload.GivenName, payload.FullName, email);
+		var lastName = NormalizeGoogleLastName(payload.FamilyName);
+
+		var identityUser = await _userManager.FindByEmailAsync(email);
+		var domainUser = identityUser is not null
+			? await FindDomainUserAsync(identityUser, ct)
+			: null;
+
+		if (identityUser is null)
+		{
+			domainUser = new User
+			{
+				Email = email,
+				FirstName = firstName,
+				LastName = lastName,
+				IsActive = true,
+			};
+
+			_dbContext.Users.Add(domainUser);
+			await _dbContext.SaveChangesAsync(ct);
+
+			identityUser = new ApplicationUser
+			{
+				UserName = email,
+				Email = email,
+				EmailConfirmed = true,
+				DomainUserId = domainUser.Id,
+			};
+
+			var createResult = await _userManager.CreateAsync(identityUser);
+			if (!createResult.Succeeded)
+			{
+				_dbContext.Users.Remove(domainUser);
+				await _dbContext.SaveChangesAsync(ct);
+				return ServiceResponse<AuthResult>.Failure(string.Join("; ", createResult.Errors.Select(e => e.Description)));
+			}
+
+			domainUser.IdentityUserId = identityUser.Id;
+			await _dbContext.SaveChangesAsync(ct);
+		}
+		else
+		{
+			identityUser.EmailConfirmed = true;
+			await _userManager.UpdateAsync(identityUser);
+
+			if (domainUser is null)
+			{
+				domainUser = new User
+				{
+					Email = email,
+					FirstName = firstName,
+					LastName = lastName,
+					IdentityUserId = identityUser.Id,
+					IsActive = true,
+				};
+
+				_dbContext.Users.Add(domainUser);
+				await _dbContext.SaveChangesAsync(ct);
+
+				identityUser.DomainUserId = domainUser.Id;
+				await _userManager.UpdateAsync(identityUser);
+			}
+			else
+			{
+				var hasChanges = false;
+
+				if (string.IsNullOrWhiteSpace(domainUser.FirstName))
+				{
+					domainUser.FirstName = firstName;
+					hasChanges = true;
+				}
+
+				if (string.IsNullOrWhiteSpace(domainUser.LastName) && !string.IsNullOrWhiteSpace(lastName))
+				{
+					domainUser.LastName = lastName;
+					hasChanges = true;
+				}
+
+				if (hasChanges)
+					await _dbContext.SaveChangesAsync(ct);
+			}
+		}
+
+		if (domainUser is not null && !domainUser.IsActive)
+			return ServiceResponse<AuthResult>.Failure("Обліковий запис деактивовано.");
+
+		var volunteerRoleResult = await EnsureRoleDefinitionExistsAsync(ApplicationRoleDefinitions.Volunteer);
+		if (!volunteerRoleResult.IsSuccess)
+			return ServiceResponse<AuthResult>.Failure(volunteerRoleResult.Message);
+
+		if (!await _userManager.IsInRoleAsync(identityUser, ApplicationRoles.Volunteer))
+		{
+			var addRoleResult = await _userManager.AddToRoleAsync(identityUser, ApplicationRoles.Volunteer);
+			if (!addRoleResult.Succeeded)
+				return ServiceResponse<AuthResult>.Failure(string.Join("; ", addRoleResult.Errors.Select(e => e.Description)));
+		}
+
+		var roles = await _userManager.GetRolesAsync(identityUser);
+		var permissions = await GetUserPermissionsAsync(identityUser);
+		var tokens = await _tokenService.GenerateTokensAsync(identityUser.Id, email, roles, permissions, ct);
+
+		_logger.LogInformation("User logged in with Google: {Email}", email);
+
+		return ServiceResponse<AuthResult>.Success(new AuthResult(
+			tokens.AccessToken,
+			tokens.RefreshToken,
+			tokens.AccessTokenExpiry,
+			domainUser?.Id ?? Guid.Empty,
+			email,
+			domainUser?.FirstName ?? firstName,
+			domainUser?.LastName ?? lastName,
+			BuildProfilePhotoUrl(domainUser?.ProfilePhotoStorageKey)));
 	}
 
 	public async Task<ServiceResponse<TokenResponse>> RefreshTokenAsync(
@@ -384,6 +502,22 @@ public class UserService : IUserService
 	private static string? NormalizeOptionalValue(string? value)
 	{
 		return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+	}
+
+	private static string NormalizeGoogleName(string? givenName, string? fullName, string email)
+	{
+		if (!string.IsNullOrWhiteSpace(givenName))
+			return givenName.Trim();
+
+		if (!string.IsNullOrWhiteSpace(fullName))
+			return fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? email;
+
+		return email;
+	}
+
+	private static string NormalizeGoogleLastName(string? familyName)
+	{
+		return string.IsNullOrWhiteSpace(familyName) ? string.Empty : familyName.Trim();
 	}
 
 	private static string BuildPasswordResetBody(string callbackUrl)
