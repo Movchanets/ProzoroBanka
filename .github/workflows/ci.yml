@@ -1,59 +1,135 @@
-name: CI Pipeline
+name: CI
 
 on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: 10.0.x
+  NODE_VERSION: 20.x
 
 jobs:
-  backend:
-    name: Backend (.NET)
+  backend-tests:
+    name: Backend Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: Backend
-
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: prozoro_banka_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d prozoro_banka_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
-          dotnet-quality: 'preview'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-quality: preview
 
-      - name: Restore
-        run: dotnet restore
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('Backend/**/*.csproj', 'Backend/**/*.props', 'Backend/**/*.targets', 'Backend/ProzoroBanka.slnx') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
-      - name: Build
-        run: dotnet build --no-restore --configuration Release
+      - name: Restore backend solution
+        run: dotnet restore Backend/ProzoroBanka.slnx
 
-      - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal
+      - name: Build backend solution
+        run: dotnet build Backend/ProzoroBanka.slnx --configuration Release --no-restore
 
-  frontend:
-    name: Frontend (React)
+      - name: Run backend tests
+        env:
+          ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=prozoro_banka_ci;Username=postgres;Password=postgres
+          Redis__Enabled: true
+          Redis__ConnectionString: localhost:6379
+          Ocr__Provider: fallback
+          Storage__Provider: Local
+        run: dotnet test Backend/ProzoroBanka.slnx --configuration Release --no-build --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: |
+            **/test-results.trx
+            **/TestResults/*.trx
+
+  frontend-checks:
+    name: Frontend Checks
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: Frontend
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
           cache-dependency-path: Frontend/package-lock.json
 
-      - name: Install
+      - name: Install frontend dependencies
         run: npm ci
 
-      - name: Lint
+      - name: Lint frontend
         run: npm run lint
 
-      - name: Build
+      - name: Build frontend
+        env:
+          VITE_API_URL: http://localhost:5000
+          VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+          VITE_GOOGLE_CLIENT_ID: test-client-id
         run: npm run build
+
+  terraform-checks:
+    name: Terraform Checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Infra
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init without backend
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform validate

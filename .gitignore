@@ -47,3 +47,4 @@ Thumbs.db
 Backend/src/ProzoroBanka.API/wwwroot/
 
 *.md
+state.txt

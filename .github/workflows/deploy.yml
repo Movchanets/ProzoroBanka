@@ -1,0 +1,256 @@
+name: Deploy Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DOTNET_VERSION: 10.0.x
+  NODE_VERSION: 20.x
+
+jobs:
+  determine-environment:
+    name: Resolve Environment
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request') }}
+    outputs:
+      deploy_environment: ${{ steps.resolve.outputs.deploy_environment }}
+      image_name: ${{ steps.resolve.outputs.image_name }}
+      source_sha: ${{ steps.resolve.outputs.source_sha }}
+    steps:
+      - name: Resolve deployment environment
+        id: resolve
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            DEPLOY_ENV="${{ inputs.environment }}"
+            SOURCE_SHA="${GITHUB_SHA}"
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_run" ]]; then
+            DEPLOY_ENV="prod"
+            SOURCE_SHA="${{ github.event.workflow_run.head_sha }}"
+          else
+            DEPLOY_ENV="prod"
+            SOURCE_SHA="${GITHUB_SHA}"
+          fi
+
+          OWNER_LC=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_NAME="ghcr.io/${OWNER_LC}/prozorobanka-api"
+
+          echo "deploy_environment=${DEPLOY_ENV}" >> "$GITHUB_OUTPUT"
+          echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "source_sha=${SOURCE_SHA}" >> "$GITHUB_OUTPUT"
+
+  build-and-push-api:
+    name: Build And Push API Image
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    outputs:
+      image_uri: ${{ steps.image.outputs.image_uri }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.determine-environment.outputs.source_sha }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: image
+        shell: bash
+        run: |
+          IMAGE_NAME="${{ needs.determine-environment.outputs.image_name }}"
+          IMAGE_URI="${IMAGE_NAME}:${{ needs.determine-environment.outputs.source_sha }}"
+          ROLLING_TAG="${IMAGE_NAME}:${{ needs.determine-environment.outputs.deploy_environment }}-latest"
+
+          echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+          echo "rolling_tag=${ROLLING_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./Backend
+          file: ./Backend/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.image.outputs.image_uri }}
+            ${{ steps.image.outputs.rolling_tag }}
+
+  provision-infrastructure:
+    name: Provision Azure Infrastructure
+    runs-on: ubuntu-latest
+    needs: [determine-environment, build-and-push-api]
+    environment: ${{ needs.determine-environment.outputs.deploy_environment }}
+    defaults:
+      run:
+        working-directory: Infra
+    outputs:
+      api_base_url: ${{ steps.tf-outputs.outputs.api_base_url }}
+      resource_group_name: ${{ steps.tf-outputs.outputs.resource_group_name }}
+      static_web_app_name: ${{ steps.tf-outputs.outputs.static_web_app_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.determine-environment.outputs.source_sha }}
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ secrets.TFSTATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TFSTATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ secrets.TFSTATE_CONTAINER }}" \
+            -backend-config="key=prozoro-banka-${{ needs.determine-environment.outputs.deploy_environment }}.tfstate"
+
+      - name: Terraform plan
+        env:
+          TF_VAR_api_image: ${{ needs.build-and-push-api.outputs.image_uri }}
+          TF_VAR_github_registry_username: ${{ secrets.GHCR_PULL_USERNAME }}
+          TF_VAR_github_registry_password: ${{ secrets.GHCR_PULL_TOKEN }}
+          TF_VAR_database_connection_string: ${{ secrets.DATABASE_CONNECTION_STRING }}
+          TF_VAR_jwt_key: ${{ secrets.JWT_KEY }}
+          TF_VAR_jwt_refresh_key: ${{ secrets.JWT_REFRESH_KEY }}
+          TF_VAR_encryption_key: ${{ secrets.ENCRYPTION_KEY }}
+          TF_VAR_turnstile_secret_key: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
+          TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          TF_VAR_email_from_address: ${{ secrets.EMAIL_FROM_ADDRESS }}
+          TF_VAR_email_from_name: ${{ secrets.EMAIL_FROM_NAME }}
+          TF_VAR_email_smtp_host: ${{ secrets.SMTP_HOST }}
+          TF_VAR_email_smtp_port: ${{ secrets.SMTP_PORT }}
+          TF_VAR_email_smtp_enable_ssl: ${{ secrets.SMTP_ENABLE_SSL }}
+          TF_VAR_email_smtp_username: ${{ secrets.SMTP_USERNAME }}
+          TF_VAR_email_smtp_password: ${{ secrets.SMTP_PASSWORD }}
+          TF_VAR_seed_admin_email: ${{ secrets.SEED_ADMIN_EMAIL }}
+          TF_VAR_seed_admin_password: ${{ secrets.SEED_ADMIN_PASSWORD }}
+          TF_VAR_ocr_provider: ${{ secrets.OCR_PROVIDER }}
+          TF_VAR_ocr_azure_endpoint: ${{ secrets.OCR_AZURE_ENDPOINT }}
+          TF_VAR_ocr_azure_api_key: ${{ secrets.OCR_AZURE_API_KEY }}
+          TF_VAR_ocr_mistral_api_key: ${{ secrets.OCR_MISTRAL_API_KEY }}
+          TF_VAR_redis_enabled: ${{ secrets.REDIS_ENABLED }}
+          TF_VAR_redis_connection_string: ${{ secrets.REDIS_CONNECTION_STRING }}
+          TF_VAR_redis_instance_name: ${{ secrets.REDIS_INSTANCE_NAME }}
+          TF_VAR_storage_container_name: ${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}
+          TF_VAR_blob_cdn_url: ${{ secrets.AZURE_BLOB_CDN_URL }}
+          TF_VAR_create_ocr_azure_resource: ${{ secrets.CREATE_OCR_AZURE_RESOURCE }}
+          TF_VAR_static_web_app_custom_domain: ${{ secrets.STATIC_WEB_APP_CUSTOM_DOMAIN }}
+          TF_VAR_static_web_app_custom_domain_validation_type: ${{ secrets.STATIC_WEB_APP_CUSTOM_DOMAIN_VALIDATION_TYPE }}
+        run: |
+          terraform plan \
+            -var-file="environments/${{ needs.determine-environment.outputs.deploy_environment }}/terraform.tfvars" \
+            -out=tfplan
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Capture Terraform outputs
+        id: tf-outputs
+        shell: bash
+        run: |
+          {
+            echo "api_base_url=$(terraform output -raw api_base_url)"
+            echo "resource_group_name=$(terraform output -raw resource_group_name)"
+            echo "static_web_app_name=$(terraform output -raw static_web_app_name)"
+          } >> "$GITHUB_OUTPUT"
+
+  deploy-frontend:
+    name: Deploy Frontend To Static Web Apps
+    runs-on: ubuntu-latest
+    needs: [determine-environment, provision-infrastructure]
+    environment: ${{ needs.determine-environment.outputs.deploy_environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.determine-environment.outputs.source_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: Frontend
+        run: npm ci
+
+      - name: Build frontend bundle
+        working-directory: Frontend
+        env:
+          VITE_API_URL: ${{ needs.provision-infrastructure.outputs.api_base_url }}
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          if [[ -z "$VITE_API_URL" ]]; then
+            echo "VITE_API_URL is empty. Refusing to build frontend with a wrong base URL." >&2
+            exit 1
+          fi
+
+          npm run build
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Ensure Azure CLI Static Web Apps extension
+        shell: bash
+        run: az extension add --name staticwebapp --upgrade
+
+      - name: Get Static Web Apps deployment token
+        id: swa-token
+        shell: bash
+        run: |
+          TOKEN=$(az staticwebapp secrets list \
+            --name "${{ needs.provision-infrastructure.outputs.static_web_app_name }}" \
+            --resource-group "${{ needs.provision-infrastructure.outputs.resource_group_name }}" \
+            --query properties.apiKey -o tsv)
+
+          if [[ -z "$TOKEN" ]]; then
+            echo "Failed to resolve Azure Static Web Apps deployment token" >&2
+            exit 1
+          fi
+
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy frontend to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          action: upload
+          skip_app_build: true
+          app_location: Frontend/dist
+          azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}

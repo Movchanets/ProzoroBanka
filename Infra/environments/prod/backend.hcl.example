@@ -1,0 +1,4 @@
+resource_group_name  = "rg-prozorobanka-tfstate"
+storage_account_name = "stprozorotfstate"
+container_name       = "tfstate"
+key                  = "prozoro-banka-prod.tfstate"
