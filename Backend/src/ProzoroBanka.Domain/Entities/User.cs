@@ -36,4 +36,6 @@ public class User : BaseEntity
 
     public ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
     public ICollection<MonobankTransaction> MonobankTransactions { get; set; } = new List<MonobankTransaction>();
+    public ICollection<Organization> OwnedOrganizations { get; set; } = new List<Organization>();
+    public ICollection<OrganizationMember> OrganizationMemberships { get; set; } = new List<OrganizationMember>();
 }
