@@ -28,6 +28,10 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
+    if (Environment.GetEnvironmentVariable("IS_PLAYWRIGHT_TESTS") == "true")
+    {
+        builder.Configuration.AddJsonFile("appsettings.Playwright.json", optional: true, reloadOnChange: true);
+    }
     // ── Serilog ──
     builder.Host.UseSerilog((ctx, lc) => lc
         .ReadFrom.Configuration(ctx.Configuration)

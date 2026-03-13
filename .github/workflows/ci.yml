@@ -133,3 +133,94 @@ jobs:
 
       - name: Terraform validate
         run: terraform validate
+
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    needs: [backend-tests, frontend-checks]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: prozoro_banka_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d prozoro_banka_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-quality: preview
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          dotnet restore Backend/ProzoroBanka.slnx
+          cd Frontend && npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        working-directory: Frontend
+        env:
+          # Database & Infrastructure
+          ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=prozoro_banka_ci;Username=postgres;Password=postgres
+          Redis__Enabled: true
+          Redis__ConnectionString: localhost:6379
+          Ocr__Provider: fallback
+          Storage__Provider: Local
+          
+          # Backend Logic & Security (bypassing missing appsettings)
+          ASPNETCORE_ENVIRONMENT: Development
+          IS_PLAYWRIGHT_TESTS: "true"
+          Jwt__Key: fcf3473fac213c0cdbf5ae633f5d6c587789c0c3b658b4000a058e3549101c3b
+          Jwt__RefreshKey: 3b94e6942b1e7ca98fd88e0780d4083e4333fb0205939706520d32237cdd3a04
+          Jwt__Issuer: ProzoroBanka-Dev
+          Jwt__Audience: ProzoroBanka-Dev-Client
+          Encryption__Key: 42ed507dff026152986b8c63575c216497dda688bcd475095b47ba8e42c5ff93
+          
+          # Turnstile Test Keys (Bypass)
+          Turnstile__SecretKey: 1x0000000000000000000000000000000AA
+          Turnstile__VerifyUrl: https://challenges.cloudflare.com/turnstile/v0/siteverify
+          
+          # Seed Data for TC-01
+          Seed__Admin__Email: test@example.com
+          Seed__Admin__Password: Qwerty-1
+          
+          # Frontend Env
+          VITE_API_URL: http://localhost:5188
+          VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+        run: npm run test:e2e -- --project=chromium
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: Frontend/playwright-report/
+          retention-days: 7
+

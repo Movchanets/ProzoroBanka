@@ -124,8 +124,16 @@ export async function apiFetch<T>(
       }
     }
 
+    let errorMsg = 'Unauthorized';
+    try {
+      const errResponse = await response.clone().json();
+      errorMsg = getErrorMessage(errResponse, response.status) || 'Unauthorized';
+    } catch {
+      // Ignore parsing errors
+    }
+
     useAuthStore.getState().logout();
-    throw new Error('Unauthorized');
+    throw new Error(errorMsg);
   }
 
   if (!response.ok) {
