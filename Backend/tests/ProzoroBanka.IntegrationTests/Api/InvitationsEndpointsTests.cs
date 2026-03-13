@@ -52,6 +52,62 @@ public class InvitationsEndpointsTests : IClassFixture<TestWebApplicationFactory
 		Assert.Equal(HttpStatusCode.Unauthorized, acceptResponse.StatusCode);
 	}
 
+	[Fact]
+	public async Task DeclineInvitation_ReturnsNoContent()
+	{
+		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync();
+		var token = await CreateInviteLinkAsync(orgId);
+
+		var email = $"decliner-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(email, "Password123!");
+		await AuthenticateAsync(email, "Password123!");
+
+		var declineResponse = await _client.PostAsync($"/api/invitations/{token}/decline", content: null);
+		Assert.Equal(HttpStatusCode.NoContent, declineResponse.StatusCode);
+	}
+
+	[Fact]
+	public async Task CancelInvitation_WhenOwner_ReturnsNoContent()
+	{
+		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync();
+
+		// Create a link invite and capture its ID from the response
+		var createLinkResponse = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/invites/link", new
+		{
+			role = 2,
+			expiresInHours = 24
+		});
+		createLinkResponse.EnsureSuccessStatusCode();
+		var inviteJson = await createLinkResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var inviteId = inviteJson.GetProperty("id").GetGuid();
+
+		var cancelResponse = await _client.DeleteAsync($"/api/organizations/{orgId}/invites/{inviteId}");
+		Assert.Equal(HttpStatusCode.NoContent, cancelResponse.StatusCode);
+	}
+
+	[Fact]
+	public async Task InviteByEmail_CreatesInvitation_VisibleInOrgInvitesList()
+	{
+		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync();
+
+		var targetEmail = $"email-invitee-{Guid.NewGuid():N}@example.com";
+		var inviteResponse = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/invites/email", new
+		{
+			email = targetEmail,
+			role = 2 // Reporter
+		});
+		Assert.Equal(HttpStatusCode.OK, inviteResponse.StatusCode);
+
+		var invitesResponse = await _client.GetAsync($"/api/organizations/{orgId}/invites");
+		Assert.Equal(HttpStatusCode.OK, invitesResponse.StatusCode);
+
+		var invites = await invitesResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Contains(invites.EnumerateArray(), i => i.GetProperty("email").GetString() == targetEmail);
+	}
+
 	private async Task<Guid> CreateOrganizationAsync()
 	{
 		var response = await _client.PostAsJsonAsync("/api/organizations", new

@@ -54,6 +54,46 @@ public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFacto
 		Assert.NotEmpty(members.EnumerateArray());
 	}
 
+	[Fact]
+	public async Task DeleteOrganization_WhenOwner_ReturnsNoContent()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var orgId = await CreateOrganizationAsync($"Delete Org {Guid.NewGuid():N}");
+
+		var deleteResponse = await _client.DeleteAsync($"/api/organizations/{orgId}");
+		Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+		// After deletion the org should no longer be accessible (soft-deleted)
+		var getResponse = await _client.GetAsync($"/api/organizations/{orgId}");
+		Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
+	}
+
+	[Fact]
+	public async Task GetOrganization_WithoutAuth_ReturnsUnauthorized()
+	{
+		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync($"Unauth Org {Guid.NewGuid():N}");
+
+		_client.DefaultRequestHeaders.Authorization = null;
+		var getResponse = await _client.GetAsync($"/api/organizations/{orgId}");
+		Assert.Equal(HttpStatusCode.Unauthorized, getResponse.StatusCode);
+	}
+
+	private async Task<Guid> CreateOrganizationAsync(string name)
+	{
+		var response = await _client.PostAsJsonAsync("/api/organizations", new
+		{
+			name,
+			description = "Integration test org",
+			website = "https://test.example.org",
+			contactEmail = "test@example.org"
+		});
+		response.EnsureSuccessStatusCode();
+		var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+		return json.GetProperty("id").GetGuid();
+	}
+
 	private async Task AuthenticateAsAdminAsync()
 	{
 		var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new

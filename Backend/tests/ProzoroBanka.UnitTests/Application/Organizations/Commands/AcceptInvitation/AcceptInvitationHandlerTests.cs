@@ -2,26 +2,35 @@ using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Organizations.Commands.AcceptInvitation;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
-using ProzoroBanka.Infrastructure.Data;
+using ProzoroBanka.UnitTests.Infrastructure;
 
 namespace ProzoroBanka.UnitTests.Application.Organizations.Commands.AcceptInvitation;
 
+[Collection("PostgreSQL")]
 public class AcceptInvitationHandlerTests
 {
+	private readonly PostgreSqlUnitTestFixture _fixture;
+
+	public AcceptInvitationHandlerTests(PostgreSqlUnitTestFixture fixture)
+	{
+		_fixture = fixture;
+	}
+
 	[Fact]
 	public async Task Handle_AcceptsPendingInvitation_AndCreatesMember()
 	{
-		await using var db = CreateDb();
+		await using var db = _fixture.CreateContext();
 		var callerId = Guid.NewGuid();
 		var inviterId = Guid.NewGuid();
 		var orgId = Guid.NewGuid();
-		var token = "token-123";
+		var token = $"token-acc-{Guid.NewGuid():N}";
 
 		db.DomainUsers.AddRange(
-			new User { Id = callerId, Email = "volunteer@example.com", FirstName = "V", LastName = "One" },
-			new User { Id = inviterId, Email = "admin@example.com", FirstName = "A", LastName = "Two" }
+			new User { Id = callerId, Email = $"vol-{callerId:N}@example.com", FirstName = "V", LastName = "One" },
+			new User { Id = inviterId, Email = $"adm-{inviterId:N}@example.com", FirstName = "A", LastName = "Two" }
 		);
-		db.Organizations.Add(new Organization { Id = orgId, Name = "Org", Slug = "org", OwnerUserId = inviterId });
+		// Unique slug per test to avoid unique-constraint collision on shared DB
+		db.Organizations.Add(new Organization { Id = orgId, Name = "Org", Slug = $"org-{orgId:N}", OwnerUserId = inviterId });
 		db.Invitations.Add(new Invitation
 		{
 			OrganizationId = orgId,
@@ -46,18 +55,23 @@ public class AcceptInvitationHandlerTests
 	[Fact]
 	public async Task Handle_ReturnsFailure_WhenInvitationExpired()
 	{
-		await using var db = CreateDb();
+		await using var db = _fixture.CreateContext();
 		var callerId = Guid.NewGuid();
 		var inviterId = Guid.NewGuid();
 		var orgId = Guid.NewGuid();
+		var expiredToken = $"exp-{Guid.NewGuid():N}";
 
-		db.DomainUsers.Add(new User { Id = callerId, Email = "volunteer@example.com", FirstName = "V", LastName = "One" });
-		db.Organizations.Add(new Organization { Id = orgId, Name = "Org", Slug = "org", OwnerUserId = inviterId });
+		// Both users must exist — Organization.OwnerUserId and Invitation.InviterId are FKs to Users
+		db.DomainUsers.AddRange(
+			new User { Id = callerId, Email = $"vol-{callerId:N}@example.com", FirstName = "V", LastName = "One" },
+			new User { Id = inviterId, Email = $"adm-{inviterId:N}@example.com", FirstName = "A", LastName = "Two" }
+		);
+		db.Organizations.Add(new Organization { Id = orgId, Name = "Org", Slug = $"org-{orgId:N}", OwnerUserId = inviterId });
 		db.Invitations.Add(new Invitation
 		{
 			OrganizationId = orgId,
 			InviterId = inviterId,
-			Token = "expired-token",
+			Token = expiredToken,
 			DefaultRole = OrganizationRole.Reporter,
 			Status = InvitationStatus.Pending,
 			ExpiresAt = DateTime.UtcNow.AddMinutes(-5)
@@ -65,17 +79,9 @@ public class AcceptInvitationHandlerTests
 		await db.SaveChangesAsync();
 
 		var handler = new AcceptInvitationHandler(db);
-		var result = await handler.Handle(new AcceptInvitationCommand(callerId, "expired-token"), CancellationToken.None);
+		var result = await handler.Handle(new AcceptInvitationCommand(callerId, expiredToken), CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
 		Assert.Contains("Термін дії", result.Message);
-	}
-
-	private static ApplicationDbContext CreateDb()
-	{
-		var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-			.UseInMemoryDatabase($"accept-invite-{Guid.NewGuid():N}")
-			.Options;
-		return new ApplicationDbContext(options);
 	}
 }
