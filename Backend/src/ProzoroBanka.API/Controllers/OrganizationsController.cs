@@ -2,8 +2,11 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Application.Organizations.Commands.CancelInvitation;
+using ProzoroBanka.Application.Organizations.Commands.CreateInviteLink;
 using ProzoroBanka.Application.Organizations.Commands.CreateOrganization;
 using ProzoroBanka.Application.Organizations.Commands.DeleteOrganization;
+using ProzoroBanka.Application.Organizations.Commands.InviteByEmail;
 using ProzoroBanka.Application.Organizations.Commands.LeaveOrganization;
 using ProzoroBanka.Application.Organizations.Commands.RemoveMember;
 using ProzoroBanka.Application.Organizations.Commands.UpdateMemberRole;
@@ -12,6 +15,7 @@ using ProzoroBanka.Application.Organizations.Commands.UploadOrganizationLogo;
 using ProzoroBanka.Application.Organizations.DTOs;
 using ProzoroBanka.Application.Organizations.Queries.GetMyOrganizations;
 using ProzoroBanka.Application.Organizations.Queries.GetOrganizationById;
+using ProzoroBanka.Application.Organizations.Queries.GetOrganizationInvitations;
 using ProzoroBanka.Application.Organizations.Queries.GetOrganizationMembers;
 
 namespace ProzoroBanka.API.Controllers;
@@ -250,5 +254,104 @@ public class OrganizationsController : ApiControllerBase
 					: BadRequest(new { Error = result.Message });
 
 		return Ok(result.Payload);
+	}
+
+	// ── Invitations ──────────────────────────────────────────────────────────
+
+	/// <summary>Створити посилання-запрошення до організації (потрібно ManageInvitations).</summary>
+	[HttpPost("{id:guid}/invites/link")]
+	[ProducesResponseType(typeof(InvitationDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> CreateInviteLink(
+		Guid id, [FromBody] CreateInviteLinkRequest request, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var command = new CreateInviteLinkCommand(domainUserId.Value, id, request.Role, request.ExpiresInHours);
+		var result = await _sender.Send(command, ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: result.Message.Contains("Недостатньо прав")
+					? StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message })
+					: BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	/// <summary>Запросити учасника за email (потрібно ManageInvitations).</summary>
+	[HttpPost("{id:guid}/invites/email")]
+	[ProducesResponseType(typeof(InvitationDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> InviteByEmail(
+		Guid id, [FromBody] InviteByEmailRequest request, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var command = new InviteByEmailCommand(domainUserId.Value, id, request.Email, request.Role);
+		var result = await _sender.Send(command, ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: result.Message.Contains("Недостатньо прав")
+					? StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message })
+					: BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	/// <summary>Переглянути всі запрошення організації (потрібно ManageInvitations).</summary>
+	[HttpGet("{id:guid}/invites")]
+	[ProducesResponseType(typeof(IReadOnlyList<InvitationDto>), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> GetInvitations(Guid id, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new GetOrganizationInvitationsQuery(domainUserId.Value, id), ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	/// <summary>Скасувати запрошення (потрібно ManageInvitations або бути автором).</summary>
+	[HttpDelete("{id:guid}/invites/{inviteId:guid}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> CancelInvitation(Guid id, Guid inviteId, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new CancelInvitationCommand(domainUserId.Value, id, inviteId), ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: result.Message.Contains("Недостатньо прав")
+					? StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message })
+					: BadRequest(new { Error = result.Message });
+
+		return NoContent();
 	}
 }
