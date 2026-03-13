@@ -26,7 +26,7 @@ public class CancelInvitationHandlerTests
 		var inviteId = Guid.NewGuid();
 
 		db.DomainUsers.Add(new User
-			{ Id = ownerId, Email = $"own-{ownerId:N}@test.com", FirstName = "O", LastName = "W" });
+		{ Id = ownerId, Email = $"own-{ownerId:N}@test.com", FirstName = "O", LastName = "W" });
 		db.Organizations.Add(new Organization
 		{
 			Id = orgId,

@@ -6,6 +6,7 @@ import { profileSchema, type ProfileFormData } from '../../utils/authSchemas';
 import { useProfileQuery, useUpdateProfileMutation, useUploadAvatarMutation } from '../../hooks/queries/useProfile';
 import { useAuthStore } from '../../stores/authStore';
 import { FieldMessages } from '../../components/auth/FieldMessages';
+import { ProfileInvitationsTab } from '../../components/ProfileInvitationsTab';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -259,6 +260,8 @@ export default function ProfilePage() {
         )}
         </CardContent>
       </Card>
+
+      <ProfileInvitationsTab />
     </div>
   );
 }

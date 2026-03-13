@@ -76,3 +76,159 @@ export interface MonobankTransaction {
   merchantName?: string;
   mcc: number;
 }
+
+// ── Organizations ──
+
+export const OrganizationRole = {
+  Owner: 0,
+  Admin: 1,
+  Reporter: 2,
+} as const;
+export type OrganizationRole = typeof OrganizationRole[keyof typeof OrganizationRole];
+
+export const OrganizationRoleLabel: Record<OrganizationRole, string> = {
+  [OrganizationRole.Owner]: 'Власник',
+  [OrganizationRole.Admin]: 'Адмін',
+  [OrganizationRole.Reporter]: 'Волонтер',
+} as const;
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  logoUrl?: string;
+  isVerified: boolean;
+  memberCount: number;
+  createdAt: string;
+}
+
+export interface OrganizationDetail extends Organization {
+  website?: string;
+  contactEmail?: string;
+  phone?: string;
+  socialLinks?: string;
+  members: OrganizationMember[];
+}
+
+export interface OrganizationMember {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: OrganizationRole;
+  permissions: number;
+  joinedAt: string;
+  avatarUrl?: string;
+}
+
+export interface CreateOrganizationPayload {
+  name: string;
+  slug?: string;
+  description?: string;
+  website?: string;
+}
+
+export interface UpdateOrganizationPayload {
+  name?: string;
+  description?: string;
+  website?: string;
+  contactEmail?: string;
+  phone?: string;
+}
+
+export interface UpdateMemberRolePayload {
+  role: OrganizationRole;
+  permissions?: number;
+}
+
+// ── Invitations ──
+
+export const InvitationStatus = {
+  Pending: 0,
+  Accepted: 1,
+  Declined: 2,
+  Cancelled: 3,
+  Expired: 4,
+} as const;
+export type InvitationStatus = typeof InvitationStatus[keyof typeof InvitationStatus];
+
+export interface Invitation {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  organizationLogoUrl?: string;
+  email?: string;
+  role: OrganizationRole;
+  status: InvitationStatus;
+  token: string;
+  invitedByName: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface InviteByEmailPayload {
+  email: string;
+  role: OrganizationRole;
+}
+
+export interface InviteLinkInfo {
+  organizationName: string;
+  organizationLogoUrl?: string;
+  role: OrganizationRole;
+  invitedByName: string;
+  expiresAt: string;
+}
+
+// ── Campaigns ──
+
+export const CampaignStatus = {
+  Draft: 0,
+  Active: 1,
+  Paused: 2,
+  Completed: 3,
+} as const;
+export type CampaignStatus = typeof CampaignStatus[keyof typeof CampaignStatus];
+
+export const CampaignStatusLabel: Record<CampaignStatus, string> = {
+  [CampaignStatus.Draft]: 'Чернетка',
+  [CampaignStatus.Active]: 'Активний',
+  [CampaignStatus.Paused]: 'Призупинено',
+  [CampaignStatus.Completed]: 'Завершено',
+} as const;
+
+export interface Campaign {
+  id: string;
+  organizationId: string;
+  title: string;
+  description?: string;
+  goalAmount: number;
+  currentAmount: number;
+  status: CampaignStatus;
+  deadline?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCampaignPayload {
+  title: string;
+  description?: string;
+  goalAmount: number;
+  deadline?: string;
+}
+
+export interface UpdateCampaignPayload {
+  title?: string;
+  description?: string;
+  goalAmount?: number;
+  status?: CampaignStatus;
+  deadline?: string;
+}
+
+// ── ServiceResponse wrapper ──
+
+export interface ServiceResponse<T> {
+  success: boolean;
+  data?: T;
+  message?: string;
+}

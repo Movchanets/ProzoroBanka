@@ -11,6 +11,16 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPassword/ForgotPassw
 const ResetPasswordPage = lazy(() => import('./pages/ResetPassword/ResetPasswordPage'));
 const ProfilePage = lazy(() => import('./pages/Profile/ProfilePage'));
 const AppShell = lazy(() => import('./components/AppShell'));
+const OnboardingPage = lazy(() => import('./pages/Onboarding/OnboardingPage'));
+const DashboardLayout = lazy(() => import('./components/DashboardLayout'));
+const DashboardHomePage = lazy(() => import('./pages/Dashboard/DashboardHomePage'));
+const OrgSettingsPage = lazy(() => import('./pages/Dashboard/OrgSettingsPage'));
+const TeamPage = lazy(() => import('./pages/Dashboard/TeamPage'));
+const CampaignsListPage = lazy(() => import('./pages/Dashboard/CampaignsListPage'));
+const CampaignCreatePage = lazy(() => import('./pages/Dashboard/CampaignCreatePage'));
+const CampaignEditPage = lazy(() => import('./pages/Dashboard/CampaignEditPage'));
+const ReceiptsPlaceholderPage = lazy(() => import('./pages/Dashboard/ReceiptsPlaceholderPage'));
+const InvitePage = lazy(() => import('./pages/Invite/InvitePage'));
 const ReactQueryDevtools = import.meta.env.DEV
   ? lazy(() => import('@tanstack/react-query-devtools').then((module) => ({ default: module.ReactQueryDevtools })))
   : null;
@@ -32,7 +42,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function GuestRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
+  return isAuthenticated ? <Navigate to="/onboarding" replace /> : <>{children}</>;
 }
 
 function App() {
@@ -46,12 +56,28 @@ function App() {
         </div>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
+            {/* Guest routes */}
             <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
             <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
             <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
             <Route path="/reset-password" element={<GuestRoute><ResetPasswordPage /></GuestRoute>} />
+
+            {/* Public invite page (redirects to login if not auth) */}
+            <Route path="/invite/:token" element={<InvitePage />} />
+
+            {/* Onboarding — redirect to dashboard if has orgs */}
             <Route
-              path="/"
+              path="/onboarding"
+              element={
+                <ProtectedRoute>
+                  <OnboardingPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Profile (legacy location — standalone AppShell) */}
+            <Route
+              path="/profile"
               element={
                 <ProtectedRoute>
                   <AppShell>
@@ -60,7 +86,34 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/profile" element={<Navigate to="/" replace />} />
+
+            {/* Dashboard routes */}
+            <Route
+              path="/dashboard/:orgId"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<DashboardHomePage />} />
+              <Route path="settings" element={<OrgSettingsPage />} />
+              <Route path="team" element={<TeamPage />} />
+              <Route path="campaigns" element={<CampaignsListPage />} />
+              <Route path="campaigns/new" element={<CampaignCreatePage />} />
+              <Route path="campaigns/:campaignId/edit" element={<CampaignEditPage />} />
+              <Route path="receipts" element={<ReceiptsPlaceholderPage />} />
+            </Route>
+
+            {/* Root → onboarding (will auto-redirect to dashboard if has orgs) */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/onboarding" replace />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

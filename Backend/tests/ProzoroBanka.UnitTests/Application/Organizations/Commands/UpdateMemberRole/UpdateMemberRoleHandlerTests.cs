@@ -84,14 +84,18 @@ public class UpdateMemberRoleHandlerTests
 		db.OrganizationMembers.AddRange(
 			new OrganizationMember
 			{
-				OrganizationId = orgId, UserId = callerId,
-				Role = OrganizationRole.Reporter, PermissionsFlags = OrganizationPermissions.ManageReceipts,
+				OrganizationId = orgId,
+				UserId = callerId,
+				Role = OrganizationRole.Reporter,
+				PermissionsFlags = OrganizationPermissions.ManageReceipts,
 				JoinedAt = DateTime.UtcNow
 			},
 			new OrganizationMember
 			{
-				OrganizationId = orgId, UserId = targetId,
-				Role = OrganizationRole.Reporter, PermissionsFlags = OrganizationPermissions.None,
+				OrganizationId = orgId,
+				UserId = targetId,
+				Role = OrganizationRole.Reporter,
+				PermissionsFlags = OrganizationPermissions.None,
 				JoinedAt = DateTime.UtcNow
 			}
 		);
@@ -158,8 +162,10 @@ public class UpdateMemberRoleHandlerTests
 
 		db.OrganizationMembers.Add(new OrganizationMember
 		{
-			OrganizationId = orgId, UserId = targetId,
-			Role = OrganizationRole.Reporter, PermissionsFlags = OrganizationPermissions.None,
+			OrganizationId = orgId,
+			UserId = targetId,
+			Role = OrganizationRole.Reporter,
+			PermissionsFlags = OrganizationPermissions.None,
 			JoinedAt = DateTime.UtcNow
 		});
 		await db.SaveChangesAsync();
