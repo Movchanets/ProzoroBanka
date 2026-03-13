@@ -26,7 +26,9 @@ dist/
 .idea/
 *.swp
 *.swo
-
+.agents/
+.github/csharp-developer/
+.github/skills/
 # ---- Terraform ----
 .terraform/
 *.tfstate
