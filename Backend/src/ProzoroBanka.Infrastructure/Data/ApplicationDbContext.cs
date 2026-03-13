@@ -26,6 +26,7 @@ public class ApplicationDbContext
 	public DbSet<User> DomainUsers => Set<User>();
 	public DbSet<Organization> Organizations => Set<Organization>();
 	public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
+	public DbSet<Invitation> Invitations => Set<Invitation>();
 	public DbSet<Receipt> Receipts => Set<Receipt>();
 	public DbSet<MonobankTransaction> MonobankTransactions => Set<MonobankTransaction>();
 	public DbSet<MatchResult> MatchResults => Set<MatchResult>();
@@ -34,6 +35,7 @@ public class ApplicationDbContext
 	DbSet<User> IApplicationDbContext.Users => DomainUsers;
 	DbSet<Organization> IApplicationDbContext.Organizations => Organizations;
 	DbSet<OrganizationMember> IApplicationDbContext.OrganizationMembers => OrganizationMembers;
+	DbSet<Invitation> IApplicationDbContext.Invitations => Invitations;
 
 	protected override void OnModelCreating(ModelBuilder builder)
 	{
@@ -135,6 +137,11 @@ public class ApplicationDbContext
 				.WithOne(m => m.Organization)
 				.HasForeignKey(m => m.OrganizationId)
 				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasMany(e => e.Invitations)
+				.WithOne(i => i.Organization)
+				.HasForeignKey(i => i.OrganizationId)
+				.OnDelete(DeleteBehavior.Cascade);
 		});
 
 		builder.Entity<OrganizationMember>(b =>
@@ -144,6 +151,23 @@ public class ApplicationDbContext
 			b.HasIndex(e => new { e.OrganizationId, e.UserId }).IsUnique();
 			b.Property(e => e.PermissionsFlags).HasConversion<int>();
 			b.HasQueryFilter(e => !e.IsDeleted);
+		});
+
+		builder.Entity<Invitation>(b =>
+		{
+			b.ToTable("Invitations");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.Token).HasMaxLength(200).IsRequired();
+			b.HasIndex(e => e.Token).IsUnique();
+			b.Property(e => e.Email).HasMaxLength(256);
+			b.Property(e => e.DefaultRole).HasConversion<int>();
+			b.Property(e => e.Status).HasConversion<int>();
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.Inviter)
+				.WithMany()
+				.HasForeignKey(e => e.InviterId)
+				.OnDelete(DeleteBehavior.Restrict);
 		});
 
 		builder.Entity<Receipt>(b =>
