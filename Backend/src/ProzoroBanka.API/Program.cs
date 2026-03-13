@@ -2,6 +2,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using ProzoroBanka.API.Authorization;
 using ProzoroBanka.API.Filters;
@@ -150,16 +151,25 @@ try
                 .WithTheme(ScalarTheme.BluePlanet)
                 .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
         });
+
+        var contentRoot = builder.Environment.ContentRootPath;
+        var webRoot = Path.Combine(contentRoot, "wwwroot");
+        var uploadsPath = Path.Combine(contentRoot, "wwwroot", "uploads");
+        // Якщо папки немає - створюємо її фізично
+        if (!Directory.Exists(webRoot))
+        {
+            Directory.CreateDirectory(webRoot);
+        }
+
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(uploadsPath),
+            RequestPath = "" // Порожній шлях мапить файли в корінь URL
+        });
     }
-    var contentRoot = builder.Environment.ContentRootPath;
-    var webRoot = Path.Combine(contentRoot, "wwwroot");
-    // Якщо папки немає - створюємо її фізично
-    if (!Directory.Exists(webRoot))
-    {
-        Directory.CreateDirectory(webRoot);
-    }
+
     app.UseHttpsRedirection();
-    app.UseStaticFiles();
+   
     app.UseCors("Frontend");
     app.UseRateLimiter();
     app.UseAuthentication();
