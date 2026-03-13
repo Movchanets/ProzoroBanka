@@ -4,7 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Organizations.Commands.CreateOrganization;
 using ProzoroBanka.Application.Organizations.Commands.DeleteOrganization;
+using ProzoroBanka.Application.Organizations.Commands.LeaveOrganization;
+using ProzoroBanka.Application.Organizations.Commands.RemoveMember;
+using ProzoroBanka.Application.Organizations.Commands.UpdateMemberRole;
 using ProzoroBanka.Application.Organizations.Commands.UpdateOrganization;
+using ProzoroBanka.Application.Organizations.Commands.UploadOrganizationLogo;
 using ProzoroBanka.Application.Organizations.DTOs;
 using ProzoroBanka.Application.Organizations.Queries.GetMyOrganizations;
 using ProzoroBanka.Application.Organizations.Queries.GetOrganizationById;
@@ -147,6 +151,103 @@ public class OrganizationsController : ApiControllerBase
 			return result.Message.Contains("не знайдено")
 				? NotFound(new { Error = result.Message })
 				: StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	/// <summary>Змінити роль учасника організації (потрібно ManageMembers).</summary>
+	[HttpPut("{id:guid}/members/{userId:guid}")]
+	[ProducesResponseType(typeof(OrganizationMemberDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> UpdateMemberRole(
+		Guid id, Guid userId, [FromBody] UpdateMemberRoleRequest request, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var command = new UpdateMemberRoleCommand(
+			domainUserId.Value, id, userId, request.NewRole, request.NewPermissionsFlags);
+		var result = await _sender.Send(command, ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	/// <summary>Видалити учасника з організації (потрібно ManageMembers).</summary>
+	[HttpDelete("{id:guid}/members/{userId:guid}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> RemoveMember(Guid id, Guid userId, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new RemoveMemberCommand(domainUserId.Value, id, userId), ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message });
+
+		return NoContent();
+	}
+
+	/// <summary>Вийти з організації (Owner не може вийти).</summary>
+	[HttpPost("{id:guid}/leave")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> Leave(Guid id, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new LeaveOrganizationCommand(domainUserId.Value, id), ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не є учасником")
+				? NotFound(new { Error = result.Message })
+				: BadRequest(new { Error = result.Message });
+
+		return NoContent();
+	}
+
+	/// <summary>Завантажити логотип організації (потрібно UploadLogo permission).</summary>
+	[HttpPost("{id:guid}/logo")]
+	[Consumes("multipart/form-data")]
+	[ProducesResponseType(typeof(OrganizationDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> UploadLogo(Guid id, [FromForm] IFormFile? file, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		if (file is null || file.Length == 0)
+			return BadRequest(new { Error = "Файл логотипу обов'язковий." });
+
+		await using var fileStream = file.OpenReadStream();
+		var command = new UploadOrganizationLogoCommand(
+			domainUserId.Value, id, fileStream, file.FileName, file.ContentType, file.Length);
+		var result = await _sender.Send(command, ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: result.Message.Contains("Недостатньо прав")
+					? StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message })
+					: BadRequest(new { Error = result.Message });
 
 		return Ok(result.Payload);
 	}

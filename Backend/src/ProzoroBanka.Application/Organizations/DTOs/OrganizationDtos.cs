@@ -41,3 +41,8 @@ public record UpdateOrganizationRequest(
 	string? Website,
 	string? ContactEmail
 );
+
+public record UpdateMemberRoleRequest(
+	OrganizationRole NewRole,
+	OrganizationPermissions NewPermissionsFlags
+);
