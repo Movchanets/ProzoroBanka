@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
+import { cn, getImageUrl } from '@/lib/utils';
 
 interface WorkspaceSwitcherProps {
   onCreateClick?: () => void;
@@ -44,8 +44,16 @@ export function WorkspaceSwitcher({ onCreateClick, collapsed }: WorkspaceSwitche
           )}
         >
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-linear-to-br from-primary/80 to-primary text-xs font-extrabold text-primary-foreground">
-            {activeOrg?.name.charAt(0).toUpperCase() ?? (
-              <Building2 className="h-4 w-4" />
+            {activeOrg?.logoStorageKey ? (
+              <img
+                src={getImageUrl(activeOrg.logoStorageKey)}
+                alt={activeOrg.name}
+                className="h-full w-full rounded-lg object-cover"
+              />
+            ) : (
+              activeOrg?.name.charAt(0).toUpperCase() ?? (
+                <Building2 className="h-4 w-4" />
+              )
             )}
           </span>
           {!collapsed && (
@@ -70,7 +78,15 @@ export function WorkspaceSwitcher({ onCreateClick, collapsed }: WorkspaceSwitche
             className="gap-3"
           >
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-linear-to-br from-primary/80 to-primary text-[0.65rem] font-extrabold text-primary-foreground">
-              {org.name.charAt(0).toUpperCase()}
+              {org.logoStorageKey ? (
+                <img
+                  src={getImageUrl(org.logoStorageKey)}
+                  alt={org.name}
+                  className="h-full w-full rounded-md object-cover"
+                />
+              ) : (
+                org.name.charAt(0).toUpperCase()
+              )}
             </span>
             <span className="flex-1 truncate">{org.name}</span>
             {org.id === activeOrgId && (

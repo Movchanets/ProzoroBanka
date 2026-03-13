@@ -11,6 +11,7 @@ import {
   updateOrganizationSchema,
   type UpdateOrganizationFormData,
 } from '@/utils/organizationSchemas';
+import { getImageUrl } from '@/lib/utils';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -135,7 +136,7 @@ export default function OrgSettingsPage() {
   };
 
   // The displayed logo: local preview → server URL → fallback initial
-  const displayedLogoUrl = localLogoPreview || org?.logoUrl;
+  const displayedLogoUrl = localLogoPreview || getImageUrl(org?.logoStorageKey);
 
   if (isLoading) {
     return (

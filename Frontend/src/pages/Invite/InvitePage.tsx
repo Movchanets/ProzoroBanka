@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useInviteInfo, useAcceptInvitation, useDeclineInvitation } from '@/hooks/queries/useInvitations';
 import { useAuthStore } from '@/stores/authStore';
 import { OrganizationRoleLabel } from '@/types';
+import { getImageUrl } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -126,9 +127,9 @@ export default function InvitePage() {
     <div className="mx-auto flex min-h-screen w-[min(500px,calc(100%-32px))] items-center justify-center py-8">
       <Card className="w-full border border-border bg-card/80 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl">
         <CardHeader className="items-center text-center pb-2">
-          {info.organizationLogoUrl ? (
+          {info.organizationLogoStorageKey ? (
             <img
-              src={info.organizationLogoUrl}
+              src={getImageUrl(info.organizationLogoStorageKey)}
               alt={info.organizationName}
               className="mb-2 h-14 w-14 rounded-2xl object-cover"
             />

@@ -8,6 +8,7 @@ import {
 } from '@/hooks/queries/useInvitations';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { OrganizationRoleLabel, type Invitation } from '@/types';
+import { getImageUrl } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,9 +60,9 @@ function IncomingInvitationRow({
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3">
-        {invitation.organizationLogoUrl ? (
+        {invitation.organizationLogoStorageKey ? (
           <img
-            src={invitation.organizationLogoUrl}
+            src={getImageUrl(invitation.organizationLogoStorageKey)}
             alt=""
             className="h-10 w-10 rounded-xl object-cover"
           />
