@@ -1,106 +1,80 @@
 import { useParams } from 'react-router-dom';
-import { useOrganization, useOrganizationMembers } from '@/hooks/queries/useOrganizations';
+import { useTranslation } from 'react-i18next';
+import { useOrganization } from '@/hooks/queries/useOrganizations';
 import { useCampaigns } from '@/hooks/queries/useCampaigns';
+import { CampaignStatus } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Megaphone, Receipt, TrendingUp } from 'lucide-react';
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  isLoading,
-}: {
-  label: string;
-  value: string | number;
-  icon: React.ElementType;
-  isLoading: boolean;
-}) {
-  return (
-    <Card className="border border-border bg-card/60 backdrop-blur-sm">
-      <CardContent className="flex items-center gap-4 p-5">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          {isLoading ? (
-            <Skeleton className="h-7 w-12" />
-          ) : (
-            <p className="text-2xl font-bold tracking-tight">{value}</p>
-          )}
-          <p className="text-sm text-muted-foreground">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+import { BarChart3, Megaphone, Receipt, Users, Zap } from 'lucide-react';
 
 export default function DashboardHomePage() {
+  const { t } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
   const { data: org, isLoading: orgLoading } = useOrganization(orgId);
-  const { data: members, isLoading: membersLoading } = useOrganizationMembers(orgId);
-  const { data: campaigns, isLoading: campaignsLoading } = useCampaigns(orgId);
+  const { data: campaigns, isLoading: campLoading } = useCampaigns(orgId);
 
-  const activeCampaigns = campaigns?.filter((c) => c.status === 1)?.length ?? 0;
+  const isLoading = orgLoading || campLoading;
+
+  const activeCampaigns = campaigns?.filter((c) => c.status === CampaignStatus.Active).length ?? 0;
   const totalRaised = campaigns?.reduce((sum, c) => sum + c.currentAmount, 0) ?? 0;
+  const raisedFormatted = new Intl.NumberFormat('uk-UA').format(totalRaised / 100);
+
+  const stats = [
+    { icon: <Users className="h-5 w-5" />, label: t('dashboard.statMembers'), value: org?.memberCount ?? 0 },
+    { icon: <Megaphone className="h-5 w-5" />, label: t('dashboard.statActiveCampaigns'), value: activeCampaigns },
+    { icon: <BarChart3 className="h-5 w-5" />, label: t('dashboard.statRaised'), value: raisedFormatted },
+    { icon: <Receipt className="h-5 w-5" />, label: t('dashboard.statReceipts'), value: 0 },
+  ];
+
+  const steps = [
+    t('dashboard.step1'),
+    t('dashboard.step2'),
+    t('dashboard.step3'),
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (<Skeleton key={i} className="h-28 rounded-2xl" />))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">
-          {orgLoading ? <Skeleton className="h-8 w-48 inline-block" /> : `Вітаю в ${org?.name}!`}
-        </h2>
-        <p className="mt-1 text-muted-foreground">
-          Огляд основних показників організації
-        </p>
+        <h2 className="text-2xl font-semibold tracking-tight">{t('dashboard.welcomeOrg', { name: org?.name })}</h2>
+        <p className="text-muted-foreground">{t('dashboard.overviewSubtitle')}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Учасників"
-          value={members?.length ?? org?.memberCount ?? 0}
-          icon={Users}
-          isLoading={membersLoading}
-        />
-        <StatCard
-          label="Активних зборів"
-          value={activeCampaigns}
-          icon={Megaphone}
-          isLoading={campaignsLoading}
-        />
-        <StatCard
-          label="Зібрано (₴)"
-          value={new Intl.NumberFormat('uk-UA').format(totalRaised / 100)}
-          icon={TrendingUp}
-          isLoading={campaignsLoading}
-        />
-        <StatCard
-          label="Чеків"
-          value="—"
-          icon={Receipt}
-          isLoading={false}
-        />
+        {stats.map((s) => (
+          <Card key={s.label} className="border border-border bg-card/60 backdrop-blur-sm">
+            <CardContent className="flex items-center gap-4 p-5">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">{s.icon}</span>
+              <div>
+                <p className="text-2xl font-bold">{s.value}</p>
+                <p className="text-sm text-muted-foreground">{s.label}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card className="border border-border bg-card/60 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="text-lg">Швидкий старт</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Zap className="h-5 w-5 text-primary" />
+            {t('dashboard.quickStart')}
+          </CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          <ul className="space-y-2">
-            <li className="flex items-center gap-2">
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
-              Запросіть волонтерів через вкладку «Команда»
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</span>
-              Створіть перший збір у розділі «Збори»
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">3</span>
-              Завантажуйте чеки для автоматичного звітування
-            </li>
-          </ul>
+        <CardContent>
+          <ol className="list-inside list-decimal space-y-2 text-sm text-muted-foreground">
+            {steps.map((step, i) => (<li key={i}>{step}</li>))}
+          </ol>
         </CardContent>
       </Card>
     </div>

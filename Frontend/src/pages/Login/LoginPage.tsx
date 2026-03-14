@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { CircleAlert, KeyRound, LoaderCircle, Mail } from 'lucide-react';
-import { loginSchema, type LoginFormData } from '../../utils/authSchemas';
+import { createLoginSchema, type LoginFormData } from '../../utils/authSchemas';
 import { useGoogleLoginMutation, useLoginMutation } from '../../hooks/queries/useAuth';
 import { TurnstileWidget } from '../../components/TurnstileWidget';
 import { AuthShell } from '../../components/auth/AuthShell';
@@ -35,6 +36,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
 const GOOGLE_SCRIPT_ID = 'google-identity-services';
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
   const [googleReady, setGoogleReady] = useState(false);
@@ -42,13 +44,15 @@ export default function LoginPage() {
   const googleLoginMutation = useGoogleLoginMutation();
   const googleInitializedRef = useRef(false);
 
+  const schema = useMemo(() => createLoginSchema(t), [t]);
+
   const {
     register,
     handleSubmit,
     setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(schema),
     mode: 'onBlur',
     reValidateMode: 'onChange',
     criteriaMode: 'all',
@@ -66,7 +70,7 @@ export default function LoginPage() {
       await loginMutation.mutateAsync(data);
       navigate('/', { replace: true });
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'Помилка авторизації');
+      setServerError(err instanceof Error ? err.message : t('auth.login.errorDefault'));
     }
   };
 
@@ -90,13 +94,13 @@ export default function LoginPage() {
         client_id: GOOGLE_CLIENT_ID,
         callback: async ({ credential }) => {
           if (!credential) {
-            setServerError('Google не повернув токен для входу.');
+            setServerError(t('auth.login.googleNoToken'));
             return;
           }
 
           const turnstileToken = document.querySelector<HTMLInputElement>('input[name="cf-turnstile-response"]')?.value?.trim();
           if (!turnstileToken) {
-            setServerError('Підтвердіть перевірку Turnstile перед входом через Google.');
+            setServerError(t('auth.login.googleTurnstileRequired'));
             return;
           }
 
@@ -106,7 +110,7 @@ export default function LoginPage() {
             await googleLoginMutation.mutateAsync({ idToken: credential, turnstileToken });
             navigate('/', { replace: true });
           } catch (err) {
-            setServerError(err instanceof Error ? err.message : 'Помилка входу через Google');
+            setServerError(err instanceof Error ? err.message : t('auth.login.googleError'));
           }
         },
         cancel_on_tap_outside: true,
@@ -140,43 +144,43 @@ export default function LoginPage() {
     return () => {
       cancelled = true;
     };
-  }, [googleLoginMutation, navigate]);
+  }, [googleLoginMutation, navigate, t]);
 
   const handleGoogleLogin = useCallback(() => {
     if (!GOOGLE_CLIENT_ID) {
-      setServerError('Google OAuth client ID не налаштовано.');
+      setServerError(t('auth.login.googleNotConfiguredShort'));
       return;
     }
 
     if (!window.google || !googleReady) {
-      setServerError('Google Sign-In ще ініціалізується. Спробуйте ще раз.');
+      setServerError(t('auth.login.googleInitializing'));
       return;
     }
 
     const turnstileToken = document.querySelector<HTMLInputElement>('input[name="cf-turnstile-response"]')?.value?.trim();
     if (!turnstileToken) {
-      setServerError('Підтвердіть перевірку Turnstile перед входом через Google.');
+      setServerError(t('auth.login.googleTurnstileRequired'));
       return;
     }
 
     setServerError(null);
     setValue('turnstileToken', turnstileToken, { shouldValidate: true });
     window.google.accounts.id.prompt();
-  }, [googleReady, setValue]);
+  }, [googleReady, setValue, t]);
 
   return (
     <AuthShell
-      eyebrow="Безпечний вхід"
-      title="Поверніться до фінансового кабінету"
-      note="Увійдіть, щоб продовжити роботу з профілем і фінансовою звітністю команди."
-      alternateLabel="Ще не маєте акаунта?"
+      eyebrow={t('auth.login.eyebrow')}
+      title={t('auth.login.heroTitle')}
+      note={t('auth.login.heroNote')}
+      alternateLabel={t('auth.login.altLabel')}
       alternateHref="/register"
-      alternateAction="Створити профіль"
+      alternateAction={t('auth.login.altAction')}
     >
       <div className="space-y-2">
-        <h2 className="text-[2rem] font-semibold leading-none tracking-tight">Увійти</h2>
+        <h2 className="text-[2rem] font-semibold leading-none tracking-tight">{t('auth.login.title')}</h2>
         <p className="text-base leading-7 text-muted-foreground">
-          Використайте email і пароль, які вказували під час реєстрації.
+          {t('auth.login.subtitle')}
         </p>
       </div>
 
@@ -189,7 +193,7 @@ export default function LoginPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
         <div className="grid gap-2.5">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t('common.email')}</Label>
           <div className="relative">
             <Mail className="pointer-events-none absolute left-4 top-1/2 z-10 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <Input
@@ -208,7 +212,7 @@ export default function LoginPage() {
         </div>
 
         <div className="grid gap-2.5">
-          <Label htmlFor="password">Пароль</Label>
+          <Label htmlFor="password">{t('common.password')}</Label>
           <div className="relative">
             <KeyRound className="pointer-events-none absolute left-4 top-1/2 z-10 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <Input
@@ -230,7 +234,7 @@ export default function LoginPage() {
         </div>
 
         <Button type="submit" size="pillWide" className="w-full shadow-[0_18px_30px_var(--shadow-strong)]" disabled={loginMutation.isPending}>
-          {loginMutation.isPending ? 'Вхід…' : 'Увійти'}
+          {loginMutation.isPending ? t('auth.login.submitPending') : t('auth.login.submit')}
         </Button>
 
         <div className="relative py-1.5">
@@ -238,7 +242,7 @@ export default function LoginPage() {
             <span className="w-full border-t border-border" />
           </div>
           <div className="relative flex justify-center text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            <span className="bg-background px-3">або</span>
+            <span className="bg-background px-3">{t('common.or')}</span>
           </div>
         </div>
 
@@ -253,23 +257,23 @@ export default function LoginPage() {
           {googleLoginMutation.isPending ? (
             <>
               <LoaderCircle className="animate-spin" aria-hidden="true" />
-              Вхід через Google…
+              {t('auth.login.googlePending')}
             </>
           ) : (
-            'Увійти через Google'
+            t('auth.login.google')
           )}
         </Button>
 
         {!GOOGLE_CLIENT_ID && (
           <p className="text-sm leading-6 text-muted-foreground">
-            Вхід через Google з&apos;явиться після налаштування `VITE_GOOGLE_CLIENT_ID` у frontend і `Google:ClientId` у backend.
+            {t('auth.login.googleNotConfigured')}
           </p>
         )}
       </form>
 
       <div className="flex justify-end">
         <Link className="inline-flex text-sm font-bold text-accent transition-colors hover:text-accent/80" to="/forgot-password">
-          Забули пароль?
+          {t('auth.login.forgotPassword')}
         </Link>
       </div>
     </AuthShell>

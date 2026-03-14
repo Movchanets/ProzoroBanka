@@ -87,9 +87,9 @@ export const OrganizationRole = {
 export type OrganizationRole = typeof OrganizationRole[keyof typeof OrganizationRole];
 
 export const OrganizationRoleLabel: Record<OrganizationRole, string> = {
-  [OrganizationRole.Owner]: 'Власник',
-  [OrganizationRole.Admin]: 'Адмін',
-  [OrganizationRole.Reporter]: 'Волонтер',
+  [OrganizationRole.Owner]: 'roles.owner',
+  [OrganizationRole.Admin]: 'roles.admin',
+  [OrganizationRole.Reporter]: 'roles.reporter',
 } as const;
 
 export interface Organization {
@@ -191,10 +191,10 @@ export const CampaignStatus = {
 export type CampaignStatus = typeof CampaignStatus[keyof typeof CampaignStatus];
 
 export const CampaignStatusLabel: Record<CampaignStatus, string> = {
-  [CampaignStatus.Draft]: 'Чернетка',
-  [CampaignStatus.Active]: 'Активний',
-  [CampaignStatus.Paused]: 'Призупинено',
-  [CampaignStatus.Completed]: 'Завершено',
+  [CampaignStatus.Draft]: 'campaignStatus.draft',
+  [CampaignStatus.Active]: 'campaignStatus.active',
+  [CampaignStatus.Paused]: 'campaignStatus.paused',
+  [CampaignStatus.Completed]: 'campaignStatus.completed',
 } as const;
 
 export interface Campaign {

@@ -1,21 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useCreateOrganization } from '@/hooks/queries/useOrganizations';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
-import {
-  createOrganizationSchema,
-  type CreateOrganizationFormData,
-} from '@/utils/organizationSchemas';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { createOrganizationSchema, type CreateOrganizationFormData } from '@/utils/organizationSchemas';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,10 +20,6 @@ interface CreateOrganizationDialogProps {
   redirectAfterCreate?: boolean;
 }
 
-/**
- * Transliterate a Ukrainian/Cyrillic string to a URL-safe latin slug.
- * Falls back to stripping non-latin/digit chars for other scripts.
- */
 function toSlug(name: string): string {
   const cyr: Record<string, string> = {
     а: 'a', б: 'b', в: 'v', г: 'h', ґ: 'g', д: 'd', е: 'e', є: 'ye',
@@ -54,30 +41,21 @@ function toSlug(name: string): string {
     .slice(0, 100);
 }
 
-export function CreateOrganizationDialog({
-  open,
-  onOpenChange,
-  redirectAfterCreate = true,
-}: CreateOrganizationDialogProps) {
+export function CreateOrganizationDialog({ open, onOpenChange, redirectAfterCreate = true }: CreateOrganizationDialogProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const createOrg = useCreateOrganization();
   const setActiveOrg = useWorkspaceStore((s) => s.setActiveOrg);
   const [apiError, setApiError] = useState<string | null>(null);
   const [slugEdited, setSlugEdited] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    reset,
-    formState: { errors },
-  } = useForm<CreateOrganizationFormData>({
-    resolver: zodResolver(createOrganizationSchema),
+  const schema = useMemo(() => createOrganizationSchema(t), [t]);
+
+  const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<CreateOrganizationFormData>({
+    resolver: zodResolver(schema),
     defaultValues: { name: '', slug: '', description: '', website: '' },
   });
 
-  // Auto-generate slug from name — called via register's onChange,
-  // does NOT use `watch` or controlled `value` to avoid Cyrillic IME issues.
   const handleNameChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (!slugEdited) {
@@ -100,11 +78,9 @@ export function CreateOrganizationDialog({
       reset();
       setSlugEdited(false);
       onOpenChange(false);
-      if (redirectAfterCreate) {
-        navigate(`/dashboard/${org.id}`);
-      }
+      if (redirectAfterCreate) navigate(`/dashboard/${org.id}`);
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Не вдалось створити організацію');
+      setApiError(err instanceof Error ? err.message : t('organizations.create.errorDefault'));
     }
   };
 
@@ -124,9 +100,9 @@ export function CreateOrganizationDialog({
           <div className="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-2xl bg-linear-to-br from-primary/80 to-primary text-primary-foreground">
             <Building2 className="h-6 w-6" />
           </div>
-          <DialogTitle className="text-center">Нова організація</DialogTitle>
+          <DialogTitle className="text-center">{t('organizations.create.title')}</DialogTitle>
           <DialogDescription className="text-center">
-            Створіть організацію щоб почати збирати кошти для волонтерства.
+            {t('organizations.create.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -138,71 +114,35 @@ export function CreateOrganizationDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="org-name">Назва *</Label>
-            <Input
-              id="org-name"
-              placeholder="Благодійний фонд «Промінь»"
-              autoFocus
-              {...register('name', { onChange: handleNameChange })}
-            />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
-            )}
+            <Label htmlFor="org-name">{t('common.name')} *</Label>
+            <Input id="org-name" placeholder={t('organizations.create.namePlaceholder')} autoFocus {...register('name', { onChange: handleNameChange })} />
+            {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="org-slug">Slug (URL)</Label>
-            <Input
-              id="org-slug"
-              placeholder="blagod-fond-promin"
-              {...register('slug', {
-                onChange: () => setSlugEdited(true),
-              })}
-            />
-            {errors.slug && (
-              <p className="text-sm text-destructive">{errors.slug.message}</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Латинський ідентифікатор для URL. Автогенерується з назви, але можна змінити.
-            </p>
+            <Label htmlFor="org-slug">{t('organizations.create.slugLabel')}</Label>
+            <Input id="org-slug" placeholder="blagod-fond-promin" {...register('slug', { onChange: () => setSlugEdited(true) })} />
+            {errors.slug && <p className="text-sm text-destructive">{errors.slug.message}</p>}
+            <p className="text-xs text-muted-foreground">{t('organizations.create.slugHint')}</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="org-description">Опис</Label>
-            <Textarea
-              id="org-description"
-              placeholder="Коротко про вашу організацію…"
-              rows={3}
-              {...register('description')}
-            />
-            {errors.description && (
-              <p className="text-sm text-destructive">{errors.description.message}</p>
-            )}
+            <Label htmlFor="org-description">{t('common.description')}</Label>
+            <Textarea id="org-description" placeholder={t('organizations.create.descriptionPlaceholder')} rows={3} {...register('description')} />
+            {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="org-website">Вебсайт</Label>
-            <Input
-              id="org-website"
-              placeholder="https://example.org"
-              {...register('website')}
-            />
-            {errors.website && (
-              <p className="text-sm text-destructive">{errors.website.message}</p>
-            )}
+            <Label htmlFor="org-website">{t('common.website')}</Label>
+            <Input id="org-website" placeholder="https://example.org" {...register('website')} />
+            {errors.website && <p className="text-sm text-destructive">{errors.website.message}</p>}
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleOpenChange(false)}
-            >
-              Скасувати
-            </Button>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>{t('common.cancel')}</Button>
             <Button type="submit" disabled={createOrg.isPending}>
               {createOrg.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              Створити
+              {t('common.create')}
             </Button>
           </DialogFooter>
         </form>

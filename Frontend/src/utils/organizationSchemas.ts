@@ -1,85 +1,92 @@
 import { z } from 'zod';
+import type { TFunction } from 'i18next';
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-export const createOrganizationSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(3, 'Мінімум 3 символи')
-    .max(200, 'Максимум 200 символів'),
-  slug: z
-    .string()
-    .trim()
-    .max(100, 'Максимум 100 символів')
-    .regex(slugPattern, 'Тільки малі літери, цифри та дефіс')
-    .optional()
-    .or(z.literal('')),
-  description: z
-    .string()
-    .max(1000, 'Максимум 1000 символів')
-    .optional()
-    .or(z.literal('')),
-  website: z
-    .string()
-    .url('Невірний формат URL')
-    .optional()
-    .or(z.literal('')),
-});
+export function createOrganizationSchema(t: TFunction) {
+  return z.object({
+    name: z
+      .string()
+      .trim()
+      .min(3, t('validation.orgNameMin'))
+      .max(200, t('validation.orgNameMax')),
+    slug: z
+      .string()
+      .trim()
+      .max(100, t('validation.slugMax'))
+      .regex(slugPattern, t('validation.slugPattern'))
+      .optional()
+      .or(z.literal('')),
+    description: z
+      .string()
+      .max(1000, t('validation.descriptionMax'))
+      .optional()
+      .or(z.literal('')),
+    website: z
+      .string()
+      .url(t('validation.urlInvalid'))
+      .optional()
+      .or(z.literal('')),
+  });
+}
 
-export type CreateOrganizationFormData = z.infer<typeof createOrganizationSchema>;
+export type CreateOrganizationFormData = z.infer<ReturnType<typeof createOrganizationSchema>>;
 
-export const updateOrganizationSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(3, 'Мінімум 3 символи')
-    .max(200, 'Максимум 200 символів')
-    .optional(),
-  description: z
-    .string()
-    .max(1000, 'Максимум 1000 символів')
-    .optional()
-    .or(z.literal('')),
-  website: z
-    .string()
-    .url('Невірний формат URL')
-    .optional()
-    .or(z.literal('')),
-  contactEmail: z
-    .string()
-    .email('Невірний формат email')
-    .optional()
-    .or(z.literal('')),
-  phone: z
-    .string()
-    .max(32, 'Максимум 32 символи')
-    .regex(/^\+?[0-9\s\-()]*$/, 'Телефон містить недопустимі символи')
-    .optional()
-    .or(z.literal('')),
-});
+export function createUpdateOrganizationSchema(t: TFunction) {
+  return z.object({
+    name: z
+      .string()
+      .trim()
+      .min(3, t('validation.orgNameMin'))
+      .max(200, t('validation.orgNameMax'))
+      .optional(),
+    description: z
+      .string()
+      .max(1000, t('validation.descriptionMax'))
+      .optional()
+      .or(z.literal('')),
+    website: z
+      .string()
+      .url(t('validation.urlInvalid'))
+      .optional()
+      .or(z.literal('')),
+    contactEmail: z
+      .string()
+      .email(t('validation.emailInvalid'))
+      .optional()
+      .or(z.literal('')),
+    phone: z
+      .string()
+      .max(32, t('validation.phoneMax'))
+      .regex(/^\+?[0-9\s\-()]*$/, t('validation.phoneInvalid'))
+      .optional()
+      .or(z.literal('')),
+  });
+}
 
-export type UpdateOrganizationFormData = z.infer<typeof updateOrganizationSchema>;
+export type UpdateOrganizationFormData = z.infer<ReturnType<typeof createUpdateOrganizationSchema>>;
 
-export const createCampaignSchema = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(3, 'Мінімум 3 символи')
-    .max(200, 'Максимум 200 символів'),
-  description: z
-    .string()
-    .max(2000, 'Максимум 2000 символів')
-    .optional()
-    .or(z.literal('')),
-  goalAmount: z
-    .number({ message: 'Введіть число' })
-    .positive('Сума має бути додатньою')
-    .max(100_000_000, 'Максимум 100 000 000'),
-  deadline: z
-    .string()
-    .optional()
-    .or(z.literal('')),
-});
+export function createCampaignSchema(t: TFunction) {
+  return z.object({
+    title: z
+      .string()
+      .trim()
+      .min(3, t('validation.orgNameMin'))
+      .max(200, t('validation.orgNameMax')),
+    description: z
+      .string()
+      .max(2000, t('validation.campaignDescMax'))
+      .optional()
+      .or(z.literal('')),
+    goalAmount: z
+      .number({ message: t('validation.numberRequired') })
+      .positive(t('validation.amountPositive'))
+      .max(100_000_000, t('validation.amountMax')),
+    deadline: z
+      .string()
+      .optional()
+      .or(z.literal('')),
+  });
+}
 
-export type CreateCampaignFormData = z.infer<typeof createCampaignSchema>;
+export type CreateCampaignFormData = z.infer<ReturnType<typeof createCampaignSchema>>;

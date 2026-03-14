@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   useMyInvitations,
   useSentInvitations,
@@ -32,6 +33,7 @@ function IncomingInvitationRow({
   invitation: Invitation;
   onAccepted?: () => void;
 }) {
+  const { t } = useTranslation();
   const acceptInvite = useAcceptInvitation();
   const declineInvite = useDeclineInvitation();
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ function IncomingInvitationRow({
       await acceptInvite.mutateAsync(invitation.token);
       onAccepted?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка');
+      setError(err instanceof Error ? err.message : t('common.error'));
     }
   };
 
@@ -51,7 +53,7 @@ function IncomingInvitationRow({
     try {
       await declineInvite.mutateAsync(invitation.token);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка');
+      setError(err instanceof Error ? err.message : t('common.error'));
     }
   };
 
@@ -76,7 +78,7 @@ function IncomingInvitationRow({
           <p className="text-sm text-muted-foreground">
             {invitation.invitedByName} ·{' '}
             <Badge variant="outline" className="ml-1 text-xs">
-              {OrganizationRoleLabel[invitation.role]}
+              {t(OrganizationRoleLabel[invitation.role])}
             </Badge>
           </p>
         </div>
@@ -84,7 +86,7 @@ function IncomingInvitationRow({
 
       <div className="flex items-center gap-2">
         <span className="mr-2 text-xs text-muted-foreground">
-          до {formatDate(invitation.expiresAt)}
+          {t('invitations.tab.expiresPrefix')} {formatDate(invitation.expiresAt)}
         </span>
         <Button
           variant="outline"
@@ -93,11 +95,11 @@ function IncomingInvitationRow({
           disabled={isPending}
         >
           <X className="h-3.5 w-3.5" />
-          Відхилити
+          {t('invitations.tab.incomingDecline')}
         </Button>
         <Button size="sm" onClick={handleAccept} disabled={isPending}>
           <Check className="h-3.5 w-3.5" />
-          Прийняти
+          {t('invitations.tab.incomingAccept')}
         </Button>
       </div>
 
@@ -117,6 +119,7 @@ function SentInvitationRow({
   invitation: Invitation;
   orgId: string;
 }) {
+  const { t } = useTranslation();
   const cancelInvite = useCancelInvitation(orgId);
   const [error, setError] = useState<string | null>(null);
 
@@ -125,7 +128,7 @@ function SentInvitationRow({
     try {
       await cancelInvite.mutateAsync(invitation.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка');
+      setError(err instanceof Error ? err.message : t('common.error'));
     }
   };
 
@@ -136,10 +139,10 @@ function SentInvitationRow({
           <Mail className="h-5 w-5" />
         </span>
         <div>
-          <p className="font-medium">{invitation.email ?? 'Посилання'}</p>
+          <p className="font-medium">{invitation.email ?? t('invitations.tab.sentLink')}</p>
           <p className="text-sm text-muted-foreground">
             <Badge variant="outline" className="text-xs">
-              {OrganizationRoleLabel[invitation.role]}
+              {t(OrganizationRoleLabel[invitation.role])}
             </Badge>
             <span className="ml-2">{formatDate(invitation.createdAt)}</span>
           </p>
@@ -149,7 +152,7 @@ function SentInvitationRow({
       <div className="flex items-center gap-2">
         <Badge variant="secondary" className="text-xs">
           <Clock className="mr-1 h-3 w-3" />
-          Очікує
+          {t('invitations.tab.sentPending')}
         </Badge>
         <Button
           variant="ghost"
@@ -159,7 +162,7 @@ function SentInvitationRow({
           className="text-destructive hover:text-destructive"
         >
           <X className="h-3.5 w-3.5" />
-          Скасувати
+          {t('invitations.tab.sentCancel')}
         </Button>
       </div>
 
@@ -173,6 +176,7 @@ function SentInvitationRow({
 }
 
 export function ProfileInvitationsTab() {
+  const { t } = useTranslation();
   const { data: incoming, isLoading: incomingLoading } = useMyInvitations();
   const activeOrgId = useWorkspaceStore((s) => s.activeOrgId);
   const { data: sent, isLoading: sentLoading } = useSentInvitations(activeOrgId);
@@ -182,12 +186,11 @@ export function ProfileInvitationsTab() {
 
   return (
     <div className="space-y-6">
-      {/* Incoming invitations */}
       <Card className="border border-border bg-card/60 backdrop-blur-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
-            Вхідні запрошення
+            {t('invitations.tab.incomingTitle')}
             {pendingIncoming.length > 0 && (
               <Badge className="ml-2 bg-primary/15 text-primary">
                 {pendingIncoming.length}
@@ -203,7 +206,7 @@ export function ProfileInvitationsTab() {
             </div>
           ) : pendingIncoming.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              Немає нових запрошень
+              {t('invitations.tab.incomingEmpty')}
             </p>
           ) : (
             pendingIncoming.map((inv) => (
@@ -213,7 +216,6 @@ export function ProfileInvitationsTab() {
         </CardContent>
       </Card>
 
-      {/* Sent invitations (if admin/owner of any org) */}
       {activeOrgId && (
         <>
           <Separator />
@@ -221,7 +223,7 @@ export function ProfileInvitationsTab() {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Send className="h-5 w-5 text-muted-foreground" />
-                Надіслані запрошення
+                {t('invitations.tab.sentTitle')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -231,7 +233,7 @@ export function ProfileInvitationsTab() {
                 </div>
               ) : pendingSent.length === 0 ? (
                 <p className="py-4 text-center text-sm text-muted-foreground">
-                  Немає надісланих запрошень
+                  {t('invitations.tab.sentEmpty')}
                 </p>
               ) : (
                 pendingSent.map((inv) => (

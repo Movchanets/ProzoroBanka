@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Outlet, useParams, useNavigate, NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useOrganization } from '@/hooks/queries/useOrganizations';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useLogoutMutation } from '@/hooks/queries/useAuth';
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
 import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,11 +27,11 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { label: 'Дашборд', icon: LayoutDashboard, path: '' },
-  { label: 'Збори', icon: Megaphone, path: 'campaigns' },
-  { label: 'Чеки', icon: Receipt, path: 'receipts' },
-  { label: 'Команда', icon: Users, path: 'team' },
-  { label: 'Налаштування', icon: Settings, path: 'settings' },
+  { labelKey: 'nav.dashboard', icon: LayoutDashboard, path: '' },
+  { labelKey: 'nav.campaigns', icon: Megaphone, path: 'campaigns' },
+  { labelKey: 'nav.receipts', icon: Receipt, path: 'receipts' },
+  { labelKey: 'nav.team', icon: Users, path: 'team' },
+  { labelKey: 'nav.settings', icon: Settings, path: 'settings' },
 ];
 
 function SidebarContent({
@@ -44,16 +47,16 @@ function SidebarContent({
   onToggleCollapse?: () => void;
   closeMobile?: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex h-full flex-col">
-      {/* Workspace switcher */}
       <div className="px-2 pt-4 pb-2">
         <WorkspaceSwitcher onCreateClick={onCreateOrg} collapsed={collapsed} />
       </div>
 
       <Separator className="mx-3 w-auto" />
 
-      {/* Nav items */}
       <nav className="flex-1 space-y-1 px-2 py-3">
         {navItems.map((item) => (
           <NavLink
@@ -70,12 +73,11 @@ function SidebarContent({
             }
           >
             <item.icon className="h-[18px] w-[18px] shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
+            {!collapsed && <span>{t(item.labelKey)}</span>}
           </NavLink>
         ))}
       </nav>
 
-      {/* Footer — collapse toggle (desktop only) */}
       {onToggleCollapse && (
         <div className="border-t border-border px-2 py-3">
           <button
@@ -87,7 +89,7 @@ function SidebarContent({
             ) : (
               <>
                 <PanelLeftClose className="h-[18px] w-[18px]" />
-                <span className="flex-1 text-left">Згорнути</span>
+                <span className="flex-1 text-left">{t('nav.collapse')}</span>
               </>
             )}
           </button>
@@ -98,6 +100,7 @@ function SidebarContent({
 }
 
 function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: boolean }) {
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const logoutMutation = useLogoutMutation();
@@ -107,8 +110,7 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
     navigate('/login', { replace: true });
   };
 
-  const initials =
-    `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.trim().toUpperCase() || 'PB';
+  const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.trim().toUpperCase() || 'PB';
 
   return (
     <header className="flex items-center justify-between border-b border-border bg-card/60 px-6 py-3 backdrop-blur-lg">
@@ -120,42 +122,37 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
         )}
       </div>
 
-      <div className="flex items-center gap-3">
-        <NavLink
-          to="/profile"
-          className="flex items-center gap-2.5 rounded-xl px-3 py-1.5 transition-colors hover:bg-muted"
-        >
-          {user?.profilePhotoUrl ? (
-            <img
-              className="h-8 w-8 rounded-lg object-cover"
-              src={user.profilePhotoUrl}
-              alt="avatar"
-            />
-          ) : (
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-linear-to-br from-secondary to-accent text-xs font-extrabold text-secondary-foreground">
-              {initials}
+      <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1 border-r border-border/50 pr-2 sm:gap-2 sm:pr-4">
+          <LanguageSwitcher />
+          <ThemeToggle />
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <NavLink to="/profile" className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted sm:px-3">
+            {user?.profilePhotoUrl ? (
+              <img className="h-8 w-8 rounded-lg object-cover" src={user.profilePhotoUrl} alt={t('appShell.avatarAlt')} />
+            ) : (
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-linear-to-br from-secondary to-accent text-xs font-extrabold text-secondary-foreground">
+                {initials}
+              </span>
+            )}
+            <span className="hidden text-sm font-medium md:inline">
+              {user?.firstName} {user?.lastName}
             </span>
-          )}
-          <span className="hidden text-sm font-medium md:inline">
-            {user?.firstName} {user?.lastName}
-          </span>
-        </NavLink>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleLogout}
-          disabled={logoutMutation.isPending}
-          className="text-muted-foreground"
-        >
-          <LogOut className="h-4 w-4" />
-          <span className="hidden sm:inline">{logoutMutation.isPending ? 'Вихід…' : 'Вийти'}</span>
-        </Button>
+          </NavLink>
+          <Button variant="outline" size="sm" onClick={handleLogout} disabled={logoutMutation.isPending} className="h-9 gap-2 rounded-xl border-border/50 text-muted-foreground shadow-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 max-sm:w-9 max-sm:px-0">
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">{logoutMutation.isPending ? t('nav.logoutPending') : t('nav.logout')}</span>
+          </Button>
+        </div>
       </div>
     </header>
   );
 }
 
 export default function DashboardLayout() {
+  const { t } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
   const setActiveOrg = useWorkspaceStore((s) => s.setActiveOrg);
@@ -165,7 +162,6 @@ export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  // Sync URL orgId to workspace store
   useEffect(() => {
     if (orgId) setActiveOrg(orgId);
   }, [orgId, setActiveOrg]);
@@ -180,48 +176,22 @@ export default function DashboardLayout() {
   return (
     <>
       <div className="flex h-screen overflow-hidden">
-        {/* Desktop sidebar */}
-        <aside
-          className={cn(
-            'hidden flex-col border-r border-border bg-card/40 backdrop-blur-lg transition-[width] duration-200 md:flex',
-            collapsed ? 'w-[68px]' : 'w-64',
-          )}
-        >
-          <SidebarContent
-            orgId={orgId}
-            collapsed={collapsed}
-            onCreateOrg={() => setCreateDialogOpen(true)}
-            onToggleCollapse={() => setCollapsed((c) => !c)}
-          />
+        <aside className={cn('hidden flex-col border-r border-border bg-card/40 backdrop-blur-lg transition-[width] duration-200 md:flex', collapsed ? 'w-[68px]' : 'w-64')}>
+          <SidebarContent orgId={orgId} collapsed={collapsed} onCreateOrg={() => setCreateDialogOpen(true)} onToggleCollapse={() => setCollapsed((c) => !c)} />
         </aside>
 
-        {/* Mobile sidebar */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="fixed left-3 top-3 z-40 md:hidden"
-              aria-label="Відкрити меню"
-            >
+            <Button variant="ghost" size="icon" className="fixed left-3 top-3 z-40 md:hidden" aria-label={t('nav.openMenu')}>
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 p-0">
-            <SheetTitle className="sr-only">Навігація</SheetTitle>
-            <SidebarContent
-              orgId={orgId}
-              collapsed={false}
-              onCreateOrg={() => {
-                setMobileOpen(false);
-                setCreateDialogOpen(true);
-              }}
-              closeMobile={closeMobile}
-            />
+            <SheetTitle className="sr-only">{t('nav.navigation')}</SheetTitle>
+            <SidebarContent orgId={orgId} collapsed={false} onCreateOrg={() => { setMobileOpen(false); setCreateDialogOpen(true); }} closeMobile={closeMobile} />
           </SheetContent>
         </Sheet>
 
-        {/* Main content */}
         <div className="flex flex-1 flex-col overflow-hidden">
           <DashboardHeader orgName={org?.name} isLoading={isLoading} />
           <main className="flex-1 overflow-y-auto p-6">
@@ -237,10 +207,7 @@ export default function DashboardLayout() {
         </div>
       </div>
 
-      <CreateOrganizationDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-      />
+      <CreateOrganizationDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
     </>
   );
 }

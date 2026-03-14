@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslation } from 'react-i18next';
 import { CircleAlert, CircleCheckBig } from 'lucide-react';
-import { profileSchema, type ProfileFormData } from '../../utils/authSchemas';
+import { createProfileSchema, type ProfileFormData } from '../../utils/authSchemas';
 import { useProfileQuery, useUpdateProfileMutation, useUploadAvatarMutation } from '../../hooks/queries/useProfile';
 import { useAuthStore } from '../../stores/authStore';
 import { FieldMessages } from '../../components/auth/FieldMessages';
@@ -18,6 +19,7 @@ function getInitials(firstName?: string, lastName?: string) {
 }
 
 export default function ProfilePage() {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const updateUser = useAuthStore((state) => state.updateUser);
   const { data: profile, isLoading, error, refetch, isFetching } = useProfileQuery();
@@ -26,13 +28,15 @@ export default function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
+  const schema = useMemo(() => createProfileSchema(t), [t]);
+
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isDirty },
   } = useForm<ProfileFormData>({
-    resolver: zodResolver(profileSchema),
+    resolver: zodResolver(schema),
     criteriaMode: 'all',
     defaultValues: {
       firstName: '',
@@ -42,10 +46,7 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    if (!profile) {
-      return;
-    }
-
+    if (!profile) return;
     updateUser(profile);
     reset({
       firstName: profile.firstName,
@@ -56,9 +57,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     return () => {
-      if (avatarPreview) {
-        URL.revokeObjectURL(avatarPreview);
-      }
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
     };
   }, [avatarPreview]);
 
@@ -72,12 +71,10 @@ export default function ProfilePage() {
 
   const handleAvatarSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setAvatarError('Оберіть файл зображення.');
+      setAvatarError(t('profile.imageFileRequired'));
       event.target.value = '';
       return;
     }
@@ -89,7 +86,7 @@ export default function ProfilePage() {
     try {
       await uploadAvatarMutation.mutateAsync(file);
     } catch (uploadError) {
-      setAvatarError(uploadError instanceof Error ? uploadError.message : 'Не вдалося завантажити фото.');
+      setAvatarError(uploadError instanceof Error ? uploadError.message : t('profile.uploadError'));
     } finally {
       URL.revokeObjectURL(previewUrl);
       setAvatarPreview(null);
@@ -106,69 +103,62 @@ export default function ProfilePage() {
           <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_right,hsl(19_88%_55%/0.10),transparent_55%)]" />
           <div className="relative grid gap-6 lg:grid-cols-[180px_minmax(0,1fr)] lg:items-center">
             <div className="grid justify-items-start gap-3">
-            {activeAvatar ? (
-                <img className="h-37 w-37 rounded-[36px] object-cover shadow-[0_24px_40px_var(--shadow-soft)]" src={activeAvatar} alt="Фото профілю" />
-            ) : (
-                <div className="grid h-37 w-37 place-items-center rounded-[36px] bg-linear-to-br from-secondary to-accent text-4xl font-extrabold text-secondary-foreground shadow-[0_24px_40px_var(--shadow-soft)]">
-                  {getInitials(profile?.firstName, profile?.lastName)}
-                </div>
-            )}
+              {activeAvatar ? (
+                  <img className="h-37 w-37 rounded-[36px] object-cover shadow-[0_24px_40px_var(--shadow-soft)]" src={activeAvatar} alt={t('profile.avatarAlt')} />
+              ) : (
+                  <div className="grid h-37 w-37 place-items-center rounded-[36px] bg-linear-to-br from-secondary to-accent text-4xl font-extrabold text-secondary-foreground shadow-[0_24px_40px_var(--shadow-soft)]">
+                    {getInitials(profile?.firstName, profile?.lastName)}
+                  </div>
+              )}
 
-            <Button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadAvatarMutation.isPending}
-              variant="secondary"
-              size="pill"
-            >
-              {uploadAvatarMutation.isPending ? 'Завантаження…' : 'Оновити фото'}
-            </Button>
+              <Button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadAvatarMutation.isPending}
+                variant="secondary"
+                size="pill"
+              >
+                {uploadAvatarMutation.isPending ? t('profile.avatarLoading') : t('profile.avatarUpdate')}
+              </Button>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              hidden
-              onChange={handleAvatarSelection}
-            />
+              <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={handleAvatarSelection} />
 
-            {avatarError && (
-              <Alert variant="destructive" aria-live="polite">
-                <CircleAlert aria-hidden="true" />
-                <AlertDescription>{avatarError}</AlertDescription>
-              </Alert>
-            )}
+              {avatarError && (
+                <Alert variant="destructive" aria-live="polite">
+                  <CircleAlert aria-hidden="true" />
+                  <AlertDescription>{avatarError}</AlertDescription>
+                </Alert>
+              )}
             </div>
 
             <div>
               <span className="inline-flex items-center gap-2 rounded-full bg-card/70 px-3.5 py-2 text-[0.82rem] font-extrabold uppercase tracking-[0.08em] text-primary">
-                Профіль
+                {t('profile.badge')}
               </span>
               <h2 className="mt-3 text-[clamp(2rem,4vw,3rem)] font-semibold leading-none tracking-tight">
-                {profile?.firstName || 'Ваш'} акаунт готовий до роботи
+                {t('profile.title', { name: profile?.firstName || t('profile.titleFallback') })}
               </h2>
               <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground">
-                Тут зібрані дані, які підтягуються в авторизований інтерфейс. Email лишається джерелом входу,
-                а ім&apos;я, телефон і фото можна редагувати без повторної реєстрації.
+                {t('profile.subtitle')}
               </p>
 
               <div className="mt-6 grid gap-3 md:grid-cols-3">
                 <article className="rounded-[22px] border border-border bg-muted/70 p-4.5">
-                  <span className="mb-2 block text-sm text-muted-foreground">Статус сесії</span>
+                  <span className="mb-2 block text-sm text-muted-foreground">{t('profile.sessionStatus')}</span>
                   <strong className="block wrap-break-word text-base font-semibold text-foreground">
-                    {isFetching ? 'Синхронізація' : 'Активна'}
+                    {isFetching ? t('profile.sessionSyncing') : t('profile.sessionActive')}
                   </strong>
                 </article>
                 <article className="rounded-[22px] border border-border bg-muted/70 p-4.5">
-                  <span className="mb-2 block text-sm text-muted-foreground">Ролі</span>
+                  <span className="mb-2 block text-sm text-muted-foreground">{t('common.roles')}</span>
                   <strong className="block wrap-break-word text-base font-semibold text-foreground">
                     {profile?.roles?.length ? profile.roles.join(', ') : 'Volunteer'}
                   </strong>
                 </article>
                 <article className="rounded-[22px] border border-border bg-muted/70 p-4.5">
-                  <span className="mb-2 block text-sm text-muted-foreground">Email</span>
+                  <span className="mb-2 block text-sm text-muted-foreground">{t('common.email')}</span>
                   <strong className="block wrap-break-word text-base font-semibold text-foreground">
-                    {profile?.email ?? 'Завантаження...'}
+                    {profile?.email ?? t('common.loading')}
                   </strong>
                 </article>
               </div>
@@ -182,46 +172,46 @@ export default function ProfilePage() {
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-card/70 px-3.5 py-2 text-[0.82rem] font-extrabold uppercase tracking-[0.08em] text-primary">
-                Редагування
+                {t('profile.editBadge')}
               </span>
-              <h3 className="text-2xl font-semibold leading-none tracking-tight">Основні дані волонтера</h3>
+              <h3 className="text-2xl font-semibold leading-none tracking-tight">{t('profile.editTitle')}</h3>
             </div>
             <Button type="button" size="pill" onClick={() => refetch()} variant="soft">
-              Оновити
+              {t('common.refresh')}
             </Button>
           </div>
 
         {isLoading ? (
             <div className="rounded-[20px] border border-border bg-muted/70 p-4.5 text-foreground">
-              Завантажую профіль...
+              {t('profile.loadingProfile')}
             </div>
         ) : error ? (
             <Alert variant="destructive" aria-live="polite">
               <CircleAlert aria-hidden="true" />
-              <AlertDescription>{error instanceof Error ? error.message : 'Не вдалося отримати профіль.'}</AlertDescription>
+              <AlertDescription>{error instanceof Error ? error.message : t('profile.fetchError')}</AlertDescription>
             </Alert>
         ) : (
             <form className="grid gap-4" onSubmit={onSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2.5">
-                <Label htmlFor="profile-first-name">Ім&apos;я</Label>
+                <Label htmlFor="profile-first-name">{t('common.firstName')}</Label>
                 <Input id="profile-first-name" type="text" {...register('firstName')} />
                 <FieldMessages error={errors.firstName} />
                 </div>
 
                 <div className="grid gap-2.5">
-                <Label htmlFor="profile-last-name">Прізвище</Label>
+                <Label htmlFor="profile-last-name">{t('common.lastName')}</Label>
                 <Input id="profile-last-name" type="text" {...register('lastName')} />
                 <FieldMessages error={errors.lastName} />
                 </div>
 
                 <div className="grid gap-2.5 md:col-span-2">
-                <Label htmlFor="profile-email">Email</Label>
+                <Label htmlFor="profile-email">{t('common.email')}</Label>
                 <Input id="profile-email" type="email" value={profile?.email ?? ''} disabled readOnly />
                 </div>
 
                 <div className="grid gap-2.5 md:col-span-2">
-                <Label htmlFor="profile-phone">Телефон</Label>
+                <Label htmlFor="profile-phone">{t('common.phone')}</Label>
                 <Input id="profile-phone" type="tel" placeholder="+380 67 123 45 67" {...register('phoneNumber')} />
                 <FieldMessages error={errors.phoneNumber} />
                 </div>
@@ -233,7 +223,7 @@ export default function ProfilePage() {
                   <AlertDescription>
                     {updateProfileMutation.error instanceof Error
                       ? updateProfileMutation.error.message
-                      : 'Не вдалося зберегти профіль.'}
+                      : t('profile.saveError')}
                   </AlertDescription>
                 </Alert>
               )}
@@ -241,8 +231,8 @@ export default function ProfilePage() {
               {updateProfileMutation.isSuccess && !updateProfileMutation.isPending && (
                 <Alert variant="success" aria-live="polite">
                   <CircleCheckBig aria-hidden="true" />
-                  <AlertTitle>Профіль оновлено</AlertTitle>
-                  <AlertDescription>Зміни збережено і вже застосовано до вашого профілю.</AlertDescription>
+                  <AlertTitle>{t('profile.updateSuccessTitle')}</AlertTitle>
+                  <AlertDescription>{t('profile.updateSuccessDescription')}</AlertDescription>
                 </Alert>
               )}
 
@@ -253,7 +243,7 @@ export default function ProfilePage() {
                   className="shadow-[0_18px_30px_var(--shadow-strong)]"
                   disabled={updateProfileMutation.isPending || !isDirty}
                 >
-                {updateProfileMutation.isPending ? 'Зберігаю…' : 'Зберегти зміни'}
+                {updateProfileMutation.isPending ? t('common.saving') : t('common.saveChanges')}
                 </Button>
               </div>
             </form>

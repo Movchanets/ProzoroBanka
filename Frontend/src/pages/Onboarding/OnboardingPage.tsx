@@ -1,91 +1,55 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMyOrganizations } from '@/hooks/queries/useOrganizations';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Building2, ArrowRight, Plus, Sparkles } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { Sparkles, Users, FileCheck2, ArrowRight } from 'lucide-react';
 
 export default function OnboardingPage() {
-  const navigate = useNavigate();
-  const { data: orgs, isLoading } = useMyOrganizations();
-  const activeOrgId = useWorkspaceStore((s) => s.activeOrgId);
-  const setActiveOrg = useWorkspaceStore((s) => s.setActiveOrg);
+  const { t } = useTranslation();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // If user already has orgs, redirect to dashboard
-  useEffect(() => {
-    if (!isLoading && orgs && orgs.length > 0) {
-      const targetOrg = activeOrgId && orgs.find((o) => o.id === activeOrgId)
-        ? activeOrgId
-        : orgs[0].id;
-      setActiveOrg(targetOrg);
-      navigate(`/dashboard/${targetOrg}`, { replace: true });
-    }
-  }, [isLoading, orgs, activeOrgId, setActiveOrg, navigate]);
-
-  if (isLoading) {
-    return (
-      <div className="mx-auto flex min-h-screen w-[min(600px,calc(100%-32px))] items-center justify-center">
-        <div className="w-full space-y-4 text-center">
-          <Skeleton className="mx-auto h-16 w-16 rounded-2xl" />
-          <Skeleton className="mx-auto h-6 w-64" />
-          <Skeleton className="mx-auto h-4 w-48" />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto flex min-h-screen w-[min(600px,calc(100%-32px))] items-center justify-center py-8 max-sm:w-[min(600px,calc(100%-20px))]">
-      <Card className="w-full border border-border bg-card/80 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl">
-        <CardHeader className="items-center text-center pb-2">
-          <div className="mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-linear-to-br from-primary/80 to-primary text-primary-foreground shadow-lg">
-            <Building2 className="h-8 w-8" />
-          </div>
-          <CardTitle className="text-2xl">Ласкаво просимо!</CardTitle>
-          <CardDescription className="max-w-sm text-base">
-            Створіть вашу першу організацію, щоб почати збирати кошти та відстежувати витрати.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 pb-8">
-          <div className="mx-auto max-w-sm space-y-3">
-            <div className="flex items-start gap-3 rounded-xl border border-border/60 bg-muted/30 p-4">
-              <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <div className="space-y-1">
-                <p className="text-sm font-semibold">Організуйте команду</p>
-                <p className="text-sm text-muted-foreground">
-                  Запрошуйте волонтерів, розподіляйте ролі, слідкуйте за зборами.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 rounded-xl border border-border/60 bg-muted/30 p-4">
-              <ArrowRight className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
-              <div className="space-y-1">
-                <p className="text-sm font-semibold">Прозорі звіти</p>
-                <p className="text-sm text-muted-foreground">
-                  Завантажуйте чеки, порівнюйте з банківськими виписками автоматично.
-                </p>
-              </div>
-            </div>
-          </div>
+    <div className="relative mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-8 px-4 py-12">
+      <div className="fixed right-4 top-4 z-50 flex gap-2 sm:right-6 sm:top-6 lg:right-10 lg:top-10">
+        <LanguageSwitcher />
+        <ThemeToggle />
+      </div>
+      <Sparkles className="h-12 w-12 text-primary" />
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-semibold tracking-tight">{t('onboarding.welcome')}</h1>
+        <p className="text-muted-foreground">{t('onboarding.subtitle')}</p>
+      </div>
 
-          <div className="flex justify-center pt-4">
-            <Button size="pillWide" onClick={() => setDialogOpen(true)}>
-              <Plus className="h-5 w-5" />
-              Створити організацію
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid w-full gap-4">
+        <Card className="border border-border bg-card/60 backdrop-blur-sm">
+          <CardContent className="flex items-start gap-4 p-5">
+            <Users className="mt-0.5 h-6 w-6 shrink-0 text-primary" />
+            <div>
+              <CardTitle className="text-base">{t('onboarding.organizeTeam')}</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">{t('onboarding.organizeTeamDesc')}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border border-border bg-card/60 backdrop-blur-sm">
+          <CardContent className="flex items-start gap-4 p-5">
+            <FileCheck2 className="mt-0.5 h-6 w-6 shrink-0 text-primary" />
+            <div>
+              <CardTitle className="text-base">{t('onboarding.transparentReports')}</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">{t('onboarding.transparentReportsDesc')}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-      <CreateOrganizationDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        redirectAfterCreate={true}
-      />
+      <Button size="pillWide" onClick={() => setDialogOpen(true)} className="gap-2">
+        {t('onboarding.createOrganization')}
+        <ArrowRight className="h-4 w-4" />
+      </Button>
+
+      <CreateOrganizationDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   );
 }

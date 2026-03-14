@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
+import { ThemeToggle } from '../theme-toggle';
+import { LanguageSwitcher } from '../language-switcher';
 
 interface AuthShellProps {
   eyebrow: string;
@@ -14,17 +17,6 @@ interface AuthShellProps {
   children: ReactNode;
 }
 
-const featureItems = [
-  'Один акаунт для входу, профілю та подальшої звітності.',
-  'Прості форми без зайвих кроків і з підказками українською.',
-  'Швидке відновлення доступу, якщо пароль загубився.',
-];
-
-const supportFacts = [
-  'Адаптується під системну тему автоматично.',
-  'Працює без зайвих переходів між сторінками.',
-];
-
 export function AuthShell({
   eyebrow,
   title,
@@ -34,8 +26,17 @@ export function AuthShell({
   alternateAction,
   children,
 }: AuthShellProps) {
+  const { t } = useTranslation();
+
+  const featureItems = t('auth.shell.featureItems', { returnObjects: true }) as string[];
+  const supportFacts = t('auth.shell.supportFacts', { returnObjects: true }) as string[];
+
   return (
-    <div className="mx-auto grid min-h-screen w-[min(1180px,calc(100%-32px))] grid-cols-1 items-center gap-6 py-8 max-sm:w-[min(1180px,calc(100%-20px))] lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,470px)]">
+    <div className="relative mx-auto grid min-h-screen w-[min(1180px,calc(100%-32px))] grid-cols-1 items-center gap-6 py-8 max-sm:w-[min(1180px,calc(100%-20px))] lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,470px)]">
+      <div className="fixed right-4 top-4 z-50 flex gap-2 sm:right-6 sm:top-6 lg:right-10 lg:top-10">
+        <LanguageSwitcher />
+        <ThemeToggle />
+      </div>
       <section className="relative overflow-hidden rounded-[2.25rem] border border-border [background:var(--hero-surface)] p-10 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl max-sm:rounded-3xl max-sm:p-6">
         <div className="pointer-events-none absolute -bottom-20 -right-10 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
 
@@ -63,7 +64,7 @@ export function AuthShell({
           <Card className="mt-7 overflow-hidden rounded-[1.75rem] border border-white/10 [background:var(--hero-panel)] text-(--hero-panel-foreground) shadow-none">
             <CardContent className="space-y-4 p-6 pt-6">
               <span className="font-mono text-xs uppercase tracking-[0.18em] text-(--hero-panel-muted)">
-                Що ви зможете зробити
+                {t('auth.shell.featuresHeading')}
               </span>
               <ul className="grid gap-3 text-sm font-medium leading-6 text-(--hero-panel-foreground)">
               {featureItems.map((item) => (
