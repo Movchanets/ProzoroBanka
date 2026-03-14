@@ -9,6 +9,7 @@ import {
 } from '../../services/authService';
 import { queryClient } from '../../services/queryClient';
 import { useAuthStore } from '../../stores/authStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
 
 const profileQueryKey = ['profile'];
 
@@ -57,7 +58,9 @@ export function useLogoutMutation() {
         await authService.logout();
       } finally {
         logout();
-        queryClient.removeQueries({ queryKey: profileQueryKey });
+        useWorkspaceStore.getState().clearActiveOrg();
+        // Clear all cached data across the app to prevent leaks between sessions
+        queryClient.clear();
       }
     },
   });

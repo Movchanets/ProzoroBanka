@@ -2,7 +2,9 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useLogoutMutation } from '../hooks/queries/useAuth';
+import { useMyOrganizations } from '../hooks/queries/useOrganizations';
 import { useTranslation } from 'react-i18next';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ThemeToggle } from './theme-toggle';
@@ -21,6 +23,8 @@ export default function AppShell({ children }: AppShellProps) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const logoutMutation = useLogoutMutation();
+  const { data: orgs } = useMyOrganizations();
+  const hasOrgs = orgs && orgs.length > 0;
 
   const handleLogout = async () => {
     await logoutMutation.mutateAsync();
@@ -36,9 +40,17 @@ export default function AppShell({ children }: AppShellProps) {
       <Card className="mb-6 rounded-[1.75rem] border border-border bg-card/80 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl max-sm:rounded-3xl">
         <CardContent className="flex flex-col gap-6 p-7 pt-7 lg:flex-row lg:items-center lg:justify-between max-sm:p-6 max-sm:pt-6">
           <div className="space-y-4">
-            <span className="inline-flex items-center gap-2 rounded-full bg-card/70 px-3.5 py-2 text-[0.82rem] font-extrabold uppercase tracking-[0.08em] text-primary">
-              ProzoroBanka
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full bg-card/70 px-3.5 py-2 text-[0.82rem] font-extrabold uppercase tracking-[0.08em] text-primary">
+                ProzoroBanka
+              </span>
+              {hasOrgs && (
+                <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/${orgs[0].id}`)} className="h-8 rounded-full px-4 text-xs shadow-none">
+                  <ArrowLeft className="mr-2 h-3.5 w-3.5" />
+                  {t('common.goToDashboard')}
+                </Button>
+              )}
+            </div>
             <div className="space-y-4">
               <h1 className="text-[clamp(2.1rem,3vw,3rem)] font-semibold leading-none tracking-tight">
                 {t('appShell.title')}

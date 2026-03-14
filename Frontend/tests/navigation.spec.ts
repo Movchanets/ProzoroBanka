@@ -11,7 +11,7 @@ test.describe('Navigation & Public Pages', () => {
 
     // 3. Ensure the login page view successfully mounted
     const mainHeading = page.getByRole('heading', { level: 1 });
-    await expect(mainHeading).toContainText(/Поверніться до фінансового кабінету|Увійти/i);
+    await expect(mainHeading).toContainText(/Поверніться до фінансового кабінету|Увійти|Return to your finance dashboard|Sign in/i);
 
     // 4. Verify the email input is visible and interactive
     const emailInput = page.getByLabel(/Адреса електронної пошти|Email/i);

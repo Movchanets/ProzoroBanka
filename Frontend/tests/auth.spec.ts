@@ -10,7 +10,7 @@ test.describe('Authentication Flow - Login Functionality', () => {
     // Navigate to login before each test
     await page.goto('/login');
     // Ensure the page has loaded completely
-    await expect(page.getByRole('heading', { name: /Увійти/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Увійти|Sign in/i })).toBeVisible();
 
     // Since we are using Turnstile testing keys (1x00000000000000000000AA) in .env.test,
     // the widget will automatically pass in ~1 second. We will wait for the token injected into the DOM.
@@ -29,10 +29,10 @@ test.describe('Authentication Flow - Login Functionality', () => {
 
     // Input: Fill out valid credentials
     await page.getByLabel(/Email/i).fill(VALID_EMAIL);
-    await page.getByLabel(/Пароль/i).fill(VALID_PASSWORD);
+    await page.getByLabel(/Пароль|Password/i).fill(VALID_PASSWORD);
 
     // Action: Submit the form
-    await page.getByRole('button', { name: 'Увійти', exact: true }).click();
+    await page.getByRole('button', { name: /^(Увійти|Sign in)$/i }).click();
 
     // Pass Criteria: URL changes to /onboarding or /dashboard, and server error is not present.
     await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/);
@@ -51,15 +51,15 @@ test.describe('Authentication Flow - Login Functionality', () => {
 
     // Input: Fill out valid email but wrong password
     await page.getByLabel(/Email/i).fill(VALID_EMAIL);
-    await page.getByLabel(/Пароль/i).fill(wrongPassword);
+    await page.getByLabel(/Пароль|Password/i).fill(wrongPassword);
 
     // Action: Submit the form
-    await page.getByRole('button', { name: 'Увійти', exact: true }).click();
+    await page.getByRole('button', { name: /^(Увійти|Sign in)$/i }).click();
 
     // Pass Criteria: An alert is displayed to the user containing the exact backend error
     const alert = page.getByRole('alert');
     await expect(alert).toBeVisible();
-    await expect(alert).toContainText(/Невірний email або пароль/i);
+    await expect(alert).toContainText(/Невірний email або пароль|Invalid email or password/i);
     
     // URL remains on the login page
     await expect(page).toHaveURL(/.*\/login/);
@@ -75,14 +75,13 @@ test.describe('Authentication Flow - Login Functionality', () => {
 
     // Input & Action: Test the first invalid email scenario
     await page.getByLabel(/Email/i).fill(invalidEmails[0]);
-    await page.getByLabel(/Пароль/i).fill(VALID_PASSWORD);
-    
+    await page.getByLabel(/Пароль|Password/i).fill(VALID_PASSWORD);
     // We focus away from the input to trigger Zod's `onBlur` validation mode, or just click submit
-    await page.getByRole('button', { name: 'Увійти', exact: true }).click();
+    await page.getByRole('button', { name: /^(Увійти|Sign in)$/i }).click();
 
     // Pass Criteria: Inline field error is visible, network request is never made
     // We expect the exact string "Невірний формат email" as defined in authSchemas.ts
-    const validationError = page.getByText('Невірний формат email');
+    const validationError = page.getByText(/Невірний формат email|Invalid email format/i);
     await expect(validationError).toBeVisible();
 
     // URL remains on the login page
@@ -101,15 +100,15 @@ test.describe('Authentication Flow - Login Functionality', () => {
 
     // Input: Fill out unregistered email and an arbitrary password
     await page.getByLabel(/Email/i).fill(unregisteredEmail);
-    await page.getByLabel(/Пароль/i).fill(VALID_PASSWORD);
+    await page.getByLabel(/Пароль|Password/i).fill(VALID_PASSWORD);
 
     // Action: Submit the form
-    await page.getByRole('button', { name: 'Увійти', exact: true }).click();
+    await page.getByRole('button', { name: /^(Увійти|Sign in)$/i }).click();
 
     // Pass Criteria: An alert is displayed to the user containing the specific "not found" error
     const alert = page.getByRole('alert');
     await expect(alert).toBeVisible();
-    await expect(alert).toContainText(/Невірний email або пароль/i);
+    await expect(alert).toContainText(/Невірний email або пароль|Invalid email or password/i);
 
     // URL remains on the login page
     await expect(page).toHaveURL(/.*\/login/);
