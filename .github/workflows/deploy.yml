@@ -113,6 +113,7 @@ jobs:
       api_base_url: ${{ steps.tf-outputs.outputs.api_base_url }}
       resource_group_name: ${{ steps.tf-outputs.outputs.resource_group_name }}
       static_web_app_name: ${{ steps.tf-outputs.outputs.static_web_app_name }}
+      static_web_app_url: ${{ steps.tf-outputs.outputs.static_web_app_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -184,7 +185,17 @@ jobs:
             echo "api_base_url=$(terraform output -raw api_base_url)"
             echo "resource_group_name=$(terraform output -raw resource_group_name)"
             echo "static_web_app_name=$(terraform output -raw static_web_app_name)"
+            echo "static_web_app_url=$(terraform output -raw static_web_app_url)"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Deployment summary
+        shell: bash
+        run: |
+          echo "## Deployment summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "| | URL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **API** | $(terraform output -raw api_base_url) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Frontend** | $(terraform output -raw static_web_app_url) |" >> "$GITHUB_STEP_SUMMARY"
 
   deploy-frontend:
     name: Deploy Frontend To Static Web Apps
