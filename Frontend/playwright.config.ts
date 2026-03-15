@@ -54,7 +54,7 @@ export default defineConfig({
   webServer: [
     {
       // Піднімаємо .NET Бекенд
-      command: 'dotnet run --no-build --project ../Backend/src/ProzoroBanka.API/ProzoroBanka.API.csproj',
+      command: 'dotnet run --no-build --configuration Release --project ../Backend/src/ProzoroBanka.API/ProzoroBanka.API.csproj',
       port: 5188,
       reuseExistingServer: !process.env.CI,
       timeout: 180 * 1000,
