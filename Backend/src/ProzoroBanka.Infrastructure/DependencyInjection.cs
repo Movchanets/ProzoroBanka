@@ -54,6 +54,7 @@ public static class DependencyInjection
         // ── Auth services ──
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ITokenEncryptionService, AesTokenEncryptionService>();
+        services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IEmailNotificationService, SmtpEmailNotificationService>();
 

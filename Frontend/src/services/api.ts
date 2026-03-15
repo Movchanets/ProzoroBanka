@@ -20,6 +20,31 @@ async function refreshTokens(): Promise<TokenResponse> {
   return response.json();
 }
 
+async function readResponseBody<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const contentType = response.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    return response.json() as Promise<T>;
+  }
+
+  return (await response.text()) as T;
+}
+
+function getErrorMessage(error: ApiError, status: number): string {
+  const firstValidationError = error.errors
+    ? Object.values(error.errors).flat()[0]
+    : undefined;
+
+  return error.error
+    || error.message
+    || firstValidationError
+    || error.title
+    || `API Error: ${status}`;
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -51,12 +76,18 @@ export async function apiFetch<T>(
     }
   }
 
+  const headers = new Headers(options.headers);
+  const isFormData = options.body instanceof FormData;
+
+  if (!isFormData && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
+      ...Object.fromEntries(headers.entries()),
     },
   });
 
@@ -75,17 +106,17 @@ export async function apiFetch<T>(
         const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
           ...options,
           headers: {
-            'Content-Type': 'application/json',
             Authorization: `Bearer ${tokens.accessToken}`,
-            ...options.headers,
+            ...Object.fromEntries(headers.entries()),
           },
         });
 
         if (!retryResponse.ok) {
           const err: ApiError = await retryResponse.json().catch(() => ({}));
-          throw new Error(err.error || `API Error: ${retryResponse.status}`);
+          throw new Error(getErrorMessage(err, retryResponse.status));
         }
-        return retryResponse.json();
+
+        return readResponseBody<T>(retryResponse);
       } catch {
         isRefreshing = false;
         useAuthStore.getState().logout();
@@ -93,14 +124,22 @@ export async function apiFetch<T>(
       }
     }
 
+    let errorMsg = 'Unauthorized';
+    try {
+      const errResponse = await response.clone().json();
+      errorMsg = getErrorMessage(errResponse, response.status) || 'Unauthorized';
+    } catch {
+      // Ignore parsing errors
+    }
+
     useAuthStore.getState().logout();
-    throw new Error('Unauthorized');
+    throw new Error(errorMsg);
   }
 
   if (!response.ok) {
     const err: ApiError = await response.json().catch(() => ({}));
-    throw new Error(err.error || err.title || `API Error: ${response.status}`);
+    throw new Error(getErrorMessage(err, response.status));
   }
 
-  return response.json();
+  return readResponseBody<T>(response);
 }

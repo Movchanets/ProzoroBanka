@@ -1,47 +1,78 @@
+name: prozorobanka-local
+
 services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: prozoro_banka_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d prozoro_banka_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: ./Backend
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "5000:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=prozoro_banka;Username=postgres;Password=postgres
-      - Redis__ConnectionString=redis:6379
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=prozoro_banka_dev;Username=postgres;Password=123456
+      Redis__Enabled: "true"
+      Redis__ConnectionString: redis:6379
+      Storage__Provider: Local
+      Storage__Local__FolderName: uploads
+      Ocr__Provider: fallback
+      Cors__AllowedOrigins__0: http://localhost:3000
+      Cors__AllowedOrigins__1: http://localhost:5173
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - api_uploads:/app/wwwroot/uploads
 
   frontend:
     build:
       context: ./Frontend
       dockerfile: Dockerfile
+      args:
+        API_URL: http://localhost:3000
+        BUILD_PUBLIC_VALUE_1: 1x00000000000000000000AA
+        BUILD_PUBLIC_VALUE_2: local-dev-client-id
+    restart: unless-stopped
     ports:
       - "3000:3000"
-    environment:
-      - VITE_API_URL=http://localhost:5000
     depends_on:
-      - api
-
-  postgres:
-    image: postgres:17-alpine
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: prozoro_banka
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redisdata:/data
+      api:
+        condition: service_started
 
 volumes:
-  pgdata:
-  redisdata:
+  postgres_data:
+  redis_data:
+  api_uploads:

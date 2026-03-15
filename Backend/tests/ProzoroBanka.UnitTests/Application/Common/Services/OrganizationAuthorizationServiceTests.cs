@@ -1,0 +1,94 @@
+using ProzoroBanka.Application.Common.Services;
+using ProzoroBanka.Domain.Entities;
+using ProzoroBanka.Domain.Enums;
+using ProzoroBanka.UnitTests.Infrastructure;
+
+namespace ProzoroBanka.UnitTests.Application.Common.Services;
+
+[Collection("PostgreSQL")]
+public class OrganizationAuthorizationServiceTests
+{
+	private readonly PostgreSqlUnitTestFixture _fixture;
+
+	public OrganizationAuthorizationServiceTests(PostgreSqlUnitTestFixture fixture)
+	{
+		_fixture = fixture;
+	}
+
+	[Fact]
+	public async Task HasPermission_ReturnsTrue_ForOwnerRegardlessOfFlag()
+	{
+		await using var db = _fixture.CreateContext();
+		var ownerId = Guid.NewGuid();
+		var userId = Guid.NewGuid();
+		var orgId = Guid.NewGuid();
+
+		// Satisfy FK constraints: both users must exist in Users table
+		db.DomainUsers.AddRange(
+			new User { Id = ownerId, Email = $"own-{ownerId:N}@test.com", FirstName = "O", LastName = "W" },
+			new User { Id = userId, Email = $"usr-{userId:N}@test.com", FirstName = "U", LastName = "S" }
+		);
+		// SaveChangesAsync auto-creates an Owner member for ownerId
+		db.Organizations.Add(new Organization
+		{
+			Id = orgId,
+			Name = "Auth Org",
+			Slug = $"auth-{orgId:N}",
+			OwnerUserId = ownerId
+		});
+		await db.SaveChangesAsync();
+
+		// Add userId as Owner with NO permissions to verify "Owner bypasses flag check"
+		db.OrganizationMembers.Add(new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = userId,
+			Role = OrganizationRole.Owner,
+			PermissionsFlags = OrganizationPermissions.None,
+			JoinedAt = DateTime.UtcNow
+		});
+		await db.SaveChangesAsync();
+
+		var service = new OrganizationAuthorizationService(db);
+		var result = await service.HasPermission(orgId, userId, OrganizationPermissions.ManageInvitations);
+
+		Assert.True(result);
+	}
+
+	[Fact]
+	public async Task HasRole_ReturnsFalse_WhenRoleBelowRequirement()
+	{
+		await using var db = _fixture.CreateContext();
+		var ownerId = Guid.NewGuid();
+		var userId = Guid.NewGuid();
+		var orgId = Guid.NewGuid();
+
+		db.DomainUsers.AddRange(
+			new User { Id = ownerId, Email = $"own-{ownerId:N}@test.com", FirstName = "O", LastName = "W" },
+			new User { Id = userId, Email = $"usr-{userId:N}@test.com", FirstName = "U", LastName = "S" }
+		);
+		db.Organizations.Add(new Organization
+		{
+			Id = orgId,
+			Name = "Role Org",
+			Slug = $"role-{orgId:N}",
+			OwnerUserId = ownerId
+		});
+		await db.SaveChangesAsync();
+
+		db.OrganizationMembers.Add(new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = userId,
+			Role = OrganizationRole.Reporter,
+			PermissionsFlags = OrganizationPermissions.ManageReceipts,
+			JoinedAt = DateTime.UtcNow
+		});
+		await db.SaveChangesAsync();
+
+		var service = new OrganizationAuthorizationService(db);
+		var result = await service.HasRole(orgId, userId, OrganizationRole.Admin);
+
+		Assert.False(result);
+	}
+}

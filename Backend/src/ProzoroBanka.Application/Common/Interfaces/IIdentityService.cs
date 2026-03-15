@@ -44,6 +44,26 @@ public interface IUserService
 	/// </summary>
 	Task<ServiceResponse<UserProfile>> GetProfileAsync(Guid applicationUserId, CancellationToken ct = default);
 
+	/// <summary>
+	/// Оновлення базових даних профілю.
+	/// </summary>
+	Task<ServiceResponse<UserProfile>> UpdateProfileAsync(
+		Guid applicationUserId,
+		string firstName,
+		string lastName,
+		string? phoneNumber,
+		CancellationToken ct = default);
+
+	/// <summary>
+	/// Оновлення фото профілю користувача.
+	/// </summary>
+	Task<ServiceResponse<UserProfile>> UpdateProfilePhotoAsync(
+		Guid applicationUserId,
+		Stream fileStream,
+		string fileName,
+		string contentType,
+		CancellationToken ct = default);
+
 	// ── Role Management ──
 
 	/// <summary>
@@ -100,5 +120,6 @@ public record UserProfile(
 	string Email,
 	string FirstName,
 	string LastName,
+	string? PhoneNumber,
 	string? ProfilePhotoUrl,
 	IList<string> Roles);

@@ -3,6 +3,8 @@ using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using ProzoroBanka.Application.Common.Behaviors;
+using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Application.Common.Services;
 
 namespace ProzoroBanka.Application;
 
@@ -19,8 +21,10 @@ public static class DependencyInjection
 		// FluentValidation — автоматична реєстрація всіх валідаторів
 		services.AddValidatorsFromAssembly(assembly);
 
-		// AutoMapper
-		services.AddAutoMapper(assembly);
+		services.AddAutoMapper(config => config.AddMaps(assembly));
+
+		// Organization authorization service
+		services.AddScoped<IOrganizationAuthorizationService, OrganizationAuthorizationService>();
 
 		return services;
 	}

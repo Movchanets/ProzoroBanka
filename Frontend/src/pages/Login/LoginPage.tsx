@@ -1,15 +1,50 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { loginSchema, type LoginFormData } from '../../utils/authSchemas';
-import { authService } from '../../services/authService';
-import { useAuthStore } from '../../stores/authStore';
+import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { CircleAlert, KeyRound, LoaderCircle, Mail } from 'lucide-react';
+import { createLoginSchema, type LoginFormData } from '../../utils/authSchemas';
+import { useGoogleLoginMutation, useLoginMutation } from '../../hooks/queries/useAuth';
 import { TurnstileWidget } from '../../components/TurnstileWidget';
+import { AuthShell } from '../../components/auth/AuthShell';
+import { FieldMessages } from '../../components/auth/FieldMessages';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (options: {
+            client_id: string;
+            callback: (response: { credential?: string }) => void;
+            auto_select?: boolean;
+            cancel_on_tap_outside?: boolean;
+          }) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
+const GOOGLE_SCRIPT_ID = 'google-identity-services';
 
 export default function LoginPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const [googleReady, setGoogleReady] = useState(false);
+  const loginMutation = useLoginMutation();
+  const googleLoginMutation = useGoogleLoginMutation();
+  const googleInitializedRef = useRef(false);
+
+  const schema = useMemo(() => createLoginSchema(t), [t]);
 
   const {
     register,
@@ -17,7 +52,10 @@ export default function LoginPage() {
     setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(schema),
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
+    criteriaMode: 'all',
     defaultValues: {
       email: '',
       password: '',
@@ -25,184 +63,219 @@ export default function LoginPage() {
     },
   });
 
-  const onTurnstileVerify = useCallback(
-    (token: string) => {
-      setValue('turnstileToken', token, { shouldValidate: true });
-    },
-    [setValue]
-  );
-
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
-    setIsSubmitting(true);
 
     try {
-      const res = await authService.login(data);
-      setAuth(res.accessToken, res.refreshToken, res.accessTokenExpiry, res.user);
-      // Перенаправлення відбудеться через роутер
+      await loginMutation.mutateAsync(data);
+      navigate('/', { replace: true });
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'Помилка авторизації');
-    } finally {
-      setIsSubmitting(false);
+      setServerError(err instanceof Error ? err.message : t('auth.login.errorDefault'));
     }
   };
 
+  const handleTurnstileVerify = useCallback((token: string) => {
+    setValue('turnstileToken', token, { shouldValidate: true });
+  }, [setValue]);
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const initializeGoogle = () => {
+      if (cancelled || !window.google || googleInitializedRef.current) {
+        return;
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async ({ credential }) => {
+          if (!credential) {
+            setServerError(t('auth.login.googleNoToken'));
+            return;
+          }
+
+          const turnstileToken = document.querySelector<HTMLInputElement>('input[name="cf-turnstile-response"]')?.value?.trim();
+          if (!turnstileToken) {
+            setServerError(t('auth.login.googleTurnstileRequired'));
+            return;
+          }
+
+          setServerError(null);
+
+          try {
+            await googleLoginMutation.mutateAsync({ idToken: credential, turnstileToken });
+            navigate('/', { replace: true });
+          } catch (err) {
+            setServerError(err instanceof Error ? err.message : t('auth.login.googleError'));
+          }
+        },
+        cancel_on_tap_outside: true,
+      });
+
+      googleInitializedRef.current = true;
+      setGoogleReady(true);
+    };
+
+    const existingScript = document.getElementById(GOOGLE_SCRIPT_ID) as HTMLScriptElement | null;
+    if (existingScript) {
+      if (window.google) {
+        initializeGoogle();
+      } else {
+        existingScript.addEventListener('load', initializeGoogle, { once: true });
+      }
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const script = document.createElement('script');
+    script.id = GOOGLE_SCRIPT_ID;
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.addEventListener('load', initializeGoogle, { once: true });
+    document.head.appendChild(script);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [googleLoginMutation, navigate, t]);
+
+  const handleGoogleLogin = useCallback(() => {
+    if (!GOOGLE_CLIENT_ID) {
+      setServerError(t('auth.login.googleNotConfiguredShort'));
+      return;
+    }
+
+    if (!window.google || !googleReady) {
+      setServerError(t('auth.login.googleInitializing'));
+      return;
+    }
+
+    const turnstileToken = document.querySelector<HTMLInputElement>('input[name="cf-turnstile-response"]')?.value?.trim();
+    if (!turnstileToken) {
+      setServerError(t('auth.login.googleTurnstileRequired'));
+      return;
+    }
+
+    setServerError(null);
+    setValue('turnstileToken', turnstileToken, { shouldValidate: true });
+    window.google.accounts.id.prompt();
+  }, [googleReady, setValue, t]);
+
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>Вхід</h1>
-        <p style={styles.subtitle}>ProzoroBanka — прозора волонтерська звітність</p>
+    <AuthShell
+      eyebrow={t('auth.login.eyebrow')}
+      title={t('auth.login.heroTitle')}
+      note={t('auth.login.heroNote')}
+      alternateLabel={t('auth.login.altLabel')}
+      alternateHref="/register"
+      alternateAction={t('auth.login.altAction')}
+    >
+      <div className="space-y-2">
+        <h2 className="text-[2rem] font-semibold leading-none tracking-tight">{t('auth.login.title')}</h2>
+        <p className="text-base leading-7 text-muted-foreground">
+          {t('auth.login.subtitle')}
+        </p>
+      </div>
 
-        {serverError && (
-          <div style={styles.error}>{serverError}</div>
-        )}
+      {serverError && (
+        <Alert variant="destructive" aria-live="polite">
+          <CircleAlert aria-hidden="true" />
+          <AlertDescription>{serverError}</AlertDescription>
+        </Alert>
+      )}
 
-        <form onSubmit={handleSubmit(onSubmit)} style={styles.form}>
-          <div style={styles.field}>
-            <label htmlFor="email" style={styles.label}>Email</label>
-            <input
+      <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
+        <div className="grid gap-2.5">
+          <Label htmlFor="email">{t('common.email')}</Label>
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-4 top-1/2 z-10 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input
               id="email"
               type="email"
               autoComplete="email"
+              inputMode="email"
+              maxLength={254}
+              spellCheck={false}
               placeholder="volunteer@example.com"
+              className="pl-14 pr-4"
               {...register('email')}
-              style={styles.input}
             />
-            {errors.email && <span style={styles.fieldError}>{errors.email.message}</span>}
           </div>
+          <FieldMessages error={errors.email} />
+        </div>
 
-          <div style={styles.field}>
-            <label htmlFor="password" style={styles.label}>Пароль</label>
-            <input
+        <div className="grid gap-2.5">
+          <Label htmlFor="password">{t('common.password')}</Label>
+          <div className="relative">
+            <KeyRound className="pointer-events-none absolute left-4 top-1/2 z-10 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input
               id="password"
               type="password"
               autoComplete="current-password"
+              maxLength={128}
               placeholder="••••••••"
+              className="pl-14 pr-4"
               {...register('password')}
-              style={styles.input}
             />
-            {errors.password && <span style={styles.fieldError}>{errors.password.message}</span>}
           </div>
+          <FieldMessages error={errors.password} />
+        </div>
 
-          <div style={styles.turnstile}>
-            <TurnstileWidget onVerify={onTurnstileVerify} />
-            {errors.turnstileToken && (
-              <span style={styles.fieldError}>{errors.turnstileToken.message}</span>
-            )}
+        <div className="grid justify-items-center gap-2.5 rounded-[20px] border border-border bg-muted/70 p-3.5">
+          <TurnstileWidget onVerify={handleTurnstileVerify} />
+          <FieldMessages error={errors.turnstileToken} />
+        </div>
+
+        <Button type="submit" size="pillWide" className="w-full shadow-[0_18px_30px_var(--shadow-strong)]" disabled={loginMutation.isPending}>
+          {loginMutation.isPending ? t('auth.login.submitPending') : t('auth.login.submit')}
+        </Button>
+
+        <div className="relative py-1.5">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+            <span className="w-full border-t border-border" />
           </div>
+          <div className="relative flex justify-center text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            <span className="bg-background px-3">{t('common.or')}</span>
+          </div>
+        </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            style={{
-              ...styles.button,
-              opacity: isSubmitting ? 0.7 : 1,
-            }}
-          >
-            {isSubmitting ? 'Вхід...' : 'Увійти'}
-          </button>
-        </form>
+        <Button
+          type="button"
+          variant="secondary"
+          size="pillWide"
+          className="w-full"
+          onClick={handleGoogleLogin}
+          disabled={!GOOGLE_CLIENT_ID || googleLoginMutation.isPending}
+        >
+          {googleLoginMutation.isPending ? (
+            <>
+              <LoaderCircle className="animate-spin" aria-hidden="true" />
+              {t('auth.login.googlePending')}
+            </>
+          ) : (
+            t('auth.login.google')
+          )}
+        </Button>
 
-        <p style={styles.linkText}>
-          Немає облікового запису?{' '}
-          <a href="/register" style={styles.link}>Зареєструватися</a>
-        </p>
+        {!GOOGLE_CLIENT_ID && (
+          <p className="text-sm leading-6 text-muted-foreground">
+            {t('auth.login.googleNotConfigured')}
+          </p>
+        )}
+      </form>
+
+      <div className="flex justify-end">
+        <Link className="inline-flex text-sm font-bold text-accent transition-colors hover:text-accent/80" to="/forgot-password">
+          {t('auth.login.forgotPassword')}
+        </Link>
       </div>
-    </div>
+    </AuthShell>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '100vh',
-    background: '#f5f5f5',
-    padding: '1rem',
-  },
-  card: {
-    background: '#fff',
-    borderRadius: '12px',
-    padding: '2.5rem',
-    width: '100%',
-    maxWidth: '420px',
-    boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-  },
-  title: {
-    margin: '0 0 0.25rem',
-    fontSize: '1.75rem',
-    fontWeight: 700,
-    color: '#1a1a2e',
-  },
-  subtitle: {
-    margin: '0 0 1.5rem',
-    color: '#666',
-    fontSize: '0.9rem',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem',
-  },
-  label: {
-    fontSize: '0.875rem',
-    fontWeight: 600,
-    color: '#333',
-  },
-  input: {
-    padding: '0.75rem',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: '1rem',
-    outline: 'none',
-    transition: 'border-color 0.2s',
-  },
-  fieldError: {
-    color: '#e74c3c',
-    fontSize: '0.8rem',
-  },
-  error: {
-    background: '#fef2f2',
-    color: '#dc2626',
-    padding: '0.75rem',
-    borderRadius: '8px',
-    fontSize: '0.875rem',
-    marginBottom: '1rem',
-    border: '1px solid #fecaca',
-  },
-  turnstile: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '0.25rem',
-  },
-  button: {
-    padding: '0.75rem',
-    background: '#2563eb',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '1rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'background 0.2s',
-    marginTop: '0.5rem',
-  },
-  linkText: {
-    textAlign: 'center',
-    marginTop: '1.5rem',
-    color: '#666',
-    fontSize: '0.875rem',
-  },
-  link: {
-    color: '#2563eb',
-    textDecoration: 'none',
-    fontWeight: 600,
-  },
-};

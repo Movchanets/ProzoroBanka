@@ -2,6 +2,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using ProzoroBanka.API.Authorization;
 using ProzoroBanka.API.Filters;
@@ -27,6 +28,10 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
+    if (Environment.GetEnvironmentVariable("IS_PLAYWRIGHT_TESTS") == "true")
+    {
+        builder.Configuration.AddJsonFile("appsettings.Playwright.json", optional: true, reloadOnChange: true);
+    }
     // ── Serilog ──
     builder.Host.UseSerilog((ctx, lc) => lc
         .ReadFrom.Configuration(ctx.Configuration)
@@ -150,9 +155,29 @@ try
                 .WithTheme(ScalarTheme.BluePlanet)
                 .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
         });
+
+        var contentRoot = builder.Environment.ContentRootPath;
+        var webRoot = Path.Combine(contentRoot, "wwwroot");
+
+        // Якщо папки немає - створюємо її фізично
+        if (!Directory.Exists(webRoot))
+        {
+            Directory.CreateDirectory(webRoot);
+        }
+        var uploadsPath = Path.Combine(contentRoot, "wwwroot", "uploads");
+        if (!Directory.Exists(uploadsPath))
+        {
+            Directory.CreateDirectory(uploadsPath);
+        }
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(uploadsPath),
+            RequestPath = "" // Порожній шлях мапить файли в корінь URL
+        });
     }
 
     app.UseHttpsRedirection();
+
     app.UseCors("Frontend");
     app.UseRateLimiter();
     app.UseAuthentication();

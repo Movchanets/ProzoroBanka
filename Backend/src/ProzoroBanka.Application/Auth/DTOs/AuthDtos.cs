@@ -75,3 +75,25 @@ public record UserInfoDto(
 	string LastName,
 	string? ProfilePhotoUrl
 );
+
+/// <summary>
+/// Запит на оновлення профілю поточного користувача.
+/// </summary>
+public record UpdateProfileRequest(
+	string FirstName,
+	string LastName,
+	string? PhoneNumber
+);
+
+/// <summary>
+/// Повний профіль користувача для сторінки кабінету.
+/// </summary>
+public record UserProfileDto(
+	Guid Id,
+	string Email,
+	string FirstName,
+	string LastName,
+	string? PhoneNumber,
+	string? ProfilePhotoUrl,
+	IList<string> Roles
+);

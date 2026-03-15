@@ -1,21 +1,41 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ProzoroBanka.Application.Contracts.Email;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Infrastructure.Data;
+using Testcontainers.PostgreSql;
 
 namespace ProzoroBanka.IntegrationTests.Api;
 
-public class TestWebApplicationFactory : WebApplicationFactory<Program>
+public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-	private readonly string _databaseName = $"prozoro-auth-tests-{Guid.NewGuid():N}";
-	private readonly InMemoryDatabaseRoot _databaseRoot = new();
+	private readonly PostgreSqlContainer _postgresContainer = new PostgreSqlBuilder()
+		.WithImage("postgres:16-alpine")
+		.WithDatabase("prozoro_banka_test")
+		.WithUsername("postgres")
+		.WithPassword("postgres")
+		.Build();
+
+	public async Task InitializeAsync()
+	{
+		await _postgresContainer.StartAsync();
+
+		_ = CreateClient();
+
+		using var scope = Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+		await dbContext.Database.MigrateAsync();
+	}
+
+	public new async Task DisposeAsync()
+	{
+		Dispose();
+		await _postgresContainer.DisposeAsync();
+	}
 
 	protected override void ConfigureWebHost(IWebHostBuilder builder)
 	{
@@ -25,6 +45,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 		{
 			configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
 			{
+				["ConnectionStrings:DefaultConnection"] = _postgresContainer.GetConnectionString(),
 				["Jwt:Key"] = "TestSecretKeyAtLeast32Characters!!123",
 				["Jwt:Issuer"] = "ProzoroBanka-Test",
 				["Jwt:Audience"] = "ProzoroBanka-Test",
@@ -46,16 +67,9 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 
 		builder.ConfigureServices(services =>
 		{
-			services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
-			services.RemoveAll<IDbContextOptionsConfiguration<ApplicationDbContext>>();
-			services.RemoveAll<ApplicationDbContext>();
-			services.RemoveAll<IApplicationDbContext>();
 			services.RemoveAll<ITurnstileService>();
 			services.RemoveAll<IEmailNotificationService>();
 
-			services.AddDbContext<ApplicationDbContext>(options =>
-				options.UseInMemoryDatabase(_databaseName, _databaseRoot));
-			services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
 			services.AddSingleton<ITurnstileService, AlwaysValidTurnstileService>();
 			services.AddSingleton<IEmailNotificationService, NoOpEmailNotificationService>();
 		});

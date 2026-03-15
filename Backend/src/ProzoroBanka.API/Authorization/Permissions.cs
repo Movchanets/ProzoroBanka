@@ -26,6 +26,13 @@ public static class Permissions
 	public const string MonobankSync = "monobank.sync";
 	public const string MonobankRead = "monobank.read";
 
+	// ── Organizations ──
+	public const string OrganizationsCreate = "organizations.create";
+	public const string OrganizationsRead = "organizations.read";
+	public const string OrganizationsUpdate = "organizations.update";
+	public const string OrganizationsDelete = "organizations.delete";
+	public const string OrganizationsMembersManage = "organizations.members.manage";
+
 	// ── System ──
 	public const string SystemSettings = "system.settings";
 }
