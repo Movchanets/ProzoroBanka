@@ -203,12 +203,12 @@ resource "azurerm_container_app" "api" {
 
       env {
         name  = "Email__FromAddress"
-        value = var.email_from_address
+        value = trimspace(var.email_from_address)
       }
 
       env {
         name  = "Email__FromName"
-        value = var.email_from_name
+        value = trimspace(var.email_from_name)
       }
 
       env {

@@ -14,12 +14,12 @@ output "api_container_app_name" {
 }
 
 output "api_hostname" {
-  value       = azurerm_container_app.api.latest_revision_fqdn
+  value       = azurerm_container_app.api.ingress[0].fqdn
   description = "Public hostname of the backend Container App."
 }
 
 output "api_base_url" {
-  value       = "https://${azurerm_container_app.api.latest_revision_fqdn}"
+  value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
   description = "Base URL consumed by the frontend Vite build."
 }
 
