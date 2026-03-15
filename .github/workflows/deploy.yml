@@ -12,7 +12,6 @@ on:
         type: choice
         options:
           - dev
-          - prod
   workflow_run:
     workflows: [CI]
     types: [completed]
@@ -24,7 +23,7 @@ permissions:
 
 env:
   DOTNET_VERSION: 10.0.x
-  NODE_VERSION: 20.x
+  NODE_VERSION: 22.x
 
 jobs:
   determine-environment:
@@ -43,12 +42,13 @@ jobs:
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             DEPLOY_ENV="${{ inputs.environment }}"
             SOURCE_SHA="${GITHUB_SHA}"
-          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_run" ]]; then
-            DEPLOY_ENV="prod"
-            SOURCE_SHA="${{ github.event.workflow_run.head_sha }}"
           else
-            DEPLOY_ENV="prod"
-            SOURCE_SHA="${GITHUB_SHA}"
+            DEPLOY_ENV="dev"
+            if [[ "${GITHUB_EVENT_NAME}" == "workflow_run" ]]; then
+              SOURCE_SHA="${{ github.event.workflow_run.head_sha }}"
+            else
+              SOURCE_SHA="${GITHUB_SHA}"
+            fi
           fi
 
           OWNER_LC=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
@@ -66,7 +66,7 @@ jobs:
       image_uri: ${{ steps.image.outputs.image_uri }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ needs.determine-environment.outputs.source_sha }}
 
@@ -115,7 +115,7 @@ jobs:
       static_web_app_name: ${{ steps.tf-outputs.outputs.static_web_app_name }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ needs.determine-environment.outputs.source_sha }}
 
@@ -193,12 +193,12 @@ jobs:
     environment: ${{ needs.determine-environment.outputs.deploy_environment }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ needs.determine-environment.outputs.source_sha }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
