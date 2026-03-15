@@ -197,11 +197,11 @@ jobs:
           # Backend Logic & Security (bypassing missing appsettings)
           ASPNETCORE_ENVIRONMENT: Development
           IS_PLAYWRIGHT_TESTS: "true"
-          Jwt__Key: fcf3473fac213c0cdbf5ae633f5d6c587789c0c3b658b4000a058e3549101c3b
-          Jwt__RefreshKey: 3b94e6942b1e7ca98fd88e0780d4083e4333fb0205939706520d32237cdd3a04
+          Jwt__Key: aa2b6d410067e355b1ac374939e2144e1264d35cce78b65f6fea59e6eadf65bb
+          Jwt__RefreshKey: 2a6f7c0d7c93d33aee5ac4660ba732f3a92418ad5e523170bbe453bc82ead128
           Jwt__Issuer: ProzoroBanka-Dev
           Jwt__Audience: ProzoroBanka-Dev-Client
-          Encryption__Key: 42ed507dff026152986b8c63575c216497dda688bcd475095b47ba8e42c5ff93
+          Encryption__Key: 9618b101a497b89ad502f6c9d6080db4b3fee59ec43ca85173a4ddab3876564b
           
           # Turnstile Test Keys (Bypass)
           Turnstile__SecretKey: 1x0000000000000000000000000000000AA

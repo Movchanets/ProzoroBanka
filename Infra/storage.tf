@@ -7,7 +7,7 @@ resource "azurerm_storage_account" "main" {
   account_kind                    = "StorageV2"
   access_tier                     = "Hot"
   min_tls_version                 = "TLS1_2"
-  allow_nested_items_to_be_public = false
+  allow_nested_items_to_be_public = true
   shared_access_key_enabled       = true
   tags                            = local.common_tags
 }
@@ -15,5 +15,5 @@ resource "azurerm_storage_account" "main" {
 resource "azurerm_storage_container" "uploads" {
   name                  = var.storage_container_name
   storage_account_id    = azurerm_storage_account.main.id
-  container_access_type = "private"
+  container_access_type = "blob"
 }
