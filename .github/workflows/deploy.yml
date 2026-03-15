@@ -170,7 +170,7 @@ jobs:
           TF_VAR_static_web_app_custom_domain_validation_type: ${{ secrets.STATIC_WEB_APP_CUSTOM_DOMAIN_VALIDATION_TYPE }}
         run: |
           terraform plan \
-            -var-file="environments/${{ needs.determine-environment.outputs.deploy_environment }}/terraform.tfvars" \
+            -var-file="environments/${{ needs.determine-environment.outputs.deploy_environment }}/terraform.tfvars.example" \
             -out=tfplan
 
       - name: Terraform apply
