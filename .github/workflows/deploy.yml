@@ -150,8 +150,8 @@ jobs:
           TF_VAR_email_from_address: ${{ secrets.EMAIL_FROM_ADDRESS }}
           TF_VAR_email_from_name: ${{ secrets.EMAIL_FROM_NAME }}
           TF_VAR_email_smtp_host: ${{ secrets.SMTP_HOST }}
-          TF_VAR_email_smtp_port: ${{ secrets.SMTP_PORT }}
-          TF_VAR_email_smtp_enable_ssl: ${{ secrets.SMTP_ENABLE_SSL }}
+          TF_VAR_email_smtp_port: ${{ secrets.SMTP_PORT != '' && secrets.SMTP_PORT || '587' }}
+          TF_VAR_email_smtp_enable_ssl: ${{ secrets.SMTP_ENABLE_SSL != '' && secrets.SMTP_ENABLE_SSL || 'true' }}
           TF_VAR_email_smtp_username: ${{ secrets.SMTP_USERNAME }}
           TF_VAR_email_smtp_password: ${{ secrets.SMTP_PASSWORD }}
           TF_VAR_seed_admin_email: ${{ secrets.SEED_ADMIN_EMAIL }}
