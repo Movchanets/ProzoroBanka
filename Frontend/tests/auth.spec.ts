@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 // Credentials requested for testing
-const VALID_EMAIL = 'test@example.com';
-const VALID_PASSWORD = 'Qwerty-1';
+const VALID_EMAIL = process.env.E2E_EMAIL ?? 'admin@example.com';
+const VALID_PASSWORD = process.env.E2E_PASSWORD ?? 'Qwerty-1';
 
 test.describe('Authentication Flow - Login Functionality', () => {
 
@@ -31,11 +31,18 @@ test.describe('Authentication Flow - Login Functionality', () => {
     await page.getByLabel(/Email/i).fill(VALID_EMAIL);
     await page.getByLabel(/Пароль|Password/i).fill(VALID_PASSWORD);
 
+    const loginResponsePromise = page.waitForResponse((response) =>
+      response.url().includes('/auth/login') && response.request().method() === 'POST'
+    );
+
     // Action: Submit the form
     await page.getByRole('button', { name: /^(Увійти|Sign in)$/i }).click();
 
+    const loginResponse = await loginResponsePromise;
+    expect(loginResponse.ok()).toBeTruthy();
+
     // Pass Criteria: URL changes to /onboarding or /dashboard, and server error is not present.
-    await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/);
+    await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10000 });
     await expect(page.getByRole('alert')).not.toBeVisible();
   });
 

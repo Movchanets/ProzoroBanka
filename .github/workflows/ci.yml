@@ -210,6 +210,10 @@ jobs:
           # Seed Data for TC-01
           Seed__Admin__Email: test@example.com
           Seed__Admin__Password: Qwerty-1
+
+          # E2E credentials consumed by Frontend/tests/auth.spec.ts
+          E2E_EMAIL: test@example.com
+          E2E_PASSWORD: Qwerty-1
           
           # Frontend Env
           VITE_API_URL: http://localhost:5188

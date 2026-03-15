@@ -58,7 +58,9 @@ export default defineConfig({
       // mkdir -p ensures PhysicalFileProvider doesn't throw on missing uploads dir;
       // IS_PLAYWRIGHT_TESTS=false in CI prevents appsettings.Playwright.json from
       // overriding env-var connection strings with local-dev values.
-      command: 'cd ../Backend/src/ProzoroBanka.API && mkdir -p wwwroot/uploads && dotnet run --no-build --configuration Release',
+      command: process.env.CI
+        ? 'cd ../Backend/src/ProzoroBanka.API && dotnet run --no-build --configuration Release'
+        : 'dotnet run --project ../Backend/src/ProzoroBanka.API/ProzoroBanka.API.csproj',
       port: 5188,
       reuseExistingServer: !process.env.CI,
       timeout: 180 * 1000,
