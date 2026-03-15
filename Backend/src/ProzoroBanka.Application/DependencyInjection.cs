@@ -21,8 +21,7 @@ public static class DependencyInjection
 		// FluentValidation — автоматична реєстрація всіх валідаторів
 		services.AddValidatorsFromAssembly(assembly);
 
-		// AutoMapper
-		services.AddAutoMapper(assembly);
+		services.AddAutoMapper(config => config.AddMaps(assembly));
 
 		// Organization authorization service
 		services.AddScoped<IOrganizationAuthorizationService, OrganizationAuthorizationService>();
