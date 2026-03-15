@@ -54,10 +54,10 @@ export default defineConfig({
   webServer: [
     {
       // Піднімаємо .NET Бекенд
-      command: 'dotnet run --project ../Backend/src/ProzoroBanka.API/ProzoroBanka.API.csproj',
+      command: 'dotnet run --no-build --project ../Backend/src/ProzoroBanka.API/ProzoroBanka.API.csproj',
       port: 5188,
       reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000,
+      timeout: 180 * 1000,
       env: {
         ASPNETCORE_ENVIRONMENT: 'Development', // Залишаємо Dev режим!
         IS_PLAYWRIGHT_TESTS: 'true'            // Тригеримо наш додатковий JSON або логіку E2E
