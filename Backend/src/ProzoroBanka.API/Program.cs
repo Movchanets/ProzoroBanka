@@ -158,13 +158,17 @@ try
 
         var contentRoot = builder.Environment.ContentRootPath;
         var webRoot = Path.Combine(contentRoot, "wwwroot");
-        var uploadsPath = Path.Combine(contentRoot, "wwwroot", "uploads");
+
         // Якщо папки немає - створюємо її фізично
         if (!Directory.Exists(webRoot))
         {
             Directory.CreateDirectory(webRoot);
         }
-
+        var uploadsPath = Path.Combine(contentRoot, "wwwroot", "uploads");
+        if (!Directory.Exists(uploadsPath))
+        {
+            Directory.CreateDirectory(uploadsPath);
+        }
         app.UseStaticFiles(new StaticFileOptions
         {
             FileProvider = new PhysicalFileProvider(uploadsPath),
@@ -173,7 +177,7 @@ try
     }
 
     app.UseHttpsRedirection();
-   
+
     app.UseCors("Frontend");
     app.UseRateLimiter();
     app.UseAuthentication();

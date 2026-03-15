@@ -54,13 +54,17 @@ export default defineConfig({
   webServer: [
     {
       // Піднімаємо .NET Бекенд
-      command: 'dotnet run --no-build --configuration Release --project ../Backend/src/ProzoroBanka.API/ProzoroBanka.API.csproj',
+      // cd fixes ContentRootPath so appsettings.json / wwwroot are resolved correctly;
+      // mkdir -p ensures PhysicalFileProvider doesn't throw on missing uploads dir;
+      // IS_PLAYWRIGHT_TESTS=false in CI prevents appsettings.Playwright.json from
+      // overriding env-var connection strings with local-dev values.
+      command: 'cd ../Backend/src/ProzoroBanka.API && mkdir -p wwwroot/uploads && dotnet run --no-build --configuration Release',
       port: 5188,
       reuseExistingServer: !process.env.CI,
       timeout: 180 * 1000,
       env: {
-        ASPNETCORE_ENVIRONMENT: 'Development', // Залишаємо Dev режим!
-        IS_PLAYWRIGHT_TESTS: 'true'            // Тригеримо наш додатковий JSON або логіку E2E
+        ASPNETCORE_ENVIRONMENT: 'Development',
+        IS_PLAYWRIGHT_TESTS: process.env.CI ? 'false' : 'true',
       }
     },
     {

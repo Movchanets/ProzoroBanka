@@ -197,7 +197,6 @@ jobs:
           
           # Backend Logic & Security (bypassing missing appsettings)
           ASPNETCORE_ENVIRONMENT: Development
-          IS_PLAYWRIGHT_TESTS: "true"
           Jwt__Key: aa2b6d410067e355b1ac374939e2144e1264d35cce78b65f6fea59e6eadf65bb
           Jwt__RefreshKey: 2a6f7c0d7c93d33aee5ac4660ba732f3a92418ad5e523170bbe453bc82ead128
           Jwt__Issuer: ProzoroBanka-Dev
