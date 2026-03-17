@@ -10,13 +10,15 @@ namespace ProzoroBanka.Infrastructure.Services.FileStorage;
 public class AzureBlobStorage : IFileStorage
 {
 	private readonly BlobContainerClient _containerClient;
-	private readonly string? _cdnUrl;
+	private readonly string _publicBaseUrl;
 
 	public AzureBlobStorage(string connectionString, string containerName, string? cdnUrl = null)
 	{
 		_containerClient = new BlobContainerClient(connectionString, containerName);
 		_containerClient.CreateIfNotExists(PublicAccessType.None);
-		_cdnUrl = cdnUrl?.TrimEnd('/');
+
+		var blobHostBaseUrl = $"{_containerClient.Uri.Scheme}://{_containerClient.Uri.Host}";
+		_publicBaseUrl = ResolvePublicBaseUrl(cdnUrl, blobHostBaseUrl);
 	}
 
 	public async Task<string> UploadAsync(Stream fileStream, string fileName, string contentType, CancellationToken cancellationToken = default)
@@ -32,15 +34,26 @@ public class AzureBlobStorage : IFileStorage
 
 	public string GetPublicUrl(string storageKey)
 	{
-		if (!string.IsNullOrEmpty(_cdnUrl))
-			return $"{_cdnUrl}/{storageKey}";
-
-		return _containerClient.GetBlobClient(storageKey).Uri.ToString();
+		return StoragePublicUrlBuilder.BuildUploadsUrl(_publicBaseUrl, storageKey);
 	}
 
 	public async Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default)
 	{
 		var blobClient = _containerClient.GetBlobClient(storageKey);
 		await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
+	}
+
+	private static string ResolvePublicBaseUrl(string? configuredBaseUrl, string fallbackBaseUrl)
+	{
+		if (string.IsNullOrWhiteSpace(configuredBaseUrl))
+			return fallbackBaseUrl;
+
+		if (!Uri.TryCreate(configuredBaseUrl, UriKind.Absolute, out var parsedUri))
+			return fallbackBaseUrl;
+
+		if (!parsedUri.Host.Contains(".blob.", StringComparison.OrdinalIgnoreCase))
+			return fallbackBaseUrl;
+
+		return $"{parsedUri.Scheme}://{parsedUri.Host}";
 	}
 }

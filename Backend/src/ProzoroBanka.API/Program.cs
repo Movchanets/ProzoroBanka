@@ -172,7 +172,7 @@ try
         app.UseStaticFiles(new StaticFileOptions
         {
             FileProvider = new PhysicalFileProvider(uploadsPath),
-            RequestPath = "" // Порожній шлях мапить файли в корінь URL
+            RequestPath = "/uploads" // Порожній шлях мапить файли в корінь URL
         });
     }
 

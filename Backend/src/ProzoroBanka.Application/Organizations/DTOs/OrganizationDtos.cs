@@ -23,7 +23,8 @@ public record OrganizationMemberDto(
 	string Email,
 	OrganizationRole Role,
 	OrganizationPermissions PermissionsFlags,
-	DateTime JoinedAt
+	DateTime JoinedAt,
+	string? AvatarUrl = null
 );
 
 // ── Controller request models ──

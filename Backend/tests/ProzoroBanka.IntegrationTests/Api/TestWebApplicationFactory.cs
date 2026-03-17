@@ -13,6 +13,8 @@ namespace ProzoroBanka.IntegrationTests.Api;
 
 public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+	public RecordingEmailNotificationService EmailRecorder { get; } = new();
+
 	private readonly PostgreSqlContainer _postgresContainer = new PostgreSqlBuilder()
 		.WithImage("postgres:16-alpine")
 		.WithDatabase("prozoro_banka_test")
@@ -71,7 +73,8 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
 			services.RemoveAll<IEmailNotificationService>();
 
 			services.AddSingleton<ITurnstileService, AlwaysValidTurnstileService>();
-			services.AddSingleton<IEmailNotificationService, NoOpEmailNotificationService>();
+			services.AddSingleton<RecordingEmailNotificationService>(EmailRecorder);
+			services.AddSingleton<IEmailNotificationService>(sp => sp.GetRequiredService<RecordingEmailNotificationService>());
 		});
 	}
 
@@ -83,10 +86,55 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
 		}
 	}
 
-	private sealed class NoOpEmailNotificationService : IEmailNotificationService
+	public sealed class RecordingEmailNotificationService : IEmailNotificationService
 	{
-		public Task SendEmailAsync(ISendEmailCommand command, CancellationToken cancellationToken = default) => Task.CompletedTask;
-		public Task SendTemplatedEmailAsync(string templateName, string to, object templateData, CancellationToken cancellationToken = default) => Task.CompletedTask;
-		public Task ScheduleEmailAsync(ISendEmailCommand command, DateTime scheduledTime, CancellationToken cancellationToken = default) => Task.CompletedTask;
+		private readonly List<RecordedEmail> _emails = [];
+		private readonly object _gate = new();
+
+		public Task SendEmailAsync(ISendEmailCommand command, CancellationToken cancellationToken = default)
+		{
+			lock (_gate)
+			{
+				_emails.Add(new RecordedEmail(command.To, command.Subject, command.Body, command.IsHtml, command.CorrelationId));
+			}
+
+			return Task.CompletedTask;
+		}
+
+		public Task SendTemplatedEmailAsync(string templateName, string to, object templateData, CancellationToken cancellationToken = default)
+		{
+			lock (_gate)
+			{
+				_emails.Add(new RecordedEmail(to, templateName, templateData.ToString() ?? string.Empty, false, null));
+			}
+
+			return Task.CompletedTask;
+		}
+
+		public Task ScheduleEmailAsync(ISendEmailCommand command, DateTime scheduledTime, CancellationToken cancellationToken = default)
+			=> SendEmailAsync(command, cancellationToken);
+
+		public void Clear()
+		{
+			lock (_gate)
+			{
+				_emails.Clear();
+			}
+		}
+
+		public IReadOnlyList<RecordedEmail> Snapshot()
+		{
+			lock (_gate)
+			{
+				return _emails.ToList();
+			}
+		}
 	}
+
+	public sealed record RecordedEmail(
+		string To,
+		string Subject,
+		string Body,
+		bool IsHtml,
+		string? CorrelationId);
 }

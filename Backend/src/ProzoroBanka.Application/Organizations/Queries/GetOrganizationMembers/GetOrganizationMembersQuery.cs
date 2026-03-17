@@ -14,10 +14,12 @@ public class GetOrganizationMembersHandler
 	: IRequestHandler<GetOrganizationMembersQuery, ServiceResponse<IReadOnlyList<OrganizationMemberDto>>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IFileStorage _fileStorage;
 
-	public GetOrganizationMembersHandler(IApplicationDbContext db)
+	public GetOrganizationMembersHandler(IApplicationDbContext db, IFileStorage fileStorage)
 	{
 		_db = db;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<IReadOnlyList<OrganizationMemberDto>>> Handle(
@@ -38,16 +40,38 @@ public class GetOrganizationMembersHandler
 
 		var members = await _db.OrganizationMembers
 			.Where(m => m.OrganizationId == request.OrganizationId)
-			.Select(m => new OrganizationMemberDto(
+			.Select(m => new
+			{
 				m.UserId,
 				m.User.FirstName,
 				m.User.LastName,
 				m.User.Email,
 				m.Role,
 				m.PermissionsFlags,
-				m.JoinedAt))
+				m.JoinedAt,
+				m.User.ProfilePhotoStorageKey
+			})
 			.ToListAsync(cancellationToken);
 
-		return ServiceResponse<IReadOnlyList<OrganizationMemberDto>>.Success(members);
+		var mappedMembers = members.Select(m => new OrganizationMemberDto(
+				m.UserId,
+				m.FirstName,
+				m.LastName,
+				m.Email,
+				m.Role,
+				m.PermissionsFlags,
+				m.JoinedAt,
+				ResolvePublicUrl(m.ProfilePhotoStorageKey)))
+			.ToList();
+
+		return ServiceResponse<IReadOnlyList<OrganizationMemberDto>>.Success(mappedMembers);
+	}
+
+	private string? ResolvePublicUrl(string? storageKey)
+	{
+		if (string.IsNullOrWhiteSpace(storageKey))
+			return null;
+
+		return _fileStorage.GetPublicUrl(storageKey);
 	}
 }

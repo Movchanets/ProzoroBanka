@@ -9,9 +9,11 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5188';
 
 export function getImageUrl(storageKey?: string | null): string | undefined {
   if (!storageKey) return undefined;
-  if (storageKey.startsWith('http')) return storageKey;
-  
-  // Backend's LocalFileStorage service saves inside webRoot
-  // and we serve the static files with app.UseStaticFiles()
-  return `${API_BASE_URL}/${storageKey.replace(/^[/\\]+/, '')}`;
+  if (/^https?:\/\//i.test(storageKey)) return storageKey;
+
+  const normalizedKey = storageKey.replace(/^[/\\]+/, '');
+  const keyWithoutUploadsPrefix = normalizedKey.replace(/^uploads[/\\]+/i, '');
+  const keyPath = keyWithoutUploadsPrefix.replace(/\\+/g, '/');
+
+  return `${API_BASE_URL.replace(/\/$/, '')}/uploads/${keyPath}`;
 }

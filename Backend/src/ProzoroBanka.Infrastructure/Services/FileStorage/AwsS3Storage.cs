@@ -40,10 +40,12 @@ public class AwsS3Storage : IFileStorage
 
 	public string GetPublicUrl(string storageKey)
 	{
-		if (!string.IsNullOrEmpty(_publicUrl))
-			return $"{_publicUrl}/{storageKey}";
+		var baseUrl = $"https://{_bucketName}.s3.amazonaws.com";
 
-		return $"https://{_bucketName}.s3.amazonaws.com/{storageKey}";
+		if (!string.IsNullOrEmpty(_publicUrl))
+			baseUrl = _publicUrl;
+
+		return StoragePublicUrlBuilder.BuildUploadsUrl(baseUrl, storageKey);
 	}
 
 	public async Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default)

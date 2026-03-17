@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ProzoroBanka.Application.Common.Interfaces;
@@ -259,6 +261,84 @@ public class AuthEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		});
 
 		Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+	}
+
+	[Fact]
+	public async Task ForgotPassword_ThenResetPassword_UpdatesCredentialsUsingEmailLink()
+	{
+		var email = $"reset-{Guid.NewGuid():N}@example.com";
+		const string initialPassword = "Password123!";
+		const string newPassword = "Password456!";
+
+		var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", new
+		{
+			email,
+			password = initialPassword,
+			confirmPassword = initialPassword,
+			firstName = "Reset",
+			lastName = "Tester",
+			turnstileToken = "test-token"
+		});
+		registerResponse.EnsureSuccessStatusCode();
+
+		_factory.EmailRecorder.Clear();
+
+		var forgotRequest = new HttpRequestMessage(HttpMethod.Post, "/api/auth/forgot-password")
+		{
+			Content = JsonContent.Create(new
+			{
+				email,
+				turnstileToken = "test-token"
+			})
+		};
+		forgotRequest.Headers.TryAddWithoutValidation("Origin", "http://localhost:5173");
+
+		var forgotResponse = await _client.SendAsync(forgotRequest);
+		Assert.Equal(HttpStatusCode.OK, forgotResponse.StatusCode);
+
+		var recordedEmail = _factory.EmailRecorder.Snapshot()
+			.LastOrDefault(m => string.Equals(m.To, email, StringComparison.OrdinalIgnoreCase));
+
+		Assert.NotNull(recordedEmail);
+		Assert.DoesNotContain("\\\"", recordedEmail!.Body, StringComparison.Ordinal);
+
+		var hrefMatch = Regex.Match(recordedEmail.Body, "href=\"(?<url>[^\"]+)\"", RegexOptions.IgnoreCase);
+		Assert.True(hrefMatch.Success);
+
+		var resetUrl = hrefMatch.Groups["url"].Value;
+		Assert.True(Uri.TryCreate(resetUrl, UriKind.Absolute, out var parsedResetUri));
+		Assert.Equal("/reset-password", parsedResetUri!.AbsolutePath);
+
+		var resetQuery = QueryHelpers.ParseQuery(parsedResetUri.Query);
+		Assert.True(resetQuery.TryGetValue("email", out var emailValue));
+		Assert.True(resetQuery.TryGetValue("token", out var tokenValue));
+		Assert.Equal(email, emailValue.ToString());
+		Assert.False(string.IsNullOrWhiteSpace(tokenValue.ToString()));
+
+		var resetResponse = await _client.PostAsJsonAsync("/api/auth/reset-password", new
+		{
+			email,
+			token = tokenValue.ToString(),
+			newPassword,
+			confirmPassword = newPassword
+		});
+		Assert.Equal(HttpStatusCode.OK, resetResponse.StatusCode);
+
+		var oldLoginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
+		{
+			email,
+			password = initialPassword,
+			turnstileToken = "test-token"
+		});
+		Assert.Equal(HttpStatusCode.Unauthorized, oldLoginResponse.StatusCode);
+
+		var newLoginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
+		{
+			email,
+			password = newPassword,
+			turnstileToken = "test-token"
+		});
+		Assert.Equal(HttpStatusCode.OK, newLoginResponse.StatusCode);
 	}
 
 	private async Task AuthenticateAsAdminAsync()

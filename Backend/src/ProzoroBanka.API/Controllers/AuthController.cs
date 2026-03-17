@@ -25,10 +25,12 @@ namespace ProzoroBanka.API.Controllers;
 public class AuthController : ApiControllerBase
 {
 	private readonly ISender _sender;
+	private readonly IConfiguration _configuration;
 
-	public AuthController(ISender sender)
+	public AuthController(ISender sender, IConfiguration configuration)
 	{
 		_sender = sender;
+		_configuration = configuration;
 	}
 
 	/// <summary>
@@ -110,6 +112,17 @@ public class AuthController : ApiControllerBase
 	public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken ct)
 	{
 		var origin = Request.Headers.Origin.FirstOrDefault();
+
+		if (string.IsNullOrWhiteSpace(origin))
+		{
+			var referer = Request.Headers.Referer.FirstOrDefault();
+			if (Uri.TryCreate(referer, UriKind.Absolute, out var refererUri))
+				origin = $"{refererUri.Scheme}://{refererUri.Authority}";
+		}
+
+		if (string.IsNullOrWhiteSpace(origin))
+			origin = _configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()?.FirstOrDefault();
+
 		if (string.IsNullOrWhiteSpace(origin))
 			origin = $"{Request.Scheme}://{Request.Host}";
 
