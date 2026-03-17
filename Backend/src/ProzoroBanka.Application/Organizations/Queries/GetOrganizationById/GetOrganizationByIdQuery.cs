@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.DTOs;
@@ -50,16 +51,8 @@ public class GetOrganizationByIdHandler : IRequestHandler<GetOrganizationByIdQue
 			return ServiceResponse<OrganizationDto>.Failure("Немає доступу до організації");
 
 		return ServiceResponse<OrganizationDto>.Success(new OrganizationDto(
-			org.Id, org.Name, org.Slug, org.Description, ResolvePublicUrl(org.LogoStorageKey),
+			org.Id, org.Name, org.Slug, org.Description, StorageUrlResolver.Resolve(_fileStorage, org.LogoStorageKey),
 			org.IsVerified, org.Website, org.ContactEmail, org.OwnerUserId,
 			org.MemberCount, org.CreatedAt));
-	}
-
-	private string? ResolvePublicUrl(string? storageKey)
-	{
-		if (string.IsNullOrWhiteSpace(storageKey))
-			return null;
-
-		return _fileStorage.GetPublicUrl(storageKey);
 	}
 }

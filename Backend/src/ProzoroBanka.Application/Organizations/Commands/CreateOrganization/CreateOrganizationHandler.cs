@@ -1,21 +1,31 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.DTOs;
 using ProzoroBanka.Domain.Entities;
+using ProzoroBanka.Domain.Interfaces;
 
 namespace ProzoroBanka.Application.Organizations.Commands.CreateOrganization;
 
 public class CreateOrganizationHandler : IRequestHandler<CreateOrganizationCommand, ServiceResponse<OrganizationDto>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IOrganizationRepository _orgRepo;
 	private readonly IFileStorage _fileStorage;
+	private readonly IUnitOfWork _unitOfWork;
 
-	public CreateOrganizationHandler(IApplicationDbContext db, IFileStorage fileStorage)
+	public CreateOrganizationHandler(
+		IApplicationDbContext db,
+		IOrganizationRepository orgRepo,
+		IFileStorage fileStorage,
+		IUnitOfWork unitOfWork)
 	{
 		_db = db;
+		_orgRepo = orgRepo;
 		_fileStorage = fileStorage;
+		_unitOfWork = unitOfWork;
 	}
 
 	public async Task<ServiceResponse<OrganizationDto>> Handle(
@@ -39,11 +49,11 @@ public class CreateOrganizationHandler : IRequestHandler<CreateOrganizationComma
 			OwnerUserId = request.CallerDomainUserId
 		};
 
-		_db.Organizations.Add(org);
-		await _db.SaveChangesAsync(cancellationToken);
+		_orgRepo.Add(org);
+		await _unitOfWork.SaveChangesAsync(cancellationToken);
 
 		return ServiceResponse<OrganizationDto>.Success(new OrganizationDto(
-			org.Id, org.Name, org.Slug, org.Description, ResolvePublicUrl(org.LogoStorageKey),
+			org.Id, org.Name, org.Slug, org.Description, StorageUrlResolver.Resolve(_fileStorage, org.LogoStorageKey),
 			org.IsVerified, org.Website, org.ContactEmail, org.OwnerUserId, 1, org.CreatedAt));
 	}
 
@@ -53,8 +63,7 @@ public class CreateOrganizationHandler : IRequestHandler<CreateOrganizationComma
 		var slug = baseSlug;
 		var counter = 1;
 
-		while (await _db.Organizations.AnyAsync(
-			o => o.Slug == slug && (excludeId == null || o.Id != excludeId.Value), ct))
+		while (await _orgRepo.SlugExistsAsync(slug, excludeId, ct))
 		{
 			slug = $"{baseSlug}-{counter++}";
 		}
@@ -62,11 +71,4 @@ public class CreateOrganizationHandler : IRequestHandler<CreateOrganizationComma
 		return slug;
 	}
 
-	private string? ResolvePublicUrl(string? storageKey)
-	{
-		if (string.IsNullOrWhiteSpace(storageKey))
-			return null;
-
-		return _fileStorage.GetPublicUrl(storageKey);
-	}
 }

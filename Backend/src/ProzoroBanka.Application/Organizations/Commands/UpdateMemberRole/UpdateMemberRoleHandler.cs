@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.DTOs;
 using ProzoroBanka.Domain.Enums;
@@ -11,31 +12,51 @@ public class UpdateMemberRoleHandler
 	: IRequestHandler<UpdateMemberRoleCommand, ServiceResponse<OrganizationMemberDto>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IOrganizationAuthorizationService _orgAuth;
+	private readonly IFileStorage _fileStorage;
 
-	public UpdateMemberRoleHandler(IApplicationDbContext db)
+	public UpdateMemberRoleHandler(
+		IApplicationDbContext db,
+		IOrganizationAuthorizationService orgAuth,
+		IFileStorage fileStorage)
 	{
 		_db = db;
+		_orgAuth = orgAuth;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<OrganizationMemberDto>> Handle(
 		UpdateMemberRoleCommand request, CancellationToken cancellationToken)
 	{
-		var members = await _db.OrganizationMembers
-			.Include(m => m.User)
-			.Where(m => m.OrganizationId == request.OrganizationId)
-			.ToListAsync(cancellationToken);
+		var organizationExists = await _db.Organizations
+			.AnyAsync(o => o.Id == request.OrganizationId && !o.IsDeleted, cancellationToken);
 
-		if (!members.Any())
+		if (!organizationExists)
 			return ServiceResponse<OrganizationMemberDto>.Failure("Організацію не знайдено");
 
-		var caller = members.FirstOrDefault(m => m.UserId == request.CallerDomainUserId);
-		if (caller is null)
-			return ServiceResponse<OrganizationMemberDto>.Failure("Немає доступу до організації");
+		var canManageMembers = await _orgAuth.HasPermission(
+			request.OrganizationId,
+			request.CallerDomainUserId,
+			OrganizationPermissions.ManageMembers,
+			cancellationToken);
 
-		if (!caller.PermissionsFlags.HasFlag(OrganizationPermissions.ManageMembers))
+		if (!canManageMembers)
+		{
+			var callerIsMember = await _orgAuth.IsMember(request.OrganizationId, request.CallerDomainUserId, cancellationToken);
+			if (!callerIsMember)
+				return ServiceResponse<OrganizationMemberDto>.Failure("Немає доступу до організації");
+
 			return ServiceResponse<OrganizationMemberDto>.Failure("Недостатньо прав для зміни ролі учасника");
+		}
 
-		var target = members.FirstOrDefault(m => m.UserId == request.TargetUserId);
+		var target = await _db.OrganizationMembers
+			.Include(m => m.User)
+			.FirstOrDefaultAsync(
+				m => m.OrganizationId == request.OrganizationId &&
+					 m.UserId == request.TargetUserId &&
+					 !m.IsDeleted,
+				cancellationToken);
+
 		if (target is null)
 			return ServiceResponse<OrganizationMemberDto>.Failure("Учасника не знайдено");
 
@@ -58,6 +79,7 @@ public class UpdateMemberRoleHandler
 			target.User.Email,
 			target.Role,
 			target.PermissionsFlags,
-			target.JoinedAt));
+			target.JoinedAt,
+			StorageUrlResolver.Resolve(_fileStorage, target.User.ProfilePhotoStorageKey)));
 	}
 }

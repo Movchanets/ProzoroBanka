@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.DTOs;
@@ -61,17 +62,9 @@ public class GetOrganizationMembersHandler
 				m.Role,
 				m.PermissionsFlags,
 				m.JoinedAt,
-				ResolvePublicUrl(m.ProfilePhotoStorageKey)))
+				StorageUrlResolver.Resolve(_fileStorage, m.ProfilePhotoStorageKey)))
 			.ToList();
 
 		return ServiceResponse<IReadOnlyList<OrganizationMemberDto>>.Success(mappedMembers);
-	}
-
-	private string? ResolvePublicUrl(string? storageKey)
-	{
-		if (string.IsNullOrWhiteSpace(storageKey))
-			return null;
-
-		return _fileStorage.GetPublicUrl(storageKey);
 	}
 }

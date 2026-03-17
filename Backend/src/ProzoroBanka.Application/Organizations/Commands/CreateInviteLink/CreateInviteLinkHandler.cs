@@ -1,23 +1,31 @@
-using System.Security.Cryptography;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.DTOs;
+using ProzoroBanka.Application.Organizations.InvitationSupport;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
+using ProzoroBanka.Domain.Interfaces;
 
 namespace ProzoroBanka.Application.Organizations.Commands.CreateInviteLink;
 
 public class CreateInviteLinkHandler : IRequestHandler<CreateInviteLinkCommand, ServiceResponse<InvitationDto>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IInvitationRepository _invitationRepository;
 	private readonly IOrganizationAuthorizationService _orgAuth;
 	private readonly IFileStorage _fileStorage;
 
-	public CreateInviteLinkHandler(IApplicationDbContext db, IOrganizationAuthorizationService orgAuth, IFileStorage fileStorage)
+	public CreateInviteLinkHandler(
+		IApplicationDbContext db,
+		IInvitationRepository invitationRepository,
+		IOrganizationAuthorizationService orgAuth,
+		IFileStorage fileStorage)
 	{
 		_db = db;
+		_invitationRepository = invitationRepository;
 		_orgAuth = orgAuth;
 		_fileStorage = fileStorage;
 	}
@@ -38,7 +46,7 @@ public class CreateInviteLinkHandler : IRequestHandler<CreateInviteLinkCommand, 
 		if (!canManage)
 			return ServiceResponse<InvitationDto>.Failure("Недостатньо прав для створення посилань-запрошень");
 
-		var token = GenerateToken();
+		var token = InvitationTokenGenerator.Generate();
 		var inviter = await _db.Users
 			.AsNoTracking()
 			.FirstOrDefaultAsync(u => u.Id == request.CallerDomainUserId, cancellationToken);
@@ -54,14 +62,14 @@ public class CreateInviteLinkHandler : IRequestHandler<CreateInviteLinkCommand, 
 			ExpiresAt = DateTime.UtcNow.AddHours(request.ExpiresInHours)
 		};
 
-		_db.Invitations.Add(invitation);
+		_invitationRepository.Add(invitation);
 		await _db.SaveChangesAsync(cancellationToken);
 
 		return ServiceResponse<InvitationDto>.Success(new InvitationDto(
 			invitation.Id,
 			org.Id,
 			org.Name,
-			ResolvePublicUrl(org.LogoStorageKey),
+			StorageUrlResolver.Resolve(_fileStorage, org.LogoStorageKey),
 			inviter?.FirstName ?? string.Empty,
 			inviter?.LastName ?? string.Empty,
 			null,
@@ -72,21 +80,4 @@ public class CreateInviteLinkHandler : IRequestHandler<CreateInviteLinkCommand, 
 			token));
 	}
 
-	private static string GenerateToken()
-	{
-		var bytes = new byte[32];
-		RandomNumberGenerator.Fill(bytes);
-		return Convert.ToBase64String(bytes)
-			.Replace('+', '-')
-			.Replace('/', '_')
-			.TrimEnd('=');
-	}
-
-	private string? ResolvePublicUrl(string? storageKey)
-	{
-		if (string.IsNullOrWhiteSpace(storageKey))
-			return null;
-
-		return _fileStorage.GetPublicUrl(storageKey);
-	}
 }

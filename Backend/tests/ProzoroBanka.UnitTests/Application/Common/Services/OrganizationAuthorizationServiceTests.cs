@@ -16,6 +16,47 @@ public class OrganizationAuthorizationServiceTests
 	}
 
 	[Fact]
+	public async Task IsMember_ReturnsFalse_ForSoftDeletedMembership()
+	{
+		await using var db = _fixture.CreateContext();
+		var ownerId = Guid.NewGuid();
+		var userId = Guid.NewGuid();
+		var orgId = Guid.NewGuid();
+
+		db.DomainUsers.AddRange(
+			new User { Id = ownerId, Email = $"owner-{ownerId:N}@test.com", FirstName = "Own", LastName = "Er" },
+			new User { Id = userId, Email = $"user-{userId:N}@test.com", FirstName = "Us", LastName = "Er" });
+
+		db.Organizations.Add(new Organization
+		{
+			Id = orgId,
+			Name = "Auth Org",
+			Slug = $"auth-org-{orgId:N}",
+			OwnerUserId = ownerId
+		});
+		await db.SaveChangesAsync();
+
+		db.OrganizationMembers.Add(new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = userId,
+			Role = OrganizationRole.Reporter,
+			PermissionsFlags = OrganizationPermissions.ViewReports,
+			JoinedAt = DateTime.UtcNow,
+			IsDeleted = true
+		});
+		await db.SaveChangesAsync();
+
+		var service = new OrganizationAuthorizationService(db);
+
+		var isMember = await service.IsMember(orgId, userId, CancellationToken.None);
+		var hasPermission = await service.HasPermission(orgId, userId, OrganizationPermissions.ViewReports, CancellationToken.None);
+
+		Assert.False(isMember);
+		Assert.False(hasPermission);
+	}
+
+	[Fact]
 	public async Task HasPermission_ReturnsTrue_ForOwnerRegardlessOfFlag()
 	{
 		await using var db = _fixture.CreateContext();

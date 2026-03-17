@@ -1,23 +1,31 @@
-using System.Security.Cryptography;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.DTOs;
+using ProzoroBanka.Application.Organizations.InvitationSupport;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
+using ProzoroBanka.Domain.Interfaces;
 
 namespace ProzoroBanka.Application.Organizations.Commands.InviteByEmail;
 
 public class InviteByEmailHandler : IRequestHandler<InviteByEmailCommand, ServiceResponse<InvitationDto>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IInvitationRepository _invitationRepository;
 	private readonly IOrganizationAuthorizationService _orgAuth;
 	private readonly IFileStorage _fileStorage;
 
-	public InviteByEmailHandler(IApplicationDbContext db, IOrganizationAuthorizationService orgAuth, IFileStorage fileStorage)
+	public InviteByEmailHandler(
+		IApplicationDbContext db,
+		IInvitationRepository invitationRepository,
+		IOrganizationAuthorizationService orgAuth,
+		IFileStorage fileStorage)
 	{
 		_db = db;
+		_invitationRepository = invitationRepository;
 		_orgAuth = orgAuth;
 		_fileStorage = fileStorage;
 	}
@@ -38,12 +46,10 @@ public class InviteByEmailHandler : IRequestHandler<InviteByEmailCommand, Servic
 		if (!canManage)
 			return ServiceResponse<InvitationDto>.Failure("Недостатньо прав для створення запрошень");
 
-		// Check for existing pending invitation to the same email in this org
-		var existing = await _db.Invitations
-			.AnyAsync(i =>
-				i.OrganizationId == request.OrganizationId &&
-				i.Email == request.Email.ToLowerInvariant() &&
-				i.Status == InvitationStatus.Pending,
+		// Repository check includes soft-delete and expiry filtering to avoid duplicated query rules.
+		var existing = await _invitationRepository.HasPendingEmailInviteAsync(
+			request.OrganizationId,
+			request.Email,
 			cancellationToken);
 
 		if (existing)
@@ -53,7 +59,7 @@ public class InviteByEmailHandler : IRequestHandler<InviteByEmailCommand, Servic
 			.AsNoTracking()
 			.FirstOrDefaultAsync(u => u.Id == request.CallerDomainUserId, cancellationToken);
 
-		var token = GenerateToken();
+		var token = InvitationTokenGenerator.Generate();
 
 		var invitation = new Invitation
 		{
@@ -66,7 +72,7 @@ public class InviteByEmailHandler : IRequestHandler<InviteByEmailCommand, Servic
 			ExpiresAt = DateTime.UtcNow.AddHours(24)  // default 24h for email invites
 		};
 
-		_db.Invitations.Add(invitation);
+		_invitationRepository.Add(invitation);
 		await _db.SaveChangesAsync(cancellationToken);
 
 		// Email sending is not implemented yet — future feature
@@ -74,7 +80,7 @@ public class InviteByEmailHandler : IRequestHandler<InviteByEmailCommand, Servic
 			invitation.Id,
 			org.Id,
 			org.Name,
-			ResolvePublicUrl(org.LogoStorageKey),
+			StorageUrlResolver.Resolve(_fileStorage, org.LogoStorageKey),
 			inviter?.FirstName ?? string.Empty,
 			inviter?.LastName ?? string.Empty,
 			invitation.Email,
@@ -85,21 +91,4 @@ public class InviteByEmailHandler : IRequestHandler<InviteByEmailCommand, Servic
 			token));
 	}
 
-	private static string GenerateToken()
-	{
-		var bytes = new byte[32];
-		RandomNumberGenerator.Fill(bytes);
-		return Convert.ToBase64String(bytes)
-			.Replace('+', '-')
-			.Replace('/', '_')
-			.TrimEnd('=');
-	}
-
-	private string? ResolvePublicUrl(string? storageKey)
-	{
-		if (string.IsNullOrWhiteSpace(storageKey))
-			return null;
-
-		return _fileStorage.GetPublicUrl(storageKey);
-	}
 }

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.DTOs;
@@ -48,7 +49,7 @@ public class GetMyOrganizationsHandler
 				org.Name,
 				org.Slug,
 				org.Description,
-				ResolvePublicUrl(org.LogoStorageKey),
+				StorageUrlResolver.Resolve(_fileStorage, org.LogoStorageKey),
 				org.IsVerified,
 				org.Website,
 				org.ContactEmail,
@@ -58,13 +59,5 @@ public class GetMyOrganizationsHandler
 			.ToList();
 
 		return ServiceResponse<IReadOnlyList<OrganizationDto>>.Success(result);
-	}
-
-	private string? ResolvePublicUrl(string? storageKey)
-	{
-		if (string.IsNullOrWhiteSpace(storageKey))
-			return null;
-
-		return _fileStorage.GetPublicUrl(storageKey);
 	}
 }
