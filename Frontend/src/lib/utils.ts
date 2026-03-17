@@ -5,15 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5188';
+export function getImageUrl(urlOrStorageKey?: string | null): string | undefined {
+  if (!urlOrStorageKey) return undefined;
+  if (/^https?:\/\//i.test(urlOrStorageKey)) return urlOrStorageKey;
 
-export function getImageUrl(storageKey?: string | null): string | undefined {
-  if (!storageKey) return undefined;
-  if (/^https?:\/\//i.test(storageKey)) return storageKey;
-
-  const normalizedKey = storageKey.replace(/^[/\\]+/, '');
+  const normalizedKey = urlOrStorageKey.replace(/^[/\\]+/, '');
   const keyWithoutUploadsPrefix = normalizedKey.replace(/^uploads[/\\]+/i, '');
   const keyPath = keyWithoutUploadsPrefix.replace(/\\+/g, '/');
 
-  return `${API_BASE_URL.replace(/\/$/, '')}/uploads/${keyPath}`;
+  return `/uploads/${keyPath}`;
 }

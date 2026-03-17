@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Application.Organizations.InvitationSupport;
 using ProzoroBanka.Domain.Enums;
 
 namespace ProzoroBanka.Application.Organizations.Commands.DeclineInvitation;
@@ -19,15 +20,15 @@ public class DeclineInvitationHandler : IRequestHandler<DeclineInvitationCommand
 		DeclineInvitationCommand request, CancellationToken cancellationToken)
 	{
 		var invitation = await _db.Invitations
-			.FirstOrDefaultAsync(i => i.Token == request.Token, cancellationToken);
+			.FirstOrDefaultAsync(i => i.Token == request.Token && !i.IsDeleted, cancellationToken);
 
 		if (invitation is null)
 			return ServiceResponse.Failure("Запрошення не знайдено");
 
 		if (invitation.Status != InvitationStatus.Pending)
-			return ServiceResponse.Failure("Запрошення вже використано або скасовано");
+			return ServiceResponse.Failure(InvitationRules.GetInactiveMessage(invitation.Status));
 
-		if (invitation.ExpiresAt < DateTime.UtcNow)
+		if (InvitationRules.IsExpired(invitation, DateTime.UtcNow))
 		{
 			invitation.Status = InvitationStatus.Expired;
 			await _db.SaveChangesAsync(cancellationToken);
@@ -48,8 +49,18 @@ public class DeclineInvitationHandler : IRequestHandler<DeclineInvitationCommand
 				return ServiceResponse.Failure("Це запрошення призначено для іншого email");
 		}
 
+		var updated = await _db.Invitations
+			.Where(i => i.Id == invitation.Id && i.Status == InvitationStatus.Pending && !i.IsDeleted)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(i => i.Status, InvitationStatus.Declined)
+					.SetProperty(i => i.UpdatedAt, DateTime.UtcNow),
+				cancellationToken);
+
+		if (updated == 0)
+			return ServiceResponse.Failure("Запрошення вже використано або скасовано");
+
 		invitation.Status = InvitationStatus.Declined;
-		await _db.SaveChangesAsync(cancellationToken);
 
 		return ServiceResponse.Success();
 	}

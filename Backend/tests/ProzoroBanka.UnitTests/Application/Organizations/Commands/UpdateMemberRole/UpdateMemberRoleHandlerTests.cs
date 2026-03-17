@@ -1,3 +1,6 @@
+using Moq;
+using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Application.Common.Services;
 using ProzoroBanka.Application.Organizations.Commands.UpdateMemberRole;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
@@ -19,6 +22,7 @@ public class UpdateMemberRoleHandlerTests
 	public async Task Handle_UpdatesRole_WhenCallerHasManageMembers()
 	{
 		await using var db = _fixture.CreateContext();
+		var fileStorage = new Mock<IFileStorage>();
 		var ownerId = Guid.NewGuid(); // auto-gets ManageMembers via Owner role
 		var targetId = Guid.NewGuid();
 		var orgId = Guid.NewGuid();
@@ -46,7 +50,7 @@ public class UpdateMemberRoleHandlerTests
 		});
 		await db.SaveChangesAsync();
 
-		var handler = new UpdateMemberRoleHandler(db);
+		var handler = new UpdateMemberRoleHandler(db, new OrganizationAuthorizationService(db), fileStorage.Object);
 		var result = await handler.Handle(
 			new UpdateMemberRoleCommand(
 				ownerId, orgId, targetId,
@@ -62,6 +66,7 @@ public class UpdateMemberRoleHandlerTests
 	public async Task Handle_ReturnsFailure_WhenCallerLacksManageMembersPermission()
 	{
 		await using var db = _fixture.CreateContext();
+		var fileStorage = new Mock<IFileStorage>();
 		var ownerId = Guid.NewGuid();
 		var callerId = Guid.NewGuid(); // Reporter with no ManageMembers
 		var targetId = Guid.NewGuid();
@@ -101,7 +106,7 @@ public class UpdateMemberRoleHandlerTests
 		);
 		await db.SaveChangesAsync();
 
-		var handler = new UpdateMemberRoleHandler(db);
+		var handler = new UpdateMemberRoleHandler(db, new OrganizationAuthorizationService(db), fileStorage.Object);
 		var result = await handler.Handle(
 			new UpdateMemberRoleCommand(callerId, orgId, targetId, OrganizationRole.Admin, OrganizationPermissions.None),
 			CancellationToken.None);
@@ -114,6 +119,7 @@ public class UpdateMemberRoleHandlerTests
 	public async Task Handle_ReturnsFailure_WhenTargetIsOwner()
 	{
 		await using var db = _fixture.CreateContext();
+		var fileStorage = new Mock<IFileStorage>();
 		var ownerId = Guid.NewGuid();
 		var orgId = Guid.NewGuid();
 
@@ -130,7 +136,7 @@ public class UpdateMemberRoleHandlerTests
 		await db.SaveChangesAsync();
 
 		// Owner trying to change their own Owner role
-		var handler = new UpdateMemberRoleHandler(db);
+		var handler = new UpdateMemberRoleHandler(db, new OrganizationAuthorizationService(db), fileStorage.Object);
 		var result = await handler.Handle(
 			new UpdateMemberRoleCommand(ownerId, orgId, ownerId, OrganizationRole.Admin, OrganizationPermissions.None),
 			CancellationToken.None);
@@ -143,6 +149,7 @@ public class UpdateMemberRoleHandlerTests
 	public async Task Handle_ReturnsFailure_WhenAssigningOwnerRole()
 	{
 		await using var db = _fixture.CreateContext();
+		var fileStorage = new Mock<IFileStorage>();
 		var ownerId = Guid.NewGuid();
 		var targetId = Guid.NewGuid();
 		var orgId = Guid.NewGuid();
@@ -170,7 +177,7 @@ public class UpdateMemberRoleHandlerTests
 		});
 		await db.SaveChangesAsync();
 
-		var handler = new UpdateMemberRoleHandler(db);
+		var handler = new UpdateMemberRoleHandler(db, new OrganizationAuthorizationService(db), fileStorage.Object);
 		var result = await handler.Handle(
 			new UpdateMemberRoleCommand(ownerId, orgId, targetId, OrganizationRole.Owner, OrganizationPermissions.All),
 			CancellationToken.None);

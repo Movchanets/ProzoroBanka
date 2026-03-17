@@ -5,8 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ProzoroBanka.Application.Contracts.Email;
 using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Domain.Interfaces;
 using ProzoroBanka.Infrastructure.Data;
 using ProzoroBanka.Infrastructure.Identity;
+using ProzoroBanka.Infrastructure.Repositories;
 using ProzoroBanka.Infrastructure.Services;
 using ProzoroBanka.Infrastructure.Services.Auth;
 using ProzoroBanka.Infrastructure.Services.Email;
@@ -57,6 +59,10 @@ public static class DependencyInjection
         services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IEmailNotificationService, SmtpEmailNotificationService>();
+
+        // ── Repositories ──
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IInvitationRepository, InvitationRepository>();
 
         // ── File Storage (provider з appsettings) ──
         services.AddFileStorage(configuration, environment);

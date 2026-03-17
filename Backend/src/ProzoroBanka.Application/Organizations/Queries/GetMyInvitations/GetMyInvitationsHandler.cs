@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.DTOs;
+using ProzoroBanka.Application.Organizations.InvitationSupport;
 using ProzoroBanka.Domain.Enums;
+using ProzoroBanka.Domain.Interfaces;
 
 namespace ProzoroBanka.Application.Organizations.Queries.GetMyInvitations;
 
@@ -11,10 +13,17 @@ public class GetMyInvitationsHandler
 	: IRequestHandler<GetMyInvitationsQuery, ServiceResponse<IReadOnlyList<InvitationDto>>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IInvitationRepository _invitationRepository;
+	private readonly IFileStorage _fileStorage;
 
-	public GetMyInvitationsHandler(IApplicationDbContext db)
+	public GetMyInvitationsHandler(
+		IApplicationDbContext db,
+		IInvitationRepository invitationRepository,
+		IFileStorage fileStorage)
 	{
 		_db = db;
+		_invitationRepository = invitationRepository;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<IReadOnlyList<InvitationDto>>> Handle(
@@ -27,31 +36,14 @@ public class GetMyInvitationsHandler
 		if (callerUser is null)
 			return ServiceResponse<IReadOnlyList<InvitationDto>>.Failure("Користувача не знайдено");
 
-		// Return pending email-based invitations addressed to this user's email
-		var invitations = await _db.Invitations
-			.AsNoTracking()
-			.Where(i =>
-				i.Email == callerUser.Email.ToLower() &&
-				i.Status == InvitationStatus.Pending &&
-				i.ExpiresAt > DateTime.UtcNow)
-			.Include(i => i.Organization)
-			.Include(i => i.Inviter)
-			.OrderByDescending(i => i.CreatedAt)
-			.Select(i => new InvitationDto(
-				i.Id,
-				i.OrganizationId,
-				i.Organization.Name,
-				i.Organization.LogoStorageKey,
-				i.Inviter.FirstName,
-				i.Inviter.LastName,
-				i.Email,
-				i.DefaultRole,
-				i.Status,
-				i.ExpiresAt,
-				i.CreatedAt,
-				null))   // token not exposed to invitees
-			.ToListAsync(cancellationToken);
+		// The repository keeps eager-loading consistent so this handler does not repeat
+		// invitation graph loading and DTO composition rules.
+		var invitations = await _invitationRepository.GetPendingForEmailAsync(callerUser.Email, cancellationToken);
 
-		return ServiceResponse<IReadOnlyList<InvitationDto>>.Success(invitations);
+		var result = invitations
+			.Select(i => InvitationDtoFactory.Create(i, _fileStorage, includeEmail: true, includeToken: false))
+			.ToList();
+
+		return ServiceResponse<IReadOnlyList<InvitationDto>>.Success(result);
 	}
 }

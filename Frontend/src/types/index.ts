@@ -97,7 +97,7 @@ export interface Organization {
   name: string;
   slug: string;
   description?: string;
-  logoStorageKey?: string;
+  logoUrl?: string;
   isVerified: boolean;
   memberCount: number;
   createdAt: string;
@@ -157,7 +157,7 @@ export interface Invitation {
   id: string;
   organizationId: string;
   organizationName: string;
-  organizationLogoStorageKey?: string;
+  organizationLogoUrl?: string;
   email?: string;
   role: OrganizationRole;
   status: InvitationStatus;
@@ -174,7 +174,7 @@ export interface InviteByEmailPayload {
 
 export interface InviteLinkInfo {
   organizationName: string;
-  organizationLogoStorageKey?: string;
+  organizationLogoUrl?: string;
   role: OrganizationRole;
   invitedByName: string;
   expiresAt: string;
