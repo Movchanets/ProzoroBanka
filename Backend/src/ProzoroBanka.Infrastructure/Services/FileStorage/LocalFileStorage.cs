@@ -44,10 +44,12 @@ public class LocalFileStorage : IFileStorage
 
 	public string GetPublicUrl(string storageKey)
 	{
+		var normalizedStorageKey = StoragePublicUrlBuilder.NormalizeStorageKey(storageKey);
+
 		// Якщо BaseUrl задано в конфігурації — використовуємо його
 		if (!string.IsNullOrWhiteSpace(_settings.BaseUrl))
 		{
-			return $"{_settings.BaseUrl.TrimEnd('/')}{_settings.RequestPath}/{storageKey}";
+			return $"{_settings.BaseUrl.TrimEnd('/')}{_settings.RequestPath}/{normalizedStorageKey}";
 		}
 
 		// Інакше динамічно формуємо з HttpContext
@@ -55,12 +57,12 @@ public class LocalFileStorage : IFileStorage
 		if (request is not null)
 		{
 			var baseUrl = $"{request.Scheme}://{request.Host}";
-			return $"{baseUrl}{_settings.RequestPath}/{storageKey}";
+			return $"{baseUrl}{_settings.RequestPath}/{normalizedStorageKey}";
 		}
 
 		// Fallback — тільки відносний шлях
 		_logger.LogWarning("HttpContext is not available for URL generation, returning relative path");
-		return $"{_settings.RequestPath}/{storageKey}";
+		return $"{_settings.RequestPath}/{normalizedStorageKey}";
 	}
 
 	public Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default)
