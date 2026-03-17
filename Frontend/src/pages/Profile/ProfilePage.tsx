@@ -8,6 +8,7 @@ import { useProfileQuery, useUpdateProfileMutation, useUploadAvatarMutation } fr
 import { useAuthStore } from '../../stores/authStore';
 import { FieldMessages } from '../../components/auth/FieldMessages';
 import { ProfileInvitationsTab } from '../../components/ProfileInvitationsTab';
+import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -27,6 +28,8 @@ export default function ProfilePage() {
   const uploadAvatarMutation = useUploadAvatarMutation();
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
 
   const schema = useMemo(() => createProfileSchema(t), [t]);
 
@@ -81,17 +84,39 @@ export default function ProfilePage() {
 
     setAvatarError(null);
     const previewUrl = URL.createObjectURL(file);
+    setCropSrc(previewUrl);
+    setCropDialogOpen(true);
+    event.target.value = '';
+  };
+
+  const handleAvatarCropComplete = async (blob: Blob) => {
+    setCropDialogOpen(false);
+    if (cropSrc) {
+      URL.revokeObjectURL(cropSrc);
+      setCropSrc(null);
+    }
+
+    const previewUrl = URL.createObjectURL(blob);
     setAvatarPreview(previewUrl);
 
+    const croppedFile = new File([blob], 'avatar.webp', { type: 'image/webp' });
+
     try {
-      await uploadAvatarMutation.mutateAsync(file);
+      await uploadAvatarMutation.mutateAsync(croppedFile);
     } catch (uploadError) {
       setAvatarError(uploadError instanceof Error ? uploadError.message : t('profile.uploadError'));
     } finally {
       URL.revokeObjectURL(previewUrl);
       setAvatarPreview(null);
-      event.target.value = '';
     }
+  };
+
+  const handleCropDialogClose = (nextOpen: boolean) => {
+    if (!nextOpen && cropSrc) {
+      URL.revokeObjectURL(cropSrc);
+      setCropSrc(null);
+    }
+    setCropDialogOpen(nextOpen);
   };
 
   const activeAvatar = avatarPreview || profile?.profilePhotoUrl;
@@ -252,6 +277,17 @@ export default function ProfilePage() {
       </Card>
 
       <ProfileInvitationsTab />
+
+      {cropSrc && (
+        <ImageCropDialog
+          open={cropDialogOpen}
+          onOpenChange={handleCropDialogClose}
+          imageSrc={cropSrc}
+          onCropComplete={handleAvatarCropComplete}
+          isPending={uploadAvatarMutation.isPending}
+          aspectRatio={1}
+        />
+      )}
     </div>
   );
 }
