@@ -116,8 +116,8 @@ export default function InvitePage() {
     <div className="mx-auto flex min-h-screen w-[min(500px,calc(100%-32px))] items-center justify-center py-8">
       <Card className="w-full border border-border bg-card/80 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl">
         <CardHeader className="items-center text-center pb-2">
-          {info.organizationLogoStorageKey ? (
-            <img src={getImageUrl(info.organizationLogoStorageKey)} alt={info.organizationName} className="mb-2 h-14 w-14 rounded-2xl object-cover" />
+          {info.organizationLogoUrl ? (
+            <img src={getImageUrl(info.organizationLogoUrl)} alt={info.organizationName} className="mb-2 h-14 w-14 rounded-2xl object-cover" />
           ) : (
             <div className="mb-2 grid h-14 w-14 place-items-center rounded-2xl bg-linear-to-br from-primary/80 to-primary text-xl font-extrabold text-primary-foreground">
               {info.organizationName.charAt(0).toUpperCase()}

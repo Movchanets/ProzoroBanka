@@ -51,8 +51,16 @@ public class UploadOrganizationLogoHandler
 		await _db.SaveChangesAsync(cancellationToken);
 
 		return ServiceResponse<OrganizationDto>.Success(new OrganizationDto(
-			org.Id, org.Name, org.Slug, org.Description, org.LogoStorageKey,
+			org.Id, org.Name, org.Slug, org.Description, ResolvePublicUrl(org.LogoStorageKey),
 			org.IsVerified, org.Website, org.ContactEmail, org.OwnerUserId,
 			org.Members.Count, org.CreatedAt));
+	}
+
+	private string? ResolvePublicUrl(string? storageKey)
+	{
+		if (string.IsNullOrWhiteSpace(storageKey))
+			return null;
+
+		return _fileStorage.GetPublicUrl(storageKey);
 	}
 }

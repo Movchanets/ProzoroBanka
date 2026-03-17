@@ -9,7 +9,7 @@ public record InvitationDto(
 	Guid Id,
 	Guid OrganizationId,
 	string OrganizationName,
-	string? OrganizationLogoStorageKey,
+	string? OrganizationLogoUrl,
 	string InviterFirstName,
 	string InviterLastName,
 	string? Email,

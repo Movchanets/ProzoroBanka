@@ -11,10 +11,12 @@ public class GetInvitationByTokenHandler
 	: IRequestHandler<GetInvitationByTokenQuery, ServiceResponse<InvitationDto>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IFileStorage _fileStorage;
 
-	public GetInvitationByTokenHandler(IApplicationDbContext db)
+	public GetInvitationByTokenHandler(IApplicationDbContext db, IFileStorage fileStorage)
 	{
 		_db = db;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<InvitationDto>> Handle(
@@ -40,7 +42,7 @@ public class GetInvitationByTokenHandler
 			invitation.Id,
 			invitation.OrganizationId,
 			invitation.Organization.Name,
-			invitation.Organization.LogoStorageKey,
+			ResolvePublicUrl(invitation.Organization.LogoStorageKey),
 			invitation.Inviter.FirstName,
 			invitation.Inviter.LastName,
 			null,     // do not expose the target email publicly
@@ -49,5 +51,13 @@ public class GetInvitationByTokenHandler
 			invitation.ExpiresAt,
 			invitation.CreatedAt,
 			null));   // token not echoed back (caller already has it from URL)
+	}
+
+	private string? ResolvePublicUrl(string? storageKey)
+	{
+		if (string.IsNullOrWhiteSpace(storageKey))
+			return null;
+
+		return _fileStorage.GetPublicUrl(storageKey);
 	}
 }

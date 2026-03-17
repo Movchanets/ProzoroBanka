@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Moq;
+using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Organizations.Commands.CreateOrganization;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.UnitTests.Infrastructure;
@@ -30,7 +32,11 @@ public class CreateOrganizationHandlerTests
 		});
 		await db.SaveChangesAsync();
 
-		var handler = new CreateOrganizationHandler(db);
+		var fileStorage = new Mock<IFileStorage>();
+		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>()))
+			.Returns<string>(key => $"https://storage.test/uploads/{key}");
+
+		var handler = new CreateOrganizationHandler(db, fileStorage.Object);
 		var result = await handler.Handle(
 			new CreateOrganizationCommand(userId, "My Test Org", "A description", null, null),
 			CancellationToken.None);
@@ -52,7 +58,11 @@ public class CreateOrganizationHandlerTests
 		await using var db = _fixture.CreateContext();
 		var unknownUserId = Guid.NewGuid();
 
-		var handler = new CreateOrganizationHandler(db);
+		var fileStorage = new Mock<IFileStorage>();
+		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>()))
+			.Returns<string>(key => $"https://storage.test/uploads/{key}");
+
+		var handler = new CreateOrganizationHandler(db, fileStorage.Object);
 		var result = await handler.Handle(
 			new CreateOrganizationCommand(unknownUserId, "Ghost Org", null, null, null),
 			CancellationToken.None);

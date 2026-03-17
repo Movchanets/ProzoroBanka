@@ -13,11 +13,13 @@ public class InviteByEmailHandler : IRequestHandler<InviteByEmailCommand, Servic
 {
 	private readonly IApplicationDbContext _db;
 	private readonly IOrganizationAuthorizationService _orgAuth;
+	private readonly IFileStorage _fileStorage;
 
-	public InviteByEmailHandler(IApplicationDbContext db, IOrganizationAuthorizationService orgAuth)
+	public InviteByEmailHandler(IApplicationDbContext db, IOrganizationAuthorizationService orgAuth, IFileStorage fileStorage)
 	{
 		_db = db;
 		_orgAuth = orgAuth;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<InvitationDto>> Handle(
@@ -72,7 +74,7 @@ public class InviteByEmailHandler : IRequestHandler<InviteByEmailCommand, Servic
 			invitation.Id,
 			org.Id,
 			org.Name,
-			org.LogoStorageKey,
+			ResolvePublicUrl(org.LogoStorageKey),
 			inviter?.FirstName ?? string.Empty,
 			inviter?.LastName ?? string.Empty,
 			invitation.Email,
@@ -91,5 +93,13 @@ public class InviteByEmailHandler : IRequestHandler<InviteByEmailCommand, Servic
 			.Replace('+', '-')
 			.Replace('/', '_')
 			.TrimEnd('=');
+	}
+
+	private string? ResolvePublicUrl(string? storageKey)
+	{
+		if (string.IsNullOrWhiteSpace(storageKey))
+			return null;
+
+		return _fileStorage.GetPublicUrl(storageKey);
 	}
 }

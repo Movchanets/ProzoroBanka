@@ -12,11 +12,13 @@ public class GetOrganizationInvitationsHandler
 {
 	private readonly IApplicationDbContext _db;
 	private readonly IOrganizationAuthorizationService _orgAuth;
+	private readonly IFileStorage _fileStorage;
 
-	public GetOrganizationInvitationsHandler(IApplicationDbContext db, IOrganizationAuthorizationService orgAuth)
+	public GetOrganizationInvitationsHandler(IApplicationDbContext db, IOrganizationAuthorizationService orgAuth, IFileStorage fileStorage)
 	{
 		_db = db;
 		_orgAuth = orgAuth;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<IReadOnlyList<InvitationDto>>> Handle(
@@ -41,21 +43,47 @@ public class GetOrganizationInvitationsHandler
 			.Include(i => i.Organization)
 			.Include(i => i.Inviter)
 			.OrderByDescending(i => i.CreatedAt)
-			.Select(i => new InvitationDto(
+			.Select(i => new
+			{
 				i.Id,
 				i.OrganizationId,
-				i.Organization.Name,
-				i.Organization.LogoStorageKey,
-				i.Inviter.FirstName,
-				i.Inviter.LastName,
+				OrganizationName = i.Organization.Name,
+				OrganizationLogoStorageKey = i.Organization.LogoStorageKey,
+				InviterFirstName = i.Inviter.FirstName,
+				InviterLastName = i.Inviter.LastName,
 				i.Email,
-				i.DefaultRole,
+				Role = i.DefaultRole,
 				i.Status,
 				i.ExpiresAt,
 				i.CreatedAt,
-				i.Token))   // admins can see tokens for link invites
+				i.Token
+			})
 			.ToListAsync(cancellationToken);
 
-		return ServiceResponse<IReadOnlyList<InvitationDto>>.Success(invitations);
+		var result = invitations
+			.Select(i => new InvitationDto(
+				i.Id,
+				i.OrganizationId,
+				i.OrganizationName,
+				ResolvePublicUrl(i.OrganizationLogoStorageKey),
+				i.InviterFirstName,
+				i.InviterLastName,
+				i.Email,
+				i.Role,
+				i.Status,
+				i.ExpiresAt,
+				i.CreatedAt,
+				i.Token))
+			.ToList();
+
+		return ServiceResponse<IReadOnlyList<InvitationDto>>.Success(result);
+	}
+
+	private string? ResolvePublicUrl(string? storageKey)
+	{
+		if (string.IsNullOrWhiteSpace(storageKey))
+			return null;
+
+		return _fileStorage.GetPublicUrl(storageKey);
 	}
 }

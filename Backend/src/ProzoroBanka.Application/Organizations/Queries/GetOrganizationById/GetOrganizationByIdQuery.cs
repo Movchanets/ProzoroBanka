@@ -13,10 +13,12 @@ public record GetOrganizationByIdQuery(
 public class GetOrganizationByIdHandler : IRequestHandler<GetOrganizationByIdQuery, ServiceResponse<OrganizationDto>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IFileStorage _fileStorage;
 
-	public GetOrganizationByIdHandler(IApplicationDbContext db)
+	public GetOrganizationByIdHandler(IApplicationDbContext db, IFileStorage fileStorage)
 	{
 		_db = db;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<OrganizationDto>> Handle(
@@ -48,8 +50,16 @@ public class GetOrganizationByIdHandler : IRequestHandler<GetOrganizationByIdQue
 			return ServiceResponse<OrganizationDto>.Failure("Немає доступу до організації");
 
 		return ServiceResponse<OrganizationDto>.Success(new OrganizationDto(
-			org.Id, org.Name, org.Slug, org.Description, org.LogoStorageKey,
+			org.Id, org.Name, org.Slug, org.Description, ResolvePublicUrl(org.LogoStorageKey),
 			org.IsVerified, org.Website, org.ContactEmail, org.OwnerUserId,
 			org.MemberCount, org.CreatedAt));
+	}
+
+	private string? ResolvePublicUrl(string? storageKey)
+	{
+		if (string.IsNullOrWhiteSpace(storageKey))
+			return null;
+
+		return _fileStorage.GetPublicUrl(storageKey);
 	}
 }

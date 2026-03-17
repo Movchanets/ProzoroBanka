@@ -7,7 +7,7 @@ public record OrganizationDto(
 	string Name,
 	string Slug,
 	string? Description,
-	string? LogoStorageKey,
+	string? LogoUrl,
 	bool IsVerified,
 	string? Website,
 	string? ContactEmail,

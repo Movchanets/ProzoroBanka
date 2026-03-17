@@ -11,10 +11,12 @@ public class GetMyInvitationsHandler
 	: IRequestHandler<GetMyInvitationsQuery, ServiceResponse<IReadOnlyList<InvitationDto>>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IFileStorage _fileStorage;
 
-	public GetMyInvitationsHandler(IApplicationDbContext db)
+	public GetMyInvitationsHandler(IApplicationDbContext db, IFileStorage fileStorage)
 	{
 		_db = db;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<IReadOnlyList<InvitationDto>>> Handle(
@@ -37,21 +39,46 @@ public class GetMyInvitationsHandler
 			.Include(i => i.Organization)
 			.Include(i => i.Inviter)
 			.OrderByDescending(i => i.CreatedAt)
+			.Select(i => new
+			{
+				i.Id,
+				i.OrganizationId,
+				OrganizationName = i.Organization.Name,
+				OrganizationLogoStorageKey = i.Organization.LogoStorageKey,
+				InviterFirstName = i.Inviter.FirstName,
+				InviterLastName = i.Inviter.LastName,
+				i.Email,
+				Role = i.DefaultRole,
+				i.Status,
+				i.ExpiresAt,
+				i.CreatedAt
+			})
+			.ToListAsync(cancellationToken);
+
+		var result = invitations
 			.Select(i => new InvitationDto(
 				i.Id,
 				i.OrganizationId,
-				i.Organization.Name,
-				i.Organization.LogoStorageKey,
-				i.Inviter.FirstName,
-				i.Inviter.LastName,
+				i.OrganizationName,
+				ResolvePublicUrl(i.OrganizationLogoStorageKey),
+				i.InviterFirstName,
+				i.InviterLastName,
 				i.Email,
-				i.DefaultRole,
+				i.Role,
 				i.Status,
 				i.ExpiresAt,
 				i.CreatedAt,
-				null))   // token not exposed to invitees
-			.ToListAsync(cancellationToken);
+				null))
+			.ToList();
 
-		return ServiceResponse<IReadOnlyList<InvitationDto>>.Success(invitations);
+		return ServiceResponse<IReadOnlyList<InvitationDto>>.Success(result);
+	}
+
+	private string? ResolvePublicUrl(string? storageKey)
+	{
+		if (string.IsNullOrWhiteSpace(storageKey))
+			return null;
+
+		return _fileStorage.GetPublicUrl(storageKey);
 	}
 }

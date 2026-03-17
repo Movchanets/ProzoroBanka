@@ -62,9 +62,9 @@ function IncomingInvitationRow({
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3">
-        {invitation.organizationLogoStorageKey ? (
+        {invitation.organizationLogoUrl ? (
           <img
-            src={getImageUrl(invitation.organizationLogoStorageKey)}
+            src={getImageUrl(invitation.organizationLogoUrl)}
             alt=""
             className="h-10 w-10 rounded-xl object-cover"
           />

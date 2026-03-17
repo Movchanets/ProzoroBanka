@@ -22,7 +22,7 @@ export function WorkspaceSwitcher({ onCreateClick, collapsed }: WorkspaceSwitche
       <DropdownMenuTrigger asChild>
         <button id="workspace-switcher" className={cn('flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', collapsed && 'justify-center px-2')}>
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-linear-to-br from-primary/80 to-primary text-xs font-extrabold text-primary-foreground">
-            {activeOrg?.logoStorageKey ? (<img src={getImageUrl(activeOrg.logoStorageKey)} alt={activeOrg.name} className="h-full w-full rounded-lg object-cover" />) : (activeOrg?.name.charAt(0).toUpperCase() ?? (<Building2 className="h-4 w-4" />))}
+            {activeOrg?.logoUrl ? (<img src={getImageUrl(activeOrg.logoUrl)} alt={activeOrg.name} className="h-full w-full rounded-lg object-cover" />) : (activeOrg?.name.charAt(0).toUpperCase() ?? (<Building2 className="h-4 w-4" />))}
           </span>
           {!collapsed && (<><span className="flex-1 truncate">{activeOrg?.name ?? t('organizations.switcher.select')}</span><ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" /></>)}
         </button>
@@ -33,7 +33,7 @@ export function WorkspaceSwitcher({ onCreateClick, collapsed }: WorkspaceSwitche
         {orgs?.map((org) => (
           <DropdownMenuItem key={org.id} onClick={() => setActiveOrg(org.id)} className="gap-3">
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-linear-to-br from-primary/80 to-primary text-[0.65rem] font-extrabold text-primary-foreground">
-              {org.logoStorageKey ? (<img src={getImageUrl(org.logoStorageKey)} alt={org.name} className="h-full w-full rounded-md object-cover" />) : org.name.charAt(0).toUpperCase()}
+              {org.logoUrl ? (<img src={getImageUrl(org.logoUrl)} alt={org.name} className="h-full w-full rounded-md object-cover" />) : org.name.charAt(0).toUpperCase()}
             </span>
             <span className="flex-1 truncate">{org.name}</span>
             {org.id === activeOrgId && (<Check className="h-4 w-4 text-primary" />)}

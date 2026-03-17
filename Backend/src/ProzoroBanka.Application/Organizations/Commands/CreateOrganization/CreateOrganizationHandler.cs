@@ -10,10 +10,12 @@ namespace ProzoroBanka.Application.Organizations.Commands.CreateOrganization;
 public class CreateOrganizationHandler : IRequestHandler<CreateOrganizationCommand, ServiceResponse<OrganizationDto>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IFileStorage _fileStorage;
 
-	public CreateOrganizationHandler(IApplicationDbContext db)
+	public CreateOrganizationHandler(IApplicationDbContext db, IFileStorage fileStorage)
 	{
 		_db = db;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<OrganizationDto>> Handle(
@@ -41,7 +43,7 @@ public class CreateOrganizationHandler : IRequestHandler<CreateOrganizationComma
 		await _db.SaveChangesAsync(cancellationToken);
 
 		return ServiceResponse<OrganizationDto>.Success(new OrganizationDto(
-			org.Id, org.Name, org.Slug, org.Description, org.LogoStorageKey,
+			org.Id, org.Name, org.Slug, org.Description, ResolvePublicUrl(org.LogoStorageKey),
 			org.IsVerified, org.Website, org.ContactEmail, org.OwnerUserId, 1, org.CreatedAt));
 	}
 
@@ -58,5 +60,13 @@ public class CreateOrganizationHandler : IRequestHandler<CreateOrganizationComma
 		}
 
 		return slug;
+	}
+
+	private string? ResolvePublicUrl(string? storageKey)
+	{
+		if (string.IsNullOrWhiteSpace(storageKey))
+			return null;
+
+		return _fileStorage.GetPublicUrl(storageKey);
 	}
 }

@@ -10,10 +10,12 @@ namespace ProzoroBanka.Application.Organizations.Commands.UpdateOrganization;
 public class UpdateOrganizationHandler : IRequestHandler<UpdateOrganizationCommand, ServiceResponse<OrganizationDto>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IFileStorage _fileStorage;
 
-	public UpdateOrganizationHandler(IApplicationDbContext db)
+	public UpdateOrganizationHandler(IApplicationDbContext db, IFileStorage fileStorage)
 	{
 		_db = db;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<OrganizationDto>> Handle(
@@ -46,7 +48,7 @@ public class UpdateOrganizationHandler : IRequestHandler<UpdateOrganizationComma
 		await _db.SaveChangesAsync(cancellationToken);
 
 		return ServiceResponse<OrganizationDto>.Success(new OrganizationDto(
-			org.Id, org.Name, org.Slug, org.Description, org.LogoStorageKey,
+			org.Id, org.Name, org.Slug, org.Description, ResolvePublicUrl(org.LogoStorageKey),
 			org.IsVerified, org.Website, org.ContactEmail, org.OwnerUserId,
 			org.Members.Count, org.CreatedAt));
 	}
@@ -61,5 +63,13 @@ public class UpdateOrganizationHandler : IRequestHandler<UpdateOrganizationComma
 			slug = $"{baseSlug}-{counter++}";
 
 		return slug;
+	}
+
+	private string? ResolvePublicUrl(string? storageKey)
+	{
+		if (string.IsNullOrWhiteSpace(storageKey))
+			return null;
+
+		return _fileStorage.GetPublicUrl(storageKey);
 	}
 }
