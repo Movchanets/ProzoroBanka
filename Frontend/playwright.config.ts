@@ -2,8 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
-  /* Global setup: starts Docker containers (Postgres + Redis) before tests */
-  globalSetup: process.env.CI ? undefined : './tests/global-setup.ts',
+  /* Global setup: starts full test stack via Docker Compose before tests */
+  globalSetup: './tests/global-setup.ts',
   /* Maximum time one test can run for. */
   timeout: 30 * 1000,
   expect: {
@@ -52,34 +52,4 @@ export default defineConfig({
     },
   ],
 
-  /* Run your local backend and auto-reloading Vite server before starting the tests in test mode */
-  webServer: [
-    {
-      // Піднімаємо .NET Бекенд
-      // cd fixes ContentRootPath so appsettings.json / wwwroot are resolved correctly;
-      // mkdir -p ensures PhysicalFileProvider doesn't throw on missing uploads dir;
-      // IS_PLAYWRIGHT_TESTS=false in CI prevents appsettings.Playwright.json from
-      // overriding env-var connection strings with local-dev values.
-      command: process.env.CI
-        ? 'cd ../Backend/src/ProzoroBanka.API && dotnet run --no-build --configuration Release'
-        : 'dotnet run --project ../Backend/src/ProzoroBanka.API/ProzoroBanka.API.csproj',
-      port: 5188,
-      reuseExistingServer: !process.env.CI,
-      timeout: 180 * 1000,
-      env: {
-        ASPNETCORE_ENVIRONMENT: 'Development',
-        IS_PLAYWRIGHT_TESTS: process.env.CI ? 'false' : 'true',
-      }
-    },
-    {
-      // Піднімаємо Vite Фронтенд
-      command: 'npm run dev -- --mode test',
-      port: 5173,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000,
-      env: {
-        VITE_TURNSTILE_SITE_KEY: '1x00000000000000000000AA' // Тестовий ключ для фронта
-      }
-    }
-  ],
 });

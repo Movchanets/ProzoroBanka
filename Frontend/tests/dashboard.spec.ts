@@ -2,12 +2,15 @@ import { test, expect } from '@playwright/test';
 
 const VALID_EMAIL = process.env.E2E_EMAIL ?? 'admin@example.com';
 const VALID_PASSWORD = process.env.E2E_PASSWORD ?? 'Qwerty-1';
+const TURNSTILE_TIMEOUT = 30000;
+
+test.describe.configure({ timeout: 60_000 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function loginAs(page: import('@playwright/test').Page) {
   await page.goto('/login');
-  await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, { timeout: 20000 });
+  await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, { timeout: TURNSTILE_TIMEOUT });
   await page.getByLabel(/Email/i).fill(VALID_EMAIL);
   await page.getByLabel(/Пароль|Password/i).fill(VALID_PASSWORD);
   await page.getByRole('button', { name: /^(Увійти|Sign in)$/i }).click();
@@ -21,7 +24,7 @@ async function registerFreshUser(page: import('@playwright/test').Page) {
 
   await page.goto('/register');
   const turnstileInput = page.locator('input[name="cf-turnstile-response"]');
-  await expect(turnstileInput).toHaveValue(/.+/, { timeout: 20000 });
+  await expect(turnstileInput).toHaveValue(/.+/, { timeout: TURNSTILE_TIMEOUT });
   const turnstileToken = (await turnstileInput.inputValue()).trim();
 
   const registerResponse = await page.request.post('http://localhost:5188/api/auth/register', {
@@ -101,6 +104,19 @@ async function openCreateOrgDialogFromOnboarding(page: import('@playwright/test'
   }
 
   await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
+}
+
+async function openDashboardNavLink(page: import('@playwright/test').Page, name: RegExp) {
+  const desktopLink = page.locator('aside').getByRole('link', { name });
+  if (await desktopLink.isVisible().catch(() => false)) {
+    await desktopLink.click();
+    return;
+  }
+
+  await page.getByRole('button', { name: /Відкрити меню|Open menu/i }).click();
+  const mobileLink = page.getByRole('dialog').getByRole('link', { name });
+  await expect(mobileLink).toBeVisible({ timeout: 10000 });
+  await mobileLink.click();
 }
 
 // ── Organization Creation Tests ──────────────────────────────────────────────
@@ -624,7 +640,7 @@ test.describe('Dashboard — Home Page', () => {
     await expect(page.getByText(/Учасників|Members/i)).toBeVisible();
     await expect(page.getByText(/Активних зборів|Active campaigns/i)).toBeVisible();
     await expect(page.getByText(/Зібрано|Raised/i)).toBeVisible();
-    await expect(page.getByText(/Чеків|Receipts/i).first()).toBeVisible();
+    await expect(page.locator('main').getByText(/Чеків|Receipts/i).first()).toBeVisible();
   });
 
   // =========================================================================
@@ -652,15 +668,15 @@ test.describe('Dashboard — Home Page', () => {
     });
 
     // Navigate to campaigns
-    await page.getByRole('link', { name: /Збори|Campaigns/i }).click();
+    await openDashboardNavLink(page, /Збори|Campaigns/i);
     await expect(page).toHaveURL(/.*\/campaigns/);
 
     // Navigate to settings
-    await page.getByRole('link', { name: /Налаштування|Settings/i }).click();
+    await openDashboardNavLink(page, /Налаштування|Settings/i);
     await expect(page).toHaveURL(/.*\/settings/);
 
     // Navigate back to dashboard home
-    await page.getByRole('link', { name: /Дашборд|Dashboard/i }).click();
+    await openDashboardNavLink(page, /Дашборд|Dashboard/i);
     await expect(page).toHaveURL(new RegExp(`.*/dashboard/${orgId}/?$`));
   });
 });
