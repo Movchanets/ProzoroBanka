@@ -1,16 +1,20 @@
 import { test, expect } from '@playwright/test';
 
+import { t, setTestLanguage } from './support/i18n';
+
 const VALID_EMAIL = process.env.E2E_EMAIL ?? 'admin@example.com';
 const VALID_PASSWORD = process.env.E2E_PASSWORD ?? 'Qwerty-1';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function loginAs(page: import('@playwright/test').Page) {
+  await setTestLanguage(page);
+
   await page.goto('/login');
   await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, { timeout: 20000 });
-  await page.getByLabel(/Email/i).fill(VALID_EMAIL);
-  await page.getByLabel(/Пароль|Password/i).fill(VALID_PASSWORD);
-  await page.getByRole('button', { name: /^(Увійти|Sign in)$/i }).click();
+  await page.getByTestId('login-email-input').fill(VALID_EMAIL);
+  await page.getByTestId('login-password-input').fill(VALID_PASSWORD);
+  await page.getByTestId('login-submit-button').click();
   await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10000 });
 }
 
@@ -22,7 +26,7 @@ test.describe('User Profile — Display', () => {
     await page.goto('/profile');
     await expect(page).toHaveURL(/.*\/profile/);
     // Wait for route fallback to disappear (lazy-loaded page)
-    await expect(page.getByText(/Завантаження інтерфейсу|Loading interface/i)).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
   });
 
   // =========================================================================
@@ -35,23 +39,23 @@ test.describe('User Profile — Display', () => {
     });
 
     // Wait for profile data to load (profile-specific loading text disappears)
-    await expect(page.getByText(/Завантаження профілю|Loading profile/i)).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(t('profile.loadingProfile'))).not.toBeVisible({ timeout: 10000 });
 
     // Verify email is displayed
-    const emailField = page.locator('article').filter({ hasText: /Email/i }).first();
+    const emailField = page.locator('article').filter({ hasText: t('common.email') }).first();
     await expect(emailField).toBeVisible();
     await expect(emailField).toContainText(VALID_EMAIL);
 
     // Verify session status shows "Active"
-    const sessionField = page.locator('article').filter({ hasText: /Статус сесії|Session status/i }).first();
+    const sessionField = page.locator('article').filter({ hasText: t('profile.sessionStatus') }).first();
     await expect(sessionField).toBeVisible();
-    await expect(sessionField).toContainText(/Активна|Active/i);
+    await expect(sessionField).toContainText(t('profile.sessionActive'));
 
     // Verify the profile badge is visible
-    await expect(page.getByText(/Профіль|Profile/i).first()).toBeVisible();
+    await expect(page.getByText(t('profile.badge')).first()).toBeVisible();
 
     // Verify the edit section is present
-    await expect(page.getByText(/Редагування|Edit/i).first()).toBeVisible();
+    await expect(page.getByText(t('profile.editBadge')).first()).toBeVisible();
   });
 
   // =========================================================================
@@ -64,20 +68,20 @@ test.describe('User Profile — Display', () => {
     });
 
     // Wait for profile data to load
-    await expect(page.getByText(/Завантаження профілю|Loading profile/i)).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(t('profile.loadingProfile'))).not.toBeVisible({ timeout: 10000 });
 
     // Verify first name input has a value (not empty)
-    const firstNameInput = page.getByLabel(/Ім'я|First name/i);
+    const firstNameInput = page.getByTestId('profile-first-name-input');
     await expect(firstNameInput).toBeVisible();
     await expect(firstNameInput).not.toHaveValue('');
 
     // Verify last name input has a value (not empty)
-    const lastNameInput = page.getByLabel(/Прізвище|Last name/i);
+    const lastNameInput = page.getByTestId('profile-last-name-input');
     await expect(lastNameInput).toBeVisible();
     await expect(lastNameInput).not.toHaveValue('');
 
     // Verify phone input is present (may be empty)
-    const phoneInput = page.getByLabel(/Телефон|Phone/i);
+    const phoneInput = page.getByTestId('profile-phone-input');
     await expect(phoneInput).toBeVisible();
   });
 
@@ -91,10 +95,10 @@ test.describe('User Profile — Display', () => {
     });
 
     // Wait for profile data to load
-    await expect(page.getByText(/Завантаження профілю|Loading profile/i)).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(t('profile.loadingProfile'))).not.toBeVisible({ timeout: 10000 });
 
     // Verify avatar upload button is visible
-    const uploadButton = page.getByRole('button', { name: /Оновити фото|Update photo/i });
+    const uploadButton = page.getByTestId('profile-avatar-update-button');
     await expect(uploadButton).toBeVisible();
     await expect(uploadButton).toBeEnabled();
   });
@@ -106,9 +110,9 @@ test.describe('User Profile — Editing', () => {
     await page.goto('/profile');
     await expect(page).toHaveURL(/.*\/profile/);
     // Wait for route fallback to disappear
-    await expect(page.getByText(/Завантаження інтерфейсу|Loading interface/i)).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
     // Wait for profile data to load
-    await expect(page.getByText(/Завантаження профілю|Loading profile/i)).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(t('profile.loadingProfile'))).not.toBeVisible({ timeout: 10000 });
   });
 
   // =========================================================================
@@ -120,7 +124,7 @@ test.describe('User Profile — Editing', () => {
       description: 'Verifies that updating the first name field and saving persists the change and shows a success message.',
     });
 
-    const firstNameInput = page.getByLabel(/Ім'я|First name/i);
+    const firstNameInput = page.getByTestId('profile-first-name-input');
     const originalValue = await firstNameInput.inputValue();
     const newValue = originalValue === 'Test' ? 'Updated' : 'Test';
 
@@ -129,7 +133,7 @@ test.describe('User Profile — Editing', () => {
     await firstNameInput.fill(newValue);
 
     // Wait for save button to become enabled (form is dirty)
-    const saveButton = page.getByRole('button', { name: /Зберегти зміни|Save changes/i });
+    const saveButton = page.getByTestId('profile-save-button');
     await expect(saveButton).toBeEnabled();
 
     // Intercept the PUT request
@@ -145,7 +149,7 @@ test.describe('User Profile — Editing', () => {
     expect(updateResponse.ok()).toBeTruthy();
 
     // Verify success message appears
-    await expect(page.getByText(/Профіль оновлено|Profile updated/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('profile.updateSuccessTitle'))).toBeVisible({ timeout: 5000 });
 
     // Verify the input still has the new value
     await expect(firstNameInput).toHaveValue(newValue);
@@ -153,8 +157,8 @@ test.describe('User Profile — Editing', () => {
     // Restore original value
     await firstNameInput.clear();
     await firstNameInput.fill(originalValue);
-    await page.getByRole('button', { name: /Зберегти зміни|Save changes/i }).click();
-    await expect(page.getByText(/Профіль оновлено|Profile updated/i)).toBeVisible({ timeout: 5000 });
+    await page.getByTestId('profile-save-button').click();
+    await expect(page.getByText(t('profile.updateSuccessTitle'))).toBeVisible({ timeout: 5000 });
   });
 
   // =========================================================================
@@ -166,14 +170,14 @@ test.describe('User Profile — Editing', () => {
       description: 'Verifies that updating the last name field and saving persists the change.',
     });
 
-    const lastNameInput = page.getByLabel(/Прізвище|Last name/i);
+    const lastNameInput = page.getByTestId('profile-last-name-input');
     const originalValue = await lastNameInput.inputValue();
     const newValue = originalValue === 'User' ? 'Modified' : 'User';
 
     await lastNameInput.clear();
     await lastNameInput.fill(newValue);
 
-    const saveButton = page.getByRole('button', { name: /Зберегти зміни|Save changes/i });
+    const saveButton = page.getByTestId('profile-save-button');
     await expect(saveButton).toBeEnabled();
 
     const updateResponsePromise = page.waitForResponse(
@@ -185,14 +189,14 @@ test.describe('User Profile — Editing', () => {
     const updateResponse = await updateResponsePromise;
     expect(updateResponse.ok()).toBeTruthy();
 
-    await expect(page.getByText(/Профіль оновлено|Profile updated/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('profile.updateSuccessTitle'))).toBeVisible({ timeout: 5000 });
     await expect(lastNameInput).toHaveValue(newValue);
 
     // Restore original value
     await lastNameInput.clear();
     await lastNameInput.fill(originalValue);
-    await page.getByRole('button', { name: /Зберегти зміни|Save changes/i }).click();
-    await expect(page.getByText(/Профіль оновлено|Profile updated/i)).toBeVisible({ timeout: 5000 });
+    await page.getByTestId('profile-save-button').click();
+    await expect(page.getByText(t('profile.updateSuccessTitle'))).toBeVisible({ timeout: 5000 });
   });
 
   // =========================================================================
@@ -204,14 +208,14 @@ test.describe('User Profile — Editing', () => {
       description: 'Verifies that updating the phone number field and saving persists the change.',
     });
 
-    const phoneInput = page.getByLabel(/Телефон|Phone/i);
+    const phoneInput = page.getByTestId('profile-phone-input');
     const originalValue = await phoneInput.inputValue();
     const newPhone = '+380671234567';
 
     await phoneInput.clear();
     await phoneInput.fill(newPhone);
 
-    const saveButton = page.getByRole('button', { name: /Зберегти зміни|Save changes/i });
+    const saveButton = page.getByTestId('profile-save-button');
     await expect(saveButton).toBeEnabled();
 
     const updateResponsePromise = page.waitForResponse(
@@ -223,7 +227,7 @@ test.describe('User Profile — Editing', () => {
     const updateResponse = await updateResponsePromise;
     expect(updateResponse.ok()).toBeTruthy();
 
-    await expect(page.getByText(/Профіль оновлено|Profile updated/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('profile.updateSuccessTitle'))).toBeVisible({ timeout: 5000 });
     await expect(phoneInput).toHaveValue(newPhone);
 
     // Restore original value
@@ -231,8 +235,8 @@ test.describe('User Profile — Editing', () => {
     if (originalValue) {
       await phoneInput.fill(originalValue);
     }
-    await page.getByRole('button', { name: /Зберегти зміни|Save changes/i }).click();
-    await expect(page.getByText(/Профіль оновлено|Profile updated/i)).toBeVisible({ timeout: 5000 });
+    await page.getByTestId('profile-save-button').click();
+    await expect(page.getByText(t('profile.updateSuccessTitle'))).toBeVisible({ timeout: 5000 });
   });
 
   // =========================================================================
@@ -244,7 +248,7 @@ test.describe('User Profile — Editing', () => {
       description: 'Verifies that the save button is disabled when the form has not been modified.',
     });
 
-    const saveButton = page.getByRole('button', { name: /Зберегти зміни|Save changes/i });
+    const saveButton = page.getByTestId('profile-save-button');
     await expect(saveButton).toBeDisabled();
   });
 
@@ -257,15 +261,15 @@ test.describe('User Profile — Editing', () => {
       description: 'Verifies that clearing the first name field shows a validation error and prevents saving.',
     });
 
-    const firstNameInput = page.getByLabel(/Ім'я|First name/i);
+    const firstNameInput = page.getByTestId('profile-first-name-input');
     await firstNameInput.clear();
 
     // Click save to trigger validation (form uses onSubmit mode)
-    const saveButton = page.getByRole('button', { name: /Зберегти зміни|Save changes/i });
+    const saveButton = page.getByTestId('profile-save-button');
     await saveButton.click();
 
     // Verify validation error appears — "Мінімум 2 символи"
-    await expect(page.getByText(/Мінімум 2 символи|Minimum 2 characters/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('validation.nameMin'))).toBeVisible({ timeout: 5000 });
 
     // Verify no API call was made
     // (form should not submit with validation errors)
@@ -280,15 +284,15 @@ test.describe('User Profile — Editing', () => {
       description: 'Verifies that clearing the last name field shows a validation error.',
     });
 
-    const lastNameInput = page.getByLabel(/Прізвище|Last name/i);
+    const lastNameInput = page.getByTestId('profile-last-name-input');
     await lastNameInput.clear();
 
     // Click save to trigger validation
-    const saveButton = page.getByRole('button', { name: /Зберегти зміни|Save changes/i });
+    const saveButton = page.getByTestId('profile-save-button');
     await saveButton.click();
 
     // Verify validation error appears — "Мінімум 2 символи"
-    await expect(page.getByText(/Мінімум 2 символи|Minimum 2 characters/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('validation.nameMin'))).toBeVisible({ timeout: 5000 });
   });
 
   // =========================================================================
@@ -300,24 +304,20 @@ test.describe('User Profile — Editing', () => {
       description: 'Verifies that entering an invalid phone number shows a validation error.',
     });
 
-    const phoneInput = page.getByLabel(/Телефон|Phone/i);
+    const phoneInput = page.getByTestId('profile-phone-input');
     await phoneInput.clear();
     await phoneInput.fill('invalid-phone-!!!');
 
     // Click save to trigger validation
-    const saveButton = page.getByRole('button', { name: /Зберегти зміни|Save changes/i });
+    const saveButton = page.getByTestId('profile-save-button');
     await saveButton.click();
 
     // Verify validation error appears — "Телефон містить недопустимі символи" / "Phone contains invalid characters"
-    await expect(page.getByText(/недопустимі символи|contains invalid characters/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('validation.phoneInvalid'))).toBeVisible({ timeout: 5000 });
   });
 });
 
 test.describe('User Profile — Edge Cases', () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAs(page);
-  });
-
   // =========================================================================
   // TC-11: Profile page handles loading state
   // =========================================================================
@@ -326,6 +326,8 @@ test.describe('User Profile — Edge Cases', () => {
       type: 'description',
       description: 'Verifies that the profile page displays a loading indicator while user data is being fetched.',
     });
+
+    await loginAs(page);
 
     // Slow down the API response to observe loading state
     await page.route('**/api/auth/me', async (route) => {
@@ -345,7 +347,7 @@ test.describe('User Profile — Edge Cases', () => {
     expect(Date.now() - startedAt).toBeGreaterThanOrEqual(900);
 
     // Verify page remains functional after delayed response
-    await expect(page.getByLabel(/Ім'я|First name/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('profile-first-name-input')).toBeVisible({ timeout: 10000 });
   });
 
   // =========================================================================
@@ -379,11 +381,13 @@ test.describe('User Profile — Edge Cases', () => {
       description: 'Verifies that when the profile update API call fails, an appropriate error message is displayed.',
     });
 
+    await loginAs(page);
+
     await page.goto('/profile');
     // Wait for route fallback to disappear
-    await expect(page.getByText(/Завантаження інтерфейсу|Loading interface/i)).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
     // Wait for profile data to load
-    await expect(page.getByText(/Завантаження профілю|Loading profile/i)).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(t('profile.loadingProfile'))).not.toBeVisible({ timeout: 10000 });
 
     // Mock API failure for profile update
     await page.route('**/api/auth/me', (route) => {
@@ -398,15 +402,15 @@ test.describe('User Profile — Edge Cases', () => {
       }
     });
 
-    const firstNameInput = page.getByLabel(/Ім'я|First name/i);
+    const firstNameInput = page.getByTestId('profile-first-name-input');
     await firstNameInput.clear();
     await firstNameInput.fill('ErrorTest');
 
-    const saveButton = page.getByRole('button', { name: /Зберегти зміни|Save changes/i });
+    const saveButton = page.getByTestId('profile-save-button');
     await expect(saveButton).toBeEnabled();
     await saveButton.click();
 
     // Verify error message is displayed
-    await expect(page.getByText(/Не вдалося|Failed|Помилка|Error/i).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Internal server error').first()).toBeVisible({ timeout: 5000 });
   });
 });

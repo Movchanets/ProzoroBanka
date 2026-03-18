@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+import { t, setTestLanguage } from './support/i18n';
+
 const VALID_EMAIL = process.env.E2E_EMAIL ?? 'admin@example.com';
 const VALID_PASSWORD = process.env.E2E_PASSWORD ?? 'Qwerty-1';
 const TURNSTILE_TIMEOUT = 30000;
@@ -9,15 +11,19 @@ test.describe.configure({ timeout: 60_000 });
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function loginAs(page: import('@playwright/test').Page) {
+  await setTestLanguage(page);
+
   await page.goto('/login');
   await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, { timeout: TURNSTILE_TIMEOUT });
-  await page.getByLabel(/Email/i).fill(VALID_EMAIL);
-  await page.getByLabel(/Пароль|Password/i).fill(VALID_PASSWORD);
-  await page.getByRole('button', { name: /^(Увійти|Sign in)$/i }).click();
+  await page.getByTestId('login-email-input').fill(VALID_EMAIL);
+  await page.getByTestId('login-password-input').fill(VALID_PASSWORD);
+  await page.getByTestId('login-submit-button').click();
   await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10000 });
 }
 
 async function registerFreshUser(page: import('@playwright/test').Page) {
+  await setTestLanguage(page);
+
   const uniquePart = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const email = `e2e-${uniquePart}@example.com`;
   const password = 'Qwerty-1';
@@ -90,32 +96,28 @@ async function createOrgViaAPI(page: import('@playwright/test').Page, name: stri
 
 /** Navigate to onboarding and open the create org dialog */
 async function openCreateOrgDialogFromOnboarding(page: import('@playwright/test').Page) {
-  await page.goto('/onboarding');
-  await expect(page.getByText(/Завантаження інтерфейсу|Loading interface/i)).not.toBeVisible({ timeout: 15000 });
+  await setTestLanguage(page);
 
-  const createButton = page.getByRole('button', { name: /Створити організацію|Create organization/i }).first();
-  if (await createButton.isVisible().catch(() => false)) {
-    await createButton.click({ force: true });
-  } else {
-    const workspaceSwitcher = page.locator('#workspace-switcher');
-    await expect(workspaceSwitcher).toBeVisible({ timeout: 10000 });
-    await workspaceSwitcher.click({ force: true });
-    await page.getByRole('menuitem', { name: /Створити організацію|Create organization/i }).click({ force: true });
-  }
+  await page.goto('/onboarding');
+  await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
+
+  await page.getByTestId('onboarding-create-organization-button').click({ force: true });
 
   await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
 }
 
-async function openDashboardNavLink(page: import('@playwright/test').Page, name: RegExp) {
-  const desktopLink = page.locator('aside').getByRole('link', { name });
+async function openDashboardNavLink(page: import('@playwright/test').Page, key: 'home' | 'campaigns' | 'settings') {
+  const selector = `dashboard-nav-${key}`;
+  const desktopLink = page.getByTestId(selector).first();
   if (await desktopLink.isVisible().catch(() => false)) {
-    await desktopLink.click();
+    await desktopLink.click({ force: true });
     return;
   }
 
-  await page.getByRole('button', { name: /Відкрити меню|Open menu/i }).click();
-  const mobileLink = page.getByRole('dialog').getByRole('link', { name });
+  await page.getByTestId('dashboard-mobile-menu-button').click();
+  const mobileLink = page.getByRole('dialog').getByTestId(selector).first();
   await expect(mobileLink).toBeVisible({ timeout: 10000 });
+  await mobileLink.scrollIntoViewIfNeeded();
   await mobileLink.click();
 }
 
@@ -138,14 +140,14 @@ test.describe('Dashboard — Organization Creation', () => {
     await openCreateOrgDialogFromOnboarding(page);
 
     // Verify all form fields are present
-    await expect(page.getByLabel(/Назва|Name/i)).toBeVisible();
-    await expect(page.getByLabel(/Slug/i)).toBeVisible();
-    await expect(page.getByLabel(/Опис|Description/i)).toBeVisible();
-    await expect(page.getByLabel(/Вебсайт|Website/i)).toBeVisible();
+    await expect(page.getByTestId('create-org-name-input')).toBeVisible();
+    await expect(page.getByTestId('create-org-slug-input')).toBeVisible();
+    await expect(page.getByTestId('create-org-description-input')).toBeVisible();
+    await expect(page.getByTestId('create-org-website-input')).toBeVisible();
 
     // Verify action buttons
-    await expect(page.getByRole('button', { name: /Скасувати|Cancel/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Створити|Create/i })).toBeVisible();
+    await expect(page.getByTestId('create-org-cancel-button')).toBeVisible();
+    await expect(page.getByTestId('create-org-submit-button')).toBeVisible();
   });
 
   // =========================================================================
@@ -161,12 +163,12 @@ test.describe('Dashboard — Organization Creation', () => {
 
     const orgName = `Test Org ${Date.now()}`;
 
-    await page.getByLabel(/Назва|Name/i).fill(orgName);
-    await page.getByLabel(/Опис|Description/i).fill('Test organization for E2E testing');
-    await page.getByLabel(/Вебсайт|Website/i).fill('https://example.org');
+    await page.getByTestId('create-org-name-input').fill(orgName);
+    await page.getByTestId('create-org-description-input').fill('Test organization for E2E testing');
+    await page.getByTestId('create-org-website-input').fill('https://example.org');
 
     // Verify slug is auto-generated
-    const slugInput = page.getByLabel(/Slug/i);
+    const slugInput = page.getByTestId('create-org-slug-input');
     const slugValue = await slugInput.inputValue();
     expect(slugValue).toBeTruthy();
     expect(slugValue).toMatch(/^[a-z0-9-]+$/);
@@ -175,7 +177,7 @@ test.describe('Dashboard — Organization Creation', () => {
       (response) => response.url().includes('/api/organizations') && response.request().method() === 'POST'
     );
 
-    await page.getByRole('button', { name: /Створити|Create/i }).click();
+    await page.getByTestId('create-org-submit-button').click();
 
     const createResponse = await createResponsePromise;
     expect(createResponse.ok()).toBeTruthy();
@@ -198,10 +200,10 @@ test.describe('Dashboard — Organization Creation', () => {
 
     await openCreateOrgDialogFromOnboarding(page);
 
-    await page.getByRole('button', { name: /Створити|Create/i }).click();
+    await page.getByTestId('create-org-submit-button').click();
 
     // Verify validation error
-    await expect(page.getByText(/Мінімум 3 символи|Minimum 3 characters/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('validation.orgNameMin'))).toBeVisible({ timeout: 5000 });
 
     // Dialog should still be open
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -218,10 +220,10 @@ test.describe('Dashboard — Organization Creation', () => {
 
     await openCreateOrgDialogFromOnboarding(page);
 
-    await page.getByLabel(/Назва|Name/i).fill('AB');
-    await page.getByRole('button', { name: /Створити|Create/i }).click();
+    await page.getByTestId('create-org-name-input').fill('AB');
+    await page.getByTestId('create-org-submit-button').click();
 
-    await expect(page.getByText(/Мінімум 3 символи|Minimum 3 characters/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('validation.orgNameMin'))).toBeVisible({ timeout: 5000 });
   });
 
   // =========================================================================
@@ -235,11 +237,11 @@ test.describe('Dashboard — Organization Creation', () => {
 
     await openCreateOrgDialogFromOnboarding(page);
 
-    await page.getByLabel(/Назва|Name/i).fill('Valid Org Name');
-    await page.getByLabel(/Вебсайт|Website/i).fill('not-a-valid-url');
-    await page.getByRole('button', { name: /Створити|Create/i }).click();
+    await page.getByTestId('create-org-name-input').fill('Valid Org Name');
+    await page.getByTestId('create-org-website-input').fill('not-a-valid-url');
+    await page.getByTestId('create-org-submit-button').click();
 
-    await expect(page.getByText(/Недійсна URL-адреса|Invalid URL/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('validation.urlInvalid'))).toBeVisible({ timeout: 5000 });
   });
 
   // =========================================================================
@@ -253,8 +255,8 @@ test.describe('Dashboard — Organization Creation', () => {
 
     await openCreateOrgDialogFromOnboarding(page);
 
-    const nameInput = page.getByLabel(/Назва|Name/i);
-    const slugInput = page.getByLabel(/Slug/i);
+    const nameInput = page.getByTestId('create-org-name-input');
+    const slugInput = page.getByTestId('create-org-slug-input');
 
     await nameInput.fill('Test Organization Name');
 
@@ -273,8 +275,8 @@ test.describe('Dashboard — Organization Creation', () => {
 
     await openCreateOrgDialogFromOnboarding(page);
 
-    const nameInput = page.getByLabel(/Назва|Name/i);
-    const slugInput = page.getByLabel(/Slug/i);
+    const nameInput = page.getByTestId('create-org-name-input');
+    const slugInput = page.getByTestId('create-org-slug-input');
 
     await nameInput.fill('First Name');
     expect(await slugInput.inputValue()).toBe('first-name');
@@ -297,8 +299,8 @@ test.describe('Dashboard — Organization Creation', () => {
 
     await openCreateOrgDialogFromOnboarding(page);
 
-    await page.getByLabel(/Назва|Name/i).fill('Should Not Be Created');
-    await page.getByRole('button', { name: /Скасувати|Cancel/i }).click();
+    await page.getByTestId('create-org-name-input').fill('Should Not Be Created');
+    await page.getByTestId('create-org-cancel-button').click();
 
     await expect(page.getByRole('dialog')).not.toBeVisible();
   });
@@ -326,8 +328,8 @@ test.describe('Dashboard — Organization Creation', () => {
 
     await openCreateOrgDialogFromOnboarding(page);
 
-    await page.getByLabel(/Назва|Name/i).fill('Duplicate Org');
-    await page.getByRole('button', { name: /Створити|Create/i }).click();
+    await page.getByTestId('create-org-name-input').fill('Duplicate Org');
+    await page.getByTestId('create-org-submit-button').click();
 
     await expect(page.getByText(/already exists|вже існує/i).first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -348,7 +350,7 @@ test.describe('Dashboard — Organization Settings', () => {
     // Navigate to settings
     await page.goto(`/dashboard/${orgId}/settings`);
     await expect(page).toHaveURL(/.*\/settings/);
-    await expect(page.getByText(/Завантаження інтерфейсу|Loading interface/i)).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
   });
 
   // =========================================================================
@@ -360,18 +362,16 @@ test.describe('Dashboard — Organization Settings', () => {
       description: 'Verifies that the settings page loads and shows the organization fields.',
     });
 
-    await expect(page.getByRole('heading', { name: /^(Налаштування|Settings)$/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: t('nav.settings') })).toBeVisible();
 
-    await expect(page.getByLabel(/Назва|Name/i)).toBeVisible();
-    await expect(page.getByLabel(/Опис|Description/i)).toBeVisible();
-    await expect(page.getByLabel(/Вебсайт|Website/i)).toBeVisible();
-    await expect(page.getByLabel(/Контактний email|Contact email/i)).toBeVisible();
-    await expect(page.getByLabel(/Телефон|Phone/i)).toBeVisible();
+    await expect(page.getByTestId('org-settings-name-input')).toBeVisible();
+    await expect(page.getByTestId('org-settings-description-input')).toBeVisible();
+    await expect(page.getByTestId('org-settings-website-input')).toBeVisible();
+    await expect(page.getByTestId('org-settings-email-input')).toBeVisible();
+    await expect(page.getByTestId('org-settings-phone-input')).toBeVisible();
 
-    await expect(page.getByRole('button', { name: /Зберегти|Save/i })).toBeVisible();
+    await expect(page.getByTestId('org-settings-save-button')).toBeVisible();
   });
-
-  // =========================================================================
   // TC-11: Update organization name
   // =========================================================================
   test('TC-11: Update organization name and save changes', async ({ page }) => {
@@ -380,14 +380,14 @@ test.describe('Dashboard — Organization Settings', () => {
       description: 'Verifies that updating the organization name persists the change.',
     });
 
-    const nameInput = page.getByLabel(/Назва|Name/i);
+    const nameInput = page.getByTestId('org-settings-name-input');
     const originalValue = await nameInput.inputValue();
     const newValue = `${originalValue} Updated`;
 
     await nameInput.clear();
     await nameInput.fill(newValue);
 
-    const saveButton = page.getByRole('button', { name: /Зберегти|Save/i });
+    const saveButton = page.getByTestId('org-settings-save-button');
     await expect(saveButton).toBeEnabled();
 
     const updateResponsePromise = page.waitForResponse(
@@ -399,7 +399,7 @@ test.describe('Dashboard — Organization Settings', () => {
     const updateResponse = await updateResponsePromise;
     expect(updateResponse.ok()).toBeTruthy();
 
-    await expect(page.getByText(/Зміни збережено|Changes saved/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('organizations.settings.savedMessage'))).toBeVisible({ timeout: 5000 });
     await expect(nameInput).toHaveValue(newValue);
   });
 
@@ -412,13 +412,13 @@ test.describe('Dashboard — Organization Settings', () => {
       description: 'Verifies that updating the organization description persists correctly.',
     });
 
-    const descriptionInput = page.getByLabel(/Опис|Description/i);
+    const descriptionInput = page.getByTestId('org-settings-description-input');
     const newDescription = `Updated description at ${Date.now()}`;
 
     await descriptionInput.clear();
     await descriptionInput.fill(newDescription);
 
-    const saveButton = page.getByRole('button', { name: /Зберегти|Save/i });
+    const saveButton = page.getByTestId('org-settings-save-button');
     await expect(saveButton).toBeEnabled();
 
     const updateResponsePromise = page.waitForResponse(
@@ -430,7 +430,7 @@ test.describe('Dashboard — Organization Settings', () => {
     const updateResponse = await updateResponsePromise;
     expect(updateResponse.ok()).toBeTruthy();
 
-    await expect(page.getByText(/Зміни збережено|Changes saved/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('organizations.settings.savedMessage'))).toBeVisible({ timeout: 5000 });
     await expect(descriptionInput).toHaveValue(newDescription);
   });
 
@@ -443,13 +443,13 @@ test.describe('Dashboard — Organization Settings', () => {
       description: 'Verifies that updating the organization website URL persists correctly.',
     });
 
-    const websiteInput = page.getByLabel(/Вебсайт|Website/i);
+    const websiteInput = page.getByTestId('org-settings-website-input');
     const newWebsite = 'https://updated-example.org';
 
     await websiteInput.clear();
     await websiteInput.fill(newWebsite);
 
-    const saveButton = page.getByRole('button', { name: /Зберегти|Save/i });
+    const saveButton = page.getByTestId('org-settings-save-button');
     await expect(saveButton).toBeEnabled();
 
     const updateResponsePromise = page.waitForResponse(
@@ -461,7 +461,7 @@ test.describe('Dashboard — Organization Settings', () => {
     const updateResponse = await updateResponsePromise;
     expect(updateResponse.ok()).toBeTruthy();
 
-    await expect(page.getByText(/Зміни збережено|Changes saved/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('organizations.settings.savedMessage'))).toBeVisible({ timeout: 5000 });
     await expect(websiteInput).toHaveValue(newWebsite);
   });
 
@@ -474,13 +474,13 @@ test.describe('Dashboard — Organization Settings', () => {
       description: 'Verifies that updating the organization contact email persists correctly.',
     });
 
-    const emailInput = page.getByLabel(/Контактний email|Contact email/i);
+    const emailInput = page.getByTestId('org-settings-email-input');
     const newEmail = 'contact@example.org';
 
     await emailInput.clear();
     await emailInput.fill(newEmail);
 
-    const saveButton = page.getByRole('button', { name: /Зберегти|Save/i });
+    const saveButton = page.getByTestId('org-settings-save-button');
     await expect(saveButton).toBeEnabled();
 
     const updateResponsePromise = page.waitForResponse(
@@ -492,7 +492,7 @@ test.describe('Dashboard — Organization Settings', () => {
     const updateResponse = await updateResponsePromise;
     expect(updateResponse.ok()).toBeTruthy();
 
-    await expect(page.getByText(/Зміни збережено|Changes saved/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('organizations.settings.savedMessage'))).toBeVisible({ timeout: 5000 });
     await expect(emailInput).toHaveValue(newEmail);
   });
 
@@ -505,13 +505,13 @@ test.describe('Dashboard — Organization Settings', () => {
       description: 'Verifies that updating the organization phone number persists correctly.',
     });
 
-    const phoneInput = page.getByLabel(/Телефон|Phone/i);
+    const phoneInput = page.getByTestId('org-settings-phone-input');
     const newPhone = '+380671234567';
 
     await phoneInput.clear();
     await phoneInput.fill(newPhone);
 
-    const saveButton = page.getByRole('button', { name: /Зберегти|Save/i });
+    const saveButton = page.getByTestId('org-settings-save-button');
     await expect(saveButton).toBeEnabled();
 
     const updateResponsePromise = page.waitForResponse(
@@ -523,7 +523,7 @@ test.describe('Dashboard — Organization Settings', () => {
     const updateResponse = await updateResponsePromise;
     expect(updateResponse.ok()).toBeTruthy();
 
-    await expect(page.getByText(/Зміни збережено|Changes saved/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('organizations.settings.savedMessage'))).toBeVisible({ timeout: 5000 });
     await expect(phoneInput).toHaveValue(newPhone);
   });
 
@@ -536,7 +536,7 @@ test.describe('Dashboard — Organization Settings', () => {
       description: 'Verifies that the save button is disabled when the form has not been modified.',
     });
 
-    const saveButton = page.getByRole('button', { name: /Зберегти|Save/i });
+    const saveButton = page.getByTestId('org-settings-save-button');
     await expect(saveButton).toBeDisabled();
   });
 
@@ -549,14 +549,14 @@ test.describe('Dashboard — Organization Settings', () => {
       description: 'Verifies that entering an invalid email shows a validation error.',
     });
 
-    const emailInput = page.getByLabel(/Контактний email|Contact email/i);
+    const emailInput = page.getByTestId('org-settings-email-input');
     await emailInput.clear();
     await emailInput.fill('not-an-email');
 
-    const saveButton = page.getByRole('button', { name: /Зберегти|Save/i });
+    const saveButton = page.getByTestId('org-settings-save-button');
     await saveButton.click();
 
-    await expect(page.getByText(/Недійсна адреса електронної пошти|Invalid email/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('validation.emailInvalid'))).toBeVisible({ timeout: 5000 });
   });
 
   // =========================================================================
@@ -568,14 +568,14 @@ test.describe('Dashboard — Organization Settings', () => {
       description: 'Verifies that entering an invalid phone number shows a validation error.',
     });
 
-    const phoneInput = page.getByLabel(/Телефон|Phone/i);
+    const phoneInput = page.getByTestId('org-settings-phone-input');
     await phoneInput.clear();
     await phoneInput.fill('invalid-phone-!!!');
 
-    const saveButton = page.getByRole('button', { name: /Зберегти|Save/i });
+    const saveButton = page.getByTestId('org-settings-save-button');
     await saveButton.click();
 
-    await expect(page.getByText(/недопустимі символи|contains invalid characters/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(t('validation.phoneInvalid'))).toBeVisible({ timeout: 5000 });
   });
 
   // =========================================================================
@@ -599,15 +599,15 @@ test.describe('Dashboard — Organization Settings', () => {
       }
     });
 
-    const nameInput = page.getByLabel(/Назва|Name/i);
+    const nameInput = page.getByTestId('org-settings-name-input');
     await nameInput.clear();
     await nameInput.fill('Error Test Org');
 
-    const saveButton = page.getByRole('button', { name: /Зберегти|Save/i });
+    const saveButton = page.getByTestId('org-settings-save-button');
     await expect(saveButton).toBeEnabled();
     await saveButton.click();
 
-    await expect(page.getByText(/Не вдалось|Failed|Помилка|Error/i).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Internal server error').first()).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -625,7 +625,7 @@ test.describe('Dashboard — Home Page', () => {
     // Navigate to dashboard
     await page.goto(`/dashboard/${orgId}`);
     await expect(page).toHaveURL(/.*\/dashboard\//);
-    await expect(page.getByText(/Завантаження інтерфейсу|Loading interface/i)).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
   });
 
   // =========================================================================
@@ -637,10 +637,10 @@ test.describe('Dashboard — Home Page', () => {
       description: 'Verifies that the dashboard home page shows organization stats.',
     });
 
-    await expect(page.getByText(/Учасників|Members/i)).toBeVisible();
-    await expect(page.getByText(/Активних зборів|Active campaigns/i)).toBeVisible();
-    await expect(page.getByText(/Зібрано|Raised/i)).toBeVisible();
-    await expect(page.locator('main').getByText(/Чеків|Receipts/i).first()).toBeVisible();
+    await expect(page.getByText(t('dashboard.statMembers'))).toBeVisible();
+    await expect(page.getByText(t('dashboard.statActiveCampaigns'))).toBeVisible();
+    await expect(page.getByText(t('dashboard.statRaised'))).toBeVisible();
+    await expect(page.locator('main').getByText(t('dashboard.statReceipts')).first()).toBeVisible();
   });
 
   // =========================================================================
@@ -652,10 +652,10 @@ test.describe('Dashboard — Home Page', () => {
       description: 'Verifies that the dashboard home page displays the quick start guide.',
     });
 
-    await expect(page.getByText(/Швидкий старт|Quick start/i)).toBeVisible();
-    await expect(page.getByText(/Запросіть волонтерів|Invite volunteers/i)).toBeVisible();
-    await expect(page.getByText(/Створіть перший збір|Create your first campaign/i)).toBeVisible();
-    await expect(page.getByText(/Завантажуйте чеки|Upload receipts/i)).toBeVisible();
+    await expect(page.getByText(t('dashboard.quickStart'))).toBeVisible();
+    await expect(page.getByText(t('dashboard.step1'))).toBeVisible();
+    await expect(page.getByText(t('dashboard.step2'))).toBeVisible();
+    await expect(page.getByText(t('dashboard.step3'))).toBeVisible();
   });
 
   // =========================================================================
@@ -668,15 +668,15 @@ test.describe('Dashboard — Home Page', () => {
     });
 
     // Navigate to campaigns
-    await openDashboardNavLink(page, /Збори|Campaigns/i);
+    await openDashboardNavLink(page, 'campaigns');
     await expect(page).toHaveURL(/.*\/campaigns/);
 
     // Navigate to settings
-    await openDashboardNavLink(page, /Налаштування|Settings/i);
+    await openDashboardNavLink(page, 'settings');
     await expect(page).toHaveURL(/.*\/settings/);
 
     // Navigate back to dashboard home
-    await openDashboardNavLink(page, /Дашборд|Dashboard/i);
+    await openDashboardNavLink(page, 'home');
     await expect(page).toHaveURL(new RegExp(`.*/dashboard/${orgId}/?$`));
   });
 });

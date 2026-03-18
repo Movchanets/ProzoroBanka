@@ -61,6 +61,7 @@ function SidebarContent({
         {navItems.map((item) => (
           <NavLink
             key={item.path}
+            data-testid={`dashboard-nav-${item.path || 'home'}`}
             to={`/dashboard/${orgId}/${item.path}`}
             end={item.path === ''}
             onClick={closeMobile}
@@ -182,7 +183,7 @@ export default function DashboardLayout() {
 
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="fixed left-3 top-3 z-40 md:hidden" aria-label={t('nav.openMenu')}>
+            <Button data-testid="dashboard-mobile-menu-button" variant="ghost" size="icon" className="fixed left-3 top-3 z-40 md:hidden" aria-label={t('nav.openMenu')}>
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>

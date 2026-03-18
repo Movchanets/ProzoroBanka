@@ -185,7 +185,7 @@ export default function LoginPage() {
       </div>
 
       {serverError && (
-        <Alert variant="destructive" aria-live="polite">
+        <Alert variant="destructive" aria-live="polite" data-testid="login-error-alert">
           <CircleAlert aria-hidden="true" />
           <AlertDescription>{serverError}</AlertDescription>
         </Alert>
@@ -198,6 +198,7 @@ export default function LoginPage() {
             <Mail className="pointer-events-none absolute left-4 top-1/2 z-10 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <Input
               id="email"
+              data-testid="login-email-input"
               type="email"
               autoComplete="email"
               inputMode="email"
@@ -217,6 +218,7 @@ export default function LoginPage() {
             <KeyRound className="pointer-events-none absolute left-4 top-1/2 z-10 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <Input
               id="password"
+              data-testid="login-password-input"
               type="password"
               autoComplete="current-password"
               maxLength={128}
@@ -233,7 +235,7 @@ export default function LoginPage() {
           <FieldMessages error={errors.turnstileToken} />
         </div>
 
-        <Button type="submit" size="pillWide" className="w-full shadow-[0_18px_30px_var(--shadow-strong)]" disabled={loginMutation.isPending}>
+        <Button type="submit" data-testid="login-submit-button" size="pillWide" className="w-full shadow-[0_18px_30px_var(--shadow-strong)]" disabled={loginMutation.isPending}>
           {loginMutation.isPending ? t('auth.login.submitPending') : t('auth.login.submit')}
         </Button>
 
@@ -248,6 +250,7 @@ export default function LoginPage() {
 
         <Button
           type="button"
+          data-testid="login-google-button"
           variant="secondary"
           size="pillWide"
           className="w-full"
