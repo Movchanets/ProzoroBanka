@@ -17,32 +17,12 @@ jobs:
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_DB: prozoro_banka_ci
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d prozoro_banka_ci"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Start Docker containers
+        run: bash scripts/start-test-containers.sh --ci
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -138,32 +118,22 @@ jobs:
     name: E2E Tests (Playwright)
     needs: [backend-tests, frontend-checks]
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_DB: prozoro_banka_ci
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d prozoro_banka_ci"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    env:
+      ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=prozoro_banka_ci;Username=postgres;Password=postgres
+      Redis__Enabled: true
+      Redis__ConnectionString: localhost:6379
+      Ocr__Provider: fallback
+      Storage__Provider: Local
+      Turnstile__SecretKey: 1x0000000000000000000000000000000AA
+      Turnstile__VerifyUrl: https://challenges.cloudflare.com/turnstile/v0/siteverify
+      VITE_API_URL: http://localhost:5188
+      VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Start Docker containers
+        run: bash scripts/start-test-containers.sh --ci
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -187,37 +157,6 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: Frontend
-        env:
-          # Database & Infrastructure
-          ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=prozoro_banka_ci;Username=postgres;Password=postgres
-          Redis__Enabled: true
-          Redis__ConnectionString: localhost:6379
-          Ocr__Provider: fallback
-          Storage__Provider: Local
-          
-          # Backend Logic & Security (bypassing missing appsettings)
-          ASPNETCORE_ENVIRONMENT: Development
-          Jwt__Key: aa2b6d410067e355b1ac374939e2144e1264d35cce78b65f6fea59e6eadf65bb
-          Jwt__RefreshKey: 2a6f7c0d7c93d33aee5ac4660ba732f3a92418ad5e523170bbe453bc82ead128
-          Jwt__Issuer: ProzoroBanka-Dev
-          Jwt__Audience: ProzoroBanka-Dev-Client
-          Encryption__Key: 9618b101a497b89ad502f6c9d6080db4b3fee59ec43ca85173a4ddab3876564b
-          
-          # Turnstile Test Keys (Bypass)
-          Turnstile__SecretKey: 1x0000000000000000000000000000000AA
-          Turnstile__VerifyUrl: https://challenges.cloudflare.com/turnstile/v0/siteverify
-          
-          # Seed Data for TC-01
-          Seed__Admin__Email: test@example.com
-          Seed__Admin__Password: Qwerty-1
-
-          # E2E credentials consumed by Frontend/tests/auth.spec.ts
-          E2E_EMAIL: test@example.com
-          E2E_PASSWORD: Qwerty-1
-          
-          # Frontend Env
-          VITE_API_URL: http://localhost:5188
-          VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
         run: npm run test:e2e -- --project=chromium
 
       - name: Upload Playwright report

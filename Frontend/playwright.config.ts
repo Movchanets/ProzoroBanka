@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
+  /* Global setup: starts Docker containers (Postgres + Redis) before tests */
+  globalSetup: process.env.CI ? undefined : './tests/global-setup.ts',
   /* Maximum time one test can run for. */
   timeout: 30 * 1000,
   expect: {
@@ -14,8 +16,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Run with multiple workers now that auth rate limiting is disabled in Playwright config. */
+  workers: process.env.CI ? 4 : 3,
   /* Reporter to use (HTML gives a great visual timeline). */
   reporter: 'html',
   

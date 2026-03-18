@@ -1,0 +1,17 @@
+name: prozorobanka-ci
+
+# CI-specific overrides for docker-compose.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d postgres redis
+
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: prozoro_banka_ci
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    # Remove volume mount in CI to ensure clean state
+    volumes: []
+
+  redis:
+    # Remove volume mount in CI to ensure clean state
+    volumes: []

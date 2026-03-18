@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
+using ProzoroBanka.API.Configuration;
 using ProzoroBanka.API.Authorization;
 using ProzoroBanka.API.Filters;
 using ProzoroBanka.API.Middleware;
@@ -47,6 +48,8 @@ try
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddScoped<TurnstileValidationFilter>();
 
+    var rateLimitingSettings = builder.Configuration.GetSection("RateLimiting").Get<RateLimitingOptions>() ?? new RateLimitingOptions();
+
     // ── JWT Authentication ──
     var jwtSettings = builder.Configuration.GetSection("Jwt");
 
@@ -88,32 +91,33 @@ try
     builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
     // ── Rate Limiting ──
-    builder.Services.AddRateLimiter(options =>
+    if (rateLimitingSettings.Enabled)
     {
-        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-        // Загальний ліміт: 100 запитів / хвилина на IP
-        options.AddPolicy("general", httpContext =>
-            RateLimitPartition.GetFixedWindowLimiter(
-                httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = 100,
-                    Window = TimeSpan.FromMinutes(1),
-                    QueueLimit = 0
-                }));
+            options.AddPolicy("general", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = rateLimitingSettings.General.PermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitingSettings.General.WindowSeconds),
+                        QueueLimit = rateLimitingSettings.General.QueueLimit
+                    }));
 
-        // Auth ліміт: 10 запитів / хвилина на IP (від brute-force)
-        options.AddPolicy("auth", httpContext =>
-            RateLimitPartition.GetFixedWindowLimiter(
-                httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = 10,
-                    Window = TimeSpan.FromMinutes(1),
-                    QueueLimit = 0
-                }));
-    });
+            options.AddPolicy("auth", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = rateLimitingSettings.Auth.PermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitingSettings.Auth.WindowSeconds),
+                        QueueLimit = rateLimitingSettings.Auth.QueueLimit
+                    }));
+        });
+    }
 
     // ── Controllers ──
     builder.Services.AddControllers();
@@ -179,7 +183,10 @@ try
     app.UseHttpsRedirection();
 
     app.UseCors("Frontend");
-    app.UseRateLimiter();
+    if (rateLimitingSettings.Enabled)
+    {
+        app.UseRateLimiter();
+    }
     app.UseAuthentication();
     app.UseAuthorization();
 

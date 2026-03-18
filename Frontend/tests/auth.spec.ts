@@ -16,7 +16,7 @@ test.describe('Authentication Flow - Login Functionality', () => {
     // the widget will automatically pass in ~1 second. We will wait for the token injected into the DOM.
     // The Turnstile component creates a hidden input `cf-turnstile-response` with a value once verified.
     // In testing mode, the value is always generated automatically.
-    await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, { timeout: 10000 });
+    await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, { timeout: 20000 });
   });
 
   // =========================================================================
