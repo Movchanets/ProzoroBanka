@@ -7,7 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-COMPOSE_CMD="docker compose --env-file Frontend/.env.test -f docker-compose.yml -f docker-compose.ci.yml"
+COMPOSE_CMD="docker compose -f docker-compose.yml -f docker-compose.ci.yml"
 
 # Start containers
 echo "[start-test-containers] Starting Docker containers (Postgres + Redis + API + Frontend)..."
