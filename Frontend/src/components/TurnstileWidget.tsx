@@ -1,6 +1,9 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useTheme } from 'next-themes';
 
+const TEST_TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
+const TEST_TURNSTILE_TOKEN = 'playwright-test-turnstile-token';
+
 interface TurnstileWidgetProps {
   siteKey?: string;
   onVerify: (token: string) => void;
@@ -38,15 +41,30 @@ export function TurnstileWidget({
   const callbackRefs = useRef({ onVerify, onExpire, onError });
   const [isLoaded, setIsLoaded] = useState(!!window.turnstile);
   const effectiveTheme = theme === 'auto' ? (resolvedTheme === 'dark' ? 'dark' : 'light') : theme;
+  const effectiveSiteKey = siteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY;
+  const isTestTurnstile = effectiveSiteKey === TEST_TURNSTILE_SITE_KEY;
+  const token = isTestTurnstile ? TEST_TURNSTILE_TOKEN : '';
 
   useEffect(() => {
     callbackRefs.current = { onVerify, onExpire, onError };
   }, [onVerify, onExpire, onError]);
 
+  useEffect(() => {
+    if (!isTestTurnstile) {
+      return;
+    }
+
+    callbackRefs.current.onVerify(TEST_TURNSTILE_TOKEN);
+  }, [isTestTurnstile]);
+
   const renderWidget = useCallback(() => {
+    if (isTestTurnstile) {
+      return;
+    }
+
     if (!containerRef.current || !window.turnstile || widgetIdRef.current) return;
 
-    const key = siteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY;
+    const key = effectiveSiteKey;
     if (!key) {
       console.warn('Turnstile site key not configured');
       return;
@@ -60,9 +78,13 @@ export function TurnstileWidget({
       theme: effectiveTheme,
       size,
     });
-  }, [siteKey, effectiveTheme, size]);
+  }, [effectiveSiteKey, effectiveTheme, isTestTurnstile, size]);
 
   useEffect(() => {
+    if (isTestTurnstile) {
+      return;
+    }
+
     if (window.turnstile) {
       renderWidget();
       return;
@@ -86,9 +108,13 @@ export function TurnstileWidget({
       document.head.appendChild(script);
     }
 
-  }, [renderWidget]);
+  }, [isTestTurnstile, renderWidget]);
 
   useEffect(() => {
+    if (isTestTurnstile) {
+      return;
+    }
+
     if (isLoaded) {
       if (widgetIdRef.current && window.turnstile) {
         window.turnstile.remove(widgetIdRef.current);
@@ -96,7 +122,7 @@ export function TurnstileWidget({
       }
       renderWidget();
     }
-  }, [isLoaded, renderWidget]);
+  }, [isLoaded, isTestTurnstile, renderWidget]);
 
   useEffect(() => {
     return () => {
@@ -107,5 +133,12 @@ export function TurnstileWidget({
     };
   }, []);
 
-  return <div ref={containerRef} />;
+  return (
+    <>
+      {isTestTurnstile && (
+        <input type="hidden" name="cf-turnstile-response" value={token} readOnly aria-hidden="true" />
+      )}
+      <div ref={containerRef} />
+    </>
+  );
 }

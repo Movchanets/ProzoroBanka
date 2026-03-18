@@ -138,6 +138,7 @@ export default function ProfilePage() {
 
               <Button
                 type="button"
+                data-testid="profile-avatar-update-button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadAvatarMutation.isPending}
                 variant="secondary"
@@ -146,10 +147,10 @@ export default function ProfilePage() {
                 {uploadAvatarMutation.isPending ? t('profile.avatarLoading') : t('profile.avatarUpdate')}
               </Button>
 
-              <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={handleAvatarSelection} />
+              <input data-testid="profile-avatar-upload-input" ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={handleAvatarSelection} />
 
               {avatarError && (
-                <Alert variant="destructive" aria-live="polite">
+                <Alert data-testid="profile-avatar-error-alert" variant="destructive" aria-live="polite">
                   <CircleAlert aria-hidden="true" />
                   <AlertDescription>{avatarError}</AlertDescription>
                 </Alert>
@@ -201,7 +202,7 @@ export default function ProfilePage() {
               </span>
               <h3 className="text-2xl font-semibold leading-none tracking-tight">{t('profile.editTitle')}</h3>
             </div>
-            <Button type="button" size="pill" onClick={() => refetch()} variant="soft">
+            <Button type="button" data-testid="profile-refresh-button" size="pill" onClick={() => refetch()} variant="soft">
               {t('common.refresh')}
             </Button>
           </div>
@@ -220,30 +221,30 @@ export default function ProfilePage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2.5">
                 <Label htmlFor="profile-first-name">{t('common.firstName')}</Label>
-                <Input id="profile-first-name" type="text" {...register('firstName')} />
+                <Input id="profile-first-name" data-testid="profile-first-name-input" type="text" {...register('firstName')} />
                 <FieldMessages error={errors.firstName} />
                 </div>
 
                 <div className="grid gap-2.5">
                 <Label htmlFor="profile-last-name">{t('common.lastName')}</Label>
-                <Input id="profile-last-name" type="text" {...register('lastName')} />
+                <Input id="profile-last-name" data-testid="profile-last-name-input" type="text" {...register('lastName')} />
                 <FieldMessages error={errors.lastName} />
                 </div>
 
                 <div className="grid gap-2.5 md:col-span-2">
                 <Label htmlFor="profile-email">{t('common.email')}</Label>
-                <Input id="profile-email" type="email" value={profile?.email ?? ''} disabled readOnly />
+                <Input id="profile-email" data-testid="profile-email-input" type="email" value={profile?.email ?? ''} disabled readOnly />
                 </div>
 
                 <div className="grid gap-2.5 md:col-span-2">
                 <Label htmlFor="profile-phone">{t('common.phone')}</Label>
-                <Input id="profile-phone" type="tel" placeholder="+380 67 123 45 67" {...register('phoneNumber')} />
+                <Input id="profile-phone" data-testid="profile-phone-input" type="tel" placeholder="+380 67 123 45 67" {...register('phoneNumber')} />
                 <FieldMessages error={errors.phoneNumber} />
                 </div>
               </div>
 
               {updateProfileMutation.error && (
-                <Alert variant="destructive" aria-live="polite">
+                <Alert data-testid="profile-save-error-alert" variant="destructive" aria-live="polite">
                   <CircleAlert aria-hidden="true" />
                   <AlertDescription>
                     {updateProfileMutation.error instanceof Error
@@ -254,7 +255,7 @@ export default function ProfilePage() {
               )}
 
               {updateProfileMutation.isSuccess && !updateProfileMutation.isPending && (
-                <Alert variant="success" aria-live="polite">
+                <Alert data-testid="profile-save-success-alert" variant="success" aria-live="polite">
                   <CircleCheckBig aria-hidden="true" />
                   <AlertTitle>{t('profile.updateSuccessTitle')}</AlertTitle>
                   <AlertDescription>{t('profile.updateSuccessDescription')}</AlertDescription>
@@ -264,6 +265,7 @@ export default function ProfilePage() {
               <div className="flex justify-end">
                 <Button
                   type="submit"
+                  data-testid="profile-save-button"
                   size="pill"
                   className="shadow-[0_18px_30px_var(--shadow-strong)]"
                   disabled={updateProfileMutation.isPending || !isDirty}

@@ -11,7 +11,7 @@ x86/
 [Oo]bj/
 *.nupkg
 *.snupkg
-appsettings.*.json
+appsettings.Development.json
 
 # ---- Node / Frontend ----
 node_modules/

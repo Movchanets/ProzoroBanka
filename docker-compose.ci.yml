@@ -1,0 +1,42 @@
+name: prozorobanka-tests
+
+# Test-specific overrides for docker-compose.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d postgres redis api frontend
+
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: prozoro_banka_ci
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    # Remove volume mount in CI to ensure clean state
+    volumes: []
+
+  redis:
+    # Remove volume mount in CI to ensure clean state
+    volumes: []
+
+  api:
+    ports:
+      - "5188:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      IS_PLAYWRIGHT_TESTS: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    ports:
+      - "5173:3000"
+    build:
+      args:
+        API_URL: ${VITE_API_URL:-http://localhost:5188}
+        BUILD_PUBLIC_VALUE_1: ${VITE_TURNSTILE_SITE_KEY:-1x00000000000000000000AA}
+        BUILD_PUBLIC_VALUE_2: ${VITE_GOOGLE_CLIENT_ID:-test-client-id}
+    depends_on:
+      api:
+        condition: service_started

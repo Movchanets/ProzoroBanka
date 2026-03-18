@@ -64,7 +64,7 @@ export default function OnboardingPage() {
         </Card>
       </div>
 
-      <Button size="pillWide" onClick={() => setDialogOpen(true)} className="gap-2">
+      <Button data-testid="onboarding-create-organization-button" size="pillWide" onClick={() => setDialogOpen(true)} className="gap-2">
         {t('onboarding.createOrganization')}
         <ArrowRight className="h-4 w-4" />
       </Button>

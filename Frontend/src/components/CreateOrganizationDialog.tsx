@@ -108,39 +108,39 @@ export function CreateOrganizationDialog({ open, onOpenChange, redirectAfterCrea
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2">
           {apiError && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" data-testid="create-org-error-alert">
               <AlertDescription>{apiError}</AlertDescription>
             </Alert>
           )}
 
           <div className="space-y-2">
             <Label htmlFor="org-name">{t('common.name')} *</Label>
-            <Input id="org-name" placeholder={t('organizations.create.namePlaceholder')} autoFocus {...register('name', { onChange: handleNameChange })} />
+            <Input id="org-name" data-testid="create-org-name-input" placeholder={t('organizations.create.namePlaceholder')} autoFocus {...register('name', { onChange: handleNameChange })} />
             {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="org-slug">{t('organizations.create.slugLabel')}</Label>
-            <Input id="org-slug" placeholder="blagod-fond-promin" {...register('slug', { onChange: () => setSlugEdited(true) })} />
+            <Input id="org-slug" data-testid="create-org-slug-input" placeholder="blagod-fond-promin" {...register('slug', { onChange: () => setSlugEdited(true) })} />
             {errors.slug && <p className="text-sm text-destructive">{errors.slug.message}</p>}
             <p className="text-xs text-muted-foreground">{t('organizations.create.slugHint')}</p>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="org-description">{t('common.description')}</Label>
-            <Textarea id="org-description" placeholder={t('organizations.create.descriptionPlaceholder')} rows={3} {...register('description')} />
+            <Textarea id="org-description" data-testid="create-org-description-input" placeholder={t('organizations.create.descriptionPlaceholder')} rows={3} {...register('description')} />
             {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="org-website">{t('common.website')}</Label>
-            <Input id="org-website" placeholder="https://example.org" {...register('website')} />
+            <Input id="org-website" data-testid="create-org-website-input" placeholder="https://example.org" {...register('website')} />
             {errors.website && <p className="text-sm text-destructive">{errors.website.message}</p>}
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>{t('common.cancel')}</Button>
-            <Button type="submit" disabled={createOrg.isPending}>
+            <Button type="button" data-testid="create-org-cancel-button" variant="outline" onClick={() => handleOpenChange(false)}>{t('common.cancel')}</Button>
+            <Button type="submit" data-testid="create-org-submit-button" disabled={createOrg.isPending}>
               {createOrg.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               {t('common.create')}
             </Button>
