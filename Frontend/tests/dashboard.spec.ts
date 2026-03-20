@@ -1,71 +1,35 @@
 import { test, expect } from '@playwright/test';
 
 import { t, setTestLanguage } from './support/i18n';
+import {
+  createOrganizationViaApi,
+  getAccessTokenFromAuthStorage,
+  loginViaUi,
+  registerRandomUserViaApi,
+  setAuthStorage,
+} from './support/e2e-auth';
 
 const VALID_EMAIL = process.env.E2E_EMAIL ?? 'admin@example.com';
 const VALID_PASSWORD = process.env.E2E_PASSWORD ?? 'Qwerty-1';
-const TURNSTILE_TIMEOUT = 30000;
 
 test.describe.configure({ timeout: 60_000 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function loginAs(page: import('@playwright/test').Page) {
-  await setTestLanguage(page);
-
-  await page.goto('/login');
-  await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, { timeout: TURNSTILE_TIMEOUT });
-  await page.getByTestId('login-email-input').fill(VALID_EMAIL);
-  await page.getByTestId('login-password-input').fill(VALID_PASSWORD);
-  await page.getByTestId('login-submit-button').click();
-  await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10000 });
+  await loginViaUi(page, VALID_EMAIL, VALID_PASSWORD, {
+    expectedUrlPattern: /.*\/(onboarding|dashboard).*/,
+  });
 }
 
 async function registerFreshUser(page: import('@playwright/test').Page) {
-  await setTestLanguage(page);
-
-  const uniquePart = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-  const email = `e2e-${uniquePart}@example.com`;
-  const password = 'Qwerty-1';
-
-  await page.goto('/register');
-  const turnstileInput = page.locator('input[name="cf-turnstile-response"]');
-  await expect(turnstileInput).toHaveValue(/.+/, { timeout: TURNSTILE_TIMEOUT });
-  const turnstileToken = (await turnstileInput.inputValue()).trim();
-
-  const registerResponse = await page.request.post('http://localhost:5188/api/auth/register', {
-    data: {
-      email,
-      password,
-      confirmPassword: password,
-      firstName: 'E2E',
-      lastName: 'User',
-      turnstileToken,
-    },
+  const registeredUser = await registerRandomUserViaApi(page.request, {
+    firstName: 'E2E',
+    lastName: 'User',
+    emailPrefix: 'dashboard-e2e',
   });
 
-  if (!registerResponse.ok()) {
-    throw new Error(`Failed to register test user: ${registerResponse.status()} ${await registerResponse.text()}`);
-  }
-
-  const auth = await registerResponse.json();
-
-  await page.goto('/');
-  await page.evaluate((payload) => {
-    localStorage.setItem(
-      'auth-storage',
-      JSON.stringify({
-        state: {
-          accessToken: payload.accessToken,
-          refreshToken: payload.refreshToken,
-          accessTokenExpiry: payload.accessTokenExpiry,
-          user: payload.user,
-          isAuthenticated: true,
-        },
-        version: 0,
-      })
-    );
-  }, auth);
+  await setAuthStorage(page, registeredUser.auth);
 
   await page.goto('/onboarding');
   await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10000 });
@@ -73,25 +37,8 @@ async function registerFreshUser(page: import('@playwright/test').Page) {
 
 /** Create an org via API and return its ID. Must be called AFTER loginAs(). */
 async function createOrgViaAPI(page: import('@playwright/test').Page, name: string): Promise<string> {
-  // Get auth token from localStorage
-  const authData = await page.evaluate(() => localStorage.getItem('auth-storage'));
-  const { state } = JSON.parse(authData!);
-  const token = state.accessToken;
-
-  const response = await page.request.post('http://localhost:5188/api/organizations', {
-    data: { name, slug: name.toLowerCase().replace(/\s+/g, '-') },
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok()) {
-    throw new Error(`Failed to create org: ${response.status()} ${await response.text()}`);
-  }
-
-  const org = await response.json();
-  return org.id;
+  const token = await getAccessTokenFromAuthStorage(page);
+  return createOrganizationViaApi(page.request, token, name);
 }
 
 /** Navigate to onboarding and open the create org dialog */

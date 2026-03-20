@@ -1,112 +1,14 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 import { setTestLanguage } from './support/i18n';
-
-const API_BASE_URL = process.env.E2E_API_URL ?? 'http://localhost:5188';
-const TURNSTILE_TEST_TOKEN = process.env.E2E_TURNSTILE_TOKEN ?? 'XXXX.DUMMY.TOKEN.XXXX';
+import {
+  createEmailInviteViaApi,
+  createOrganizationViaApi,
+  registerRandomUserViaApi,
+  setAuthStorage,
+} from './support/e2e-auth';
 
 test.describe.configure({ timeout: 90_000 });
-
-interface AuthUser {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-}
-
-interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  accessTokenExpiry: string;
-  user: AuthUser;
-}
-
-async function registerUserViaApi(
-  page: Page,
-  firstName: string,
-  lastName: string,
-): Promise<{ auth: AuthResponse; password: string }> {
-  const uniquePart = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-  const email = `e2e-invite-${uniquePart}@example.com`;
-  const password = 'Qwerty-1';
-
-  const registerResponse = await page.request.post(`${API_BASE_URL}/api/auth/register`, {
-    data: {
-      email,
-      password,
-      confirmPassword: password,
-      firstName,
-      lastName,
-      turnstileToken: TURNSTILE_TEST_TOKEN,
-    },
-  });
-
-  if (!registerResponse.ok()) {
-    throw new Error(`Failed to register user ${email}: ${registerResponse.status()} ${await registerResponse.text()}`);
-  }
-
-  const auth = (await registerResponse.json()) as AuthResponse;
-  return { auth, password };
-}
-
-async function setAuthStorage(page: Page, auth: AuthResponse) {
-  await page.goto('/');
-  await page.evaluate((payload) => {
-    localStorage.setItem(
-      'auth-storage',
-      JSON.stringify({
-        state: {
-          accessToken: payload.accessToken,
-          refreshToken: payload.refreshToken,
-          accessTokenExpiry: payload.accessTokenExpiry,
-          user: payload.user,
-          isAuthenticated: true,
-        },
-        version: 0,
-      }),
-    );
-  }, auth);
-}
-
-async function createOrganizationViaApi(page: Page, auth: AuthResponse, name: string): Promise<string> {
-  const response = await page.request.post(`${API_BASE_URL}/api/organizations`, {
-    data: {
-      name,
-      slug: name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-'),
-    },
-    headers: {
-      Authorization: `Bearer ${auth.accessToken}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok()) {
-    throw new Error(`Failed to create organization: ${response.status()} ${await response.text()}`);
-  }
-
-  const org = (await response.json()) as { id: string };
-  return org.id;
-}
-
-async function createEmailInviteViaApi(
-  page: Page,
-  auth: AuthResponse,
-  orgId: string,
-  email: string,
-  role: number,
-): Promise<void> {
-  const response = await page.request.post(`${API_BASE_URL}/api/organizations/${orgId}/invites/email`, {
-    data: { email, role },
-    headers: {
-      Authorization: `Bearer ${auth.accessToken}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok()) {
-    throw new Error(`Failed to create email invite: ${response.status()} ${await response.text()}`);
-  }
-}
 
 test.describe('Team Invitations — Real Backend', () => {
   test.beforeEach(async ({ page }) => {
@@ -119,11 +21,19 @@ test.describe('Team Invitations — Real Backend', () => {
       description: 'Real backend flow: create owner/invitee users, create org, send email invite, onboarding->profile transition, accept in profile, back to onboarding/dashboard, verify and change role in Team actions.',
     });
 
-    const owner = await registerUserViaApi(page, 'Owner', 'E2E');
-    const invitee = await registerUserViaApi(page, 'Invitee', 'E2E');
+    const owner = await registerRandomUserViaApi(page.request, {
+      firstName: 'Owner',
+      lastName: 'E2E',
+      emailPrefix: 'e2e-invite',
+    });
+    const invitee = await registerRandomUserViaApi(page.request, {
+      firstName: 'Invitee',
+      lastName: 'E2E',
+      emailPrefix: 'e2e-invite',
+    });
 
     await setAuthStorage(page, owner.auth);
-    const orgId = await createOrganizationViaApi(page, owner.auth, `Invite Org ${Date.now()}`);
+    const orgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `Invite Org ${Date.now()}`);
 
     await page.goto(`/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
@@ -203,9 +113,13 @@ test.describe('Team Invitations — Real Backend', () => {
       description: 'Real backend flow: owner opens invite dialog, generates link invite, verifies API success and generated invite URL visibility.',
     });
 
-    const owner = await registerUserViaApi(page, 'Owner', 'LinkInvite');
+    const owner = await registerRandomUserViaApi(page.request, {
+      firstName: 'Owner',
+      lastName: 'LinkInvite',
+      emailPrefix: 'e2e-invite',
+    });
     await setAuthStorage(page, owner.auth);
-    const orgId = await createOrganizationViaApi(page, owner.auth, `Invite Link Org ${Date.now()}`);
+    const orgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `Invite Link Org ${Date.now()}`);
 
     await page.goto(`/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
@@ -235,12 +149,20 @@ test.describe('Team Invitations — Real Backend', () => {
       description: 'Real backend flow: owner creates email invite, invitee opens profile invitations tab, declines invite and verifies it no longer appears as incoming pending.',
     });
 
-    const owner = await registerUserViaApi(page, 'Owner', 'DeclineFlow');
-    const invitee = await registerUserViaApi(page, 'Invitee', 'DeclineFlow');
+    const owner = await registerRandomUserViaApi(page.request, {
+      firstName: 'Owner',
+      lastName: 'DeclineFlow',
+      emailPrefix: 'e2e-invite',
+    });
+    const invitee = await registerRandomUserViaApi(page.request, {
+      firstName: 'Invitee',
+      lastName: 'DeclineFlow',
+      emailPrefix: 'e2e-invite',
+    });
 
     await setAuthStorage(page, owner.auth);
-    const orgId = await createOrganizationViaApi(page, owner.auth, `Invite Decline Org ${Date.now()}`);
-    await createEmailInviteViaApi(page, owner.auth, orgId, invitee.auth.user.email, 2);
+    const orgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `Invite Decline Org ${Date.now()}`);
+    await createEmailInviteViaApi(page.request, owner.auth.accessToken, orgId, invitee.auth.user.email, 2);
 
     await setAuthStorage(page, invitee.auth);
     await page.goto('/profile');
@@ -270,11 +192,19 @@ test.describe('Team Invitations — Real Backend', () => {
       description: 'Real backend flow: owner sends invitation, opens profile invitations tab and cancels sent invitation from there.',
     });
 
-    const owner = await registerUserViaApi(page, 'Owner', 'CancelSent');
-    const invitee = await registerUserViaApi(page, 'Invitee', 'CancelSent');
+    const owner = await registerRandomUserViaApi(page.request, {
+      firstName: 'Owner',
+      lastName: 'CancelSent',
+      emailPrefix: 'e2e-invite',
+    });
+    const invitee = await registerRandomUserViaApi(page.request, {
+      firstName: 'Invitee',
+      lastName: 'CancelSent',
+      emailPrefix: 'e2e-invite',
+    });
 
     await setAuthStorage(page, owner.auth);
-    const orgId = await createOrganizationViaApi(page, owner.auth, `Invite Cancel Sent Org ${Date.now()}`);
+    const orgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `Invite Cancel Sent Org ${Date.now()}`);
 
     await page.goto(`/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
@@ -313,5 +243,36 @@ test.describe('Team Invitations — Real Backend', () => {
     expect(cancelResponse.ok()).toBeTruthy();
 
     await expect(page.getByTestId(/profile-sent-invitation-row-/)).toHaveCount(0, { timeout: 10_000 });
+  });
+
+  test('TC-05: Dashboard profile icon shows pending invitations badge for invited user', async ({ page }) => {
+    test.info().annotations.push({
+      type: 'description',
+      description: 'Real backend flow: invited user with an existing organization opens dashboard and sees pending invitations badge on profile icon.',
+    });
+
+    const owner = await registerRandomUserViaApi(page.request, {
+      firstName: 'Owner',
+      lastName: 'BadgeFlow',
+      emailPrefix: 'e2e-invite',
+    });
+    const invitee = await registerRandomUserViaApi(page.request, {
+      firstName: 'Invitee',
+      lastName: 'BadgeFlow',
+      emailPrefix: 'e2e-invite',
+    });
+
+    const ownerOrgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `Invite Badge Owner Org ${Date.now()}`);
+    const inviteeOrgId = await createOrganizationViaApi(page.request, invitee.auth.accessToken, `Invite Badge Invitee Org ${Date.now()}`);
+
+    await createEmailInviteViaApi(page.request, owner.auth.accessToken, ownerOrgId, invitee.auth.user.email, 2);
+
+    await setAuthStorage(page, invitee.auth);
+    await page.goto(`/dashboard/${inviteeOrgId}`);
+    await expect(page).toHaveURL(new RegExp(`/dashboard/${inviteeOrgId}`));
+
+    const profileBadge = page.getByTestId('dashboard-profile-invitations-badge');
+    await expect(profileBadge).toBeVisible({ timeout: 10_000 });
+    await expect(profileBadge).toHaveText('1');
   });
 });
