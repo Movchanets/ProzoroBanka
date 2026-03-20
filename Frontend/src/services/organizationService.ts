@@ -45,7 +45,10 @@ export const organizationService = {
   updateMember: (orgId: string, userId: string, payload: UpdateMemberRolePayload) =>
     apiFetch<OrganizationMember>(`/api/organizations/${orgId}/members/${userId}`, {
       method: 'PUT',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        newRole: payload.role,
+        newPermissionsFlags: payload.permissions ?? 0,
+      }),
     }),
 
   removeMember: (orgId: string, userId: string) =>

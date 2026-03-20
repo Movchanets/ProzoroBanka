@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LogOut, Trash2, Users, Shield } from 'lucide-react';
+import { InviteDialog } from './Team/InviteDialog';
 
 const roleBadgeVariant: Record<number, 'default' | 'secondary' | 'outline'> = {
   [OrganizationRole.Owner]: 'default',
@@ -29,6 +30,7 @@ export default function TeamPage() {
   const removeMember = useRemoveMember(orgId!);
   const leaveOrg = useLeaveOrganization();
   const [error, setError] = useState<string | null>(null);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ type: 'remove' | 'leave'; member?: OrganizationMember } | null>(null);
 
   const currentMember = members?.find((m) => m.userId === currentUser?.id);
@@ -54,16 +56,28 @@ export default function TeamPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2"><Users className="h-6 w-6 text-primary" />{t('team.title')}</h2>
           <p className="text-muted-foreground">{t('team.memberCount', { count: members?.length ?? 0 })}</p>
         </div>
-        {currentMember && currentMember.role !== OrganizationRole.Owner && (
-          <Button variant="outline" size="sm" onClick={() => setConfirmDialog({ type: 'leave' })} className="text-destructive">
-            <LogOut className="h-4 w-4" />{t('common.leave')}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdminOrOwner && orgId && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsInviteDialogOpen(true)}
+              data-testid="team-open-invite-dialog-button"
+            >
+              {t('team.invite.openDialog')}
+            </Button>
+          )}
+          {currentMember && currentMember.role !== OrganizationRole.Owner && (
+            <Button variant="outline" size="sm" onClick={() => setConfirmDialog({ type: 'leave' })} className="text-destructive" data-testid="team-leave-organization-button">
+              <LogOut className="h-4 w-4" />{t('common.leave')}
+            </Button>
+          )}
+        </div>
       </div>
 
       {error && (<Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>)}
@@ -84,7 +98,7 @@ export default function TeamPage() {
             </TableHeader>
             <TableBody>
               {members?.map((member) => (
-                <TableRow key={member.userId}>
+                <TableRow key={member.userId} data-testid={`team-member-row-${member.userId}`}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       {member.avatarUrl ? (<img src={member.avatarUrl} alt="" className="h-8 w-8 rounded-lg object-cover" />) : (
@@ -97,7 +111,7 @@ export default function TeamPage() {
                   <TableCell>
                     {isAdminOrOwner && member.role !== OrganizationRole.Owner ? (
                       <Select value={String(member.role) as string} onValueChange={(v: string) => handleRoleChange(member.userId, v)} disabled={updateRole.isPending}>
-                        <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-32" data-testid={`team-member-role-select-${member.userId}`}><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value={String(OrganizationRole.Admin)}>{t(OrganizationRoleLabel[OrganizationRole.Admin])}</SelectItem>
                           <SelectItem value={String(OrganizationRole.Reporter)}>{t(OrganizationRoleLabel[OrganizationRole.Reporter])}</SelectItem>
@@ -107,7 +121,13 @@ export default function TeamPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     {isAdminOrOwner && member.role !== OrganizationRole.Owner && member.userId !== currentUser?.id && (
-                      <Button variant="ghost" size="sm" onClick={() => setConfirmDialog({ type: 'remove', member })} className="text-destructive hover:text-destructive">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmDialog({ type: 'remove', member })}
+                        className="text-destructive hover:text-destructive"
+                        data-testid={`team-remove-member-button-${member.userId}`}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
@@ -137,6 +157,14 @@ export default function TeamPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {orgId && (
+        <InviteDialog
+          open={isInviteDialogOpen}
+          onOpenChange={setIsInviteDialogOpen}
+          orgId={orgId}
+        />
+      )}
     </div>
   );
 }

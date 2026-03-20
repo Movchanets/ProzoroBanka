@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CircleAlert, KeyRound, LoaderCircle, Mail } from 'lucide-react';
 import { createLoginSchema, type LoginFormData } from '../../utils/authSchemas';
@@ -38,6 +38,7 @@ const GOOGLE_SCRIPT_ID = 'google-identity-services';
 export default function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [serverError, setServerError] = useState<string | null>(null);
   const [googleReady, setGoogleReady] = useState(false);
   const loginMutation = useLoginMutation();
@@ -45,6 +46,14 @@ export default function LoginPage() {
   const googleInitializedRef = useRef(false);
 
   const schema = useMemo(() => createLoginSchema(t), [t]);
+  const nextPath = useMemo(() => {
+    const candidate = searchParams.get('next');
+    if (!candidate || !candidate.startsWith('/')) {
+      return '/';
+    }
+
+    return candidate;
+  }, [searchParams]);
 
   const {
     register,
@@ -68,7 +77,7 @@ export default function LoginPage() {
 
     try {
       await loginMutation.mutateAsync(data);
-      navigate('/', { replace: true });
+      navigate(nextPath, { replace: true });
     } catch (err) {
       setServerError(err instanceof Error ? err.message : t('auth.login.errorDefault'));
     }
@@ -108,7 +117,7 @@ export default function LoginPage() {
 
           try {
             await googleLoginMutation.mutateAsync({ idToken: credential, turnstileToken });
-            navigate('/', { replace: true });
+            navigate(nextPath, { replace: true });
           } catch (err) {
             setServerError(err instanceof Error ? err.message : t('auth.login.googleError'));
           }
@@ -144,7 +153,7 @@ export default function LoginPage() {
     return () => {
       cancelled = true;
     };
-  }, [googleLoginMutation, navigate, t]);
+  }, [googleLoginMutation, navigate, nextPath, t]);
 
   const handleGoogleLogin = useCallback(() => {
     if (!GOOGLE_CLIENT_ID) {
