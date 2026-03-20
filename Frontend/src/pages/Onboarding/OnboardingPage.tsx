@@ -69,6 +69,15 @@ export default function OnboardingPage() {
         <ArrowRight className="h-4 w-4" />
       </Button>
 
+      <Button
+        data-testid="onboarding-go-profile-button"
+        variant="outline"
+        size="pillWide"
+        onClick={() => navigate('/profile')}
+      >
+        {t('onboarding.goProfile')}
+      </Button>
+
       <CreateOrganizationDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   );

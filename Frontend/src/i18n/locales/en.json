@@ -174,7 +174,12 @@
     "badge": "Profile",
     "title": "{{name}} account",
     "titleFallback": "Volunteer",
-    "subtitle": "This page contains data used across the authenticated interface. Email remains the sign-in source, while name, phone and photo can be edited without re-registration."
+    "subtitle": "This page contains data used across the authenticated interface. Email remains the sign-in source, while name, phone and photo can be edited without re-registration.",
+    "goOnboarding": "Back to onboarding",
+    "tabs": {
+      "details": "Profile",
+      "invitations": "Invitations"
+    }
   },
   "onboarding": {
     "welcome": "Welcome!",
@@ -183,7 +188,8 @@
     "organizeTeamDesc": "Invite volunteers, assign roles, track campaigns.",
     "transparentReports": "Transparent reports",
     "transparentReportsDesc": "Upload receipts, automatically compare with bank statements.",
-    "createOrganization": "Create organization"
+    "createOrganization": "Create organization",
+    "goProfile": "Go to profile"
   },
   "organizations": {
     "create": {
@@ -261,7 +267,25 @@
     "leaveConfirmTitle": "Leave organization?",
     "leaveConfirmDesc": "You will lose access to this organization. You'll need a new invitation to return.",
     "removeConfirmTitle": "Remove {{name}}?",
-    "removeConfirmDesc": "This member will no longer have access to the organization."
+    "removeConfirmDesc": "This member will no longer have access to the organization.",
+    "invite": {
+      "openDialog": "Invite",
+      "title": "Invite member",
+      "description": "Create a public link or send an email invitation.",
+      "tabs": {
+        "link": "Link",
+        "email": "Email"
+      },
+      "generateLink": "Generate link",
+      "generatedLinkLabel": "Invite URL",
+      "copyLink": "Copy",
+      "linkGenerated": "Invitation link created",
+      "linkCopied": "Invitation link copied",
+      "linkCopyError": "Failed to copy invitation link",
+      "linkMissingToken": "Server did not return invitation token",
+      "sendEmail": "Send invitation",
+      "emailSent": "Invitation email sent"
+    }
   },
   "invitations": {
     "page": {

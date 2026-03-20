@@ -9,6 +9,7 @@ import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
 import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { useMyInvitations } from '@/hooks/queries/useInvitations';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -105,6 +106,7 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const logoutMutation = useLogoutMutation();
+  const { data: incomingInvitations } = useMyInvitations();
 
   const handleLogout = async () => {
     await logoutMutation.mutateAsync();
@@ -112,6 +114,7 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
   };
 
   const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.trim().toUpperCase() || 'PB';
+  const pendingIncomingCount = incomingInvitations?.filter((invitation) => invitation.status === 0).length ?? 0;
 
   return (
     <header className="flex items-center justify-between border-b border-border bg-card/60 px-6 py-3 backdrop-blur-lg">
@@ -130,14 +133,24 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <NavLink to="/profile" className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted sm:px-3">
-            {user?.profilePhotoUrl ? (
-              <img className="h-8 w-8 rounded-lg object-cover" src={user.profilePhotoUrl} alt={t('appShell.avatarAlt')} />
-            ) : (
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-linear-to-br from-secondary to-accent text-xs font-extrabold text-secondary-foreground">
-                {initials}
-              </span>
-            )}
+          <NavLink to="/profile" data-testid="dashboard-profile-link" className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted sm:px-3">
+            <span className="relative">
+              {user?.profilePhotoUrl ? (
+                <img className="h-8 w-8 rounded-lg object-cover" src={user.profilePhotoUrl} alt={t('appShell.avatarAlt')} />
+              ) : (
+                <span className="grid h-8 w-8 place-items-center rounded-lg bg-linear-to-br from-secondary to-accent text-xs font-extrabold text-secondary-foreground">
+                  {initials}
+                </span>
+              )}
+              {pendingIncomingCount > 0 && (
+                <span
+                  data-testid="dashboard-profile-invitations-badge"
+                  className="absolute -top-1.5 -right-1.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[10px] font-extrabold leading-none text-primary-foreground"
+                >
+                  {pendingIncomingCount}
+                </span>
+              )}
+            </span>
             <span className="hidden text-sm font-medium md:inline">
               {user?.firstName} {user?.lastName}
             </span>

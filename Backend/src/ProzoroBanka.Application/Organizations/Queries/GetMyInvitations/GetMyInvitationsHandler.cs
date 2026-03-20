@@ -41,7 +41,7 @@ public class GetMyInvitationsHandler
 		var invitations = await _invitationRepository.GetPendingForEmailAsync(callerUser.Email, cancellationToken);
 
 		var result = invitations
-			.Select(i => InvitationDtoFactory.Create(i, _fileStorage, includeEmail: true, includeToken: false))
+			.Select(i => InvitationDtoFactory.Create(i, _fileStorage, includeEmail: true, includeToken: true))
 			.ToList();
 
 		return ServiceResponse<IReadOnlyList<InvitationDto>>.Success(result);

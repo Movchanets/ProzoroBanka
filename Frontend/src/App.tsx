@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { queryClient } from './services/queryClient';
 import { useAuthStore } from './stores/authStore';
+import { Toaster } from './components/ui/sonner';
 
 const LoginPage = lazy(() => import('./pages/Login/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/Register/RegisterPage'));
@@ -114,6 +115,7 @@ function App() {
           </Routes>
         </Suspense>
       </BrowserRouter>
+      <Toaster />
       {ReactQueryDevtools ? (
         <Suspense fallback={null}>
           <ReactQueryDevtools initialIsOpen={false} />

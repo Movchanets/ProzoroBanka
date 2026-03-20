@@ -1,28 +1,44 @@
 import { test, expect } from '@playwright/test';
 
-import { t, setTestLanguage } from './support/i18n';
+import { t } from './support/i18n';
+import { loginViaUi, registerRandomUserViaApi } from './support/e2e-auth';
 
-const VALID_EMAIL = process.env.E2E_EMAIL ?? 'admin@example.com';
-const VALID_PASSWORD = process.env.E2E_PASSWORD ?? 'Qwerty-1';
+let validEmail = process.env.E2E_EMAIL ?? '';
+const validPassword = process.env.E2E_PASSWORD ?? 'Qwerty-1';
+
+async function ensureTestUser(request: import('@playwright/test').APIRequestContext) {
+  if (validEmail) {
+    return;
+  }
+
+  const registeredUser = await registerRandomUserViaApi(request, {
+    firstName: 'Profile',
+    lastName: 'Tester',
+    emailPrefix: 'profile-e2e',
+    password: validPassword,
+  });
+
+  validEmail = registeredUser.auth.user.email;
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-async function loginAs(page: import('@playwright/test').Page) {
-  await setTestLanguage(page);
-
-  await page.goto('/login');
-  await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, { timeout: 20000 });
-  await page.getByTestId('login-email-input').fill(VALID_EMAIL);
-  await page.getByTestId('login-password-input').fill(VALID_PASSWORD);
-  await page.getByTestId('login-submit-button').click();
-  await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10000 });
+async function loginAs(page: import('@playwright/test').Page, email: string, password: string) {
+  await loginViaUi(page, email, password, {
+    gotoPath: '/login',
+    expectedUrlPattern: /.*\/(onboarding|dashboard).*/,
+  });
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
+test.beforeAll(async ({ request }) => {
+  await ensureTestUser(request);
+});
+
 test.describe('User Profile — Display', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAs(page);
+    await loginAs(page, validEmail, validPassword);
     await page.goto('/profile');
     await expect(page).toHaveURL(/.*\/profile/);
     // Wait for route fallback to disappear (lazy-loaded page)
@@ -44,7 +60,7 @@ test.describe('User Profile — Display', () => {
     // Verify email is displayed
     const emailField = page.locator('article').filter({ hasText: t('common.email') }).first();
     await expect(emailField).toBeVisible();
-    await expect(emailField).toContainText(VALID_EMAIL);
+    await expect(emailField).toContainText(validEmail);
 
     // Verify session status shows "Active"
     const sessionField = page.locator('article').filter({ hasText: t('profile.sessionStatus') }).first();
@@ -106,7 +122,7 @@ test.describe('User Profile — Display', () => {
 
 test.describe('User Profile — Editing', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAs(page);
+    await loginAs(page, validEmail, validPassword);
     await page.goto('/profile');
     await expect(page).toHaveURL(/.*\/profile/);
     // Wait for route fallback to disappear
@@ -327,7 +343,7 @@ test.describe('User Profile — Edge Cases', () => {
       description: 'Verifies that the profile page displays a loading indicator while user data is being fetched.',
     });
 
-    await loginAs(page);
+    await loginAs(page, validEmail, validPassword);
 
     // Slow down the API response to observe loading state
     await page.route('**/api/auth/me', async (route) => {
@@ -381,7 +397,7 @@ test.describe('User Profile — Edge Cases', () => {
       description: 'Verifies that when the profile update API call fails, an appropriate error message is displayed.',
     });
 
-    await loginAs(page);
+    await loginAs(page, validEmail, validPassword);
 
     await page.goto('/profile');
     // Wait for route fallback to disappear

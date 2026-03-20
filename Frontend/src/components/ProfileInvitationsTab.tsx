@@ -26,6 +26,14 @@ function formatDate(iso: string) {
   });
 }
 
+function getInviterName(invitation: Invitation) {
+  if (invitation.invitedByName) {
+    return invitation.invitedByName;
+  }
+
+  return `${invitation.inviterFirstName} ${invitation.inviterLastName}`.trim();
+}
+
 function IncomingInvitationRow({
   invitation,
   onAccepted,
@@ -40,6 +48,10 @@ function IncomingInvitationRow({
 
   const handleAccept = async () => {
     setError(null);
+    if (!invitation.token) {
+      setError(t('common.error'));
+      return;
+    }
     try {
       await acceptInvite.mutateAsync(invitation.token);
       onAccepted?.();
@@ -50,6 +62,10 @@ function IncomingInvitationRow({
 
   const handleDecline = async () => {
     setError(null);
+    if (!invitation.token) {
+      setError(t('common.error'));
+      return;
+    }
     try {
       await declineInvite.mutateAsync(invitation.token);
     } catch (err) {
@@ -60,7 +76,10 @@ function IncomingInvitationRow({
   const isPending = acceptInvite.isPending || declineInvite.isPending;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between"
+      data-testid={`profile-incoming-invitation-row-${invitation.id}`}
+    >
       <div className="flex items-center gap-3">
         {invitation.organizationLogoUrl ? (
           <img
@@ -76,7 +95,7 @@ function IncomingInvitationRow({
         <div>
           <p className="font-medium">{invitation.organizationName}</p>
           <p className="text-sm text-muted-foreground">
-            {invitation.invitedByName} ·{' '}
+            {getInviterName(invitation)} ·{' '}
             <Badge variant="outline" className="ml-1 text-xs">
               {t(OrganizationRoleLabel[invitation.role])}
             </Badge>
@@ -93,11 +112,12 @@ function IncomingInvitationRow({
           size="sm"
           onClick={handleDecline}
           disabled={isPending}
+          data-testid={`profile-incoming-invitation-decline-${invitation.id}`}
         >
           <X className="h-3.5 w-3.5" />
           {t('invitations.tab.incomingDecline')}
         </Button>
-        <Button size="sm" onClick={handleAccept} disabled={isPending}>
+        <Button size="sm" onClick={handleAccept} disabled={isPending} data-testid={`profile-incoming-invitation-accept-${invitation.id}`}>
           <Check className="h-3.5 w-3.5" />
           {t('invitations.tab.incomingAccept')}
         </Button>
@@ -133,7 +153,10 @@ function SentInvitationRow({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between"
+      data-testid={`profile-sent-invitation-row-${invitation.id}`}
+    >
       <div className="flex items-center gap-3">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-muted text-muted-foreground">
           <Mail className="h-5 w-5" />
@@ -160,6 +183,7 @@ function SentInvitationRow({
           onClick={handleCancel}
           disabled={cancelInvite.isPending}
           className="text-destructive hover:text-destructive"
+          data-testid={`profile-sent-invitation-cancel-${invitation.id}`}
         >
           <X className="h-3.5 w-3.5" />
           {t('invitations.tab.sentCancel')}
@@ -185,7 +209,7 @@ export function ProfileInvitationsTab() {
   const pendingSent = sent?.filter((i) => i.status === 0) ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="profile-invitations-tab-content">
       <Card className="border border-border bg-card/60 backdrop-blur-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
