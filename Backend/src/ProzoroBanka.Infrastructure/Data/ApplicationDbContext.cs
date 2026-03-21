@@ -30,12 +30,14 @@ public class ApplicationDbContext
 	public DbSet<Receipt> Receipts => Set<Receipt>();
 	public DbSet<MonobankTransaction> MonobankTransactions => Set<MonobankTransaction>();
 	public DbSet<MatchResult> MatchResults => Set<MatchResult>();
+	public DbSet<Campaign> Campaigns => Set<Campaign>();
 
 	// ── IApplicationDbContext explicit implementation ──
 	DbSet<User> IApplicationDbContext.Users => DomainUsers;
 	DbSet<Organization> IApplicationDbContext.Organizations => Organizations;
 	DbSet<OrganizationMember> IApplicationDbContext.OrganizationMembers => OrganizationMembers;
 	DbSet<Invitation> IApplicationDbContext.Invitations => Invitations;
+	DbSet<Campaign> IApplicationDbContext.Campaigns => Campaigns;
 
 	protected override void OnModelCreating(ModelBuilder builder)
 	{
@@ -208,6 +210,30 @@ public class ApplicationDbContext
 				.OnDelete(DeleteBehavior.Cascade);
 
 			b.HasQueryFilter(e => !e.IsDeleted);
+		});
+
+		builder.Entity<Campaign>(b =>
+		{
+			b.ToTable("Campaigns");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.Title).HasMaxLength(300).IsRequired();
+			b.Property(e => e.Description).HasMaxLength(5000);
+			b.Property(e => e.CoverImageStorageKey).HasMaxLength(512);
+			b.Property(e => e.GoalAmount).HasPrecision(18, 2);
+			b.Property(e => e.CurrentAmount).HasPrecision(18, 2);
+			b.Property(e => e.Status).HasConversion<int>();
+			b.Property(e => e.MonobankAccountId).HasMaxLength(128);
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.Organization)
+				.WithMany(o => o.Campaigns)
+				.HasForeignKey(e => e.OrganizationId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasOne(e => e.CreatedBy)
+				.WithMany()
+				.HasForeignKey(e => e.CreatedByUserId)
+				.OnDelete(DeleteBehavior.Restrict);
 		});
 	}
 
