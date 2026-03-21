@@ -20,6 +20,7 @@ const TeamPage = lazy(() => import('./pages/Dashboard/TeamPage'));
 const CampaignsListPage = lazy(() => import('./pages/Dashboard/CampaignsListPage'));
 const CampaignCreatePage = lazy(() => import('./pages/Dashboard/CampaignCreatePage'));
 const CampaignEditPage = lazy(() => import('./pages/Dashboard/CampaignEditPage'));
+const CampaignDetailPage = lazy(() => import('./pages/Dashboard/CampaignDetailPage'));
 const ReceiptsPlaceholderPage = lazy(() => import('./pages/Dashboard/ReceiptsPlaceholderPage'));
 const InvitePage = lazy(() => import('./pages/Invite/InvitePage'));
 const ReactQueryDevtools = import.meta.env.DEV
@@ -98,6 +99,7 @@ function App() {
               <Route path="team" element={<TeamPage />} />
               <Route path="campaigns" element={<CampaignsListPage />} />
               <Route path="campaigns/new" element={<CampaignCreatePage />} />
+              <Route path="campaigns/:campaignId" element={<CampaignDetailPage />} />
               <Route path="campaigns/:campaignId/edit" element={<CampaignEditPage />} />
               <Route path="receipts" element={<ReceiptsPlaceholderPage />} />
             </Route>

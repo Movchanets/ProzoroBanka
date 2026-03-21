@@ -48,7 +48,7 @@ public class CreateCampaignHandler : IRequestHandler<CreateCampaignCommand, Serv
 			Title = request.Title,
 			Description = request.Description,
 			GoalAmount = request.GoalAmount,
-			Deadline = request.Deadline,
+			Deadline = request.Deadline?.ToUniversalTime(),
 			Status = CampaignStatus.Draft,
 			CurrentAmount = 0
 		};

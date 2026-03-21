@@ -26,11 +26,15 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
   const goal = new Intl.NumberFormat('uk-UA').format(campaign.goalAmount / 100);
 
   return (
-    <Card className="cursor-pointer border border-border bg-card/60 backdrop-blur-sm transition-shadow hover:shadow-lg" onClick={() => navigate(`${campaign.id}/edit`)}>
+    <Card
+      className="cursor-pointer border border-border bg-card/60 backdrop-blur-sm transition-shadow hover:shadow-lg"
+      onClick={() => navigate(`${campaign.id}`)}
+      data-testid={`campaign-card-${campaign.id}`}
+    >
       <CardContent className="space-y-3 p-5">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-base font-semibold leading-tight">{campaign.title}</h3>
-          <Badge className={statusColor[campaign.status]}>{t(CampaignStatusLabel[campaign.status])}</Badge>
+          <h3 className="text-base font-semibold leading-tight" data-testid={`campaign-card-title-${campaign.id}`}>{campaign.title}</h3>
+          <Badge className={statusColor[campaign.status]} data-testid={`campaign-card-status-${campaign.id}`}>{t(CampaignStatusLabel[campaign.status])}</Badge>
         </div>
         {campaign.description && (<p className="line-clamp-2 text-sm text-muted-foreground">{campaign.description}</p>)}
         <div className="space-y-1.5">
@@ -40,12 +44,19 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
           </div>
           <Progress value={progress} className="h-2" />
         </div>
-        {campaign.deadline && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5" />
-            {t('campaigns.deadlinePrefix')} {new Date(campaign.deadline).toLocaleDateString('uk-UA')}
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
+          {campaign.deadline && (
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              {t('campaigns.deadlinePrefix')} {new Date(campaign.deadline).toLocaleDateString('uk-UA')}
+            </div>
+          )}
+          {typeof campaign.receiptCount === 'number' && (
+            <Badge variant="outline" className="font-normal text-xs px-1.5 py-0 h-5">
+              Receipts: {campaign.receiptCount}
+            </Badge>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -58,16 +69,16 @@ export default function CampaignsListPage() {
   const { data: campaigns, isLoading } = useCampaigns(orgId);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="campaigns-list-page">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+          <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2" data-testid="campaigns-list-title">
             <Megaphone className="h-6 w-6 text-primary" />
             {t('campaigns.title')}
           </h2>
           <p className="text-muted-foreground">{t('campaigns.subtitle')}</p>
         </div>
-        <Button onClick={() => navigate('new')}>
+        <Button onClick={() => navigate('new')} data-testid="campaigns-list-create-button">
           <Plus className="h-4 w-4" />
           {t('campaigns.newCampaign')}
         </Button>
@@ -78,19 +89,19 @@ export default function CampaignsListPage() {
           {[1, 2, 3].map((i) => (<Skeleton key={i} className="h-48 rounded-2xl" />))}
         </div>
       ) : campaigns?.length === 0 ? (
-        <Card className="border-dashed border-2 border-border bg-card/40 backdrop-blur-sm">
+        <Card className="border-dashed border-2 border-border bg-card/40 backdrop-blur-sm" data-testid="campaigns-empty-state-card">
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
             <Megaphone className="h-10 w-10 text-muted-foreground/40" />
             <CardTitle className="text-lg">{t('campaigns.empty')}</CardTitle>
             <p className="text-sm text-muted-foreground">{t('campaigns.emptyDescription')}</p>
-            <Button className="mt-2" onClick={() => navigate('new')}>
+            <Button className="mt-2" onClick={() => navigate('new')} data-testid="campaigns-empty-create-button">
               <Plus className="h-4 w-4" />
               {t('campaigns.createCampaign')}
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="campaigns-list-grid">
           {campaigns?.map((c) => (<CampaignCard key={c.id} campaign={c} />))}
         </div>
       )}

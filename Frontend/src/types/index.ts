@@ -209,15 +209,29 @@ export const CampaignStatusLabel: Record<CampaignStatus, string> = {
 
 export interface Campaign {
   id: string;
-  organizationId: string;
   title: string;
   description?: string;
+  coverImageUrl?: string;
   goalAmount: number;
   currentAmount: number;
   status: CampaignStatus;
+  startDate?: string;
   deadline?: string;
+  monobankAccountId?: string;
+  receiptCount?: number;
   createdAt: string;
-  updatedAt: string;
+}
+
+export interface CampaignDetail extends Campaign {
+  organizationId: string;
+  organizationName: string;
+  createdByName: string;
+}
+
+export interface CampaignStats {
+  totalCampaigns: number;
+  activeCampaigns: number;
+  totalRaised: number;
 }
 
 export interface CreateCampaignPayload {
@@ -231,8 +245,11 @@ export interface UpdateCampaignPayload {
   title?: string;
   description?: string;
   goalAmount?: number;
-  status?: CampaignStatus;
   deadline?: string;
+}
+
+export interface ChangeCampaignStatusPayload {
+  newStatus: CampaignStatus;
 }
 
 // ── ServiceResponse wrapper ──

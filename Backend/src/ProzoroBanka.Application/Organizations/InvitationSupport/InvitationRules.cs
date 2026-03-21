@@ -20,7 +20,9 @@ internal static class InvitationRules
 				| OrganizationPermissions.ManageMembers
 				| OrganizationPermissions.ManageInvitations
 				| OrganizationPermissions.ManageReceipts
-				| OrganizationPermissions.ViewReports,
+				| OrganizationPermissions.ViewReports
+				| OrganizationPermissions.UploadLogo
+				| OrganizationPermissions.ManageCampaigns,
 			OrganizationRole.Reporter => OrganizationPermissions.ManageReceipts,
 			_ => OrganizationPermissions.None
 		};

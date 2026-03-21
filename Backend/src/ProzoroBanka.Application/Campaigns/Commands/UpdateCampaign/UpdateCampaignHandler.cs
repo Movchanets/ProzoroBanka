@@ -50,7 +50,7 @@ public class UpdateCampaignHandler : IRequestHandler<UpdateCampaignCommand, Serv
 			campaign.GoalAmount = request.GoalAmount.Value;
 
 		if (request.Deadline.HasValue)
-			campaign.Deadline = request.Deadline.Value;
+			campaign.Deadline = request.Deadline.Value.ToUniversalTime();
 
 		await _db.SaveChangesAsync(cancellationToken);
 

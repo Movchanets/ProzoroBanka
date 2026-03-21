@@ -133,7 +133,7 @@ test.describe('Dashboard — Organization Creation', () => {
     await expect(page).toHaveURL(/.*\/dashboard\/[a-f0-9-]+/, { timeout: 10000 });
 
     // Verify organization name appears in the header
-    await expect(page.getByRole('heading', { name: orgName })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { level: 1, name: orgName, exact: true })).toBeVisible({ timeout: 10000 });
   });
 
   // =========================================================================
