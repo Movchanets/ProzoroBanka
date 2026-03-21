@@ -18,4 +18,5 @@ public class Organization : BaseEntity
 	public User OwnerUser { get; set; } = null!;
 	public ICollection<OrganizationMember> Members { get; set; } = new List<OrganizationMember>();
 	public ICollection<Invitation> Invitations { get; set; } = new List<Invitation>();
+	public ICollection<Campaign> Campaigns { get; set; } = new List<Campaign>();
 }

@@ -48,6 +48,10 @@ public class OrganizationAuthorizationService : IOrganizationAuthorizationServic
 
 		if (membership is null) return false;
 		if (membership.Role == OrganizationRole.Owner) return true;
+		
+		// Fallback for existing admins that might not have the newly added flag
+		if (membership.Role == OrganizationRole.Admin && permission == OrganizationPermissions.ManageCampaigns) return true;
+
 		return membership.PermissionsFlags.HasFlag(permission);
 	}
 }
