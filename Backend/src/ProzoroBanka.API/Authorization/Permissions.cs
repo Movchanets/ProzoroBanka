@@ -33,6 +33,10 @@ public static class Permissions
 	public const string OrganizationsDelete = "organizations.delete";
 	public const string OrganizationsMembersManage = "organizations.members.manage";
 
+	// ── Campaigns ──
+	public const string CampaignsManage = "campaigns.manage";
+	public const string CampaignsLogsRead = "campaigns.logs.read";
+
 	// ── System ──
 	public const string SystemSettings = "system.settings";
 }

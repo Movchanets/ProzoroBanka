@@ -16,5 +16,6 @@ public interface IApplicationDbContext
     DbSet<MonobankTransaction> MonobankTransactions { get; }
     DbSet<MatchResult> MatchResults { get; }
     DbSet<Campaign> Campaigns { get; }
+    DbSet<CampaignTransaction> CampaignTransactions { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

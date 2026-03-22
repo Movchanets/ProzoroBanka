@@ -31,6 +31,7 @@ public class ApplicationDbContext
 	public DbSet<MonobankTransaction> MonobankTransactions => Set<MonobankTransaction>();
 	public DbSet<MatchResult> MatchResults => Set<MatchResult>();
 	public DbSet<Campaign> Campaigns => Set<Campaign>();
+	public DbSet<CampaignTransaction> CampaignTransactions => Set<CampaignTransaction>();
 
 	// ── IApplicationDbContext explicit implementation ──
 	DbSet<User> IApplicationDbContext.Users => DomainUsers;
@@ -38,6 +39,7 @@ public class ApplicationDbContext
 	DbSet<OrganizationMember> IApplicationDbContext.OrganizationMembers => OrganizationMembers;
 	DbSet<Invitation> IApplicationDbContext.Invitations => Invitations;
 	DbSet<Campaign> IApplicationDbContext.Campaigns => Campaigns;
+	DbSet<CampaignTransaction> IApplicationDbContext.CampaignTransactions => CampaignTransactions;
 
 	protected override void OnModelCreating(ModelBuilder builder)
 	{
@@ -223,6 +225,7 @@ public class ApplicationDbContext
 			b.Property(e => e.CurrentAmount).HasPrecision(18, 2);
 			b.Property(e => e.Status).HasConversion<int>();
 			b.Property(e => e.MonobankAccountId).HasMaxLength(128);
+			b.HasIndex(e => e.MonobankAccountId);
 			b.HasQueryFilter(e => !e.IsDeleted);
 
 			b.HasOne(e => e.Organization)
@@ -234,6 +237,25 @@ public class ApplicationDbContext
 				.WithMany()
 				.HasForeignKey(e => e.CreatedByUserId)
 				.OnDelete(DeleteBehavior.Restrict);
+
+			b.HasMany(e => e.Transactions)
+				.WithOne(t => t.Campaign)
+				.HasForeignKey(t => t.CampaignId)
+				.OnDelete(DeleteBehavior.Cascade);
+		});
+
+		builder.Entity<CampaignTransaction>(b =>
+		{
+			b.ToTable("CampaignTransactions");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.ExternalTransactionId).HasMaxLength(128).IsRequired();
+			b.HasIndex(e => new { e.CampaignId, e.ExternalTransactionId }).IsUnique();
+			b.HasIndex(e => new { e.CampaignId, e.TransactionTimeUtc });
+			b.Property(e => e.Amount).HasPrecision(18, 2);
+			b.Property(e => e.Description).HasMaxLength(512);
+			b.Property(e => e.Source).HasConversion<int>();
+			b.Property(e => e.ProviderPayloadHash).HasMaxLength(128);
+			b.HasQueryFilter(e => !e.IsDeleted);
 		});
 	}
 

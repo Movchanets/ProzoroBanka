@@ -52,3 +52,15 @@ public record UpdateCampaignRequest(
 
 public record ChangeCampaignStatusRequest(
 	CampaignStatus NewStatus);
+
+public record UpdateCampaignBalanceRequest(
+	decimal NewCurrentAmount,
+	string? Reason);
+
+public record CampaignTransactionDto(
+	Guid Id,
+	decimal Amount,
+	string? Description,
+	DateTime TransactionTimeUtc,
+	string Source,
+	DateTime CreatedAt);
