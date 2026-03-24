@@ -88,6 +88,7 @@ output "api_fqdn" {
 
 output "api_custom_domain_verification_id" {
   value       = azurerm_container_app.api.custom_domain_verification_id
+  sensitive   = true
   description = "Код перевірки домену (для створення TXT запису asuid.api)"
 }
 
