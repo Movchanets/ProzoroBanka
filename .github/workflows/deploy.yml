@@ -167,8 +167,9 @@ jobs:
           TF_VAR_storage_container_name: ${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}
           TF_VAR_blob_cdn_url: ${{ secrets.AZURE_BLOB_CDN_URL }}
           TF_VAR_create_ocr_azure_resource: ${{ secrets.CREATE_OCR_AZURE_RESOURCE }}
-          TF_VAR_static_web_app_custom_domain: ${{ secrets.STATIC_WEB_APP_CUSTOM_DOMAIN }}
-          TF_VAR_static_web_app_custom_domain_validation_type: ${{ secrets.STATIC_WEB_APP_CUSTOM_DOMAIN_VALIDATION_TYPE }}
+          TF_VAR_static_web_app_custom_domain: ${{ vars.STATIC_WEB_APP_CUSTOM_DOMAIN != '' && vars.STATIC_WEB_APP_CUSTOM_DOMAIN || secrets.STATIC_WEB_APP_CUSTOM_DOMAIN }}
+          TF_VAR_static_web_app_custom_domain_validation_type: ${{ vars.STATIC_WEB_APP_CUSTOM_DOMAIN_VALIDATION_TYPE != '' && vars.STATIC_WEB_APP_CUSTOM_DOMAIN_VALIDATION_TYPE || secrets.STATIC_WEB_APP_CUSTOM_DOMAIN_VALIDATION_TYPE }}
+          TF_VAR_api_custom_domain: ${{ vars.API_CUSTOM_DOMAIN != '' && vars.API_CUSTOM_DOMAIN || secrets.API_CUSTOM_DOMAIN }}
         run: |
           terraform plan \
             -var-file="environments/${{ needs.determine-environment.outputs.deploy_environment }}/terraform.tfvars.example" \

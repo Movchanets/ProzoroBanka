@@ -12,7 +12,7 @@ x86/
 *.nupkg
 *.snupkg
 appsettings.Development.json
-
+slides/
 # ---- Node / Frontend ----
 node_modules/
 dist/

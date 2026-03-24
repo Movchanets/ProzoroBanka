@@ -271,3 +271,14 @@ resource "azurerm_container_app" "api" {
     }
   }
 }
+
+resource "azurerm_container_app_custom_domain" "api" {
+  count = var.api_custom_domain != "" ? 1 : 0
+
+  name             = var.api_custom_domain
+  container_app_id = azurerm_container_app.api.id
+
+  lifecycle {
+    ignore_changes = [certificate_binding_type, container_app_environment_certificate_id]
+  }
+}
