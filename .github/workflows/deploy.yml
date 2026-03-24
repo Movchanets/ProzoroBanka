@@ -231,7 +231,7 @@ jobs:
       - name: Build frontend bundle
         working-directory: Frontend
         env:
-          VITE_API_URL: ${{ needs.provision-infrastructure.outputs.api_base_url }}
+          VITE_API_URL: ${{ vars.API_CUSTOM_DOMAIN != '' && format('https://{0}', vars.API_CUSTOM_DOMAIN) || needs.provision-infrastructure.outputs.api_base_url }}
           VITE_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         run: |
