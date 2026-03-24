@@ -3,9 +3,10 @@ location                       = "westeurope"
 container_apps_location        = "polandcentral"
 container_app_environment_name = "prozoro-banka-dev-cae-pl"
 
-# Keep empty in CI unless DNS is configured
-static_web_app_custom_domain                 = ""
+
+static_web_app_custom_domain                 = "www.prozorobanka.pp.ua"
 static_web_app_custom_domain_validation_type = "cname-delegation"
+api_custom_domain                            = "api.prozorobanka.pp.ua"
 
 container_min_replicas = 0
 container_max_replicas = 1
