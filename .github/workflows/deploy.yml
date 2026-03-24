@@ -172,7 +172,7 @@ jobs:
           TF_VAR_api_custom_domain: ${{ vars.API_CUSTOM_DOMAIN != '' && vars.API_CUSTOM_DOMAIN || secrets.API_CUSTOM_DOMAIN }}
         run: |
           terraform plan \
-            -var-file="environments/${{ needs.determine-environment.outputs.deploy_environment }}/terraform.tfvars" \
+            -var-file="environments/${{ needs.determine-environment.outputs.deploy_environment }}/terraform.tfvars.example" \
             -out=tfplan
 
       - name: Terraform apply
