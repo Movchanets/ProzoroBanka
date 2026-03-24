@@ -76,6 +76,14 @@ public static class DependencyInjection
         // ── Turnstile ──
         services.AddHttpClient<ITurnstileService, TurnstileService>();
 
+        // ── Monobank stateless proxy ──
+        services.AddHttpClient<IMonobankStatelessProxyService, ProzoroBanka.Infrastructure.Services.Monobank.MonobankStatelessProxyService>(
+            (sp, http) =>
+            {
+                http.BaseAddress = new Uri("https://api.monobank.ua/");
+                http.Timeout = TimeSpan.FromSeconds(15);
+            });
+
         // ── Redis ──
         var redisConnection = configuration.GetValue<string>("Redis:ConnectionString");
         var redisEnabled = configuration.GetValue<bool?>("Redis:Enabled") ?? !string.IsNullOrWhiteSpace(redisConnection);

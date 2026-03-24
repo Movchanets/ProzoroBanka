@@ -58,6 +58,12 @@ variable "static_web_app_custom_domain_validation_type" {
   description = "Validation type for the Static Web App custom domain. Use cname-delegation for subdomains managed in external DNS."
 }
 
+variable "api_custom_domain" {
+  type        = string
+  default     = ""
+  description = "Optional custom domain for API Container App, for example api.prozorobanka.pp.ua."
+}
+
 variable "create_ocr_azure_resource" {
   type        = bool
   default     = false

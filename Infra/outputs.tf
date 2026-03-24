@@ -80,3 +80,29 @@ output "storage_primary_blob_endpoint" {
   value       = azurerm_storage_account.main.primary_blob_endpoint
   description = "Primary Azure Blob endpoint for the storage account."
 }
+
+output "api_fqdn" {
+  value       = azurerm_container_app.api.latest_revision_fqdn
+  description = "Системна адреса API (для створення CNAME запису)"
+}
+
+output "api_custom_domain_verification_id" {
+  value       = azurerm_container_app.api.custom_domain_verification_id
+  description = "Код перевірки домену (для створення TXT запису asuid.api)"
+}
+
+output "api_custom_domain" {
+  value       = try(azurerm_container_app_custom_domain.api[0].name, null)
+  description = "Custom domain attached to the API Container App, if configured."
+}
+
+output "api_custom_domain_managed_certificate_id" {
+  value       = try(azurerm_container_app_custom_domain.api[0].container_app_environment_managed_certificate_id, null)
+  description = "Managed certificate resource ID created by Azure for the API custom domain."
+}
+
+output "frontend_default_hostname" {
+  value       = azurerm_static_web_app.frontend.default_host_name
+  description = "Системна адреса сайту (для створення CNAME запису)"
+}
+

@@ -36,4 +36,5 @@ public class Campaign : BaseEntity
 	// ── Navigation ──
 	public Organization Organization { get; set; } = null!;
 	public User CreatedBy { get; set; } = null!;
+	public ICollection<CampaignTransaction> Transactions { get; set; } = new List<CampaignTransaction>();
 }
