@@ -181,9 +181,17 @@ jobs:
       - name: Capture Terraform outputs
         id: tf-outputs
         shell: bash
+        env:
+          API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN != '' && vars.API_CUSTOM_DOMAIN || secrets.API_CUSTOM_DOMAIN }}
         run: |
+          if [[ -n "$API_CUSTOM_DOMAIN" ]]; then
+            API_BASE_URL="https://${API_CUSTOM_DOMAIN}"
+          else
+            API_BASE_URL="$(terraform output -raw api_base_url)"
+          fi
+
           {
-            echo "api_base_url=$(terraform output -raw api_base_url)"
+            echo "api_base_url=${API_BASE_URL}"
             echo "resource_group_name=$(terraform output -raw resource_group_name)"
             echo "static_web_app_name=$(terraform output -raw static_web_app_name)"
             echo "static_web_app_url=$(terraform output -raw static_web_app_url)"
@@ -195,7 +203,7 @@ jobs:
           echo "## Deployment summary" >> "$GITHUB_STEP_SUMMARY"
           echo "| | URL |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| **API** | $(terraform output -raw api_base_url) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **API** | ${{ steps.tf-outputs.outputs.api_base_url }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| **Frontend** | $(terraform output -raw static_web_app_url) |" >> "$GITHUB_STEP_SUMMARY"
 
   deploy-frontend:
