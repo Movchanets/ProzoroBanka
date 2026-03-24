@@ -182,7 +182,7 @@ jobs:
         id: tf-outputs
         shell: bash
         env:
-          API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN != '' && vars.API_CUSTOM_DOMAIN || secrets.API_CUSTOM_DOMAIN }}
+          API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}
         run: |
           if [[ -n "$API_CUSTOM_DOMAIN" ]]; then
             API_BASE_URL="https://${API_CUSTOM_DOMAIN}"
