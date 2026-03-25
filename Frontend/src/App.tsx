@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { queryClient } from './services/queryClient';
 import { useAuthStore } from './stores/authStore';
 import { Toaster } from './components/ui/sonner';
+import { PageTitleSync } from './hooks/usePageTitle';
 
 const LoginPage = lazy(() => import('./pages/Login/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/Register/RegisterPage'));
@@ -52,6 +53,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <PageTitleSync />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             {/* Guest routes */}

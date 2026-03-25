@@ -289,6 +289,7 @@
   },
   "invitations": {
     "page": {
+      "browserTitle": "Invitation",
       "invalidTitle": "Invalid invitation",
       "invalidDesc": "This invitation no longer works — it may have expired or been cancelled.",
       "acceptedTitle": "Congratulations!",
