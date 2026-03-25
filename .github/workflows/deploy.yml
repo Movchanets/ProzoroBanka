@@ -169,6 +169,8 @@ jobs:
           TF_VAR_create_ocr_azure_resource: ${{ secrets.CREATE_OCR_AZURE_RESOURCE }}
           TF_VAR_static_web_app_custom_domain: ${{ vars.STATIC_WEB_APP_CUSTOM_DOMAIN != '' && vars.STATIC_WEB_APP_CUSTOM_DOMAIN || secrets.STATIC_WEB_APP_CUSTOM_DOMAIN }}
           TF_VAR_static_web_app_custom_domain_validation_type: ${{ vars.STATIC_WEB_APP_CUSTOM_DOMAIN_VALIDATION_TYPE != '' && vars.STATIC_WEB_APP_CUSTOM_DOMAIN_VALIDATION_TYPE || secrets.STATIC_WEB_APP_CUSTOM_DOMAIN_VALIDATION_TYPE }}
+          TF_VAR_static_web_app_root_custom_domain: ${{ vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN != '' && vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN || secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN }}
+          TF_VAR_static_web_app_root_custom_domain_validation_type: ${{ vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN_VALIDATION_TYPE != '' && vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN_VALIDATION_TYPE || secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN_VALIDATION_TYPE }}
           TF_VAR_api_custom_domain: ${{ vars.API_CUSTOM_DOMAIN != '' && vars.API_CUSTOM_DOMAIN || secrets.API_CUSTOM_DOMAIN }}
         run: |
           terraform plan \

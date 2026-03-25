@@ -58,6 +58,18 @@ variable "static_web_app_custom_domain_validation_type" {
   description = "Validation type for the Static Web App custom domain. Use cname-delegation for subdomains managed in external DNS."
 }
 
+variable "static_web_app_root_custom_domain" {
+  type        = string
+  default     = "prozorobanka.pp.ua"
+  description = "Optional root (apex) custom domain for Azure Static Web Apps."
+}
+
+variable "static_web_app_root_custom_domain_validation_type" {
+  type        = string
+  default     = "dns-txt-token"
+  description = "Validation type for the Static Web App root custom domain. Use dns-txt-token for apex domains."
+}
+
 variable "api_custom_domain" {
   type        = string
   default     = ""

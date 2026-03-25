@@ -4,6 +4,8 @@ location     = "westeurope"
 # Optional custom domains (Azure manages certificates after DNS verification)
 # static_web_app_custom_domain = "www.prozorobanka.pp.ua"
 # static_web_app_custom_domain_validation_type = "cname-delegation"
+# static_web_app_root_custom_domain = "prozorobanka.pp.ua"
+# static_web_app_root_custom_domain_validation_type = "dns-txt-token"
 # api_custom_domain = "api.prozorobanka.pp.ua"
 
 storage_container_name = "uploads"
