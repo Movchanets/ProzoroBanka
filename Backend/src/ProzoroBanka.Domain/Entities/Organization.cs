@@ -12,6 +12,7 @@ public class Organization : BaseEntity
 	public bool IsVerified { get; set; }
 	public string? Website { get; set; }
 	public string? ContactEmail { get; set; }
+	public string? Phone { get; set; }
 
 	public Guid OwnerUserId { get; set; }
 

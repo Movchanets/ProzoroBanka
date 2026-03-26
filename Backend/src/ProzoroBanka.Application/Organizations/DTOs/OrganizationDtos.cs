@@ -11,6 +11,7 @@ public record OrganizationDto(
 	bool IsVerified,
 	string? Website,
 	string? ContactEmail,
+	string? Phone,
 	Guid OwnerUserId,
 	int MemberCount,
 	DateTime CreatedAt
@@ -40,7 +41,8 @@ public record UpdateOrganizationRequest(
 	string? Name,
 	string? Description,
 	string? Website,
-	string? ContactEmail
+	string? ContactEmail,
+	string? Phone
 );
 
 public record UpdateMemberRoleRequest(

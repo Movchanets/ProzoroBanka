@@ -37,6 +37,7 @@ public class GetMyOrganizationsHandler
 				m.Organization.IsVerified,
 				m.Organization.Website,
 				m.Organization.ContactEmail,
+				m.Organization.Phone,
 				m.Organization.OwnerUserId,
 				MemberCount = m.Organization.Members.Count,
 				m.Organization.CreatedAt
@@ -53,6 +54,7 @@ public class GetMyOrganizationsHandler
 				org.IsVerified,
 				org.Website,
 				org.ContactEmail,
+				org.Phone,
 				org.OwnerUserId,
 				org.MemberCount,
 				org.CreatedAt))

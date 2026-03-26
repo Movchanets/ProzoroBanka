@@ -103,7 +103,7 @@ public class OrganizationsController : ApiControllerBase
 			return Unauthorized();
 
 		var command = new UpdateOrganizationCommand(
-			domainUserId.Value, id, request.Name, request.Description, request.Website, request.ContactEmail);
+			domainUserId.Value, id, request.Name, request.Description, request.Website, request.ContactEmail, request.Phone);
 
 		var result = await _sender.Send(command, ct);
 

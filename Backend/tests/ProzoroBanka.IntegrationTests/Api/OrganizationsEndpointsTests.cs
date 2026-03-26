@@ -39,12 +39,20 @@ public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFacto
 			name = "Updated Org Name",
 			description = "Updated description",
 			website = "https://updated.example.org",
-			contactEmail = "updated@example.org"
+			contactEmail = "updated@example.org",
+			phone = "+380 67 123 45 67"
 		});
 		Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
 
 		var updated = await updateResponse.Content.ReadFromJsonAsync<JsonElement>();
 		Assert.Equal("Updated Org Name", updated.GetProperty("name").GetString());
+		Assert.Equal("+380 67 123 45 67", updated.GetProperty("phone").GetString());
+
+		var getUpdated = await _client.GetAsync($"/api/organizations/{orgId}");
+		Assert.Equal(HttpStatusCode.OK, getUpdated.StatusCode);
+
+		var orgJson = await getUpdated.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Equal("+380 67 123 45 67", orgJson.GetProperty("phone").GetString());
 
 		var membersResponse = await _client.GetAsync($"/api/organizations/{orgId}/members");
 		Assert.Equal(HttpStatusCode.OK, membersResponse.StatusCode);
