@@ -35,6 +35,7 @@ export default function TeamPage() {
 
   const currentMember = members?.find((m) => m.userId === currentUser?.id);
   const isAdminOrOwner = currentMember?.role === OrganizationRole.Owner || currentMember?.role === OrganizationRole.Admin;
+  const memberCount = members?.length ?? 0;
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     setError(null);
@@ -59,7 +60,9 @@ export default function TeamPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2"><Users className="h-6 w-6 text-primary" />{t('team.title')}</h2>
-          <p className="text-muted-foreground">{t('team.memberCount', { count: members?.length ?? 0 })}</p>
+          <p className="text-muted-foreground">
+            {t(memberCount === 1 ? 'team.memberCount_one' : 'team.memberCount_other', { count: memberCount })}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {isAdminOrOwner && orgId && (

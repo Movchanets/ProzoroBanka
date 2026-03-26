@@ -11,7 +11,8 @@ public record UpdateOrganizationCommand(
 	string? Name,
 	string? Description,
 	string? Website,
-	string? ContactEmail) : IRequest<ServiceResponse<OrganizationDto>>;
+	string? ContactEmail,
+	string? Phone) : IRequest<ServiceResponse<OrganizationDto>>;
 
 public class UpdateOrganizationCommandValidator : AbstractValidator<UpdateOrganizationCommand>
 {
@@ -37,5 +38,10 @@ public class UpdateOrganizationCommandValidator : AbstractValidator<UpdateOrgani
 			.EmailAddress().WithMessage("Невірний формат контактного email")
 			.MaximumLength(256).WithMessage("Email максимум 256 символів")
 			.When(x => !string.IsNullOrWhiteSpace(x.ContactEmail));
+
+		RuleFor(x => x.Phone)
+			.MaximumLength(32).WithMessage("Телефон максимум 32 символи")
+			.Matches(@"^\+?[0-9\s\-()]*$").WithMessage("Телефон містить недопустимі символи")
+			.When(x => !string.IsNullOrWhiteSpace(x.Phone));
 	}
 }

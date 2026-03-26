@@ -135,6 +135,7 @@ public class ApplicationDbContext
 			b.Property(e => e.LogoStorageKey).HasMaxLength(512);
 			b.Property(e => e.Website).HasMaxLength(512);
 			b.Property(e => e.ContactEmail).HasMaxLength(256);
+			b.Property(e => e.Phone).HasMaxLength(32);
 			b.HasQueryFilter(e => !e.IsDeleted);
 
 			b.HasMany(e => e.Members)

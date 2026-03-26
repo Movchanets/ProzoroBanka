@@ -37,6 +37,7 @@ public class GetOrganizationByIdHandler : IRequestHandler<GetOrganizationByIdQue
 				o.IsVerified,
 				o.Website,
 				o.ContactEmail,
+				o.Phone,
 				o.OwnerUserId,
 				o.CreatedAt,
 				MemberCount = o.Members.Count,
@@ -52,7 +53,7 @@ public class GetOrganizationByIdHandler : IRequestHandler<GetOrganizationByIdQue
 
 		return ServiceResponse<OrganizationDto>.Success(new OrganizationDto(
 			org.Id, org.Name, org.Slug, org.Description, StorageUrlResolver.Resolve(_fileStorage, org.LogoStorageKey),
-			org.IsVerified, org.Website, org.ContactEmail, org.OwnerUserId,
+			org.IsVerified, org.Website, org.ContactEmail, org.Phone, org.OwnerUserId,
 			org.MemberCount, org.CreatedAt));
 	}
 }

@@ -59,12 +59,13 @@ public class UpdateOrganizationHandler : IRequestHandler<UpdateOrganizationComma
 		if (request.Description is not null) org.Description = request.Description;
 		if (request.Website is not null) org.Website = request.Website;
 		if (request.ContactEmail is not null) org.ContactEmail = request.ContactEmail;
+		if (request.Phone is not null) org.Phone = request.Phone;
 
 		await _db.SaveChangesAsync(cancellationToken);
 
 		return ServiceResponse<OrganizationDto>.Success(new OrganizationDto(
 			org.Id, org.Name, org.Slug, org.Description, StorageUrlResolver.Resolve(_fileStorage, org.LogoStorageKey),
-			org.IsVerified, org.Website, org.ContactEmail, org.OwnerUserId,
+			org.IsVerified, org.Website, org.ContactEmail, org.Phone, org.OwnerUserId,
 			org.Members.Count, org.CreatedAt));
 	}
 
