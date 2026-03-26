@@ -117,16 +117,16 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
   const pendingIncomingCount = incomingInvitations?.filter((invitation) => invitation.status === 0).length ?? 0;
 
   return (
-    <header className="flex items-center justify-between border-b border-border bg-card/60 px-6 py-3 backdrop-blur-lg">
-      <div className="flex items-center gap-3">
+    <header className="flex items-center justify-between border-b border-border bg-card/60 py-3 pl-16 pr-4 backdrop-blur-lg md:px-6">
+      <div className="min-w-0 flex items-center gap-3">
         {isLoading ? (
           <Skeleton className="h-6 w-40" />
         ) : (
-          <h1 className="text-lg font-semibold tracking-tight">{orgName}</h1>
+          <h1 className="truncate text-lg font-semibold tracking-tight">{orgName}</h1>
         )}
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 max-sm:shrink-0">
         <div className="flex items-center gap-1 border-r border-border/50 pr-2 sm:gap-2 sm:pr-4">
           <LanguageSwitcher />
           <ThemeToggle />

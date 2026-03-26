@@ -39,13 +39,13 @@ export default function AppShell({ children }: AppShellProps) {
       </div>
       <Card className="mb-6 rounded-[1.75rem] border border-border bg-card/80 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl max-sm:rounded-3xl">
         <CardContent className="flex flex-col gap-6 p-7 pt-7 lg:flex-row lg:items-center lg:justify-between max-sm:p-6 max-sm:pt-6">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
+          <div className="space-y-4 min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-card/70 px-3.5 py-2 text-[0.82rem] font-extrabold uppercase tracking-[0.08em] text-primary">
                 ProzoroBanka
               </span>
               {hasOrgs && (
-                <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/${orgs[0].id}`)} className="h-8 rounded-full px-4 text-xs shadow-none">
+                <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/${orgs[0].id}`)} className="h-8 max-w-full rounded-full px-4 text-xs shadow-none max-sm:w-full sm:shrink-0">
                   <ArrowLeft className="mr-2 h-3.5 w-3.5" />
                   {t('common.goToDashboard')}
                 </Button>
