@@ -5,6 +5,7 @@
     "save": "Зберегти",
     "saveChanges": "Зберегти зміни",
     "saving": "Зберігаю…",
+    "edit": "Редагувати",
     "cancel": "Скасувати",
     "back": "Назад",
     "create": "Створити",
@@ -255,6 +256,56 @@
       "statusUpdated": "Статус оновлено",
       "statusError": "Помилка зміни статусу",
       "statusLabel": "Статус збору"
+    },
+    "monobank": {
+      "title": "Monobank інтеграція",
+      "openWizard": "Налаштувати Monobank",
+      "wizardTitle": "Підключення Monobank",
+      "wizardDescription": "Вставте токен, завантажте банки й оберіть потрібну для цього збору.",
+      "tokenLabel": "Monobank токен",
+      "tokenPlaceholder": "Вставте токен із Monobank",
+      "tokenRequired": "Введіть Monobank токен",
+      "fetchJars": "Отримати банки",
+      "jarsError": "Не вдалося отримати банки",
+      "jarSelectLabel": "Банка або рахунок",
+      "jarSelectPlaceholder": "Оберіть банку",
+      "jarPrefix": "Банка",
+      "accountPrefix": "Рахунок",
+      "emptyJars": "Monobank не повернув доступних банок",
+      "selectRequired": "Оберіть банку",
+      "connectWebhook": "Підключити webhook",
+      "setupSuccess": "Monobank підключено",
+      "setupError": "Не вдалося налаштувати webhook",
+      "connectedAs": "Підключено: {{accountId}}",
+      "notConnected": "Банку/рахунок ще не підключено"
+    },
+    "feed": {
+      "title": "Лог пожертв",
+      "error": "Не вдалося завантажити транзакції",
+      "empty": "Поки немає транзакцій для цього збору",
+      "defaultDescription": "Поповнення збору",
+      "prev": "Попередня",
+      "next": "Наступна",
+      "page": "Сторінка {{page}}"
+    },
+    "detail": {
+      "shortIdPrefix": "ID-збору",
+      "receiptsTitle": "Чеки",
+      "receiptsEmpty": "До цього збору ще не додано жодного чеку",
+      "attachReceipt": "Прикріпити чек",
+      "publishReceipt": "Публікувати",
+      "receiptAttachedDraft": "Чек прикріплено (чернетка)",
+      "receiptPublished": "Чек опубліковано!"
+    },
+    "manualProgress": {
+      "title": "Ручне оновлення прогресу",
+      "amountLabel": "Поточна сума (₴)",
+      "reasonLabel": "Причина (необов'язково)",
+      "reasonPlaceholder": "Наприклад: імпорт із зовнішньої виписки",
+      "submit": "Оновити прогрес",
+      "amountInvalid": "Введіть коректну суму",
+      "success": "Прогрес збору оновлено",
+      "error": "Не вдалося оновити прогрес збору"
     }
   },
   "team": {

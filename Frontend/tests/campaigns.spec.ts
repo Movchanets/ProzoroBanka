@@ -193,4 +193,32 @@ test.describe('Dashboard — Campaigns Management', () => {
 
     await expect(page.getByTestId('campaign-edit-success-alert')).toBeVisible({ timeout: 10_000 });
   });
+
+  test('TC-05: Monobank wizard trigger and modal are visible on campaign edit page', async ({ page }) => {
+    test.info().annotations.push({
+      type: 'description',
+      description: 'Opens campaign edit page and verifies Monobank wizard UI controls are visible.',
+    });
+
+    const campaign = await createCampaignViaApi(page, orgId, {
+      title: `Monobank Wizard Campaign ${Date.now()}`,
+      description: 'Campaign for Monobank wizard E2E tests',
+      goalAmount: 250_000,
+    });
+
+    await page.goto(`/dashboard/${orgId}/campaigns/${campaign.id}/edit`);
+
+    await expect(page.getByTestId('campaign-edit-page')).toBeVisible();
+    await expect(page.getByTestId('campaign-edit-open-monobank-wizard-button')).toBeVisible();
+
+    await page.getByTestId('campaign-edit-open-monobank-wizard-button').click();
+
+    await expect(page.getByTestId('campaign-edit-monobank-wizard-dialog')).toBeVisible();
+    await expect(page.getByTestId('campaign-edit-monobank-token-input')).toBeVisible();
+    await expect(page.getByTestId('campaign-edit-monobank-fetch-jars-button')).toBeVisible();
+    await expect(page.getByTestId('campaign-edit-monobank-connect-button')).toBeVisible();
+
+    await page.getByTestId('campaign-edit-monobank-cancel-button').click();
+    await expect(page.getByTestId('campaign-edit-monobank-wizard-dialog')).not.toBeVisible();
+  });
 });
