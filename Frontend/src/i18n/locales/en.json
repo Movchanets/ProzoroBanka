@@ -5,6 +5,7 @@
     "save": "Save",
     "saveChanges": "Save changes",
     "saving": "Saving…",
+    "edit": "Edit",
     "cancel": "Cancel",
     "back": "Back",
     "create": "Create",
@@ -255,6 +256,56 @@
       "statusUpdated": "Status updated",
       "statusError": "Status change error",
       "statusLabel": "Campaign status"
+    },
+    "monobank": {
+      "title": "Monobank integration",
+      "openWizard": "Configure Monobank",
+      "wizardTitle": "Connect Monobank",
+      "wizardDescription": "Paste token, fetch jars, and select one for this campaign.",
+      "tokenLabel": "Monobank token",
+      "tokenPlaceholder": "Paste token from Monobank",
+      "tokenRequired": "Enter Monobank token",
+      "fetchJars": "Fetch jars",
+      "jarsError": "Failed to load jars",
+      "jarSelectLabel": "Jar",
+      "jarSelectPlaceholder": "Select jar",
+      "jarPrefix": "Jar",
+      "accountPrefix": "Account",
+      "emptyJars": "Monobank returned no available jars",
+      "selectRequired": "Select a jar",
+      "connectWebhook": "Connect webhook",
+      "setupSuccess": "Monobank connected",
+      "setupError": "Failed to setup webhook",
+      "connectedAs": "Connected: {{accountId}}",
+      "notConnected": "No jar/account connected yet"
+    },
+    "feed": {
+      "title": "Donation feed",
+      "error": "Failed to load transactions",
+      "empty": "No transactions yet for this campaign",
+      "defaultDescription": "Campaign top-up",
+      "prev": "Previous",
+      "next": "Next",
+      "page": "Page {{page}}"
+    },
+    "detail": {
+      "shortIdPrefix": "Campaign ID",
+      "receiptsTitle": "Receipts",
+      "receiptsEmpty": "No receipts have been attached to this campaign yet",
+      "attachReceipt": "Attach receipt",
+      "publishReceipt": "Publish",
+      "receiptAttachedDraft": "Receipt attached (draft)",
+      "receiptPublished": "Receipt published!"
+    },
+    "manualProgress": {
+      "title": "Manual progress update",
+      "amountLabel": "Current amount (₴)",
+      "reasonLabel": "Reason (optional)",
+      "reasonPlaceholder": "For example: import from external statement",
+      "submit": "Update progress",
+      "amountInvalid": "Enter a valid amount",
+      "success": "Campaign progress updated",
+      "error": "Failed to update campaign progress"
     }
   },
   "team": {

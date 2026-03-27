@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useCampaign } from '@/hooks/queries/useCampaigns';
+import { useCampaign, useCampaignTransactions, useUpdateCampaignBalance } from '@/hooks/queries/useCampaigns';
 import { CampaignStatusLabel } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Calendar, Edit2, Megaphone, ReceiptText, Globe } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { ArrowLeft, Calendar, Edit2, Megaphone, ReceiptText, Globe, HandCoins, Clock3, Handshake, Loader2 } from 'lucide-react';
 import { SelectReceiptDialog } from './SelectReceiptDialog';
 import { toast } from 'sonner';
 
@@ -24,6 +28,15 @@ export default function CampaignDetailPage() {
   const { orgId, campaignId } = useParams<{ orgId: string; campaignId: string }>();
   const navigate = useNavigate();
   const { data: campaign, isLoading } = useCampaign(campaignId);
+  const updateCampaignBalance = useUpdateCampaignBalance(orgId!);
+  const [transactionsPage, setTransactionsPage] = useState(1);
+  const transactionsPageSize = 10;
+  const {
+    data: transactions,
+    isLoading: isTransactionsLoading,
+    isError: isTransactionsError,
+    refetch: refetchTransactions,
+  } = useCampaignTransactions(campaignId, transactionsPage, transactionsPageSize);
 
   // Mock state for receipts since backend is not there yet (Phase 3 requirements)
   interface MockAttachedReceipt {
@@ -35,12 +48,15 @@ export default function CampaignDetailPage() {
   }
   const [attachedReceipts, setAttachedReceipts] = useState<MockAttachedReceipt[]>([]);
   const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false);
+  const [manualAmountUah, setManualAmountUah] = useState<string>('');
+  const [manualReason, setManualReason] = useState('');
+  const [manualUpdateError, setManualUpdateError] = useState<string | null>(null);
 
   if (isLoading) {
     return (
       <div className="mx-auto max-w-4xl space-y-6" data-testid="campaign-detail-loading">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-[300px] w-full rounded-2xl" />
+        <Skeleton className="h-75 w-full rounded-2xl" />
       </div>
     );
   }
@@ -69,12 +85,44 @@ export default function CampaignDetailPage() {
     // Add mock receipt to attached list
     setAttachedReceipts(prev => [...prev, { id: receiptId, isPublished: false, merchantName: 'Attached Receipt', totalAmount: 125000, date: new Date().toISOString() }]);
     setIsReceiptDialogOpen(false);
-    toast.success('Чек прикріплено (чорнетка)');
+    toast.success(t('campaigns.detail.receiptAttachedDraft', 'Чек прикріплено (чернетка)'));
   };
 
   const currentCount = typeof campaign.receiptCount === 'number' 
     ? campaign.receiptCount + attachedReceipts.length 
     : attachedReceipts.length;
+  const hasNextTransactionsPage = (transactions?.length ?? 0) === transactionsPageSize;
+
+  const handleManualProgressUpdate = async () => {
+    setManualUpdateError(null);
+
+    const effectiveAmount = manualAmountUah || (campaign.currentAmount / 100).toFixed(2);
+    const parsedAmount = Number(effectiveAmount.replace(',', '.'));
+    if (!Number.isFinite(parsedAmount) || parsedAmount < 0) {
+      setManualUpdateError(t('campaigns.manualProgress.amountInvalid', 'Введіть коректну суму'));
+      return;
+    }
+
+    try {
+      await updateCampaignBalance.mutateAsync({
+        id: campaign.id,
+        payload: {
+          newCurrentAmount: Math.round(parsedAmount * 100),
+          reason: manualReason.trim() || undefined,
+        },
+      });
+
+      setManualAmountUah(parsedAmount.toFixed(2));
+      setManualReason('');
+      toast.success(t('campaigns.manualProgress.success', 'Прогрес збору оновлено'));
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : t('campaigns.manualProgress.error', 'Не вдалося оновити прогрес збору');
+      setManualUpdateError(message);
+      toast.error(message);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-4xl space-y-6" data-testid="campaign-detail-page">
@@ -127,8 +175,8 @@ export default function CampaignDetailPage() {
               
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground border-t border-border/50 pt-4">
                 <div className="flex items-center gap-1.5 break-all" data-testid="campaign-detail-short-id">
-                  <Megaphone className="h-4 w-4 min-w-[16px]" />
-                  ID-збору: {campaign.id.substring(0, 8)}
+                  <Megaphone className="h-4 w-4 min-w-4" />
+                  {t('campaigns.detail.shortIdPrefix', 'ID-збору')}: {campaign.id.substring(0, 8)}
                 </div>
                 {campaign.deadline && (
                   <div className="flex items-center gap-1.5">
@@ -148,7 +196,7 @@ export default function CampaignDetailPage() {
               <CardTitle className="text-lg flex items-center justify-between" data-testid="campaign-detail-receipts-title">
                 <div className="flex items-center gap-2">
                   <ReceiptText className="h-5 w-5 text-primary" />
-                  Чеки
+                  {t('campaigns.detail.receiptsTitle', 'Чеки')}
                 </div>
                 <Badge variant="secondary" data-testid="campaign-detail-receipts-count">{currentCount}</Badge>
               </CardTitle>
@@ -159,8 +207,8 @@ export default function CampaignDetailPage() {
                   <div className="rounded-full bg-muted p-3 mb-3">
                     <ReceiptText className="h-6 w-6 text-muted-foreground" />
                   </div>
-                  <p className="text-xs text-muted-foreground max-w-[200px]">
-                    До цього збору ще не додано жодного чеку
+                  <p className="text-xs text-muted-foreground max-w-50">
+                    {t('campaigns.detail.receiptsEmpty', 'До цього збору ще не додано жодного чеку')}
                   </p>
                 </div>
               ) : (
@@ -168,7 +216,7 @@ export default function CampaignDetailPage() {
                   {attachedReceipts.map((r, i) => (
                     <div key={i} className="flex justify-between items-center bg-muted/30 p-3 rounded-lg border text-sm">
                       <div>
-                        <p className="font-medium truncate max-w-[120px]">{r.merchantName}</p>
+                        <p className="font-medium truncate max-w-30">{r.merchantName}</p>
                         <p className="text-xs text-muted-foreground">{new Intl.NumberFormat('uk-UA').format(r.totalAmount/100)} ₴</p>
                       </div>
                       {r.isPublished ? (
@@ -176,15 +224,163 @@ export default function CampaignDetailPage() {
                       ) : (
                         <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => {
                           setAttachedReceipts(prev => prev.map(pr => pr.id === r.id ? { ...pr, isPublished: true } : pr));
-                          toast.success('Чек опубліковано!');
-                        }}>Публікувати</Button>
+                          toast.success(t('campaigns.detail.receiptPublished', 'Чек опубліковано!'));
+                        }}>{t('campaigns.detail.publishReceipt', 'Публікувати')}</Button>
                       )}
                     </div>
                   ))}
                 </div>
               )}
               <Button size="sm" className="w-full" onClick={() => setIsReceiptDialogOpen(true)} data-testid="campaign-detail-attach-receipt-button">
-                + Прикріпити чек
+                + {t('campaigns.detail.attachReceipt', 'Прикріпити чек')}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="campaign-detail-donation-feed-card">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2" data-testid="campaign-detail-donation-feed-title">
+                <HandCoins className="h-5 w-5 text-primary" />
+                {t('campaigns.feed.title', 'Лог пожертв')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isTransactionsLoading ? (
+                <div className="space-y-3" data-testid="campaign-detail-donation-feed-loading">
+                  <Skeleton className="h-14 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                </div>
+              ) : isTransactionsError ? (
+                <Alert variant="destructive" data-testid="campaign-detail-donation-feed-error">
+                  <AlertDescription className="space-y-3">
+                    <span>{t('campaigns.feed.error', 'Не вдалося завантажити транзакції')}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => void refetchTransactions()}
+                      data-testid="campaign-detail-donation-feed-retry-button"
+                    >
+                      {t('common.refresh')}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : (transactions?.length ?? 0) === 0 ? (
+                <div className="rounded-lg border border-dashed border-border/70 px-3 py-6 text-center text-sm text-muted-foreground" data-testid="campaign-detail-donation-feed-empty">
+                  {t('campaigns.feed.empty', 'Поки немає транзакцій для цього збору')}
+                </div>
+              ) : (
+                <div className="space-y-2" data-testid="campaign-detail-donation-feed-list">
+                  {transactions?.map((transaction) => (
+                    <div
+                      key={transaction.id}
+                      className="rounded-lg border border-border/60 bg-muted/20 p-3"
+                      data-testid={`campaign-detail-donation-feed-item-${transaction.id}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-1">
+                          <p className="truncate text-sm font-medium" data-testid={`campaign-detail-donation-feed-description-${transaction.id}`}>
+                            {transaction.description || t('campaigns.feed.defaultDescription', 'Поповнення збору')}
+                          </p>
+                          <p className="flex items-center gap-1 text-xs text-muted-foreground" data-testid={`campaign-detail-donation-feed-time-${transaction.id}`}>
+                            <Clock3 className="h-3.5 w-3.5" />
+                            {new Date(transaction.transactionTimeUtc).toLocaleString('uk-UA')}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-success" data-testid={`campaign-detail-donation-feed-amount-${transaction.id}`}>
+                            {new Intl.NumberFormat('uk-UA').format(transaction.amount / 100)} ₴
+                          </p>
+                          <p className="text-xs text-muted-foreground" data-testid={`campaign-detail-donation-feed-source-${transaction.id}`}>
+                            {transaction.source}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="space-y-2" data-testid="campaign-detail-donation-feed-pagination">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setTransactionsPage((prev) => Math.max(1, prev - 1))}
+                    disabled={transactionsPage === 1 || isTransactionsLoading}
+                    data-testid="campaign-detail-donation-feed-prev-button"
+                  >
+                    {t('campaigns.feed.prev', 'Попередня')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setTransactionsPage((prev) => prev + 1)}
+                    disabled={!hasNextTransactionsPage || isTransactionsLoading}
+                    data-testid="campaign-detail-donation-feed-next-button"
+                  >
+                    {t('campaigns.feed.next', 'Наступна')}
+                  </Button>
+                </div>
+                <p className="text-center text-xs text-muted-foreground" data-testid="campaign-detail-donation-feed-page-indicator">
+                  {t('campaigns.feed.page', { page: transactionsPage })}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="campaign-detail-manual-progress-card">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2" data-testid="campaign-detail-manual-progress-title">
+                <Handshake className="h-5 w-5 text-primary" />
+                {t('campaigns.manualProgress.title', 'Ручне оновлення прогресу')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {manualUpdateError && (
+                <Alert variant="destructive" data-testid="campaign-detail-manual-progress-error-alert">
+                  <AlertDescription>{manualUpdateError}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="campaign-manual-progress-amount">{t('campaigns.manualProgress.amountLabel', 'Поточна сума (₴)')}</Label>
+                <Input
+                  id="campaign-manual-progress-amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={manualAmountUah || (campaign.currentAmount / 100).toFixed(2)}
+                  onChange={(event) => setManualAmountUah(event.target.value)}
+                  data-testid="campaign-detail-manual-progress-amount-input"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="campaign-manual-progress-reason">{t('campaigns.manualProgress.reasonLabel', 'Причина (необов\'язково)')}</Label>
+                <Textarea
+                  id="campaign-manual-progress-reason"
+                  rows={3}
+                  value={manualReason}
+                  onChange={(event) => setManualReason(event.target.value)}
+                  placeholder={t('campaigns.manualProgress.reasonPlaceholder', 'Наприклад: імпорт із зовнішньої виписки')}
+                  data-testid="campaign-detail-manual-progress-reason-input"
+                />
+              </div>
+
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => void handleManualProgressUpdate()}
+                disabled={updateCampaignBalance.isPending}
+                data-testid="campaign-detail-manual-progress-submit-button"
+              >
+                {updateCampaignBalance.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t('campaigns.manualProgress.submit', 'Оновити прогрес')}
               </Button>
             </CardContent>
           </Card>

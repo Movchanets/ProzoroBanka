@@ -2,10 +2,14 @@ import { apiFetch } from './api';
 import type {
   Campaign,
   CampaignDetail,
+  CampaignTransaction,
   CampaignStats,
   CampaignStatus,
   ChangeCampaignStatusPayload,
   CreateCampaignPayload,
+  MonobankClientInfo,
+  SetupMonobankWebhookPayload,
+  UpdateCampaignBalancePayload,
   UpdateCampaignPayload,
 } from '../types';
 
@@ -51,5 +55,28 @@ export const campaignService = {
   delete: (id: string) =>
     apiFetch<void>(`/api/campaigns/${id}`, {
       method: 'DELETE',
+    }),
+
+  getMonobankJars: (token: string) =>
+    apiFetch<MonobankClientInfo>('/api/campaigns/monobank/jars', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+
+  setupMonobankWebhook: (payload: SetupMonobankWebhookPayload) =>
+    apiFetch<{ message: string }>('/api/campaigns/monobank/setup-webhook', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getTransactions: (id: string, page = 1, pageSize = 20) =>
+    apiFetch<CampaignTransaction[]>(
+      `/api/campaigns/${id}/transactions?page=${page}&pageSize=${pageSize}`,
+    ),
+
+  updateBalanceManual: (id: string, payload: UpdateCampaignBalancePayload) =>
+    apiFetch<{ message: string }>(`/api/campaigns/${id}/balance/manual`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
     }),
 };

@@ -252,6 +252,56 @@ export interface ChangeCampaignStatusPayload {
   newStatus: CampaignStatus;
 }
 
+export interface UpdateCampaignBalancePayload {
+  newCurrentAmount: number;
+  reason?: string;
+}
+
+export interface MonobankJar {
+  id: string;
+  sendId?: string | null;
+  title: string;
+  description?: string | null;
+  currencyCode: number;
+  balance: number;
+  goal?: number | null;
+}
+
+export interface MonobankAccount {
+  id: string;
+  sendId?: string | null;
+  balance: number;
+  creditLimit: number;
+  type: string;
+  currencyCode: number;
+  cashbackType?: string | null;
+  iban?: string | null;
+}
+
+export interface MonobankClientInfo {
+  clientId?: string | null;
+  name?: string | null;
+  webHookUrl?: string | null;
+  accounts: MonobankAccount[];
+  jars: MonobankJar[];
+}
+
+export interface SetupMonobankWebhookPayload {
+  campaignId: string;
+  token: string;
+  selectedJarAccountId: string;
+  webhookUrl: string;
+}
+
+export interface CampaignTransaction {
+  id: string;
+  amount: number;
+  description?: string | null;
+  transactionTimeUtc: string;
+  source: string;
+  createdAt: string;
+}
+
 // ── ServiceResponse wrapper ──
 
 export interface ServiceResponse<T> {
