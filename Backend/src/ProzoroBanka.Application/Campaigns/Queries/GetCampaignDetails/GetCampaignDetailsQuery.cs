@@ -42,6 +42,9 @@ public class GetCampaignDetailsHandler
 				c.CoverImageStorageKey,
 				c.GoalAmount,
 				c.CurrentAmount,
+				WithdrawnAmount = _db.CampaignTransactions
+					.Where(t => t.CampaignId == c.Id && t.Amount < 0)
+					.Sum(t => (decimal?)(-t.Amount)) ?? 0,
 				c.Status,
 				c.StartDate,
 				c.Deadline,
@@ -65,7 +68,7 @@ public class GetCampaignDetailsHandler
 		return ServiceResponse<CampaignDetailDto>.Success(new CampaignDetailDto(
 			campaign.Id, campaign.Title, campaign.Description,
 			StorageUrlResolver.Resolve(_fileStorage, campaign.CoverImageStorageKey),
-			campaign.GoalAmount, campaign.CurrentAmount,
+			campaign.GoalAmount, campaign.CurrentAmount, campaign.WithdrawnAmount,
 			campaign.Status, campaign.StartDate, campaign.Deadline,
 			campaign.MonobankAccountId, campaign.OrganizationId,
 			campaign.OrganizationName, campaign.CreatedByName,

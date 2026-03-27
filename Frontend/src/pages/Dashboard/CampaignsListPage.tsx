@@ -24,6 +24,7 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
     : 0;
   const raised = new Intl.NumberFormat('uk-UA').format(campaign.currentAmount / 100);
   const goal = new Intl.NumberFormat('uk-UA').format(campaign.goalAmount / 100);
+  const withdrawn = new Intl.NumberFormat('uk-UA').format(campaign.withdrawnAmount / 100);
 
   return (
     <Card
@@ -42,6 +43,9 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
             <span className="text-muted-foreground">{raised} ₴ <span className="text-muted-foreground/60">/ {goal} ₴</span></span>
             <span className="font-semibold text-primary">{progress}%</span>
           </div>
+          <p className="text-xs text-muted-foreground" data-testid={`campaign-card-withdrawn-${campaign.id}`}>
+            {t('campaigns.withdrawnPrefix')}: {withdrawn} ₴
+          </p>
           <Progress value={progress} className="h-2" />
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">

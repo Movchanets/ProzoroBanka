@@ -39,6 +39,10 @@ export default function CampaignEditPage() {
   const [monobankToken, setMonobankToken] = useState('');
   const [selectedJarAccountId, setSelectedJarAccountId] = useState('');
   const [wizardError, setWizardError] = useState<string | null>(null);
+  const [webhookBaseUrl, setWebhookBaseUrl] = useState(
+    (import.meta.env.VITE_API_URL as string | undefined) || window.location.origin,
+  );
+  const isReleaseBuild = import.meta.env.PROD;
 
   const schema = useMemo(() => createCampaignSchema(t), [t]);
 
@@ -51,22 +55,40 @@ export default function CampaignEditPage() {
   };
 
   const getWebhookUrl = () => {
-    const apiBase = (import.meta.env.VITE_API_URL as string | undefined)
-      ?? window.location.origin;
+    const apiBase = !isReleaseBuild && webhookBaseUrl.trim()
+      ? webhookBaseUrl.trim()
+      : ((import.meta.env.VITE_API_URL as string | undefined) || window.location.origin);
     return `${apiBase.replace(/\/+$/, '')}/api/webhooks/monobank`;
+  };
+
+  const formatAmount = (amountMinorUnits: number, currencyCode: number) => {
+    const amount = amountMinorUnits / 100;
+    const currency = currencyCode === 840 ? 'USD' : currencyCode === 978 ? 'EUR' : 'UAH';
+
+    return new Intl.NumberFormat('uk-UA', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 2,
+    }).format(amount);
   };
 
   const jarOptions = useMemo(() => {
     const payload = getMonobankJars.data;
     if (!payload) {
-      return [] as { id: string; label: string }[];
+      return [] as { id: string; title: string; balance: string }[];
     }
 
     return payload.jars.map((jar) => ({
       id: jar.id,
-      label: jar.title || jar.id,
+      title: jar.title || jar.id,
+      balance: formatAmount(jar.balance, jar.currencyCode),
     }));
   }, [getMonobankJars.data]);
+
+  const selectedJar = useMemo(
+    () => jarOptions.find((option) => option.id === selectedJarAccountId),
+    [jarOptions, selectedJarAccountId],
+  );
 
   const { register, handleSubmit, formState: { errors, isDirty } } = useForm<CreateCampaignFormData>({
     resolver: zodResolver(schema),
@@ -264,6 +286,28 @@ export default function CampaignEditPage() {
               />
             </div>
 
+            {!isReleaseBuild && (
+              <div className="space-y-2">
+                <Label htmlFor="campaign-monobank-webhook-base-url">
+                  {t('campaigns.monobank.webhookBaseUrlLabel', 'Webhook base URL (dev/test)')}
+                </Label>
+                <Input
+                  id="campaign-monobank-webhook-base-url"
+                  type="url"
+                  value={webhookBaseUrl}
+                  onChange={(event) => setWebhookBaseUrl(event.target.value)}
+                  placeholder={t('campaigns.monobank.webhookBaseUrlPlaceholder', 'https://your-ngrok-domain.ngrok-free.dev')}
+                  data-testid="campaign-edit-monobank-webhook-base-url-input"
+                />
+                <p className="text-xs text-muted-foreground" data-testid="campaign-edit-monobank-webhook-url-preview">
+                  {t('campaigns.monobank.webhookUrlPreview', {
+                    defaultValue: 'Webhook URL: {{url}}',
+                    url: getWebhookUrl(),
+                  })}
+                </p>
+              </div>
+            )}
+
             <Button
               type="button"
               variant="secondary"
@@ -296,11 +340,21 @@ export default function CampaignEditPage() {
                           value={option.id}
                           data-testid={`campaign-edit-monobank-account-option-${option.id}`}
                         >
-                          {`${t('campaigns.monobank.jarPrefix', 'Банка')}: ${option.label}`}
+                          {`${t('campaigns.monobank.jarPrefix', 'Банка')}: ${option.title} • ${t('campaigns.monobank.balanceLabel', 'Баланс')}: ${option.balance}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                )}
+
+                {selectedJar && (
+                  <p className="text-xs text-muted-foreground" data-testid="campaign-edit-monobank-selected-jar-balance">
+                    {t('campaigns.monobank.selectedBalance', {
+                      defaultValue: 'Обрана банка: {{title}} — баланс {{balance}}',
+                      title: selectedJar.title,
+                      balance: selectedJar.balance,
+                    })}
+                  </p>
                 )}
               </div>
             )}
