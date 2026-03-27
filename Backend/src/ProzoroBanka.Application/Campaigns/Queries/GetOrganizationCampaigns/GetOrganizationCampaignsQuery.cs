@@ -62,6 +62,9 @@ public class GetOrganizationCampaignsHandler
 				c.CoverImageStorageKey,
 				c.GoalAmount,
 				c.CurrentAmount,
+				WithdrawnAmount = _db.CampaignTransactions
+					.Where(t => t.CampaignId == c.Id && t.Amount < 0)
+					.Sum(t => (decimal?)(-t.Amount)) ?? 0,
 				c.Status,
 				c.StartDate,
 				c.Deadline,
@@ -73,7 +76,7 @@ public class GetOrganizationCampaignsHandler
 		var result = campaigns.Select(c => new CampaignDto(
 			c.Id, c.Title, c.Description,
 			StorageUrlResolver.Resolve(_fileStorage, c.CoverImageStorageKey),
-			c.GoalAmount, c.CurrentAmount,
+			c.GoalAmount, c.CurrentAmount, c.WithdrawnAmount,
 			c.Status, c.StartDate, c.Deadline,
 			c.MonobankAccountId, c.CreatedAt))
 			.ToList();

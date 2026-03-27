@@ -105,11 +105,11 @@ public class ProcessMonobankWebhookHandlerTests
 		Assert.True(result.IsSuccess);
 
 		var updated = await db.Campaigns.FindAsync(campaignId);
-		Assert.Equal(1500m, updated!.CurrentAmount); // 1000 + 500
+		Assert.Equal(51000m, updated!.CurrentAmount); // 1000 + 50000 (minor units)
 
 		var tx = db.CampaignTransactions.FirstOrDefault(t => t.ExternalTransactionId == "event-001");
 		Assert.NotNull(tx);
-		Assert.Equal(500m, tx.Amount);
+		Assert.Equal(50000m, tx.Amount);
 		Assert.Equal(BalanceUpdateSource.MonobankWebhook, tx.Source);
 	}
 
@@ -196,6 +196,6 @@ public class ProcessMonobankWebhookHandlerTests
 		// But transaction should still be recorded for audit
 		var tx = db.CampaignTransactions.FirstOrDefault(t => t.ExternalTransactionId == "event-neg");
 		Assert.NotNull(tx);
-		Assert.Equal(-100m, tx.Amount);
+		Assert.Equal(-10000m, tx.Amount);
 	}
 }

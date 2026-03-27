@@ -68,8 +68,9 @@ public class ProcessMonobankWebhookHandler : IRequestHandler<ProcessMonobankWebh
 			return ServiceResponse.Success("Подію вже оброблено");
 		}
 
-		// Convert amount from kopecks to UAH
-		var amountUah = item.Amount / 100m;
+		// Store amounts in minor units (kopecks) to match campaign amounts across the system.
+		var amountMinorUnits = item.Amount;
+		var amountUahForLog = item.Amount / 100m;
 
 		// Only process incoming (positive) amounts for donation campaigns
 		// But store all events for audit
@@ -87,14 +88,14 @@ public class ProcessMonobankWebhookHandler : IRequestHandler<ProcessMonobankWebh
 			// Update campaign balance (only add positive amounts)
 			if (item.Amount > 0)
 			{
-				campaign.CurrentAmount += amountUah;
+				campaign.CurrentAmount += amountMinorUnits;
 			}
 
 			_db.CampaignTransactions.Add(new CampaignTransaction
 			{
 				CampaignId = campaign.Id,
 				ExternalTransactionId = item.Id,
-				Amount = amountUah,
+				Amount = amountMinorUnits,
 				Description = transactionDescription,
 				TransactionTimeUtc = transactionTimeUtc,
 				Source = BalanceUpdateSource.MonobankWebhook,
@@ -106,7 +107,7 @@ public class ProcessMonobankWebhookHandler : IRequestHandler<ProcessMonobankWebh
 
 		_logger.LogInformation(
 			"Monobank webhook processed: campaign {CampaignId}, amount {Amount} UAH, externalId {ExternalId}",
-			campaign.Id, amountUah, item.Id);
+			campaign.Id, amountUahForLog, item.Id);
 
 		return ServiceResponse.Success("Webhook оброблено");
 	}

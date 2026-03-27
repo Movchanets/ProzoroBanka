@@ -80,6 +80,7 @@ export default function CampaignDetailPage() {
     : 0;
   const raised = new Intl.NumberFormat('uk-UA').format(campaign.currentAmount / 100);
   const goal = new Intl.NumberFormat('uk-UA').format(campaign.goalAmount / 100);
+  const withdrawn = new Intl.NumberFormat('uk-UA').format(campaign.withdrawnAmount / 100);
 
   const handleAttachReceipt = (receiptId: string) => {
     // Add mock receipt to attached list
@@ -161,6 +162,9 @@ export default function CampaignDetailPage() {
                   <span className="text-muted-foreground" data-testid="campaign-detail-amounts">{raised} ₴ <span className="text-muted-foreground/60">/ {goal} ₴</span></span>
                   <span className="font-semibold text-primary" data-testid="campaign-detail-progress-text">{progress}%</span>
                 </div>
+                <p className="text-xs text-muted-foreground" data-testid="campaign-detail-withdrawn-amount">
+                  {t('campaigns.withdrawnPrefix')}: {withdrawn} ₴
+                </p>
                 <Progress value={progress} className="h-3" data-testid="campaign-detail-progress-bar" />
               </div>
             </CardHeader>

@@ -214,6 +214,7 @@ export interface Campaign {
   coverImageUrl?: string;
   goalAmount: number;
   currentAmount: number;
+  withdrawnAmount: number;
   status: CampaignStatus;
   startDate?: string;
   deadline?: string;
