@@ -5,7 +5,7 @@ import { useCampaigns } from '@/hooks/queries/useCampaigns';
 import { CampaignStatus } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, HandCoins, Megaphone, Users, Zap } from 'lucide-react';
+import { BarChart3, Megaphone, ReceiptText, Users, Zap } from 'lucide-react';
 
 export default function DashboardHomePage() {
   const { t } = useTranslation();
@@ -17,15 +17,14 @@ export default function DashboardHomePage() {
 
   const activeCampaigns = campaigns?.filter((c) => c.status === CampaignStatus.Active).length ?? 0;
   const totalRaised = campaigns?.reduce((sum, c) => sum + c.currentAmount, 0) ?? 0;
-  const totalWithdrawn = campaigns?.reduce((sum, c) => sum + c.withdrawnAmount, 0) ?? 0;
+  const totalReceipts = campaigns?.reduce((sum, c) => sum + (c.receiptCount ?? 0), 0) ?? 0;
   const raisedFormatted = new Intl.NumberFormat('uk-UA').format(totalRaised / 100);
-  const withdrawnFormatted = new Intl.NumberFormat('uk-UA').format(totalWithdrawn / 100);
 
   const stats = [
     { icon: <Users className="h-5 w-5" />, label: t('dashboard.statMembers'), value: org?.memberCount ?? 0 },
     { icon: <Megaphone className="h-5 w-5" />, label: t('dashboard.statActiveCampaigns'), value: activeCampaigns },
     { icon: <BarChart3 className="h-5 w-5" />, label: t('dashboard.statRaised'), value: raisedFormatted },
-    { icon: <HandCoins className="h-5 w-5" />, label: t('dashboard.statWithdrawn'), value: withdrawnFormatted },
+    { icon: <ReceiptText className="h-5 w-5" />, label: t('dashboard.statReceipts'), value: totalReceipts },
   ];
 
   const steps = [
