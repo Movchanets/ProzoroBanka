@@ -24,7 +24,7 @@ export default function CampaignCreatePage() {
 
   const { register, handleSubmit, formState: { errors } } = useForm<CreateCampaignFormData>({
     resolver: zodResolver(schema),
-    defaultValues: { title: '', description: '', goalAmount: 0, deadline: '' },
+    defaultValues: { title: '', description: '', goalAmount: 0, deadline: '', sendUrl: '' },
   });
 
   const onSubmit = async (data: CreateCampaignFormData) => {
@@ -35,6 +35,7 @@ export default function CampaignCreatePage() {
         description: data.description || undefined,
         goalAmount: Math.round(data.goalAmount * 100),
         deadline: data.deadline || undefined,
+        sendUrl: data.sendUrl || undefined,
       });
       navigate(`/dashboard/${orgId}/campaigns`);
     } catch (err) {
@@ -70,6 +71,17 @@ export default function CampaignCreatePage() {
               <Label htmlFor="campaign-desc">{t('campaigns.create.descriptionLabel')}</Label>
               <Textarea id="campaign-desc" rows={4} placeholder={t('campaigns.create.descriptionPlaceholder')} {...register('description')} data-testid="campaign-create-description-input" />
               {errors.description && (<p className="text-sm text-destructive" data-testid="campaign-create-description-error">{errors.description.message}</p>)}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="campaign-send-url">{t('campaigns.create.sendUrlLabel', 'Посилання на банку')}</Label>
+              <Input
+                id="campaign-send-url"
+                type="url"
+                placeholder="https://send.monobank.ua/jar/..."
+                {...register('sendUrl')}
+                data-testid="campaign-create-send-url-input"
+              />
+              {errors.sendUrl && (<p className="text-sm text-destructive" data-testid="campaign-create-send-url-error">{errors.sendUrl.message}</p>)}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">

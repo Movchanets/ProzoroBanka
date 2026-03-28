@@ -86,6 +86,12 @@ export function createCampaignSchema(t: TFunction) {
       .string()
       .optional()
       .or(z.literal('')),
+    sendUrl: z
+      .string()
+      .url(t('validation.urlInvalid'))
+      .max(512, t('validation.urlMax', { defaultValue: 'Посилання занадто довге' }))
+      .optional()
+      .or(z.literal('')),
   });
 }
 

@@ -48,7 +48,7 @@ public class CampaignsController : ApiControllerBase
 
 		var command = new CreateCampaignCommand(
 			domainUserId.Value, orgId, request.Title, request.Description,
-			request.GoalAmount, request.Deadline);
+			request.GoalAmount, request.Deadline, request.SendUrl);
 
 		var result = await _sender.Send(command, ct);
 
@@ -145,7 +145,7 @@ public class CampaignsController : ApiControllerBase
 
 		var command = new UpdateCampaignCommand(
 			domainUserId.Value, id, request.Title, request.Description,
-			request.GoalAmount, request.Deadline);
+			request.GoalAmount, request.Deadline, request.SendUrl);
 
 		var result = await _sender.Send(command, ct);
 

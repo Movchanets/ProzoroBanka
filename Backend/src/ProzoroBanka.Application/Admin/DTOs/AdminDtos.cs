@@ -44,6 +44,7 @@ public record AdminCampaignDto(
 	string? CoverImageUrl,
 	decimal GoalAmount,
 	decimal CurrentAmount,
+	string? SendUrl,
 	CampaignStatus Status,
 	DateTime? StartDate,
 	DateTime? Deadline,

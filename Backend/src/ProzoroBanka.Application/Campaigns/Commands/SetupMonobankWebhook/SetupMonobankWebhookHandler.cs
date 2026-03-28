@@ -70,6 +70,10 @@ public class SetupMonobankWebhookHandler : IRequestHandler<SetupMonobankWebhookC
 
 		// Persist only the jar/account ID — never the token
 		campaign.MonobankAccountId = request.SelectedJarAccountId;
+		var generatedSendUrl = BuildSendUrlFromSendId(selectedJar.SendId);
+		if (!string.IsNullOrWhiteSpace(generatedSendUrl))
+			campaign.SendUrl = generatedSendUrl;
+
 		campaign.CurrentAmount = syncedAmount;
 		campaign.GoalAmount = syncedGoal;
 
@@ -96,5 +100,20 @@ public class SetupMonobankWebhookHandler : IRequestHandler<SetupMonobankWebhookC
 			syncedGoal);
 
 		return ServiceResponse.Success("Monobank webhook налаштовано");
+	}
+
+	private static string? BuildSendUrlFromSendId(string? sendId)
+	{
+		if (string.IsNullOrWhiteSpace(sendId))
+			return null;
+
+		var normalized = sendId.Trim();
+		if (Uri.TryCreate(normalized, UriKind.Absolute, out var absolute)
+			&& (absolute.Scheme == Uri.UriSchemeHttps || absolute.Scheme == Uri.UriSchemeHttp))
+		{
+			return absolute.ToString();
+		}
+
+		return $"https://send.monobank.ua/{normalized.TrimStart('/')}";
 	}
 }

@@ -33,6 +33,11 @@ public class Campaign : BaseEntity
 	/// </summary>
 	public string? MonobankAccountId { get; set; }
 
+	/// <summary>
+	/// Публічне посилання на банку Monobank (може бути встановлене вручну або згенероване з sendId).
+	/// </summary>
+	public string? SendUrl { get; set; }
+
 	// ── Navigation ──
 	public Organization Organization { get; set; } = null!;
 	public User CreatedBy { get; set; } = null!;

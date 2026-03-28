@@ -61,6 +61,7 @@ public class GetPublicOrganizationCampaignsHandler
 				c.Title,
 				c.Description,
 				StorageUrlResolver.Resolve(_fileStorage, c.CoverImageStorageKey),
+				c.SendUrl,
 				c.GoalAmount,
 				c.CurrentAmount,
 				c.Status,

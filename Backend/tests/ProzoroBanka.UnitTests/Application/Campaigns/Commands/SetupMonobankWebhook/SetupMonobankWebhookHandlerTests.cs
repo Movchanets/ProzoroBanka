@@ -71,7 +71,7 @@ public class SetupMonobankWebhookHandlerTests
 				Name: "Test",
 				WebHookUrl: null,
 				Accounts: [],
-				Jars: [new MonobankJarDto("jar-123", "send", "Jar", null, 980, 12345, 50000)])));
+				Jars: [new MonobankJarDto("jar-123", "jar/6iKLHCZxKF", "Jar", null, 980, 12345, 50000)])));
 
 		monobank.Setup(x => x.RegisterWebhookAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(ServiceResponse.Success("ok"));
@@ -87,6 +87,7 @@ public class SetupMonobankWebhookHandlerTests
 
 		var updated = await db.Campaigns.FindAsync(campaignId);
 		Assert.Equal("jar-123", updated!.MonobankAccountId);
+		Assert.Equal("https://send.monobank.ua/jar/6iKLHCZxKF", updated.SendUrl);
 		Assert.Equal(12345m, updated.CurrentAmount);
 		Assert.Equal(50000m, updated.GoalAmount);
 
@@ -128,6 +129,7 @@ public class SetupMonobankWebhookHandlerTests
 
 		var updated = await db.Campaigns.FindAsync(campaignId);
 		Assert.Null(updated!.MonobankAccountId);
+		Assert.Null(updated.SendUrl);
 		Assert.Equal(0m, updated.CurrentAmount);
 	}
 
@@ -162,6 +164,7 @@ public class SetupMonobankWebhookHandlerTests
 
 		var updated = await db.Campaigns.FindAsync(campaignId);
 		Assert.Null(updated!.MonobankAccountId);
+		Assert.Null(updated.SendUrl);
 		Assert.Equal(0m, updated.CurrentAmount);
 
 		monobank.Verify(x => x.RegisterWebhookAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);

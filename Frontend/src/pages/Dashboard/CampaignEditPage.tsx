@@ -92,7 +92,13 @@ export default function CampaignEditPage() {
 
   const { register, handleSubmit, formState: { errors, isDirty } } = useForm<CreateCampaignFormData>({
     resolver: zodResolver(schema),
-    values: campaign ? { title: campaign.title, description: campaign.description ?? '', goalAmount: campaign.goalAmount / 100, deadline: campaign.deadline?.split('T')[0] ?? '' } : undefined,
+    values: campaign ? {
+      title: campaign.title,
+      description: campaign.description ?? '',
+      goalAmount: campaign.goalAmount / 100,
+      deadline: campaign.deadline?.split('T')[0] ?? '',
+      sendUrl: campaign.sendUrl ?? '',
+    } : undefined,
   });
 
   const onSubmit = async (data: CreateCampaignFormData) => {
@@ -100,7 +106,13 @@ export default function CampaignEditPage() {
     try {
       await updateCampaign.mutateAsync({ 
         id: campaignId!, 
-        payload: { title: data.title, description: data.description || undefined, goalAmount: Math.round(data.goalAmount * 100), deadline: data.deadline || undefined } 
+        payload: {
+          title: data.title,
+          description: data.description || undefined,
+          goalAmount: Math.round(data.goalAmount * 100),
+          deadline: data.deadline || undefined,
+          sendUrl: data.sendUrl || undefined,
+        }
       });
       setSuccessMsg(t('campaigns.edit.savedMessage'));
       setTimeout(() => setSuccessMsg(null), 3000);
@@ -227,6 +239,17 @@ export default function CampaignEditPage() {
               <Label htmlFor="edit-desc">{t('campaigns.create.descriptionLabel')}</Label>
               <Textarea id="edit-desc" rows={4} {...register('description')} data-testid="campaign-edit-description-input" />
               {errors.description && (<p className="text-sm text-destructive" data-testid="campaign-edit-description-error">{errors.description.message}</p>)}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-send-url">{t('campaigns.create.sendUrlLabel', 'Посилання на банку')}</Label>
+              <Input
+                id="edit-send-url"
+                type="url"
+                placeholder="https://send.monobank.ua/jar/..."
+                {...register('sendUrl')}
+                data-testid="campaign-edit-send-url-input"
+              />
+              {errors.sendUrl && (<p className="text-sm text-destructive" data-testid="campaign-edit-send-url-error">{errors.sendUrl.message}</p>)}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
