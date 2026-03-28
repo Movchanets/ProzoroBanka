@@ -28,6 +28,11 @@ const HomePage = lazy(() => import('./pages/Home/HomePage'));
 const PublicOrganizationPage = lazy(() => import('./pages/PublicOrganization/PublicOrganizationPage'));
 const PublicCampaignPage = lazy(() => import('./pages/PublicCampaign/PublicCampaignPage'));
 const PublicReceiptPlaceholderPage = lazy(() => import('./pages/PublicReceipt/PublicReceiptPlaceholderPage'));
+
+const AdminLayout = lazy(() => import('./pages/Admin/AdminLayout'));
+const AdminOrganizationsPage = lazy(() => import('./pages/Admin/AdminOrganizationsPage'));
+const AdminCampaignsPage = lazy(() => import('./pages/Admin/AdminCampaignsPage'));
+const AdminUsersPage = lazy(() => import('./pages/Admin/AdminUsersPage'));
 const ReactQueryDevtools = import.meta.env.DEV
   ? lazy(() => import('@tanstack/react-query-devtools').then((module) => ({ default: module.ReactQueryDevtools })))
   : null;
@@ -114,6 +119,20 @@ function App() {
               <Route path="campaigns/:campaignId" element={<CampaignDetailPage />} />
               <Route path="campaigns/:campaignId/edit" element={<CampaignEditPage />} />
               <Route path="receipts" element={<ReceiptsPlaceholderPage />} />
+            </Route>
+
+            {/* Admin routes */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<AdminOrganizationsPage />} />
+              <Route path="organizations/:orgId/campaigns" element={<AdminCampaignsPage />} />
+              <Route path="users" element={<AdminUsersPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

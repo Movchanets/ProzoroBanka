@@ -1,5 +1,7 @@
 using FluentValidation;
 using MediatR;
+using ProzoroBanka.Application.Common;
+using ProzoroBanka.Application.Common.Behaviors;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.DTOs;
 
@@ -10,7 +12,10 @@ public record CreateOrganizationCommand(
 	string Name,
 	string? Description,
 	string? Website,
-	string? ContactEmail) : IRequest<ServiceResponse<OrganizationDto>>;
+	string? ContactEmail) : IRequest<ServiceResponse<OrganizationDto>>, ICacheInvalidatingCommand
+{
+	public IEnumerable<string> CacheTags => [CacheTag.Organizations];
+}
 
 public class CreateOrganizationCommandValidator : AbstractValidator<CreateOrganizationCommand>
 {

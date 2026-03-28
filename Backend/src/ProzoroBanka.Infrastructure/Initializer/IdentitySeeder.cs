@@ -112,6 +112,13 @@ public static class IdentitySeeder
 		}
 
 		var applicationUser = await userManager.FindByEmailAsync(adminEmail);
+		
+		if (applicationUser != null)
+		{
+			logger.LogInformation("Admin user {Email} already exists. Skipping seed.", adminEmail);
+			return;
+		}
+
 		User? domainUser = null;
 
 		if (applicationUser?.DomainUserId is Guid domainUserId)

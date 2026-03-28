@@ -17,7 +17,7 @@ using ProzoroBanka.Infrastructure.Services.FileStorage;
 using ProzoroBanka.Infrastructure.Services.Image;
 using ProzoroBanka.Infrastructure.Services.Ocr;
 using ProzoroBanka.Infrastructure.Services.Turnstile;
-using StackExchange.Redis;
+using ProzoroBanka.Infrastructure.Services.Cache;
 
 namespace ProzoroBanka.Infrastructure;
 
@@ -84,15 +84,116 @@ public static class DependencyInjection
                 http.Timeout = TimeSpan.FromSeconds(15);
             });
 
-        // ── Redis ──
+        // ── Redis + Output Cache ──
         var redisConnection = configuration.GetValue<string>("Redis:ConnectionString");
         var redisEnabled = configuration.GetValue<bool?>("Redis:Enabled") ?? !string.IsNullOrWhiteSpace(redisConnection);
+        var instanceName = configuration.GetValue<string>("Redis:InstanceName") ?? "prozoro:";
 
         if (redisEnabled && !string.IsNullOrWhiteSpace(redisConnection))
         {
-            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection));
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConnection;
+                options.InstanceName = instanceName;
+            });
+
+            services.AddStackExchangeRedisOutputCache(options =>
+            {
+                options.Configuration = redisConnection;
+                options.InstanceName = instanceName + "OutputCache:";
+            });
+
+            services.AddHealthChecks()
+                .AddRedis(redisConnection, name: "redis", tags: ["cache", "redis"]);
+
+            Console.WriteLine("[CACHE] Redis cache configured. Instance: {0}", instanceName);
         }
+        else
+        {
+            services.AddDistributedMemoryCache();
+            services.AddHealthChecks();
+            Console.WriteLine("[CACHE] Redis DISABLED. Using in-memory cache.");
+        }
+
+        // Output cache policies
+        AddOutputCachePolicies(services);
+
+        // Cache invalidation service
+        services.AddScoped<ICacheInvalidationService, OutputCacheInvalidationService>();
 
         return services;
     }
+
+    private static void AddOutputCachePolicies(IServiceCollection services)
+    {
+        services.AddOutputCache(options =>
+        {
+            // Default — no caching
+            options.AddBasePolicy(builder => builder.NoCache());
+
+            // ── Public Organizations (анонімні, високий трафік) ──
+
+            // Пошук/список організацій — 3 хв
+            options.AddPolicy("PublicOrganizations", builder => builder
+                .Expire(TimeSpan.FromMinutes(3))
+                .SetVaryByQuery("query", "page", "pageSize", "verifiedOnly", "activeOnly")
+                .Tag("organizations"));
+
+            // Публічна організація за slug — 5 хв
+            options.AddPolicy("PublicOrganizationBySlug", builder => builder
+                .Expire(TimeSpan.FromMinutes(5))
+                .SetVaryByRouteValue("slug")
+                .Tag("organizations"));
+
+            // Збори організації (публічні) — 3 хв
+            options.AddPolicy("PublicOrganizationCampaigns", builder => builder
+                .Expire(TimeSpan.FromMinutes(3))
+                .SetVaryByRouteValue("slug")
+                .SetVaryByQuery("status", "page", "pageSize")
+                .Tag("organizations", "campaigns"));
+
+            // Прозорість організації — 5 хв (рідко змінюється)
+            options.AddPolicy("PublicTransparency", builder => builder
+                .Expire(TimeSpan.FromMinutes(5))
+                .SetVaryByRouteValue("slug")
+                .Tag("organizations"));
+
+            // ── Public Campaigns ──
+
+            // Публічний збір — 2 хв (баланс змінюється часто)
+            options.AddPolicy("PublicCampaign", builder => builder
+                .Expire(TimeSpan.FromMinutes(2))
+                .SetVaryByRouteValue("id")
+                .Tag("campaigns"));
+
+            // Чеки збору — 5 хв
+            options.AddPolicy("PublicCampaignReceipts", builder => builder
+                .Expire(TimeSpan.FromMinutes(5))
+                .SetVaryByRouteValue("id")
+                .SetVaryByQuery("page", "pageSize")
+                .Tag("receipts", "campaigns"));
+
+            // Публічний чек — 10 хв (імутабельний)
+            options.AddPolicy("PublicReceipt", builder => builder
+                .Expire(TimeSpan.FromMinutes(10))
+                .SetVaryByRouteValue("id")
+                .Tag("receipts"));
+
+            // ── Admin ──
+
+            // Адмін: всі організації — 1 хв
+            options.AddPolicy("AdminOrganizations", builder => builder
+                .Expire(TimeSpan.FromMinutes(1))
+                .SetVaryByQuery("page", "pageSize", "verifiedOnly")
+                .Tag("admin", "organizations"));
+
+            // Адмін: збори організації — 1 хв
+            options.AddPolicy("AdminCampaigns", builder => builder
+                .Expire(TimeSpan.FromMinutes(1))
+                .SetVaryByRouteValue("orgId")
+                .SetVaryByQuery("page", "pageSize")
+                .Tag("admin", "campaigns"));
+        });
+    }
 }
+

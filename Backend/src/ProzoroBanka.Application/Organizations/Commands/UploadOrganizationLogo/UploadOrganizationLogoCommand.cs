@@ -1,5 +1,7 @@
 using FluentValidation;
 using MediatR;
+using ProzoroBanka.Application.Common;
+using ProzoroBanka.Application.Common.Behaviors;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.DTOs;
 
@@ -11,7 +13,10 @@ public record UploadOrganizationLogoCommand(
 	Stream FileStream,
 	string FileName,
 	string ContentType,
-	long FileSize) : IRequest<ServiceResponse<OrganizationDto>>;
+	long FileSize) : IRequest<ServiceResponse<OrganizationDto>>, ICacheInvalidatingCommand
+{
+	public IEnumerable<string> CacheTags => [CacheTag.Organizations];
+}
 
 public class UploadOrganizationLogoCommandValidator : AbstractValidator<UploadOrganizationLogoCommand>
 {

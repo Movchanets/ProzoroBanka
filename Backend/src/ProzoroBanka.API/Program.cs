@@ -189,7 +189,9 @@ try
     }
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseOutputCache();
 
+    app.MapHealthChecks("/health");
     app.MapControllers()
        .RequireRateLimiting("general");
 

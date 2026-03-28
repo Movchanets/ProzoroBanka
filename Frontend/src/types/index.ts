@@ -400,3 +400,5 @@ export interface Transparency {
   receiptCount: number;
   verifiedReceiptCount: number;
 }
+
+export * from './admin';

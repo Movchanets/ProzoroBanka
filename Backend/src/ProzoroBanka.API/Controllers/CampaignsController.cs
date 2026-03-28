@@ -290,4 +290,3 @@ public class CampaignsController : ApiControllerBase
 		return Ok(result.Payload);
 	}
 }
-
