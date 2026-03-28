@@ -65,3 +65,9 @@ export interface AdminUserListResponse {
   page: number;
   pageSize: number;
 }
+
+export interface AdminUsersFilters {
+  search?: string;
+  isActive?: boolean;
+  role?: string;
+}

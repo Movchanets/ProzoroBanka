@@ -89,3 +89,8 @@ public record AdminUserListResponse(
 /// Запит для зміни ролей користувача.
 /// </summary>
 public record AdminAssignRolesRequest(IEnumerable<string> Roles);
+
+/// <summary>
+/// Запит для блокування/розблокування користувача.
+/// </summary>
+public record AdminSetUserLockoutRequest(bool Locked);

@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { queryClient } from './services/queryClient';
 import { useAuthStore } from './stores/authStore';
+import { AppRoles, hasAppRole } from './constants/appRoles';
 import { Toaster } from './components/ui/sonner';
 import { PageTitleSync } from './hooks/usePageTitle';
 
@@ -33,6 +34,7 @@ const AdminLayout = lazy(() => import('./pages/Admin/AdminLayout'));
 const AdminOrganizationsPage = lazy(() => import('./pages/Admin/AdminOrganizationsPage'));
 const AdminCampaignsPage = lazy(() => import('./pages/Admin/AdminCampaignsPage'));
 const AdminUsersPage = lazy(() => import('./pages/Admin/AdminUsersPage'));
+const AdminRolesPage = lazy(() => import('./pages/Admin/AdminRolesPage'));
 const ReactQueryDevtools = import.meta.env.DEV
   ? lazy(() => import('@tanstack/react-query-devtools').then((module) => ({ default: module.ReactQueryDevtools })))
   : null;
@@ -56,6 +58,21 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function GuestRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return isAuthenticated ? <Navigate to="/onboarding" replace /> : <>{children}</>;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const userRoles = useAuthStore((s) => s.user?.roles);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!hasAppRole(userRoles, AppRoles.Admin)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 function App() {
@@ -125,14 +142,15 @@ function App() {
             <Route
               path="/admin"
               element={
-                <ProtectedRoute>
+                <AdminRoute>
                   <AdminLayout />
-                </ProtectedRoute>
+                </AdminRoute>
               }
             >
               <Route index element={<AdminOrganizationsPage />} />
               <Route path="organizations/:orgId/campaigns" element={<AdminCampaignsPage />} />
               <Route path="users" element={<AdminUsersPage />} />
+              <Route path="roles" element={<AdminRolesPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

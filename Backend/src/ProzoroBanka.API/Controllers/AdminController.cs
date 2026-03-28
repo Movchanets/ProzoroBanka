@@ -10,7 +10,9 @@ using ProzoroBanka.Application.Admin.Queries.GetAllOrganizations;
 using ProzoroBanka.Application.Admin.Queries.GetOrganizationCampaigns;
 using ProzoroBanka.Application.Admin.Queries.GetUsers;
 using ProzoroBanka.Application.Admin.Queries.GetRoles;
+using ProzoroBanka.Application.Users.Commands.DeleteUser;
 using ProzoroBanka.Application.Users.Commands.AssignRoles;
+using ProzoroBanka.Application.Users.Commands.LockUser;
 
 namespace ProzoroBanka.API.Controllers;
 
@@ -132,9 +134,12 @@ public class AdminController : ControllerBase
 	public async Task<IActionResult> GetUsers(
 		[FromQuery] int page = 1,
 		[FromQuery] int pageSize = 20,
+		[FromQuery] string? search = null,
+		[FromQuery] bool? isActive = null,
+		[FromQuery] string? role = null,
 		CancellationToken ct = default)
 	{
-		var result = await _sender.Send(new GetUsersQuery(page, pageSize), ct);
+		var result = await _sender.Send(new GetUsersQuery(page, pageSize, search, isActive, role), ct);
 		return Ok(result.Payload);
 	}
 
@@ -160,6 +165,41 @@ public class AdminController : ControllerBase
 		Guid id, [FromBody] AdminAssignRolesRequest request, CancellationToken ct)
 	{
 		var result = await _sender.Send(new AssignRolesCommand(id, request.Roles), ct);
+
+		if (!result.IsSuccess)
+			return BadRequest(new { Error = result.Message });
+
+		return Ok(new { Message = result.Message });
+	}
+
+	/// <summary>
+	/// Заблокувати або розблокувати користувача.
+	/// </summary>
+	[HttpPut("users/{id:guid}/lockout")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> SetUserLockout(
+		Guid id,
+		[FromBody] AdminSetUserLockoutRequest request,
+		CancellationToken ct)
+	{
+		var result = await _sender.Send(new LockUserCommand(id, request.Locked), ct);
+
+		if (!result.IsSuccess)
+			return BadRequest(new { Error = result.Message });
+
+		return Ok(new { Message = result.Message });
+	}
+
+	/// <summary>
+	/// Видалити користувача (Identity + Domain профіль).
+	/// </summary>
+	[HttpDelete("users/{id:guid}")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> DeleteUser(Guid id, CancellationToken ct)
+	{
+		var result = await _sender.Send(new DeleteUserCommand(id), ct);
 
 		if (!result.IsSuccess)
 			return BadRequest(new { Error = result.Message });

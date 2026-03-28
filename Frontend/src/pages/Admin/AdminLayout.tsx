@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Outlet, NavLink, useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
+import { AppRoles, hasAppRole } from '@/constants/appRoles';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Separator } from '@/components/ui/separator';
@@ -9,6 +10,7 @@ import {
   ShieldAlert,
   Building2,
   Users,
+  KeyRound,
   PanelLeftClose,
   PanelLeft,
   ArrowLeft
@@ -17,6 +19,7 @@ import {
 const navItems = [
   { label: 'Організації', icon: Building2, path: '' }, // empty means /admin
   { label: 'Користувачі', icon: Users, path: 'users' },
+  { label: 'Ролі', icon: KeyRound, path: 'roles' },
 ];
 
 function SidebarContent({
@@ -40,6 +43,7 @@ function SidebarContent({
         {navItems.map((item) => (
           <NavLink
             key={item.path}
+            data-testid={`admin-nav-${item.path || 'organizations'}`}
             to={`/admin${item.path ? `/${item.path}` : ''}`}
             end={item.path === ''}
             className={({ isActive }) =>
@@ -112,7 +116,7 @@ function AdminHeader() {
               )}
             </span>
             <span className="hidden text-sm font-medium md:inline">
-              {user?.firstName} {user?.lastName} (Admin)
+              {user?.firstName} {user?.lastName} ({AppRoles.Admin})
             </span>
           </div>
         </div>
@@ -126,7 +130,7 @@ export default function AdminLayout() {
   const user = useAuthStore((s) => s.user);
 
   // Fallback check:
-  if (!user || (!user.roles?.includes('Admin'))) {
+  if (!user || !hasAppRole(user.roles, AppRoles.Admin)) {
      return <Navigate to="/" replace />;
   }
 

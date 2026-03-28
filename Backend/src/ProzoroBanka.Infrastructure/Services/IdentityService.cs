@@ -5,6 +5,7 @@ using ProzoroBanka.Application.Contracts.Email;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Domain.Entities;
+using ProzoroBanka.Domain.Enums;
 using ProzoroBanka.Infrastructure.Identity;
 
 namespace ProzoroBanka.Infrastructure.Services;
@@ -429,10 +430,19 @@ public class UserService : IUserService
 
 		var lockoutEnd = locked ? DateTimeOffset.MaxValue : (DateTimeOffset?)null;
 		var result = await _userManager.SetLockoutEndDateAsync(user, lockoutEnd);
+		if (!result.Succeeded)
+		{
+			return ServiceResponse.Failure(string.Join("; ", result.Errors.Select(e => e.Description)));
+		}
 
-		return result.Succeeded
-			? ServiceResponse.Success(locked ? "Користувача заблоковано." : "Користувача розблоковано.")
-			: ServiceResponse.Failure(string.Join("; ", result.Errors.Select(e => e.Description)));
+		var domainUser = await FindDomainUserAsync(user, ct);
+		if (domainUser is not null)
+		{
+			domainUser.IsActive = !locked;
+			await _dbContext.SaveChangesAsync(ct);
+		}
+
+		return ServiceResponse.Success(locked ? "Користувача заблоковано." : "Користувача розблоковано.");
 	}
 
 	public async Task<ServiceResponse> DeleteUserAsync(Guid applicationUserId, CancellationToken ct)
@@ -445,10 +455,74 @@ public class UserService : IUserService
 		var domainUser = await FindDomainUserAsync(user, ct);
 		if (domainUser is not null)
 		{
+			// Передача організацій іншим учасникам або системному адміністратору
+			var ownedOrganizations = await _dbContext.Organizations
+				.Where(o => o.OwnerUserId == domainUser.Id)
+				.Include(o => o.Members)
+				.ToListAsync(ct);
+
+			if (ownedOrganizations.Count > 0)
+			{
+				var admins = await _userManager.GetUsersInRoleAsync(ApplicationRoles.Admin);
+				var systemAdmin = admins.FirstOrDefault(a => a.Id != user.Id);
+				User? systemAdminDomainUser = null;
+
+				if (systemAdmin is not null)
+				{
+					systemAdminDomainUser = await FindDomainUserAsync(systemAdmin, ct);
+				}
+
+				foreach (var org in ownedOrganizations)
+				{
+					var nextOwner = org.Members
+						.Where(m => m.UserId != domainUser.Id)
+						.OrderBy(m => m.JoinedAt)
+						.FirstOrDefault();
+
+					if (nextOwner is not null)
+					{
+						org.OwnerUserId = nextOwner.UserId;
+						nextOwner.Role = OrganizationRole.Owner;
+						nextOwner.PermissionsFlags = OrganizationPermissions.All;
+					}
+					else if (systemAdminDomainUser is not null)
+					{
+						org.OwnerUserId = systemAdminDomainUser.Id;
+
+						var existingSystemAdminMember = org.Members
+							.FirstOrDefault(member => member.UserId == systemAdminDomainUser.Id);
+
+						if (existingSystemAdminMember is not null)
+						{
+							existingSystemAdminMember.Role = OrganizationRole.Owner;
+							existingSystemAdminMember.PermissionsFlags = OrganizationPermissions.All;
+						}
+						else
+						{
+							_dbContext.OrganizationMembers.Add(new OrganizationMember
+							{
+								OrganizationId = org.Id,
+								UserId = systemAdminDomainUser.Id,
+								Role = OrganizationRole.Owner,
+								PermissionsFlags = OrganizationPermissions.All,
+								JoinedAt = DateTime.UtcNow
+							});
+						}
+					}
+					else
+					{
+						return ServiceResponse.Failure("Неможливо видалити користувача: організація не має інших учасників і системний адміністратор відсутній.");
+					}
+				}
+				await _dbContext.SaveChangesAsync(ct);
+			}
+
 			_dbContext.Users.Remove(domainUser);
 			await _dbContext.SaveChangesAsync(ct);
+			return ServiceResponse.Success("Користувача видалено.");
 		}
 
+		// Якщо DomainUser не знайдено, видаляємо тільки IdentityUser
 		var result = await _userManager.DeleteAsync(user);
 		return result.Succeeded
 			? ServiceResponse.Success("Користувача видалено.")

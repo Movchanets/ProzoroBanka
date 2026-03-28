@@ -60,3 +60,4 @@ Backend/src/ProzoroBanka.API/wwwroot/
 
 *.md
 state.txt
+Backend/build.log

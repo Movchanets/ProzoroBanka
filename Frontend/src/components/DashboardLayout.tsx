@@ -10,6 +10,7 @@ import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog'
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { useMyInvitations } from '@/hooks/queries/useInvitations';
+import { AppRoles, hasAppRole } from '@/constants/appRoles';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -104,6 +105,7 @@ function SidebarContent({
 function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: boolean }) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
+  const isAdmin = hasAppRole(user?.roles, AppRoles.Admin);
   const navigate = useNavigate();
   const logoutMutation = useLogoutMutation();
   const { data: incomingInvitations } = useMyInvitations();
@@ -133,6 +135,18 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          {isAdmin ? (
+            <Button
+              data-testid="dashboard-admin-link"
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/admin')}
+              className="h-9 rounded-xl border-border/50 shadow-none"
+            >
+              {t('common.goToAdminPanel')}
+            </Button>
+          ) : null}
+
           <NavLink to="/profile" data-testid="dashboard-profile-link" className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted sm:px-3">
             <span className="relative">
               {user?.profilePhotoUrl ? (
@@ -154,6 +168,14 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
             <span className="hidden text-sm font-medium md:inline">
               {user?.firstName} {user?.lastName}
             </span>
+            {isAdmin ? (
+              <span
+                data-testid="dashboard-user-role-admin-badge"
+                className="hidden rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary lg:inline"
+              >
+                {t('systemRoles.admin')}
+              </span>
+            ) : null}
           </NavLink>
           <Button variant="outline" size="sm" onClick={handleLogout} disabled={logoutMutation.isPending} className="h-9 gap-2 rounded-xl border-border/50 text-muted-foreground shadow-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 max-sm:w-9 max-sm:px-0">
             <LogOut className="h-4 w-4" />

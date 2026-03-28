@@ -19,6 +19,7 @@
     "decline": "Відхилити",
     "goHome": "На головну",
     "goToDashboard": "Перейти до дашборду",
+    "goToAdminPanel": "Перейти в адмінку",
     "soon": "Скоро",
     "name": "Назва",
     "description": "Опис",
@@ -391,6 +392,11 @@
     "owner": "Власник",
     "admin": "Адмін",
     "reporter": "Волонтер"
+  },
+  "systemRoles": {
+    "admin": "Адмін",
+    "accountant": "Бухгалтер",
+    "volunteer": "Волонтер"
   },
   "campaignStatus": {
     "draft": "Чернетка",
