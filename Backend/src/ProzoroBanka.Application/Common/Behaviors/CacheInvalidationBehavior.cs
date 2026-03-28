@@ -62,7 +62,17 @@ public sealed class CacheInvalidationBehavior<TRequest, TResponse> : IPipelineBe
 						string.Join(", ", tags),
 						typeof(TRequest).Name);
 
-					await _cacheInvalidation.InvalidateByTagsAsync(tags, cancellationToken);
+					try
+					{
+						await _cacheInvalidation.InvalidateByTagsAsync(tags, cancellationToken);
+					}
+					catch (Exception ex)
+					{
+						_logger.LogWarning(
+							ex,
+							"Cache invalidation failed for command {CommandType}; continuing without failing the request",
+							typeof(TRequest).Name);
+					}
 				}
 			}
 		}
