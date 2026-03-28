@@ -59,7 +59,7 @@ public class CreateCampaignHandlerTests
 
 		var handler = new CreateCampaignHandler(db, orgAuth.Object, fileStorage.Object);
 		var result = await handler.Handle(
-			new CreateCampaignCommand(userId, orgId, "Збір на допомогу", "Опис збору", 10000m, null),
+			new CreateCampaignCommand(userId, orgId, "Збір на допомогу", "Опис збору", 10000m, null, "https://send.monobank.ua/jar/test"),
 			CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
@@ -68,6 +68,7 @@ public class CreateCampaignHandlerTests
 		Assert.Equal(CampaignStatus.Draft, result.Payload.Status);
 		Assert.Equal(10000m, result.Payload.GoalAmount);
 		Assert.Equal(0m, result.Payload.CurrentAmount);
+		Assert.Equal("https://send.monobank.ua/jar/test", result.Payload.SendUrl);
 	}
 
 	[Fact]
@@ -82,7 +83,7 @@ public class CreateCampaignHandlerTests
 
 		var handler = new CreateCampaignHandler(db, orgAuth.Object, fileStorage.Object);
 		var result = await handler.Handle(
-			new CreateCampaignCommand(userId, fakeOrgId, "Test", null, 5000m, null),
+			new CreateCampaignCommand(userId, fakeOrgId, "Test", null, 5000m, null, null),
 			CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
@@ -103,7 +104,7 @@ public class CreateCampaignHandlerTests
 
 		var handler = new CreateCampaignHandler(db, orgAuth.Object, fileStorage.Object);
 		var result = await handler.Handle(
-			new CreateCampaignCommand(userId, orgId, "Test", null, 5000m, null),
+			new CreateCampaignCommand(userId, orgId, "Test", null, 5000m, null, null),
 			CancellationToken.None);
 
 		Assert.False(result.IsSuccess);

@@ -49,6 +49,7 @@ public class GetCampaignDetailsHandler
 				c.StartDate,
 				c.Deadline,
 				c.MonobankAccountId,
+				c.SendUrl,
 				c.OrganizationId,
 				OrganizationName = c.Organization.Name,
 				CreatedByName = c.CreatedBy.FirstName + " " + c.CreatedBy.LastName,
@@ -70,7 +71,7 @@ public class GetCampaignDetailsHandler
 			StorageUrlResolver.Resolve(_fileStorage, campaign.CoverImageStorageKey),
 			campaign.GoalAmount, campaign.CurrentAmount, campaign.WithdrawnAmount,
 			campaign.Status, campaign.StartDate, campaign.Deadline,
-			campaign.MonobankAccountId, campaign.OrganizationId,
+			campaign.MonobankAccountId, campaign.SendUrl, campaign.OrganizationId,
 			campaign.OrganizationName, campaign.CreatedByName,
 			campaign.CreatedAt));
 	}

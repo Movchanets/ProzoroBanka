@@ -69,6 +69,7 @@ public class GetOrganizationCampaignsHandler
 				c.StartDate,
 				c.Deadline,
 				c.MonobankAccountId,
+				c.SendUrl,
 				c.CreatedAt
 			})
 			.ToListAsync(cancellationToken);
@@ -78,7 +79,7 @@ public class GetOrganizationCampaignsHandler
 			StorageUrlResolver.Resolve(_fileStorage, c.CoverImageStorageKey),
 			c.GoalAmount, c.CurrentAmount, c.WithdrawnAmount,
 			c.Status, c.StartDate, c.Deadline,
-			c.MonobankAccountId, c.CreatedAt))
+			c.MonobankAccountId, c.SendUrl, c.CreatedAt))
 			.ToList();
 
 		return ServiceResponse<IReadOnlyList<CampaignDto>>.Success(result);

@@ -14,6 +14,7 @@ public record CampaignDto(
 	DateTime? StartDate,
 	DateTime? Deadline,
 	string? MonobankAccountId,
+	string? SendUrl,
 	DateTime CreatedAt);
 
 public record CampaignDetailDto(
@@ -28,6 +29,7 @@ public record CampaignDetailDto(
 	DateTime? StartDate,
 	DateTime? Deadline,
 	string? MonobankAccountId,
+	string? SendUrl,
 	Guid OrganizationId,
 	string OrganizationName,
 	string CreatedByName,
@@ -44,13 +46,15 @@ public record CreateCampaignRequest(
 	string Title,
 	string? Description,
 	decimal GoalAmount,
-	DateTime? Deadline);
+	DateTime? Deadline,
+	string? SendUrl);
 
 public record UpdateCampaignRequest(
 	string? Title,
 	string? Description,
 	decimal? GoalAmount,
-	DateTime? Deadline);
+	DateTime? Deadline,
+	string? SendUrl);
 
 public record ChangeCampaignStatusRequest(
 	CampaignStatus NewStatus);

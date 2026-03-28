@@ -49,6 +49,7 @@ public class CreateCampaignHandler : IRequestHandler<CreateCampaignCommand, Serv
 			Description = request.Description,
 			GoalAmount = request.GoalAmount,
 			Deadline = request.Deadline?.ToUniversalTime(),
+			SendUrl = string.IsNullOrWhiteSpace(request.SendUrl) ? null : request.SendUrl.Trim(),
 			Status = CampaignStatus.Draft,
 			CurrentAmount = 0
 		};
@@ -61,6 +62,6 @@ public class CreateCampaignHandler : IRequestHandler<CreateCampaignCommand, Serv
 			StorageUrlResolver.Resolve(_fileStorage, campaign.CoverImageStorageKey),
 			campaign.GoalAmount, campaign.CurrentAmount, 0,
 			campaign.Status, campaign.StartDate, campaign.Deadline,
-			campaign.MonobankAccountId, campaign.CreatedAt));
+			campaign.MonobankAccountId, campaign.SendUrl, campaign.CreatedAt));
 	}
 }

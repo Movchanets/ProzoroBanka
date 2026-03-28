@@ -13,7 +13,8 @@ public record CreateCampaignCommand(
 	string Title,
 	string? Description,
 	decimal GoalAmount,
-	DateTime? Deadline) : IRequest<ServiceResponse<CampaignDto>>, ICacheInvalidatingCommand
+	DateTime? Deadline,
+	string? SendUrl) : IRequest<ServiceResponse<CampaignDto>>, ICacheInvalidatingCommand
 {
 	public IEnumerable<string> CacheTags => [CacheTag.Campaigns, CacheTag.Organizations];
 }
@@ -40,5 +41,20 @@ public class CreateCampaignCommandValidator : AbstractValidator<CreateCampaignCo
 		RuleFor(x => x.Deadline)
 			.GreaterThan(DateTime.UtcNow).WithMessage("Дедлайн повинен бути в майбутньому")
 			.When(x => x.Deadline.HasValue);
+
+		RuleFor(x => x.SendUrl)
+			.Must(BeValidOptionalUrl)
+			.WithMessage("Посилання на банку має бути валідним URL")
+			.When(x => x.SendUrl is not null)
+			.MaximumLength(512).WithMessage("Посилання на банку максимум 512 символів");
+	}
+
+	private static bool BeValidOptionalUrl(string? url)
+	{
+		if (string.IsNullOrWhiteSpace(url))
+			return true;
+
+		return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+			&& (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 	}
 }

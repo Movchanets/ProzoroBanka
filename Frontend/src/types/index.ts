@@ -212,6 +212,7 @@ export interface Campaign {
   title: string;
   description?: string;
   coverImageUrl?: string;
+  sendUrl?: string;
   goalAmount: number;
   currentAmount: number;
   withdrawnAmount: number;
@@ -240,6 +241,7 @@ export interface CreateCampaignPayload {
   description?: string;
   goalAmount: number;
   deadline?: string;
+  sendUrl?: string;
 }
 
 export interface UpdateCampaignPayload {
@@ -247,6 +249,7 @@ export interface UpdateCampaignPayload {
   description?: string;
   goalAmount?: number;
   deadline?: string;
+  sendUrl?: string;
 }
 
 export interface ChangeCampaignStatusPayload {
@@ -346,6 +349,7 @@ export interface PublicCampaign {
   title: string;
   description?: string;
   coverImageUrl?: string;
+  sendUrl?: string;
   goalAmount: number;
   currentAmount: number;
   status: CampaignStatus;
@@ -369,6 +373,7 @@ export interface PublicCampaignDetail {
   title: string;
   description?: string;
   coverImageUrl?: string;
+  sendUrl?: string;
   goalAmount: number;
   currentAmount: number;
   status: CampaignStatus;

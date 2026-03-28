@@ -38,9 +38,22 @@ export default function PublicCampaignPage() {
       <section data-testid="public-campaign-header" className="rounded-4xl border border-border bg-card p-6 sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Публічний збір</p>
         <h1 className="mt-2 text-3xl font-extrabold text-foreground">{campaign.title}</h1>
-        <Link data-testid="public-campaign-org-link" className="mt-3 inline-flex rounded-xl bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground shadow-sm hover:bg-secondary/90" to={`/o/${campaign.organizationSlug}`}>
-          Організація: {campaign.organizationName}
-        </Link>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Link data-testid="public-campaign-org-link" className="inline-flex rounded-xl bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground shadow-sm hover:bg-secondary/90" to={`/o/${campaign.organizationSlug}`}>
+            Організація: {campaign.organizationName}
+          </Link>
+          {campaign.sendUrl ? (
+            <a
+              href={campaign.sendUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="public-campaign-send-url-link"
+              className="inline-flex rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-[0_8px_20px_hsl(var(--primary)/0.3)] hover:opacity-95"
+            >
+              Підтримати збір
+            </a>
+          ) : null}
+        </div>
       </section>
 
       <CampaignProgressBar currentAmount={campaign.currentAmount} goalAmount={campaign.goalAmount} />
