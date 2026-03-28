@@ -12,18 +12,19 @@ for (const localeConfig of locales) {
   test.describe(`Navigation & Public Pages [${localeConfig.key}]`, () => {
     test.use({ locale: localeConfig.browserLocale });
 
-    test('unauthenticated users are securely redirected from root to login route', async ({ page }) => {
+    test('unauthenticated users land on public home from root route', async ({ page }) => {
       await page.addInitScript((lang) => {
         localStorage.setItem('prozoro-banka-lang', lang);
       }, localeConfig.uiLanguage);
 
       await page.goto('/');
-      await expect(page).toHaveURL(/.*\/login/);
+      await expect(page).toHaveURL('/');
 
       const mainHeading = page.getByRole('heading', { level: 1 });
-      await expect(mainHeading).toContainText(localeConfig.dictionary.auth.login.heroTitle);
+      await expect(mainHeading).toContainText('Прозора підтримка для волонтерських команд');
 
-      await expect(page.getByTestId('login-email-input')).toBeVisible();
+      await expect(page.getByTestId('home-hero-section')).toBeVisible();
+      await expect(page.getByTestId('public-page-toolbar-entry-link')).toBeVisible();
     });
   });
 }

@@ -7,44 +7,64 @@ import {
   type RegisterPayload,
   type ResetPasswordPayload,
 } from '../../services/authService';
+import { profileService } from '../../services/profileService';
 import { queryClient } from '../../services/queryClient';
 import { useAuthStore } from '../../stores/authStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 
-const profileQueryKey = ['profile'];
-
 export function useLoginMutation() {
   const setAuth = useAuthStore((state) => state.setAuth);
+  const updateUser = useAuthStore((state) => state.updateUser);
 
   return useMutation({
     mutationFn: (payload: LoginPayload) => authService.login(payload),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       setAuth(response.accessToken, response.refreshToken, response.accessTokenExpiry, response.user);
-      queryClient.setQueryData(profileQueryKey, response.user);
+
+      try {
+        const profile = await profileService.getProfile();
+        updateUser(profile);
+      } catch (error) {
+        void error;
+      }
     },
   });
 }
 
 export function useRegisterMutation() {
   const setAuth = useAuthStore((state) => state.setAuth);
+  const updateUser = useAuthStore((state) => state.updateUser);
 
   return useMutation({
     mutationFn: (payload: RegisterPayload) => authService.register(payload),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       setAuth(response.accessToken, response.refreshToken, response.accessTokenExpiry, response.user);
-      queryClient.setQueryData(profileQueryKey, response.user);
+
+      try {
+        const profile = await profileService.getProfile();
+        updateUser(profile);
+      } catch (error) {
+        void error;
+      }
     },
   });
 }
 
 export function useGoogleLoginMutation() {
   const setAuth = useAuthStore((state) => state.setAuth);
+  const updateUser = useAuthStore((state) => state.updateUser);
 
   return useMutation({
     mutationFn: (payload: GoogleLoginPayload) => authService.googleLogin(payload),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       setAuth(response.accessToken, response.refreshToken, response.accessTokenExpiry, response.user);
-      queryClient.setQueryData(profileQueryKey, response.user);
+
+      try {
+        const profile = await profileService.getProfile();
+        updateUser(profile);
+      } catch (error) {
+        void error;
+      }
     },
   });
 }

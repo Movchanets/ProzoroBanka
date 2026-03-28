@@ -28,6 +28,7 @@ export function ThemeToggle() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
+          data-testid="theme-toggle-trigger"
           variant="outline"
           size="icon"
           className="h-11 w-11 rounded-full border-border/80 bg-card/90 text-foreground shadow-lg shadow-black/5 backdrop-blur supports-backdrop-filter:bg-card/75"

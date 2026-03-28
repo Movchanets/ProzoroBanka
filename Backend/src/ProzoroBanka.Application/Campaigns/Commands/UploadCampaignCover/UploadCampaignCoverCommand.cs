@@ -1,6 +1,8 @@
 using FluentValidation;
 using MediatR;
 using ProzoroBanka.Application.Campaigns.DTOs;
+using ProzoroBanka.Application.Common;
+using ProzoroBanka.Application.Common.Behaviors;
 using ProzoroBanka.Application.Common.Models;
 
 namespace ProzoroBanka.Application.Campaigns.Commands.UploadCampaignCover;
@@ -11,7 +13,10 @@ public record UploadCampaignCoverCommand(
 	Stream FileStream,
 	string FileName,
 	string ContentType,
-	long FileSize) : IRequest<ServiceResponse<CampaignDto>>;
+	long FileSize) : IRequest<ServiceResponse<CampaignDto>>, ICacheInvalidatingCommand
+{
+	public IEnumerable<string> CacheTags => [CacheTag.Campaigns];
+}
 
 public class UploadCampaignCoverCommandValidator : AbstractValidator<UploadCampaignCoverCommand>
 {

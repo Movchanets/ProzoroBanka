@@ -19,6 +19,7 @@
     "decline": "Decline",
     "goHome": "Go home",
     "goToDashboard": "Go to dashboard",
+    "goToAdminPanel": "Go to admin panel",
     "soon": "Coming soon",
     "name": "Name",
     "description": "Description",
@@ -391,6 +392,11 @@
     "owner": "Owner",
     "admin": "Admin",
     "reporter": "Volunteer"
+  },
+  "systemRoles": {
+    "admin": "Admin",
+    "accountant": "Accountant",
+    "volunteer": "Volunteer"
   },
   "campaignStatus": {
     "draft": "Draft",

@@ -1,5 +1,7 @@
 using FluentValidation;
 using MediatR;
+using ProzoroBanka.Application.Common;
+using ProzoroBanka.Application.Common.Behaviors;
 using ProzoroBanka.Application.Common.Models;
 
 namespace ProzoroBanka.Application.Campaigns.Commands.UpdateCampaignBalance;
@@ -8,7 +10,10 @@ public record UpdateCampaignBalanceCommand(
 	Guid CallerDomainUserId,
 	Guid CampaignId,
 	decimal NewCurrentAmount,
-	string? Reason) : IRequest<ServiceResponse>;
+	string? Reason) : IRequest<ServiceResponse>, ICacheInvalidatingCommand
+{
+	public IEnumerable<string> CacheTags => [CacheTag.Campaigns];
+}
 
 public class UpdateCampaignBalanceCommandValidator : AbstractValidator<UpdateCampaignBalanceCommand>
 {

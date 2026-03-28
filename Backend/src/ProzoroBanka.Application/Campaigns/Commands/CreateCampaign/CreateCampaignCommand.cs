@@ -1,6 +1,8 @@
 using FluentValidation;
 using MediatR;
 using ProzoroBanka.Application.Campaigns.DTOs;
+using ProzoroBanka.Application.Common;
+using ProzoroBanka.Application.Common.Behaviors;
 using ProzoroBanka.Application.Common.Models;
 
 namespace ProzoroBanka.Application.Campaigns.Commands.CreateCampaign;
@@ -11,7 +13,10 @@ public record CreateCampaignCommand(
 	string Title,
 	string? Description,
 	decimal GoalAmount,
-	DateTime? Deadline) : IRequest<ServiceResponse<CampaignDto>>;
+	DateTime? Deadline) : IRequest<ServiceResponse<CampaignDto>>, ICacheInvalidatingCommand
+{
+	public IEnumerable<string> CacheTags => [CacheTag.Campaigns, CacheTag.Organizations];
+}
 
 public class CreateCampaignCommandValidator : AbstractValidator<CreateCampaignCommand>
 {

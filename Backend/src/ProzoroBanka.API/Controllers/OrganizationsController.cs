@@ -51,9 +51,10 @@ public class OrganizationsController : ApiControllerBase
 			domainUserId.Value, request.Name, request.Description, request.Website, request.ContactEmail);
 
 		var result = await _sender.Send(command, ct);
-		return result.IsSuccess
-			? Ok(result.Payload)
-			: BadRequest(new { Error = result.Message });
+		if (!result.IsSuccess)
+			return BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
 	}
 
 	/// <summary>Отримати всі організації поточного користувача.</summary>

@@ -17,6 +17,7 @@ public static class DependencyInjection
 		// MediatR + pipeline behaviors
 		services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(assembly));
 		services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+		services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CacheInvalidationBehavior<,>));
 
 		// FluentValidation — автоматична реєстрація всіх валідаторів
 		services.AddValidatorsFromAssembly(assembly);

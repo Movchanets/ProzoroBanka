@@ -16,6 +16,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AppRoles, getSystemRoleLabelKey } from '@/constants/appRoles';
 
 function getInitials(firstName?: string, lastName?: string) {
   return `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.trim().toUpperCase() || 'PB';
@@ -33,6 +34,16 @@ export default function ProfilePage() {
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
+
+  const systemRolesLabel = useMemo(() => {
+    const roles = profile?.roles?.length ? profile.roles : [AppRoles.Volunteer];
+    return roles
+      .map((role) => {
+        const labelKey = getSystemRoleLabelKey(role);
+        return labelKey.startsWith('systemRoles.') ? t(labelKey) : role;
+      })
+      .join(', ');
+  }, [profile?.roles, t]);
 
   const schema = useMemo(() => createProfileSchema(t), [t]);
 
@@ -192,8 +203,8 @@ export default function ProfilePage() {
                 </article>
                 <article className="rounded-[22px] border border-border bg-muted/70 p-4.5">
                   <span className="mb-2 block text-sm text-muted-foreground">{t('common.roles')}</span>
-                  <strong className="block wrap-break-word text-base font-semibold text-foreground">
-                    {profile?.roles?.length ? profile.roles.join(', ') : 'Volunteer'}
+                  <strong data-testid="profile-system-roles-value" className="block wrap-break-word text-base font-semibold text-foreground">
+                    {systemRolesLabel}
                   </strong>
                 </article>
                 <article className="rounded-[22px] border border-border bg-muted/70 p-4.5">

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ThemeToggle } from './theme-toggle';
 import { LanguageSwitcher } from './language-switcher';
+import { AppRoles, hasAppRole } from '@/constants/appRoles';
 
 function getInitials(firstName?: string, lastName?: string) {
   return `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.trim().toUpperCase() || 'PB';
@@ -25,6 +26,7 @@ export default function AppShell({ children }: AppShellProps) {
   const logoutMutation = useLogoutMutation();
   const { data: orgs } = useMyOrganizations();
   const hasOrgs = orgs && orgs.length > 0;
+  const isAdmin = hasAppRole(user?.roles, AppRoles.Admin);
 
   const handleLogout = async () => {
     await logoutMutation.mutateAsync();
@@ -48,6 +50,17 @@ export default function AppShell({ children }: AppShellProps) {
                 <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/${orgs[0].id}`)} className="h-8 max-w-full rounded-full px-4 text-xs shadow-none max-sm:w-full sm:shrink-0">
                   <ArrowLeft className="mr-2 h-3.5 w-3.5" />
                   {t('common.goToDashboard')}
+                </Button>
+              )}
+              {isAdmin && (
+                <Button
+                  data-testid="app-shell-admin-link"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/admin')}
+                  className="h-8 max-w-full rounded-full px-4 text-xs shadow-none max-sm:w-full sm:shrink-0"
+                >
+                  {t('common.goToAdminPanel')}
                 </Button>
               )}
             </div>
@@ -75,6 +88,11 @@ export default function AppShell({ children }: AppShellProps) {
                 {user?.firstName} {user?.lastName}
               </strong>
               <span className="text-sm text-muted-foreground">{user?.email}</span>
+              {isAdmin ? (
+                <span data-testid="app-shell-role-admin" className="text-xs font-semibold text-primary">
+                  {t('systemRoles.admin')}
+                </span>
+              ) : null}
             </div>
 
             <Button type="button" size="pill" onClick={handleLogout} disabled={logoutMutation.isPending} variant="soft">

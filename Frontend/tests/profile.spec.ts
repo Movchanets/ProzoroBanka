@@ -345,15 +345,29 @@ test.describe('User Profile — Edge Cases', () => {
 
     await loginAs(page, validEmail, validPassword);
 
-    // Slow down the API response to observe loading state
+    // Slow down and tag the GET profile response to avoid matching unrelated requests.
     await page.route('**/api/auth/me', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      await route.continue();
+      const response = await route.fetch();
+      await route.fulfill({
+        response,
+        headers: {
+          ...response.headers(),
+          'x-e2e-delayed': '1',
+        },
+      });
     });
 
     const startedAt = Date.now();
-    const profileResponsePromise = page.waitForResponse(
-      (response) => response.url().includes('/api/auth/me') && response.request().method() === 'GET'
+    const profileResponsePromise = page.waitForResponse((response) =>
+      response.url().includes('/api/auth/me')
+      && response.request().method() === 'GET'
+      && response.headers()['x-e2e-delayed'] === '1',
     );
 
     await page.goto('/profile');

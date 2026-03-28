@@ -45,7 +45,7 @@ public static class IdentitySeeder
 			await EnsureRoleAsync(roleManager, roleDefinition, cancellationToken);
 		}
 
-		await EnsureAdminUserAsync(dbContext, userManager, configuration, environment, logger, cancellationToken);
+		await EnsureAdminUserAsync(dbContext, userManager, roleManager, configuration, environment, logger, cancellationToken);
 	}
 
 	private static async Task EnsureRoleAsync(
@@ -90,6 +90,7 @@ public static class IdentitySeeder
 	private static async Task EnsureAdminUserAsync(
 		ApplicationDbContext dbContext,
 		UserManager<ApplicationUser> userManager,
+		RoleManager<RoleEntity> roleManager,
 		IConfiguration configuration,
 		IHostEnvironment environment,
 		ILogger logger,
@@ -99,6 +100,7 @@ public static class IdentitySeeder
 		var adminPassword = configuration["Seed:Admin:Password"];
 		var firstName = configuration["Seed:Admin:FirstName"] ?? "System";
 		var lastName = configuration["Seed:Admin:LastName"] ?? "Administrator";
+		var configuredAdminRoles = ParseConfiguredAdminRoles(configuration["Seed:Admin:Roles"]);
 
 		if (string.IsNullOrWhiteSpace(adminPassword))
 		{
@@ -112,6 +114,12 @@ public static class IdentitySeeder
 		}
 
 		var applicationUser = await userManager.FindByEmailAsync(adminEmail);
+
+		if (applicationUser != null)
+		{
+			logger.LogInformation("Admin user {Email} already exists. Ensuring profile and roles are up to date.", adminEmail);
+		}
+
 		User? domainUser = null;
 
 		if (applicationUser?.DomainUserId is Guid domainUserId)
@@ -169,11 +177,61 @@ public static class IdentitySeeder
 			await dbContext.SaveChangesAsync(cancellationToken);
 		}
 
-		if (!await userManager.IsInRoleAsync(applicationUser, ApplicationRoles.Admin))
+		foreach (var roleName in configuredAdminRoles)
 		{
-			await userManager.AddToRoleAsync(applicationUser, ApplicationRoles.Admin);
+			var role = await roleManager.FindByNameAsync(roleName);
+			if (role is null)
+			{
+				var predefinedRole = ApplicationRoleDefinitions.FindByName(roleName);
+				if (predefinedRole is not null)
+				{
+					await EnsureRoleAsync(roleManager, predefinedRole, cancellationToken);
+				}
+				else
+				{
+					var createRoleResult = await roleManager.CreateAsync(new RoleEntity
+					{
+						Name = roleName,
+						Description = "Seeded role"
+					});
+
+					if (!createRoleResult.Succeeded)
+					{
+						throw new InvalidOperationException(
+							$"Failed to create role '{roleName}' for admin seed: {string.Join("; ", createRoleResult.Errors.Select(e => e.Description))}");
+					}
+				}
+			}
+
+			if (await userManager.IsInRoleAsync(applicationUser, roleName))
+				continue;
+
+			var addToRoleResult = await userManager.AddToRoleAsync(applicationUser, roleName);
+			if (!addToRoleResult.Succeeded)
+			{
+				throw new InvalidOperationException(
+					$"Failed to assign role '{roleName}' to admin user '{adminEmail}': {string.Join("; ", addToRoleResult.Errors.Select(e => e.Description))}");
+			}
 		}
 
 		logger.LogInformation("Identity seed completed for admin user {Email}", adminEmail);
+	}
+
+	private static IReadOnlyCollection<string> ParseConfiguredAdminRoles(string? configuredRoles)
+	{
+		if (string.IsNullOrWhiteSpace(configuredRoles))
+			return [ApplicationRoles.Admin];
+
+		var roles = configuredRoles
+			.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
+			.Select(role => role.Trim())
+			.Where(role => !string.IsNullOrWhiteSpace(role))
+			.Distinct(StringComparer.OrdinalIgnoreCase)
+			.ToList();
+
+		if (roles.Count == 0)
+			return [ApplicationRoles.Admin];
+
+		return roles;
 	}
 }

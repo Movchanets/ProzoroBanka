@@ -1,0 +1,31 @@
+import { Link } from 'react-router-dom';
+import { ArrowRight, Compass } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { useAuthStore } from '@/stores/authStore';
+
+interface PublicPageToolbarProps {
+  compact?: boolean;
+}
+
+export function PublicPageToolbar({ compact = false }: PublicPageToolbarProps) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  return (
+    <div data-testid="public-page-toolbar" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card/80 px-3 py-2 shadow-[0_12px_30px_var(--shadow-soft)] backdrop-blur">
+      <Button asChild data-testid="public-page-toolbar-entry-link" variant="secondary" size={compact ? 'sm' : 'default'} className="touch-manipulation">
+        <Link to={isAuthenticated ? '/onboarding' : '/login'}>
+          <Compass className="h-4 w-4" aria-hidden="true" />
+          {isAuthenticated ? 'До меню організацій' : 'Вхід для волонтера'}
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </Button>
+
+      <div className="flex items-center gap-2">
+        <LanguageSwitcher />
+        <ThemeToggle />
+      </div>
+    </div>
+  );
+}

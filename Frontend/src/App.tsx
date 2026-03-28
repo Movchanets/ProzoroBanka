@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { queryClient } from './services/queryClient';
 import { useAuthStore } from './stores/authStore';
+import { AppRoles, hasAppRole } from './constants/appRoles';
 import { Toaster } from './components/ui/sonner';
 import { PageTitleSync } from './hooks/usePageTitle';
 
@@ -24,6 +25,16 @@ const CampaignEditPage = lazy(() => import('./pages/Dashboard/CampaignEditPage')
 const CampaignDetailPage = lazy(() => import('./pages/Dashboard/CampaignDetailPage'));
 const ReceiptsPlaceholderPage = lazy(() => import('./pages/Dashboard/ReceiptsPlaceholderPage'));
 const InvitePage = lazy(() => import('./pages/Invite/InvitePage'));
+const HomePage = lazy(() => import('./pages/Home/HomePage'));
+const PublicOrganizationPage = lazy(() => import('./pages/PublicOrganization/PublicOrganizationPage'));
+const PublicCampaignPage = lazy(() => import('./pages/PublicCampaign/PublicCampaignPage'));
+const PublicReceiptPlaceholderPage = lazy(() => import('./pages/PublicReceipt/PublicReceiptPlaceholderPage'));
+
+const AdminLayout = lazy(() => import('./pages/Admin/AdminLayout'));
+const AdminOrganizationsPage = lazy(() => import('./pages/Admin/AdminOrganizationsPage'));
+const AdminCampaignsPage = lazy(() => import('./pages/Admin/AdminCampaignsPage'));
+const AdminUsersPage = lazy(() => import('./pages/Admin/AdminUsersPage'));
+const AdminRolesPage = lazy(() => import('./pages/Admin/AdminRolesPage'));
 const ReactQueryDevtools = import.meta.env.DEV
   ? lazy(() => import('@tanstack/react-query-devtools').then((module) => ({ default: module.ReactQueryDevtools })))
   : null;
@@ -49,6 +60,21 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <Navigate to="/onboarding" replace /> : <>{children}</>;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const userRoles = useAuthStore((s) => s.user?.roles);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!hasAppRole(userRoles, AppRoles.Admin)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -64,6 +90,12 @@ function App() {
 
             {/* Public invite page (redirects to login if not auth) */}
             <Route path="/invite/:token" element={<InvitePage />} />
+
+            {/* Public pages */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/o/:slug" element={<PublicOrganizationPage />} />
+            <Route path="/c/:id" element={<PublicCampaignPage />} />
+            <Route path="/receipt/:id" element={<PublicReceiptPlaceholderPage />} />
 
             {/* Onboarding — redirect to dashboard if has orgs */}
             <Route
@@ -106,15 +138,21 @@ function App() {
               <Route path="receipts" element={<ReceiptsPlaceholderPage />} />
             </Route>
 
-            {/* Root → onboarding (will auto-redirect to dashboard if has orgs) */}
+            {/* Admin routes */}
             <Route
-              path="/"
+              path="/admin"
               element={
-                <ProtectedRoute>
-                  <Navigate to="/onboarding" replace />
-                </ProtectedRoute>
+                <AdminRoute>
+                  <AdminLayout />
+                </AdminRoute>
               }
-            />
+            >
+              <Route index element={<AdminOrganizationsPage />} />
+              <Route path="organizations/:orgId/campaigns" element={<AdminCampaignsPage />} />
+              <Route path="users" element={<AdminUsersPage />} />
+              <Route path="roles" element={<AdminRolesPage />} />
+            </Route>
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
