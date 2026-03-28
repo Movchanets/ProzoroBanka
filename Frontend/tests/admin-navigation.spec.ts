@@ -2,7 +2,12 @@ import { test, expect } from '@playwright/test';
 
 import en from '../src/i18n/locales/en.json' with { type: 'json' };
 import uk from '../src/i18n/locales/uk.json' with { type: 'json' };
-import { createOrganizationViaApi, getAccessTokenFromAuthStorage, loginViaUi } from './support/e2e-auth';
+import {
+  createOrganizationViaApi,
+  E2E_TURNSTILE_TEST_TOKEN,
+  getAccessTokenFromAuthStorage,
+  loginViaUi,
+} from './support/e2e-auth';
 
 const VALID_EMAIL = process.env.E2E_EMAIL ?? 'admin@example.com';
 const VALID_PASSWORD = process.env.E2E_PASSWORD ?? 'Qwerty-1';
@@ -66,7 +71,7 @@ for (const localeConfig of locales) {
           confirmPassword: VALID_PASSWORD,
           firstName: 'Regular',
           lastName: 'User',
-          turnstileToken: process.env.E2E_TURNSTILE_TOKEN ?? 'XXXX.DUMMY.TOKEN.XXXX',
+          turnstileToken: E2E_TURNSTILE_TEST_TOKEN,
         },
       });
 

@@ -1,9 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useTheme } from 'next-themes';
 
-const TEST_TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
-const TEST_TURNSTILE_TOKEN = 'playwright-test-turnstile-token';
-
 interface TurnstileWidgetProps {
   siteKey?: string;
   onVerify: (token: string) => void;
@@ -42,26 +39,12 @@ export function TurnstileWidget({
   const [isLoaded, setIsLoaded] = useState(!!window.turnstile);
   const effectiveTheme = theme === 'auto' ? (resolvedTheme === 'dark' ? 'dark' : 'light') : theme;
   const effectiveSiteKey = siteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY;
-  const isTestTurnstile = effectiveSiteKey === TEST_TURNSTILE_SITE_KEY;
-  const token = isTestTurnstile ? TEST_TURNSTILE_TOKEN : '';
 
   useEffect(() => {
     callbackRefs.current = { onVerify, onExpire, onError };
   }, [onVerify, onExpire, onError]);
 
-  useEffect(() => {
-    if (!isTestTurnstile) {
-      return;
-    }
-
-    callbackRefs.current.onVerify(TEST_TURNSTILE_TOKEN);
-  }, [isTestTurnstile]);
-
   const renderWidget = useCallback(() => {
-    if (isTestTurnstile) {
-      return;
-    }
-
     if (!containerRef.current || !window.turnstile || widgetIdRef.current) return;
 
     const key = effectiveSiteKey;
@@ -78,43 +61,59 @@ export function TurnstileWidget({
       theme: effectiveTheme,
       size,
     });
-  }, [effectiveSiteKey, effectiveTheme, isTestTurnstile, size]);
+  }, [effectiveSiteKey, effectiveTheme, size]);
 
   useEffect(() => {
-    if (isTestTurnstile) {
-      return;
-    }
-
     if (window.turnstile) {
       renderWidget();
       return;
     }
 
-    // Динамічне завантаження скрипта Turnstile
-    const existingScript = document.querySelector(
+    const existingScript = document.querySelector<HTMLScriptElement>(
       'script[src*="challenges.cloudflare.com/turnstile"]'
     );
 
-    if (!existingScript) {
-      window.onTurnstileLoad = () => {
-        setIsLoaded(true);
+    if (existingScript) {
+      let cancelled = false;
+
+      const waitForTurnstile = () => {
+        if (cancelled) {
+          return;
+        }
+
+        if (window.turnstile) {
+          setIsLoaded(true);
+          return;
+        }
+
+        window.setTimeout(waitForTurnstile, 100);
       };
 
-      const script = document.createElement('script');
-      script.src =
-        'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
+      waitForTurnstile();
+
+      return () => {
+        cancelled = true;
+      };
     }
 
-  }, [isTestTurnstile, renderWidget]);
+    const script = document.createElement('script');
+    const handleLoad = () => setIsLoaded(true);
+    const handleError = () => callbackRefs.current.onError?.();
+
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.async = true;
+    script.defer = true;
+    script.addEventListener('load', handleLoad, { once: true });
+    script.addEventListener('error', handleError, { once: true });
+    document.head.appendChild(script);
+
+    return () => {
+      script.removeEventListener('load', handleLoad);
+      script.removeEventListener('error', handleError);
+    };
+  }, [renderWidget]);
 
   useEffect(() => {
-    if (isTestTurnstile) {
-      return;
-    }
-
     if (isLoaded) {
       if (widgetIdRef.current && window.turnstile) {
         window.turnstile.remove(widgetIdRef.current);
@@ -122,7 +121,7 @@ export function TurnstileWidget({
       }
       renderWidget();
     }
-  }, [isLoaded, isTestTurnstile, renderWidget]);
+  }, [isLoaded, renderWidget]);
 
   useEffect(() => {
     return () => {
@@ -133,12 +132,5 @@ export function TurnstileWidget({
     };
   }, []);
 
-  return (
-    <>
-      {isTestTurnstile && (
-        <input type="hidden" name="cf-turnstile-response" value={token} readOnly aria-hidden="true" />
-      )}
-      <div ref={containerRef} />
-    </>
-  );
+  return <div ref={containerRef} />;
 }

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { E2E_TURNSTILE_TEST_TOKEN, ensureTurnstileTokenForE2E } from './support/e2e-auth';
 
 import en from '../src/i18n/locales/en.json' with { type: 'json' };
 import uk from '../src/i18n/locales/uk.json' with { type: 'json' };
@@ -31,7 +32,7 @@ for (const [localeKey, localeConfig] of Object.entries(locales) as Array<[keyof 
 
       await page.goto('/login');
       await expect(page.getByRole('heading', { name: localeConfig.dictionary.auth.login.title })).toBeVisible();
-      await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, { timeout: 20000 });
+      await ensureTurnstileTokenForE2E(page, { timeoutMs: 20_000 });
     });
 
     test('TC-01: Successful login with valid credentials', async ({ page }) => {
@@ -39,6 +40,7 @@ for (const [localeKey, localeConfig] of Object.entries(locales) as Array<[keyof 
 
       await page.getByTestId('login-email-input').fill(VALID_EMAIL);
       await page.getByTestId('login-password-input').fill(VALID_PASSWORD);
+      await ensureTurnstileTokenForE2E(page, { timeoutMs: 20_000 });
 
       const loginResponsePromise = page.waitForResponse((response) =>
         response.url().includes('/auth/login') && response.request().method() === 'POST'
@@ -47,7 +49,19 @@ for (const [localeKey, localeConfig] of Object.entries(locales) as Array<[keyof 
       await page.getByTestId('login-submit-button').click();
 
       const loginResponse = await loginResponsePromise;
-      expect(loginResponse.ok()).toBeTruthy();
+      const loginRequestPayload = loginResponse.request().postDataJSON() as { turnstileToken?: string };
+      const responseStatus = loginResponse.status();
+      const responseBody = await loginResponse.text();
+
+      if (!loginResponse.ok()) {
+        throw new Error(
+          `Login request failed (${responseStatus}). Response: ${responseBody}. Submitted turnstile token: ${loginRequestPayload.turnstileToken ?? '<empty>'}`
+        );
+      }
+
+      expect(typeof loginRequestPayload.turnstileToken).toBe('string');
+      expect(loginRequestPayload.turnstileToken?.trim().length ?? 0).toBeGreaterThan(0);
+      expect(loginRequestPayload.turnstileToken).toBe(E2E_TURNSTILE_TEST_TOKEN);
 
       await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10000 });
       await expect(page.getByTestId('login-error-alert')).not.toBeVisible();

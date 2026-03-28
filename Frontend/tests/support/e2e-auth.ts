@@ -2,6 +2,7 @@ import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { setTestLanguage } from './i18n';
 
 export const E2E_API_BASE_URL = process.env.E2E_API_URL ?? 'http://localhost:5188';
+// Cloudflare official testing response token for server-side validation flows.
 export const E2E_TURNSTILE_TEST_TOKEN = process.env.E2E_TURNSTILE_TOKEN ?? 'XXXX.DUMMY.TOKEN.XXXX';
 export const E2E_DEFAULT_PASSWORD = 'Qwerty-1';
 
@@ -182,14 +183,40 @@ export async function loginViaUi(
     await page.goto(options?.gotoPath ?? '/login');
   }
 
-  await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, {
-    timeout: turnstileTimeoutMs,
-  });
+  await ensureTurnstileTokenForE2E(page, { timeoutMs: turnstileTimeoutMs });
   await page.getByTestId('login-email-input').fill(email);
   await page.getByTestId('login-password-input').fill(password);
+  await ensureTurnstileTokenForE2E(page, { timeoutMs: turnstileTimeoutMs });
   await page.getByTestId('login-submit-button').click();
 
   if (options?.expectedUrlPattern) {
     await expect(page).toHaveURL(options.expectedUrlPattern, { timeout: 10_000 });
   }
+}
+
+export async function ensureTurnstileTokenForE2E(
+  page: Page,
+  options?: { timeoutMs?: number },
+): Promise<void> {
+  const timeoutMs = options?.timeoutMs ?? 20_000;
+  const tokenInput = page.locator('input[name="cf-turnstile-response"]').first();
+
+  await expect(tokenInput).toHaveValue(/.+/, { timeout: timeoutMs });
+
+  const currentToken = (await tokenInput.inputValue()).trim();
+  if (currentToken === E2E_TURNSTILE_TEST_TOKEN) {
+    return;
+  }
+
+  await tokenInput.evaluate((element, token) => {
+    const input = element as {
+      value: string;
+      dispatchEvent: (event: Event) => boolean;
+    };
+    input.value = token;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, E2E_TURNSTILE_TEST_TOKEN);
+
+  await expect(tokenInput).toHaveValue(E2E_TURNSTILE_TEST_TOKEN);
 }

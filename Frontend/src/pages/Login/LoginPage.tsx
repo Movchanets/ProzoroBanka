@@ -75,8 +75,17 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
 
+    const widgetToken = document
+      .querySelector<HTMLInputElement>('input[name="cf-turnstile-response"]')
+      ?.value
+      ?.trim();
+
+    const payload: LoginFormData = widgetToken
+      ? { ...data, turnstileToken: widgetToken }
+      : data;
+
     try {
-      await loginMutation.mutateAsync(data);
+      await loginMutation.mutateAsync(payload);
       navigate(nextPath, { replace: true });
     } catch (err) {
       setServerError(err instanceof Error ? err.message : t('auth.login.errorDefault'));

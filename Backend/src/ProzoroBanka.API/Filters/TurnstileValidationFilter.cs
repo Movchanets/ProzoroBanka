@@ -7,8 +7,11 @@ namespace ProzoroBanka.API.Filters;
 
 public sealed class TurnstileValidationFilter : IAsyncActionFilter
 {
+	private const string CloudflareTestingToken = "XXXX.DUMMY.TOKEN.XXXX";
+
 	private readonly ITurnstileService _turnstileValidator;
 	private readonly ILogger<TurnstileValidationFilter> _logger;
+	private readonly bool _isPlaywrightTests;
 
 	public TurnstileValidationFilter(
 		ITurnstileService turnstileValidator,
@@ -16,6 +19,10 @@ public sealed class TurnstileValidationFilter : IAsyncActionFilter
 	{
 		_turnstileValidator = turnstileValidator;
 		_logger = logger;
+		_isPlaywrightTests = string.Equals(
+			Environment.GetEnvironmentVariable("IS_PLAYWRIGHT_TESTS"),
+			"true",
+			StringComparison.OrdinalIgnoreCase);
 	}
 
 	public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
@@ -35,8 +42,17 @@ public sealed class TurnstileValidationFilter : IAsyncActionFilter
 				return;
 			}
 
+			var normalizedToken = token.Trim();
+
+			if (_isPlaywrightTests
+				&& normalizedToken.Contains(CloudflareTestingToken, StringComparison.OrdinalIgnoreCase))
+			{
+				await next();
+				return;
+			}
+
 			var remoteIp = context.HttpContext.Connection.RemoteIpAddress?.ToString();
-			var isValid = await _turnstileValidator.ValidateAsync(token, remoteIp, context.HttpContext.RequestAborted);
+			var isValid = await _turnstileValidator.ValidateAsync(normalizedToken, remoteIp, context.HttpContext.RequestAborted);
 
 			if (!isValid)
 			{
