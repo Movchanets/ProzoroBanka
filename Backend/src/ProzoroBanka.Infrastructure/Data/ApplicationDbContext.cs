@@ -226,7 +226,7 @@ public class ApplicationDbContext
 			b.Property(e => e.CurrentAmount).HasPrecision(18, 2);
 			b.Property(e => e.Status).HasConversion<int>();
 			b.Property(e => e.MonobankAccountId).HasMaxLength(128);
-			b.Property(e => e.SendUrl).HasMaxLength(128);
+			b.Property(e => e.SendUrl).HasMaxLength(512);
 			b.HasIndex(e => e.MonobankAccountId);
 			b.HasQueryFilter(e => !e.IsDeleted);
 
