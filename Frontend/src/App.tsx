@@ -24,6 +24,10 @@ const CampaignEditPage = lazy(() => import('./pages/Dashboard/CampaignEditPage')
 const CampaignDetailPage = lazy(() => import('./pages/Dashboard/CampaignDetailPage'));
 const ReceiptsPlaceholderPage = lazy(() => import('./pages/Dashboard/ReceiptsPlaceholderPage'));
 const InvitePage = lazy(() => import('./pages/Invite/InvitePage'));
+const HomePage = lazy(() => import('./pages/Home/HomePage'));
+const PublicOrganizationPage = lazy(() => import('./pages/PublicOrganization/PublicOrganizationPage'));
+const PublicCampaignPage = lazy(() => import('./pages/PublicCampaign/PublicCampaignPage'));
+const PublicReceiptPlaceholderPage = lazy(() => import('./pages/PublicReceipt/PublicReceiptPlaceholderPage'));
 const ReactQueryDevtools = import.meta.env.DEV
   ? lazy(() => import('@tanstack/react-query-devtools').then((module) => ({ default: module.ReactQueryDevtools })))
   : null;
@@ -64,6 +68,12 @@ function App() {
 
             {/* Public invite page (redirects to login if not auth) */}
             <Route path="/invite/:token" element={<InvitePage />} />
+
+            {/* Public pages */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/o/:slug" element={<PublicOrganizationPage />} />
+            <Route path="/c/:id" element={<PublicCampaignPage />} />
+            <Route path="/receipt/:id" element={<PublicReceiptPlaceholderPage />} />
 
             {/* Onboarding — redirect to dashboard if has orgs */}
             <Route
@@ -106,15 +116,6 @@ function App() {
               <Route path="receipts" element={<ReceiptsPlaceholderPage />} />
             </Route>
 
-            {/* Root → onboarding (will auto-redirect to dashboard if has orgs) */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Navigate to="/onboarding" replace />
-                </ProtectedRoute>
-              }
-            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

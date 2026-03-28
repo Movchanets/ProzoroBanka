@@ -20,6 +20,7 @@ export function LanguageSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
+          data-testid="language-switcher-trigger"
           variant="ghost"
           size="icon"
           className="h-8 w-8 rounded-lg text-muted-foreground"

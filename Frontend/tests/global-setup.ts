@@ -7,6 +7,8 @@ import path from 'path';
  * Works in both local development and CI environments.
  */
 async function globalSetup() {
+ 
+
   const repoRoot = path.resolve(process.cwd(), '..');
 
   console.log('[global-setup] Starting test containers...');

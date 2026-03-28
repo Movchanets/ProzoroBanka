@@ -49,7 +49,7 @@ export default function LoginPage() {
   const nextPath = useMemo(() => {
     const candidate = searchParams.get('next');
     if (!candidate || !candidate.startsWith('/')) {
-      return '/';
+      return '/onboarding';
     }
 
     return candidate;
@@ -287,6 +287,13 @@ export default function LoginPage() {
         <Link className="inline-flex text-sm font-bold text-accent transition-colors hover:text-accent/80" to="/forgot-password">
           {t('auth.login.forgotPassword')}
         </Link>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-muted/50 p-3">
+        <p className="text-sm text-muted-foreground">Потрібно переглянути публічні збори без входу?</p>
+        <Button asChild variant="secondary" className="mt-2 w-full" data-testid="login-public-pages-link">
+          <Link to="/">Перейти до публічних сторінок</Link>
+        </Button>
       </div>
     </AuthShell>
   );
