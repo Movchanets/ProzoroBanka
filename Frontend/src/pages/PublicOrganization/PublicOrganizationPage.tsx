@@ -9,6 +9,7 @@ import { CampaignStatus } from '@/types';
 import { CampaignTabFilter } from '@/components/public/CampaignTabFilter';
 import { TransparencyChart } from '@/components/public/TransparencyChart';
 import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
+import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { useOrgTransparency, usePublicOrgCampaigns, usePublicOrganization } from '@/hooks/queries/usePublic';
 
 function mapTabToStatus(tab: 'all' | 'active' | 'completed') {
@@ -24,6 +25,8 @@ export default function PublicOrganizationPage() {
   const organizationQuery = usePublicOrganization(slug);
   const campaignsQuery = usePublicOrgCampaigns(slug, mapTabToStatus(tab), 1);
   const transparencyQuery = useOrgTransparency(slug);
+
+  const organizationForSeo = organizationQuery.data;
 
   if (organizationQuery.isLoading) {
     return <div className="mx-auto w-[min(1200px,calc(100%-24px))] py-6"><Skeleton className="h-72 rounded-4xl" /></div>;
@@ -44,8 +47,48 @@ export default function PublicOrganizationPage() {
   const campaigns = campaignsQuery.data?.items ?? [];
 
   return (
-    <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
-      <PublicPageToolbar compact />
+    <>
+      <SeoHelmet
+        title={organizationForSeo ? `${organizationForSeo.name}: прозорість, звіти, збори | ProzoroBanka` : 'Організація | ProzoroBanka'}
+        description={organizationForSeo
+          ? `${organizationForSeo.name}. ${organizationForSeo.description ?? 'Публічний профіль організації'} Перевірка, активні збори та прозора звітність.`
+          : 'Профіль волонтерської організації з відкритими показниками прозорості і переліком зборів.'}
+        canonicalPath={slug ? `/o/${slug}` : '/o'}
+        robots="index,follow"
+        jsonLd={organizationForSeo
+          ? [
+            {
+              '@context': 'https://schema.org',
+              '@type': 'Organization',
+              name: organizationForSeo.name,
+              url: `${window.location.origin}/o/${organizationForSeo.slug}`,
+              description: organizationForSeo.description,
+              sameAs: organizationForSeo.website ? [organizationForSeo.website] : undefined,
+            },
+            {
+              '@context': 'https://schema.org',
+              '@type': 'BreadcrumbList',
+              itemListElement: [
+                {
+                  '@type': 'ListItem',
+                  position: 1,
+                  name: 'Головна',
+                  item: window.location.origin,
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 2,
+                  name: organizationForSeo.name,
+                  item: `${window.location.origin}/o/${organizationForSeo.slug}`,
+                },
+              ],
+            },
+          ]
+          : undefined}
+      />
+
+      <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
+        <PublicPageToolbar compact />
 
       <section data-testid="public-org-header" className="rounded-4xl border border-border bg-card p-6 sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -110,6 +153,7 @@ export default function PublicOrganizationPage() {
           ) : null}
         </CardContent>
       </Card>
-    </main>
+      </main>
+    </>
   );
 }

@@ -6,7 +6,7 @@ import { queryClient } from './services/queryClient';
 import { useAuthStore } from './stores/authStore';
 import { AppRoles, hasAppRole } from './constants/appRoles';
 import { Toaster } from './components/ui/sonner';
-import { PageTitleSync } from './hooks/usePageTitle';
+import { RouteSeoSync } from './hooks/useRouteSeo';
 
 const LoginPage = lazy(() => import('./pages/Login/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/Register/RegisterPage'));
@@ -79,7 +79,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <PageTitleSync />
+        <RouteSeoSync />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             {/* Guest routes */}
