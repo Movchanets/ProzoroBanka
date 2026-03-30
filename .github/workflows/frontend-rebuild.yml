@@ -1,0 +1,274 @@
+name: Frontend Rebuild And Deploy
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+      config_source:
+        description: Where to resolve frontend config from
+        required: true
+        default: github-secrets
+        type: choice
+        options:
+          - github-secrets
+          - terraform
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 22.x
+
+jobs:
+  resolve-frontend-config:
+    name: Resolve Frontend Config
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    outputs:
+      api_url: ${{ steps.resolve.outputs.api_url }}
+      site_url: ${{ steps.resolve.outputs.site_url }}
+      static_web_app_name: ${{ steps.resolve.outputs.static_web_app_name }}
+      resource_group_name: ${{ steps.resolve.outputs.resource_group_name }}
+      deploy_token: ${{ steps.resolve.outputs.deploy_token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Resolve config from GitHub vars/secrets
+        if: ${{ inputs.config_source == 'github-secrets' }}
+        id: resolve-secrets
+        shell: bash
+        env:
+          API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}
+          API_BASE_URL: ${{ vars.API_BASE_URL != '' && vars.API_BASE_URL || secrets.API_BASE_URL }}
+          FRONTEND_ROOT_CUSTOM_DOMAIN: ${{ vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN != '' && vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN || secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN }}
+          FRONTEND_CUSTOM_DOMAIN: ${{ vars.STATIC_WEB_APP_CUSTOM_DOMAIN != '' && vars.STATIC_WEB_APP_CUSTOM_DOMAIN || secrets.STATIC_WEB_APP_CUSTOM_DOMAIN }}
+          FRONTEND_SITE_URL: ${{ vars.FRONTEND_SITE_URL != '' && vars.FRONTEND_SITE_URL || secrets.FRONTEND_SITE_URL }}
+          FRONTEND_SWA_DEPLOY_TOKEN: ${{ secrets.FRONTEND_SWA_DEPLOY_TOKEN }}
+          STATIC_WEB_APP_NAME: ${{ vars.STATIC_WEB_APP_NAME != '' && vars.STATIC_WEB_APP_NAME || secrets.STATIC_WEB_APP_NAME }}
+          RESOURCE_GROUP_NAME: ${{ vars.RESOURCE_GROUP_NAME != '' && vars.RESOURCE_GROUP_NAME || secrets.RESOURCE_GROUP_NAME }}
+        run: |
+          if [[ -n "$API_CUSTOM_DOMAIN" ]]; then
+            API_URL="https://${API_CUSTOM_DOMAIN}"
+          elif [[ -n "$API_BASE_URL" ]]; then
+            API_URL="$API_BASE_URL"
+          else
+            echo "Unable to resolve API URL from vars/secrets." >&2
+            exit 1
+          fi
+
+          if [[ -n "$FRONTEND_SITE_URL" ]]; then
+            SITE_URL="$FRONTEND_SITE_URL"
+          elif [[ -n "$FRONTEND_ROOT_CUSTOM_DOMAIN" ]]; then
+            SITE_URL="https://${FRONTEND_ROOT_CUSTOM_DOMAIN}"
+          elif [[ -n "$FRONTEND_CUSTOM_DOMAIN" ]]; then
+            SITE_URL="https://${FRONTEND_CUSTOM_DOMAIN}"
+          else
+            echo "Unable to resolve Frontend site URL from vars/secrets." >&2
+            exit 1
+          fi
+
+          {
+            echo "api_url=${API_URL}"
+            echo "site_url=${SITE_URL}"
+            echo "static_web_app_name=${STATIC_WEB_APP_NAME}"
+            echo "resource_group_name=${RESOURCE_GROUP_NAME}"
+            echo "deploy_token=${FRONTEND_SWA_DEPLOY_TOKEN}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Azure login
+        if: ${{ inputs.config_source == 'terraform' }}
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        if: ${{ inputs.config_source == 'terraform' }}
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Resolve config from Terraform outputs
+        if: ${{ inputs.config_source == 'terraform' }}
+        id: resolve-terraform
+        shell: bash
+        working-directory: Infra
+        env:
+          TFSTATE_RESOURCE_GROUP: ${{ secrets.TFSTATE_RESOURCE_GROUP }}
+          TFSTATE_STORAGE_ACCOUNT: ${{ secrets.TFSTATE_STORAGE_ACCOUNT }}
+          TFSTATE_CONTAINER: ${{ secrets.TFSTATE_CONTAINER }}
+          API_CUSTOM_DOMAIN: ${{ vars.API_CUSTOM_DOMAIN }}
+          FRONTEND_ROOT_CUSTOM_DOMAIN: ${{ vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN }}
+          FRONTEND_CUSTOM_DOMAIN: ${{ vars.STATIC_WEB_APP_CUSTOM_DOMAIN }}
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${TFSTATE_RESOURCE_GROUP}" \
+            -backend-config="storage_account_name=${TFSTATE_STORAGE_ACCOUNT}" \
+            -backend-config="container_name=${TFSTATE_CONTAINER}" \
+            -backend-config="key=prozoro-banka-${{ inputs.environment }}.tfstate"
+
+          if [[ -n "$API_CUSTOM_DOMAIN" ]]; then
+            API_URL="https://${API_CUSTOM_DOMAIN}"
+          else
+            API_URL="$(terraform output -raw api_base_url)"
+          fi
+
+          if [[ -n "$FRONTEND_ROOT_CUSTOM_DOMAIN" ]]; then
+            SITE_URL="https://${FRONTEND_ROOT_CUSTOM_DOMAIN}"
+          elif [[ -n "$FRONTEND_CUSTOM_DOMAIN" ]]; then
+            SITE_URL="https://${FRONTEND_CUSTOM_DOMAIN}"
+          else
+            SITE_URL="$(terraform output -raw static_web_app_url)"
+          fi
+
+          {
+            echo "api_url=${API_URL}"
+            echo "site_url=${SITE_URL}"
+            echo "static_web_app_name=$(terraform output -raw static_web_app_name)"
+            echo "resource_group_name=$(terraform output -raw resource_group_name)"
+            echo "deploy_token="
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Normalize resolved outputs
+        id: resolve
+        shell: bash
+        env:
+          API_URL_SECRETS: ${{ steps.resolve-secrets.outputs.api_url }}
+          SITE_URL_SECRETS: ${{ steps.resolve-secrets.outputs.site_url }}
+          SWA_NAME_SECRETS: ${{ steps.resolve-secrets.outputs.static_web_app_name }}
+          RG_NAME_SECRETS: ${{ steps.resolve-secrets.outputs.resource_group_name }}
+          TOKEN_SECRETS: ${{ steps.resolve-secrets.outputs.deploy_token }}
+          API_URL_TF: ${{ steps.resolve-terraform.outputs.api_url }}
+          SITE_URL_TF: ${{ steps.resolve-terraform.outputs.site_url }}
+          SWA_NAME_TF: ${{ steps.resolve-terraform.outputs.static_web_app_name }}
+          RG_NAME_TF: ${{ steps.resolve-terraform.outputs.resource_group_name }}
+          TOKEN_TF: ${{ steps.resolve-terraform.outputs.deploy_token }}
+        run: |
+          API_URL="${API_URL_SECRETS:-$API_URL_TF}"
+          SITE_URL="${SITE_URL_SECRETS:-$SITE_URL_TF}"
+          SWA_NAME="${SWA_NAME_SECRETS:-$SWA_NAME_TF}"
+          RG_NAME="${RG_NAME_SECRETS:-$RG_NAME_TF}"
+          TOKEN="${TOKEN_SECRETS:-$TOKEN_TF}"
+
+          if [[ -z "$API_URL" || -z "$SITE_URL" ]]; then
+            echo "Resolved API URL or site URL is empty." >&2
+            exit 1
+          fi
+
+          {
+            echo "api_url=${API_URL}"
+            echo "site_url=${SITE_URL}"
+            echo "static_web_app_name=${SWA_NAME}"
+            echo "resource_group_name=${RG_NAME}"
+            echo "deploy_token=${TOKEN}"
+          } >> "$GITHUB_OUTPUT"
+
+  rebuild-and-deploy-frontend:
+    name: Rebuild And Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: resolve-frontend-config
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: Frontend
+        run: npm ci
+
+      - name: Generate dynamic sitemap
+        working-directory: Frontend
+        env:
+          SITEMAP_API_URL: ${{ needs.resolve-frontend-config.outputs.api_url }}
+          SITEMAP_SITE_URL: ${{ needs.resolve-frontend-config.outputs.site_url }}
+        run: npm run generate:sitemap
+
+      - name: Install Playwright Chromium for prerender
+        working-directory: Frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Build and prerender frontend
+        working-directory: Frontend
+        env:
+          VITE_API_URL: ${{ needs.resolve-frontend-config.outputs.api_url }}
+          VITE_SITE_URL: ${{ needs.resolve-frontend-config.outputs.site_url }}
+          VITE_GA_MEASUREMENT_ID: ${{ secrets.GA_MEASUREMENT_ID }}
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: npm run build:prerender
+
+      - name: Deploy using static token
+        if: ${{ needs.resolve-frontend-config.outputs.deploy_token != '' }}
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          action: upload
+          skip_app_build: true
+          app_location: Frontend/dist
+          azure_static_web_apps_api_token: ${{ needs.resolve-frontend-config.outputs.deploy_token }}
+
+      - name: Azure login
+        if: ${{ needs.resolve-frontend-config.outputs.deploy_token == '' }}
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Ensure Azure CLI Static Web Apps extension
+        if: ${{ needs.resolve-frontend-config.outputs.deploy_token == '' }}
+        shell: bash
+        run: az extension add --name staticwebapp --upgrade
+
+      - name: Resolve Static Web Apps deployment token
+        if: ${{ needs.resolve-frontend-config.outputs.deploy_token == '' }}
+        id: swa-token
+        shell: bash
+        run: |
+          if [[ -z "${{ needs.resolve-frontend-config.outputs.static_web_app_name }}" || -z "${{ needs.resolve-frontend-config.outputs.resource_group_name }}" ]]; then
+            echo "Static Web App name/resource group are required when no static deploy token is provided." >&2
+            exit 1
+          fi
+
+          TOKEN=$(az staticwebapp secrets list \
+            --name "${{ needs.resolve-frontend-config.outputs.static_web_app_name }}" \
+            --resource-group "${{ needs.resolve-frontend-config.outputs.resource_group_name }}" \
+            --query properties.apiKey -o tsv)
+
+          if [[ -z "$TOKEN" ]]; then
+            echo "Failed to resolve Azure Static Web Apps deployment token." >&2
+            exit 1
+          fi
+
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy using Azure-resolved token
+        if: ${{ needs.resolve-frontend-config.outputs.deploy_token == '' }}
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          action: upload
+          skip_app_build: true
+          app_location: Frontend/dist
+          azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
+
+      - name: Deployment summary
+        shell: bash
+        run: |
+          echo "## Frontend rebuild summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "| | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| API URL | ${{ needs.resolve-frontend-config.outputs.api_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Frontend URL | ${{ needs.resolve-frontend-config.outputs.site_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Config source | ${{ inputs.config_source }} |" >> "$GITHUB_STEP_SUMMARY"

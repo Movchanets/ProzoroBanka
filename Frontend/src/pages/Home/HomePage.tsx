@@ -12,17 +12,25 @@ import { ComingSoonStub } from '@/components/public/ComingSoonStub';
 import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
 import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { useHomeCampaignFeed, useSearchOrganizations } from '@/hooks/queries/usePublic';
+import { useTranslation } from 'react-i18next';
 
 type HomeTab = 'campaigns' | 'organizations';
 type CampaignFilterStatus = 'all' | 'active' | 'completed';
+const ENV_SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '');
+const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 
-function mapCampaignStatusLabel(value: CampaignFilterStatus) {
-  if (value === 'active') return 'Активні';
-  if (value === 'completed') return 'Завершені';
-  return 'Усі';
+function resolveSiteBaseUrl(): string {
+  if (ENV_SITE_BASE_URL) {
+    return ENV_SITE_BASE_URL;
+  }
+
+  return LOCALHOST_ORIGIN_REGEX.test(window.location.origin) ? '' : window.location.origin;
 }
 
+const SITE_BASE_URL = resolveSiteBaseUrl();
+
 export default function HomePage() {
+  const { t, i18n } = useTranslation();
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<HomeTab>('campaigns');
   const [campaignStatus, setCampaignStatus] = useState<CampaignFilterStatus>('all');
@@ -43,94 +51,99 @@ export default function HomePage() {
   const activeQuery = tab === 'campaigns' ? campaignSearch : organizationSearch;
   const activeItemCount = tab === 'campaigns' ? campaigns.length : organizations.length;
   const emptyText = tab === 'campaigns'
-    ? 'Спробуйте інший статус збору або змініть пошуковий запит.'
-    : 'Спробуйте змінити фільтри або очистити пошуковий запит.';
+    ? t('home.empty.campaigns')
+    : t('home.empty.organizations');
+  const inLanguage = i18n.resolvedLanguage?.startsWith('en') ? 'en-US' : 'uk-UA';
 
   return (
     <>
       <SeoHelmet
-        title="Прозорі збори та організації | ProzoroBanka"
-        description="Публічний каталог перевірених волонтерських організацій і благодійних зборів з відкритими даними про прогрес та витрати."
+        title={t('home.seo.title')}
+        description={t('home.seo.description')}
         canonicalPath="/"
         robots="index,follow"
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'WebSite',
           name: 'ProzoroBanka',
-          url: window.location.origin,
-          inLanguage: 'uk-UA',
+          url: SITE_BASE_URL || undefined,
+          inLanguage,
         }}
       />
 
       <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
         <PublicPageToolbar />
 
-      <section data-testid="home-hero-section" className="relative overflow-hidden rounded-4xl border border-border/80 bg-[radial-gradient(120%_120%_at_100%_0%,hsl(var(--secondary)/0.24)_0%,transparent_56%),linear-gradient(120deg,hsl(var(--hero-panel))_0%,hsl(var(--hero-panel)/0.92)_100%)] p-6 text-(--hero-panel-foreground) shadow-[0_24px_80px_var(--shadow-soft)] sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--hero-panel-muted)">ProzoroBanka</p>
-        <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Прозорі благодійні збори для волонтерських команд</h1>
-        <p className="mt-3 max-w-2xl text-sm text-(--hero-panel-muted) sm:text-base">
-          Публічний каталог зборів та організацій з перевіреним прогресом, відкритою фінансовою прозорістю і підтвердженими чеками витрат.
+      <section
+        data-testid="home-hero-section"
+        className="relative overflow-hidden rounded-4xl border border-border/80 p-6 text-foreground shadow-[0_24px_80px_var(--shadow-soft)] sm:p-8"
+        style={{
+          backgroundImage:
+            'radial-gradient(120% 120% at 100% 0%, hsl(var(--secondary) / 0.14) 0%, transparent 56%), var(--hero-surface)',
+        }}
+      >
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/65">ProzoroBanka</p>
+        <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">{t('home.hero.title')}</h1>
+        <p className="mt-3 max-w-2xl text-sm text-foreground/72 sm:text-base">
+          {t('home.hero.description')}
         </p>
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-border/70 bg-background/60 p-3 backdrop-blur-sm">
-            <p className="text-xs text-muted-foreground">Зборів у видачі</p>
+          <div className="rounded-2xl border border-white/25 bg-background/82 p-3 backdrop-blur-sm dark:border-border/70 dark:bg-background/60">
+            <p className="text-xs text-foreground/70 dark:text-muted-foreground">{t('home.kpi.campaignsCount')}</p>
             <p data-testid="home-kpi-campaigns-count" className="mt-1 text-2xl font-bold text-foreground">{campaigns.length}</p>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-background/60 p-3 backdrop-blur-sm">
-            <p className="text-xs text-muted-foreground">Активних зборів</p>
+          <div className="rounded-2xl border border-white/25 bg-background/82 p-3 backdrop-blur-sm dark:border-border/70 dark:bg-background/60">
+            <p className="text-xs text-foreground/70 dark:text-muted-foreground">{t('home.kpi.activeCampaignsCount')}</p>
             <p data-testid="home-kpi-active-campaigns-count" className="mt-1 text-2xl font-bold text-foreground">{activeCampaignCount}</p>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-background/60 p-3 backdrop-blur-sm">
-            <p className="text-xs text-muted-foreground">Режим</p>
+          <div className="rounded-2xl border border-white/25 bg-background/82 p-3 backdrop-blur-sm dark:border-border/70 dark:bg-background/60">
+            <p className="text-xs text-foreground/70 dark:text-muted-foreground">{t('home.kpi.mode')}</p>
             <p data-testid="home-kpi-current-tab" className="mt-1 text-2xl font-bold text-foreground">
-              {tab === 'campaigns' ? 'Збори' : 'Організації'}
+              {tab === 'campaigns' ? t('home.tabs.campaigns') : t('home.tabs.organizations')}
             </p>
           </div>
         </div>
       </section>
 
       <section className="rounded-3xl border border-border bg-card p-5 sm:p-6" data-testid="home-seo-content-section">
-        <h2 className="text-2xl font-bold text-foreground">Як перевірити прозорий благодійний збір</h2>
+        <h2 className="text-2xl font-bold text-foreground">{t('home.seoContent.title')}</h2>
         <p className="mt-3 text-sm leading-7 text-muted-foreground">
-          ProzoroBanka допомагає швидко оцінити, наскільки збір відкритий і підзвітний. На сторінках кампаній ви бачите ціль,
-          поточний прогрес, підтверджені чеки та історію витрат. Це дозволяє порівнювати різні благодійні збори не лише за
-          емоційним описом, а й за фактичними даними, які важливі для відповідального донату.
+          {t('home.seoContent.paragraph1')}
         </p>
 
-        <h3 className="mt-5 text-xl font-semibold text-foreground">Що важливо перед тим, як підтримати збір</h3>
+        <h3 className="mt-5 text-xl font-semibold text-foreground">{t('home.seoContent.subtitle1')}</h3>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-7 text-muted-foreground">
-          <li>Чи верифікована організація і чи є публічний профіль команди.</li>
-          <li>Чи співпадають цілі збору з описом потреб і поточними витратами.</li>
-          <li>Чи є підтверджені чеки та регулярні оновлення по кампанії.</li>
-          <li>Чи прозоро показано прогрес і статус збору.</li>
+          <li>{t('home.seoContent.listItem1')}</li>
+          <li>{t('home.seoContent.listItem2')}</li>
+          <li>{t('home.seoContent.listItem3')}</li>
+          <li>{t('home.seoContent.listItem4')}</li>
         </ul>
 
-        <h4 className="mt-5 text-lg font-semibold text-foreground">Навіщо це для донорів і волонтерів</h4>
+        <h4 className="mt-5 text-lg font-semibold text-foreground">{t('home.seoContent.subtitle2')}</h4>
         <p className="mt-2 text-sm leading-7 text-muted-foreground">
-          Для донорів це можливість обирати перевірені кампанії та бачити реальний результат внеску. Для волонтерських команд це
-          інструмент довіри: чим прозоріша звітність і якісніша структура даних, тим простіше залучати нових людей до підтримки.
+          {t('home.seoContent.paragraph2')}
         </p>
 
-        <h5 className="mt-5 text-base font-semibold text-foreground">Ключові сигнали довіри</h5>
+        <h5 className="mt-5 text-base font-semibold text-foreground">{t('home.seoContent.subtitle3')}</h5>
         <p className="mt-2 text-sm leading-7 text-muted-foreground">
-          Верифікована організація, деталізований опис, відкритий прогрес, публічні чеки і зрозуміла фінансова історія кампанії.
+          {t('home.seoContent.paragraph3')}
         </p>
 
-        <h6 className="mt-4 text-sm font-semibold uppercase tracking-wide text-foreground">Оновлення даних</h6>
+        <h6 className="mt-4 text-sm font-semibold uppercase tracking-wide text-foreground">{t('home.seoContent.subtitle4')}</h6>
         <p className="mt-1 text-sm leading-7 text-muted-foreground">
-          Каталог зборів та організацій оновлюється регулярно, щоб ви бачили актуальну інформацію для прийняття рішень.
+          {t('home.seoContent.paragraph4')}
         </p>
       </section>
 
       <Tabs value={tab} onValueChange={(value) => setTab(value as HomeTab)} data-testid="home-main-tabs" className="gap-4">
         <TabsList data-testid="home-main-tabs-list" className="w-full justify-start rounded-2xl border border-border bg-card p-1">
-          <TabsTrigger data-testid="home-main-tab-campaigns" value="campaigns" className="rounded-xl px-4">Збори</TabsTrigger>
-          <TabsTrigger data-testid="home-main-tab-organizations" value="organizations" className="rounded-xl px-4">Організації</TabsTrigger>
+          <TabsTrigger data-testid="home-main-tab-campaigns" value="campaigns" className="rounded-xl px-4">{t('home.tabs.campaigns')}</TabsTrigger>
+          <TabsTrigger data-testid="home-main-tab-organizations" value="organizations" className="rounded-xl px-4">{t('home.tabs.organizations')}</TabsTrigger>
         </TabsList>
 
         <section data-testid="home-search-form" className="rounded-3xl border border-border bg-card p-4 sm:p-5">
           <label htmlFor="home-search-input" className="mb-2 block text-sm font-semibold text-foreground">
-            {tab === 'campaigns' ? 'Пошук зборів' : 'Пошук організацій'}
+            {tab === 'campaigns' ? t('home.search.campaignsLabel') : t('home.search.organizationsLabel')}
           </label>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Input
@@ -138,8 +151,8 @@ export default function HomePage() {
               data-testid="home-search-input"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={tab === 'campaigns' ? 'Назва збору, організації або ключове слово' : 'Введіть назву або slug'}
-              aria-label={tab === 'campaigns' ? 'Пошук зборів' : 'Пошук організацій'}
+              placeholder={tab === 'campaigns' ? t('home.search.campaignsPlaceholder') : t('home.search.organizationsPlaceholder')}
+              aria-label={tab === 'campaigns' ? t('home.search.campaignsLabel') : t('home.search.organizationsLabel')}
             />
             <Button
               type="button"
@@ -149,29 +162,29 @@ export default function HomePage() {
               }}
               data-testid="home-search-submit-button"
             >
-              Пошук
+              {t('home.search.submit')}
             </Button>
           </div>
 
           {tab === 'campaigns' ? (
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr_1fr]">
               <div className="rounded-2xl border border-border/70 bg-background/50 p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Фільтр зборів</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('home.filters.campaignsTitle')}</p>
                 <Select value={campaignStatus} onValueChange={(value) => setCampaignStatus(value as CampaignFilterStatus)}>
                   <SelectTrigger data-testid="home-campaign-status-select" className="w-full">
-                    <SelectValue placeholder="Статус" />
+                    <SelectValue placeholder={t('home.filters.statusPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Усі</SelectItem>
-                    <SelectItem value="active">Активні</SelectItem>
-                    <SelectItem value="completed">Завершені</SelectItem>
+                    <SelectItem value="all">{t('home.filters.status.all')}</SelectItem>
+                    <SelectItem value="active">{t('home.filters.status.active')}</SelectItem>
+                    <SelectItem value="completed">{t('home.filters.status.completed')}</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="mt-2 text-xs text-muted-foreground">Обрано: {mapCampaignStatusLabel(campaignStatus)}</p>
+                <p className="mt-2 text-xs text-muted-foreground">{t('home.filters.selectedStatus')}: {t(`home.filters.status.${campaignStatus}`)}</p>
               </div>
 
               <div className="rounded-2xl border border-border/70 bg-background/50 p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Лише перевірені організації</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('home.filters.verifiedOrganizationsOnly')}</p>
                 <label className="inline-flex items-center gap-2 text-sm">
                   <input
                     data-testid="home-campaign-verified-org-toggle"
@@ -179,14 +192,14 @@ export default function HomePage() {
                     checked={campaignVerifiedOnly}
                     onChange={(event) => setCampaignVerifiedOnly(event.target.checked)}
                   />
-                  Застосувати до вкладки зборів
+                  {t('home.filters.applyToCampaignTab')}
                 </label>
               </div>
 
               <ComingSoonStub
                 testId="home-coming-soon-campaign-filters"
-                title="Розширені фільтри"
-                description="Категорії, географія та теги зборів будуть додані на наступному етапі."
+                title={t('home.comingSoon.filtersTitle')}
+                description={t('home.comingSoon.filtersDescription')}
               />
             </div>
           ) : (
@@ -198,7 +211,7 @@ export default function HomePage() {
                   checked={verifiedOnly}
                   onChange={(event) => setVerifiedOnly(event.target.checked)}
                 />
-                Лише верифіковані організації
+                {t('home.filters.onlyVerifiedOrganizations')}
               </label>
               <label className="inline-flex items-center gap-2">
                 <input
@@ -207,7 +220,7 @@ export default function HomePage() {
                   checked={activeOnly}
                   onChange={(event) => setActiveOnly(event.target.checked)}
                 />
-                Лише з активними зборами
+                {t('home.filters.onlyWithActiveCampaigns')}
               </label>
             </div>
           )}
@@ -224,7 +237,7 @@ export default function HomePage() {
         {activeQuery.isError ? (
           <Alert variant="destructive">
             <AlertTitle>
-              {tab === 'campaigns' ? 'Не вдалося завантажити збори' : 'Не вдалося завантажити організації'}
+              {tab === 'campaigns' ? t('home.errors.loadCampaigns') : t('home.errors.loadOrganizations')}
             </AlertTitle>
             <AlertDescription>
               <Button
@@ -235,7 +248,7 @@ export default function HomePage() {
                   void organizationSearch.refetch();
                 }}
               >
-                Спробувати ще раз
+                {t('home.errors.retry')}
               </Button>
             </AlertDescription>
           </Alert>
@@ -243,7 +256,7 @@ export default function HomePage() {
 
         {!activeQuery.isLoading && !activeQuery.isError && activeItemCount === 0 ? (
           <section data-testid="home-empty-state" className="rounded-3xl border border-border bg-card p-6 text-center">
-            <h2 className="text-xl font-semibold">Нічого не знайдено</h2>
+            <h2 className="text-xl font-semibold">{t('home.empty.title')}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{emptyText}</p>
           </section>
         ) : null}
@@ -257,8 +270,8 @@ export default function HomePage() {
 
           <ComingSoonStub
             testId="home-coming-soon-donations-feed"
-            title="Стрічка оновлень збору"
-            description="Незабаром тут з'явиться хронологія витрат і ключових апдейтів по зборах."
+            title={t('home.comingSoon.feedTitle')}
+            description={t('home.comingSoon.feedDescription')}
           />
         </TabsContent>
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet, NavLink, useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { AppRoles, hasAppRole } from '@/constants/appRoles';
+import { useMyOrganizations } from '@/hooks/queries/useOrganizations';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Separator } from '@/components/ui/separator';
@@ -30,6 +31,18 @@ function SidebarContent({
   onToggleCollapse: () => void;
 }) {
   const navigate = useNavigate();
+  const { data: organizations } = useMyOrganizations();
+  const primaryOrganizationId = organizations?.[0]?.id;
+
+  const handleBackToDashboard = () => {
+    if (primaryOrganizationId) {
+      navigate(`/dashboard/${primaryOrganizationId}`);
+      return;
+    }
+
+    navigate('/onboarding');
+  };
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-3 px-4 pt-6 pb-4">
@@ -62,7 +75,7 @@ function SidebarContent({
 
       <div className="border-t border-border px-2 py-3">
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={handleBackToDashboard}
           className="mb-2 flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           {collapsed ? (

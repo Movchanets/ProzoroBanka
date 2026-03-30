@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Megaphone, Plus, Calendar } from 'lucide-react';
+import { Megaphone, Plus, Calendar, Globe } from 'lucide-react';
 
 const statusColor: Record<number, string> = {
   0: 'bg-muted text-muted-foreground',
@@ -61,6 +61,20 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
             </Badge>
           )}
         </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-2"
+          data-testid={`campaign-card-public-link-${campaign.id}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            navigate(`/c/${campaign.id}`);
+          }}
+        >
+          <Globe className="h-4 w-4" />
+          {t('campaigns.openPublicCampaignPage')}
+        </Button>
       </CardContent>
     </Card>
   );

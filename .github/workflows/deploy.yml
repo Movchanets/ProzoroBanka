@@ -1,5 +1,9 @@
 name: Deploy Azure
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
@@ -259,6 +263,8 @@ jobs:
         working-directory: Frontend
         env:
           VITE_API_URL: ${{ vars.API_CUSTOM_DOMAIN != '' && format('https://{0}', vars.API_CUSTOM_DOMAIN) || needs.provision-infrastructure.outputs.api_base_url }}
+          VITE_SITE_URL: ${{ vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN != '' && format('https://{0}', vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN) || vars.STATIC_WEB_APP_CUSTOM_DOMAIN != '' && format('https://{0}', vars.STATIC_WEB_APP_CUSTOM_DOMAIN) || secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN != '' && format('https://{0}', secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN) || secrets.STATIC_WEB_APP_CUSTOM_DOMAIN != '' && format('https://{0}', secrets.STATIC_WEB_APP_CUSTOM_DOMAIN) || needs.provision-infrastructure.outputs.static_web_app_url }}
+          VITE_GA_MEASUREMENT_ID: ${{ secrets.GA_MEASUREMENT_ID }}
           VITE_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         run: |

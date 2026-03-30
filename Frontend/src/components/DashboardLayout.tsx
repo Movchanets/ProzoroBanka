@@ -26,6 +26,8 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeft,
+  Globe,
+  Shield,
 } from 'lucide-react';
 
 const navItems = [
@@ -135,15 +137,29 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <Button
+            data-testid="dashboard-public-home-link"
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/')}
+            aria-label={t('common.goToPublicPages')}
+            className="h-9 rounded-xl border-border/50 gap-2 px-2.5 shadow-none sm:px-3"
+          >
+            <Globe className="h-4 w-4" />
+            <span className="hidden xl:inline">{t('common.goToPublicPages')}</span>
+          </Button>
+
           {isAdmin ? (
             <Button
               data-testid="dashboard-admin-link"
               variant="outline"
               size="sm"
               onClick={() => navigate('/admin')}
-              className="h-9 rounded-xl border-border/50 shadow-none"
+              aria-label={t('common.goToAdminPanel')}
+              className="h-9 rounded-xl border-border/50 gap-2 px-2.5 shadow-none sm:px-3"
             >
-              {t('common.goToAdminPanel')}
+              <Shield className="h-4 w-4" />
+              <span className="hidden lg:inline">{t('common.goToAdminPanel')}</span>
             </Button>
           ) : null}
 

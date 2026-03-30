@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, stat, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -13,6 +13,7 @@ const routesManifest = path.join(distDir, "prerender-routes.json");
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.PRERENDER_PORT || 4173);
 const BASE_URL = `http://${HOST}:${PORT}`;
+const BASE_URL_WITH_SLASH = `${BASE_URL}/`;
 
 const MIME_TYPES = {
   ".html": "text/html; charset=UTF-8",
@@ -37,6 +38,15 @@ async function fileExists(filePath) {
   try {
     await stat(filePath);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isFile(filePath) {
+  try {
+    const meta = await stat(filePath);
+    return meta.isFile();
   } catch {
     return false;
   }
@@ -75,9 +85,9 @@ function createStaticServer() {
 
       let filePath = fallbackIndex;
 
-      if (await fileExists(directFilePath)) {
+      if (await isFile(directFilePath)) {
         filePath = directFilePath;
-      } else if (await fileExists(indexFilePath)) {
+      } else if (await isFile(indexFilePath)) {
         filePath = indexFilePath;
       }
 
@@ -101,9 +111,14 @@ function routeToOutputFile(route) {
   return path.join(distDir, normalized, "index.html");
 }
 
+function normalizePrerenderHtml(html) {
+  // Browser serialization can turn relative URLs into absolute localhost URLs.
+  // Replace prerender-origin URLs back to root-relative paths before publishing.
+  return html.replaceAll(BASE_URL_WITH_SLASH, "/");
+}
+
 async function ensureParentDir(filePath) {
-  const fs = await import("node:fs/promises");
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await mkdir(path.dirname(filePath), { recursive: true });
 }
 
 async function main() {
@@ -122,14 +137,23 @@ async function main() {
   try {
     for (const route of routes) {
       const url = `${BASE_URL}${route}`;
-      await page.goto(url, { waitUntil: "networkidle", timeout: 60000 });
+      const response = await page.goto(url, {
+        waitUntil: "networkidle",
+        timeout: 60000,
+      });
+
+      if (!response || !response.ok()) {
+        throw new Error(
+          `Cannot prerender route ${route}: HTTP ${response?.status() ?? "unknown"}`,
+        );
+      }
+
       const html = await page.content();
+      const normalizedHtml = normalizePrerenderHtml(html);
 
       const outputFile = routeToOutputFile(route);
       await ensureParentDir(outputFile);
-      await (
-        await import("node:fs/promises")
-      ).writeFile(outputFile, `${html}\n`, "utf8");
+      await writeFile(outputFile, `${normalizedHtml}\n`, "utf8");
 
       console.log(`Prerendered ${route} -> ${outputFile}`);
     }
