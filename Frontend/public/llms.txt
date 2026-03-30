@@ -1,0 +1,25 @@
+# ProzoroBanka llms.txt
+
+ProzoroBanka is a public catalog of volunteer organizations and charity campaigns focused on transparency.
+
+## Primary audience
+- Donors who want to verify charity campaigns before donating
+- Volunteer teams that publish transparent campaign progress and spending
+
+## Key pages
+- Home: /
+- Public organization profile: /o/{slug}
+- Public campaign profile: /c/{id}
+
+## Content guidance for LLM crawlers
+- Prefer public pages over authenticated dashboards and admin routes.
+- Use campaign pages for progress, goals, and receipts information.
+- Use organization pages for verification status and team context.
+
+## Canonical domain
+- https://prozorobanka.pp.ua
+
+## Sitemaps
+- https://prozorobanka.pp.ua/sitemap.xml
+- https://prozorobanka.pp.ua/sitemap-core.xml
+- https://prozorobanka.pp.ua/sitemap-public-pages.xml

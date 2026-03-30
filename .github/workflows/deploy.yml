@@ -201,12 +201,20 @@ jobs:
 
       - name: Deployment summary
         shell: bash
+        env:
+          FRONTEND_CUSTOM_DOMAIN: ${{ vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN != '' && vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN || vars.STATIC_WEB_APP_CUSTOM_DOMAIN != '' && vars.STATIC_WEB_APP_CUSTOM_DOMAIN || secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN != '' && secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN || secrets.STATIC_WEB_APP_CUSTOM_DOMAIN }}
         run: |
+          if [[ -n "$FRONTEND_CUSTOM_DOMAIN" ]]; then
+            FRONTEND_URL="https://${FRONTEND_CUSTOM_DOMAIN}"
+          else
+            FRONTEND_URL="$(terraform output -raw static_web_app_url)"
+          fi
+
           echo "## Deployment summary" >> "$GITHUB_STEP_SUMMARY"
           echo "| | URL |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "| **API** | ${{ steps.tf-outputs.outputs.api_base_url }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| **Frontend** | $(terraform output -raw static_web_app_url) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Frontend** | ${FRONTEND_URL} |" >> "$GITHUB_STEP_SUMMARY"
 
   deploy-frontend:
     name: Deploy Frontend To Static Web Apps
@@ -234,7 +242,7 @@ jobs:
         working-directory: Frontend
         env:
           SITEMAP_API_URL: ${{ vars.API_CUSTOM_DOMAIN != '' && format('https://{0}', vars.API_CUSTOM_DOMAIN) || needs.provision-infrastructure.outputs.api_base_url }}
-          SITEMAP_SITE_URL: ${{ needs.provision-infrastructure.outputs.static_web_app_url }}
+          SITEMAP_SITE_URL: ${{ vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN != '' && format('https://{0}', vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN) || vars.STATIC_WEB_APP_CUSTOM_DOMAIN != '' && format('https://{0}', vars.STATIC_WEB_APP_CUSTOM_DOMAIN) || secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN != '' && format('https://{0}', secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN) || secrets.STATIC_WEB_APP_CUSTOM_DOMAIN != '' && format('https://{0}', secrets.STATIC_WEB_APP_CUSTOM_DOMAIN) || needs.provision-infrastructure.outputs.static_web_app_url }}
         run: |
           if [[ -z "$SITEMAP_API_URL" ]]; then
             echo "SITEMAP_API_URL is empty. Cannot generate dynamic sitemap." >&2
@@ -243,7 +251,11 @@ jobs:
 
           npm run generate:sitemap
 
-      - name: Build frontend bundle
+      - name: Install Playwright Chromium for prerender
+        working-directory: Frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Build and prerender frontend bundle
         working-directory: Frontend
         env:
           VITE_API_URL: ${{ vars.API_CUSTOM_DOMAIN != '' && format('https://{0}', vars.API_CUSTOM_DOMAIN) || needs.provision-infrastructure.outputs.api_base_url }}
@@ -255,7 +267,7 @@ jobs:
             exit 1
           fi
 
-          npm run build
+          npm run build:prerender
 
       - name: Azure login
         uses: azure/login@v3

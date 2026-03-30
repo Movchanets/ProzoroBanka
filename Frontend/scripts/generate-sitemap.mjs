@@ -7,6 +7,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 const publicDir = path.join(projectRoot, "public");
 const outputFile = path.join(publicDir, "sitemap-public-pages.xml");
+const routesOutputFile = path.join(publicDir, "prerender-routes.json");
 
 const apiBaseUrl = process.env.SITEMAP_API_URL || process.env.VITE_API_URL;
 const siteBaseUrl = (
@@ -112,10 +113,18 @@ async function main() {
   }
 
   const xml = buildSitemapXml(paths);
+  const prerenderRoutes = Array.from(new Set(["/", ...paths])).sort();
+
   await writeFile(outputFile, xml, "utf8");
+  await writeFile(
+    routesOutputFile,
+    `${JSON.stringify(prerenderRoutes, null, 2)}\n`,
+    "utf8",
+  );
   console.log(
     `Generated sitemap with ${new Set(paths).size} dynamic public URLs: ${outputFile}`,
   );
+  console.log(`Generated prerender route manifest: ${routesOutputFile}`);
 }
 
 main().catch((error) => {
