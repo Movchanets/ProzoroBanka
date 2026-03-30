@@ -15,6 +15,7 @@ import { useHomeCampaignFeed, useSearchOrganizations } from '@/hooks/queries/use
 
 type HomeTab = 'campaigns' | 'organizations';
 type CampaignFilterStatus = 'all' | 'active' | 'completed';
+const SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '') || window.location.origin;
 
 function mapCampaignStatusLabel(value: CampaignFilterStatus) {
   if (value === 'active') return 'Активні';
@@ -57,7 +58,7 @@ export default function HomePage() {
           '@context': 'https://schema.org',
           '@type': 'WebSite',
           name: 'ProzoroBanka',
-          url: window.location.origin,
+          url: SITE_BASE_URL,
           inLanguage: 'uk-UA',
         }}
       />

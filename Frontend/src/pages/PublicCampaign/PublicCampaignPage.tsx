@@ -8,6 +8,8 @@ import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
 import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { usePublicCampaign, usePublicCampaignReceipts } from '@/hooks/queries/usePublic';
 
+const SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '') || window.location.origin;
+
 export default function PublicCampaignPage() {
   const { id } = useParams<{ id: string }>();
 
@@ -50,11 +52,11 @@ export default function PublicCampaignPage() {
               '@type': 'WebPage',
               name: campaignForSeo.title,
               description: campaignForSeo.description,
-              url: `${window.location.origin}/c/${campaignForSeo.id}`,
+              url: `${SITE_BASE_URL}/c/${campaignForSeo.id}`,
               isPartOf: {
                 '@type': 'WebSite',
                 name: 'ProzoroBanka',
-                url: window.location.origin,
+                url: SITE_BASE_URL,
               },
             },
             {
@@ -65,19 +67,19 @@ export default function PublicCampaignPage() {
                   '@type': 'ListItem',
                   position: 1,
                   name: 'Головна',
-                  item: window.location.origin,
+                  item: SITE_BASE_URL,
                 },
                 {
                   '@type': 'ListItem',
                   position: 2,
                   name: campaignForSeo.organizationName,
-                  item: `${window.location.origin}/o/${campaignForSeo.organizationSlug}`,
+                  item: `${SITE_BASE_URL}/o/${campaignForSeo.organizationSlug}`,
                 },
                 {
                   '@type': 'ListItem',
                   position: 3,
                   name: campaignForSeo.title,
-                  item: `${window.location.origin}/c/${campaignForSeo.id}`,
+                  item: `${SITE_BASE_URL}/c/${campaignForSeo.id}`,
                 },
               ],
             },

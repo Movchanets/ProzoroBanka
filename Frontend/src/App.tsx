@@ -29,6 +29,7 @@ const HomePage = lazy(() => import('./pages/Home/HomePage'));
 const PublicOrganizationPage = lazy(() => import('./pages/PublicOrganization/PublicOrganizationPage'));
 const PublicCampaignPage = lazy(() => import('./pages/PublicCampaign/PublicCampaignPage'));
 const PublicReceiptPlaceholderPage = lazy(() => import('./pages/PublicReceipt/PublicReceiptPlaceholderPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFound/NotFoundPage'));
 
 const AdminLayout = lazy(() => import('./pages/Admin/AdminLayout'));
 const AdminOrganizationsPage = lazy(() => import('./pages/Admin/AdminOrganizationsPage'));
@@ -153,7 +154,7 @@ function App() {
               <Route path="roles" element={<AdminRolesPage />} />
             </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
       </BrowserRouter>

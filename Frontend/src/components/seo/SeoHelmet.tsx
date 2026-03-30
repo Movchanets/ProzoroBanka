@@ -14,9 +14,10 @@ export interface SeoConfig {
 }
 
 const DEFAULT_OG_IMAGE = '/android-chrome-512x512.png';
+const SITE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '');
 
 function buildAbsoluteUrl(path: string): string {
-  const origin = window.location.origin;
+  const origin = SITE_URL || window.location.origin;
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }

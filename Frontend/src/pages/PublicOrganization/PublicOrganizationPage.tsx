@@ -18,6 +18,8 @@ function mapTabToStatus(tab: 'all' | 'active' | 'completed') {
   return undefined;
 }
 
+const SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '') || window.location.origin;
+
 export default function PublicOrganizationPage() {
   const { slug } = useParams<{ slug: string }>();
   const [tab, setTab] = useState<'all' | 'active' | 'completed'>('all');
@@ -61,7 +63,7 @@ export default function PublicOrganizationPage() {
               '@context': 'https://schema.org',
               '@type': 'Organization',
               name: organizationForSeo.name,
-              url: `${window.location.origin}/o/${organizationForSeo.slug}`,
+              url: `${SITE_BASE_URL}/o/${organizationForSeo.slug}`,
               description: organizationForSeo.description,
               sameAs: organizationForSeo.website ? [organizationForSeo.website] : undefined,
             },
@@ -73,13 +75,13 @@ export default function PublicOrganizationPage() {
                   '@type': 'ListItem',
                   position: 1,
                   name: 'Головна',
-                  item: window.location.origin,
+                  item: SITE_BASE_URL,
                 },
                 {
                   '@type': 'ListItem',
                   position: 2,
                   name: organizationForSeo.name,
-                  item: `${window.location.origin}/o/${organizationForSeo.slug}`,
+                  item: `${SITE_BASE_URL}/o/${organizationForSeo.slug}`,
                 },
               ],
             },

@@ -16,7 +16,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Платформа публічної фінансової прозорості для волонтерських організацій і благодійних зборів." />
     <meta name="robots" content="index,follow" />
-    <link rel="canonical" href="https://prozorobanka.pp.ua/" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="ProzoroBanka" />
@@ -29,6 +28,24 @@
     <meta name="twitter:title" content="Прозорі збори та організації | ProzoroBanka" />
     <meta name="twitter:description" content="Каталог перевірених волонтерських організацій і благодійних зборів з відкритими даними про прогрес та витрати." />
     <meta name="twitter:image" content="https://prozorobanka.pp.ua/android-chrome-512x512.png" />
+
+    <script type="module">
+      (function () {
+        const gaId = import.meta.env.VITE_GA_MEASUREMENT_ID;
+        if (!gaId || !gaId.startsWith('G-')) return;
+
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+        document.head.appendChild(script);
+
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){window.dataLayer.push(arguments);} // eslint-disable-line no-inner-declarations
+        window.gtag = gtag;
+        gtag('js', new Date());
+        gtag('config', gaId);
+      })();
+    </script>
     <title>ProzoroBanka</title>
   </head>
   <body>
