@@ -19,6 +19,9 @@
     "decline": "Відхилити",
     "goHome": "На головну",
     "goToDashboard": "Перейти до дашборду",
+    "goToOrganizationsMenu": "До меню організацій",
+    "goToPublicPages": "Перейти до публічних сторінок",
+    "volunteerSignIn": "Вхід для волонтера",
     "goToAdminPanel": "Перейти в адмінку",
     "soon": "Скоро",
     "name": "Назва",
@@ -52,7 +55,8 @@
       "googleTurnstileRequired": "Підтвердіть перевірку Turnstile перед входом через Google.",
       "googleError": "Помилка входу через Google",
       "googleNotConfiguredShort": "Google OAuth client ID не налаштовано.",
-      "googleInitializing": "Google Sign-In ще ініціалізується. Спробуйте ще раз."
+      "googleInitializing": "Google Sign-In ще ініціалізується. Спробуйте ще раз.",
+      "publicPrompt": "Потрібно переглянути публічні збори без входу?"
     },
     "register": {
       "eyebrow": "Новий доступ",
@@ -137,6 +141,7 @@
   "dashboard": {
     "welcomeOrg": "Вітаю в {{name}}!",
     "overviewSubtitle": "Огляд основних показників організації",
+    "openPublicOrganizationPage": "Публічна сторінка організації",
     "statMembers": "Учасників",
     "statActiveCampaigns": "Активних зборів",
     "statRaised": "Зібрано (₴)",
@@ -311,6 +316,7 @@
     "empty": "Ще немає зборів",
     "emptyDescription": "Створіть перший збір, щоб почати приймати пожертви.",
     "createCampaign": "Створити збір",
+    "openPublicCampaignPage": "Публічна сторінка збору",
     "withdrawnPrefix": "Знято",
     "deadlinePrefix": "до",
     "createError": "Помилка створення збору",

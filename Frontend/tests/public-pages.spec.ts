@@ -141,7 +141,8 @@ test.describe('Public pages', () => {
     await page.getByTestId('home-search-input').fill('тепловізори');
     await page.getByTestId('home-campaign-verified-org-toggle').uncheck();
     await page.getByTestId('home-campaign-status-select').click();
-    await page.getByRole('option', { name: 'Активні' }).click();
+    await expect(page.getByRole('listbox')).toBeVisible();
+    await page.getByRole('option', { name: /Активні|Active/i }).click();
     await page.getByTestId('home-search-submit-button').click();
 
     await expect(page.getByTestId('home-campaign-verified-org-toggle')).not.toBeChecked();

@@ -19,6 +19,9 @@
     "decline": "Decline",
     "goHome": "Go home",
     "goToDashboard": "Go to dashboard",
+    "goToOrganizationsMenu": "Go to organizations menu",
+    "goToPublicPages": "Go to public pages",
+    "volunteerSignIn": "Volunteer sign in",
     "goToAdminPanel": "Go to admin panel",
     "soon": "Coming soon",
     "name": "Name",
@@ -52,7 +55,8 @@
       "googleTurnstileRequired": "Complete the Turnstile check before signing in with Google.",
       "googleError": "Google sign-in error",
       "googleNotConfiguredShort": "Google OAuth client ID is not configured.",
-      "googleInitializing": "Google Sign-In is still initializing. Try again."
+      "googleInitializing": "Google Sign-In is still initializing. Try again.",
+      "publicPrompt": "Need to review public campaigns without signing in?"
     },
     "register": {
       "eyebrow": "New access",
@@ -137,6 +141,7 @@
   "dashboard": {
     "welcomeOrg": "Welcome to {{name}}!",
     "overviewSubtitle": "Overview of key organization metrics",
+    "openPublicOrganizationPage": "Public organization page",
     "statMembers": "Members",
     "statActiveCampaigns": "Active campaigns",
     "statRaised": "Raised (₴)",
@@ -311,6 +316,7 @@
     "empty": "No campaigns yet",
     "emptyDescription": "Create your first campaign to start accepting donations.",
     "createCampaign": "Create campaign",
+    "openPublicCampaignPage": "Public campaign page",
     "withdrawnPrefix": "Withdrawn",
     "deadlinePrefix": "by",
     "createError": "Campaign creation error",

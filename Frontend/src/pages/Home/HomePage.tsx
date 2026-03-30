@@ -74,23 +74,30 @@ export default function HomePage() {
       <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
         <PublicPageToolbar />
 
-      <section data-testid="home-hero-section" className="relative overflow-hidden rounded-4xl border border-border/80 bg-[radial-gradient(120%_120%_at_100%_0%,hsl(var(--secondary)/0.24)_0%,transparent_56%),linear-gradient(120deg,hsl(var(--hero-panel))_0%,hsl(var(--hero-panel)/0.92)_100%)] p-6 text-(--hero-panel-foreground) shadow-[0_24px_80px_var(--shadow-soft)] sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--hero-panel-muted)">ProzoroBanka</p>
+      <section
+        data-testid="home-hero-section"
+        className="relative overflow-hidden rounded-4xl border border-border/80 p-6 text-foreground shadow-[0_24px_80px_var(--shadow-soft)] sm:p-8"
+        style={{
+          backgroundImage:
+            'radial-gradient(120% 120% at 100% 0%, hsl(var(--secondary) / 0.14) 0%, transparent 56%), var(--hero-surface)',
+        }}
+      >
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/65">ProzoroBanka</p>
         <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">{t('home.hero.title')}</h1>
-        <p className="mt-3 max-w-2xl text-sm text-(--hero-panel-muted) sm:text-base">
+        <p className="mt-3 max-w-2xl text-sm text-foreground/72 sm:text-base">
           {t('home.hero.description')}
         </p>
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-border/70 bg-background/60 p-3 backdrop-blur-sm">
-            <p className="text-xs text-muted-foreground">{t('home.kpi.campaignsCount')}</p>
+          <div className="rounded-2xl border border-white/25 bg-background/82 p-3 backdrop-blur-sm dark:border-border/70 dark:bg-background/60">
+            <p className="text-xs text-foreground/70 dark:text-muted-foreground">{t('home.kpi.campaignsCount')}</p>
             <p data-testid="home-kpi-campaigns-count" className="mt-1 text-2xl font-bold text-foreground">{campaigns.length}</p>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-background/60 p-3 backdrop-blur-sm">
-            <p className="text-xs text-muted-foreground">{t('home.kpi.activeCampaignsCount')}</p>
+          <div className="rounded-2xl border border-white/25 bg-background/82 p-3 backdrop-blur-sm dark:border-border/70 dark:bg-background/60">
+            <p className="text-xs text-foreground/70 dark:text-muted-foreground">{t('home.kpi.activeCampaignsCount')}</p>
             <p data-testid="home-kpi-active-campaigns-count" className="mt-1 text-2xl font-bold text-foreground">{activeCampaignCount}</p>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-background/60 p-3 backdrop-blur-sm">
-            <p className="text-xs text-muted-foreground">{t('home.kpi.mode')}</p>
+          <div className="rounded-2xl border border-white/25 bg-background/82 p-3 backdrop-blur-sm dark:border-border/70 dark:bg-background/60">
+            <p className="text-xs text-foreground/70 dark:text-muted-foreground">{t('home.kpi.mode')}</p>
             <p data-testid="home-kpi-current-tab" className="mt-1 text-2xl font-bold text-foreground">
               {tab === 'campaigns' ? t('home.tabs.campaigns') : t('home.tabs.organizations')}
             </p>

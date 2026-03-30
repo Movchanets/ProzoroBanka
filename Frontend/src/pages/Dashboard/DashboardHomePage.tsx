@@ -1,11 +1,12 @@
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useOrganization } from '@/hooks/queries/useOrganizations';
 import { useCampaigns } from '@/hooks/queries/useCampaigns';
 import { CampaignStatus } from '@/types';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, Megaphone, ReceiptText, Users, Zap } from 'lucide-react';
+import { BarChart3, Globe, Megaphone, ReceiptText, Users, Zap } from 'lucide-react';
 
 export default function DashboardHomePage() {
   const { t } = useTranslation();
@@ -46,9 +47,20 @@ export default function DashboardHomePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">{t('dashboard.welcomeOrg', { name: org?.name })}</h2>
-        <p className="text-muted-foreground">{t('dashboard.overviewSubtitle')}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">{t('dashboard.welcomeOrg', { name: org?.name })}</h2>
+          <p className="text-muted-foreground">{t('dashboard.overviewSubtitle')}</p>
+        </div>
+
+        {org?.slug ? (
+          <Button asChild variant="outline" size="sm" data-testid="dashboard-home-public-organization-link" className="gap-2 shadow-none">
+            <Link to={`/o/${org.slug}`}>
+              <Globe className="h-4 w-4" />
+              {t('dashboard.openPublicOrganizationPage')}
+            </Link>
+          </Button>
+        ) : null}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

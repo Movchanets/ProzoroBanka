@@ -28,7 +28,7 @@ export default function NotFoundPage() {
               <Link to="/">На головну</Link>
             </Button>
             <Button asChild variant="secondary" data-testid="notfound-public-org-example-link-button">
-              <Link to="/o/organization">Приклад сторінки організації</Link>
+              <Link to="/login">Вхід для волонтера</Link>
             </Button>
           </div>
         </CardContent>

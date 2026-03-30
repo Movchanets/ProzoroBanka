@@ -299,9 +299,9 @@ export default function LoginPage() {
       </div>
 
       <div className="rounded-2xl border border-border bg-muted/50 p-3">
-        <p className="text-sm text-muted-foreground">Потрібно переглянути публічні збори без входу?</p>
-        <Button asChild variant="secondary" className="mt-2 w-full" data-testid="login-public-pages-link">
-          <Link to="/">Перейти до публічних сторінок</Link>
+        <p className="text-sm text-muted-foreground">{t('auth.login.publicPrompt')}</p>
+        <Button asChild className="mt-2 w-full" data-testid="login-public-pages-link">
+          <Link to="/">{t('common.goToPublicPages')}</Link>
         </Button>
       </div>
     </AuthShell>

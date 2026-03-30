@@ -122,6 +122,15 @@ function App() {
 
             {/* Dashboard routes */}
             <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/onboarding" replace />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
               path="/dashboard/:orgId"
               element={
                 <ProtectedRoute>
