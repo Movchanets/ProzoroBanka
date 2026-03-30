@@ -67,9 +67,9 @@ export default function HomePage() {
 
       <section data-testid="home-hero-section" className="relative overflow-hidden rounded-4xl border border-border/80 bg-[radial-gradient(120%_120%_at_100%_0%,hsl(var(--secondary)/0.24)_0%,transparent_56%),linear-gradient(120deg,hsl(var(--hero-panel))_0%,hsl(var(--hero-panel)/0.92)_100%)] p-6 text-(--hero-panel-foreground) shadow-[0_24px_80px_var(--shadow-soft)] sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--hero-panel-muted)">ProzoroBanka</p>
-        <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Прозора підтримка для волонтерських команд</h1>
+        <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Прозорі благодійні збори для волонтерських команд</h1>
         <p className="mt-3 max-w-2xl text-sm text-(--hero-panel-muted) sm:text-base">
-          Публічний каталог зборів та організацій з перевіреним прогресом і відкритою фінансовою прозорістю.
+          Публічний каталог зборів та організацій з перевіреним прогресом, відкритою фінансовою прозорістю і підтвердженими чеками витрат.
         </p>
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-border/70 bg-background/60 p-3 backdrop-blur-sm">
@@ -87,6 +87,39 @@ export default function HomePage() {
             </p>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-3xl border border-border bg-card p-5 sm:p-6" data-testid="home-seo-content-section">
+        <h2 className="text-2xl font-bold text-foreground">Як перевірити прозорий благодійний збір</h2>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">
+          ProzoroBanka допомагає швидко оцінити, наскільки збір відкритий і підзвітний. На сторінках кампаній ви бачите ціль,
+          поточний прогрес, підтверджені чеки та історію витрат. Це дозволяє порівнювати різні благодійні збори не лише за
+          емоційним описом, а й за фактичними даними, які важливі для відповідального донату.
+        </p>
+
+        <h3 className="mt-5 text-xl font-semibold text-foreground">Що важливо перед тим, як підтримати збір</h3>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-7 text-muted-foreground">
+          <li>Чи верифікована організація і чи є публічний профіль команди.</li>
+          <li>Чи співпадають цілі збору з описом потреб і поточними витратами.</li>
+          <li>Чи є підтверджені чеки та регулярні оновлення по кампанії.</li>
+          <li>Чи прозоро показано прогрес і статус збору.</li>
+        </ul>
+
+        <h4 className="mt-5 text-lg font-semibold text-foreground">Навіщо це для донорів і волонтерів</h4>
+        <p className="mt-2 text-sm leading-7 text-muted-foreground">
+          Для донорів це можливість обирати перевірені кампанії та бачити реальний результат внеску. Для волонтерських команд це
+          інструмент довіри: чим прозоріша звітність і якісніша структура даних, тим простіше залучати нових людей до підтримки.
+        </p>
+
+        <h5 className="mt-5 text-base font-semibold text-foreground">Ключові сигнали довіри</h5>
+        <p className="mt-2 text-sm leading-7 text-muted-foreground">
+          Верифікована організація, деталізований опис, відкритий прогрес, публічні чеки і зрозуміла фінансова історія кампанії.
+        </p>
+
+        <h6 className="mt-4 text-sm font-semibold uppercase tracking-wide text-foreground">Оновлення даних</h6>
+        <p className="mt-1 text-sm leading-7 text-muted-foreground">
+          Каталог зборів та організацій оновлюється регулярно, щоб ви бачили актуальну інформацію для прийняття рішень.
+        </p>
       </section>
 
       <Tabs value={tab} onValueChange={(value) => setTab(value as HomeTab)} data-testid="home-main-tabs" className="gap-4">
