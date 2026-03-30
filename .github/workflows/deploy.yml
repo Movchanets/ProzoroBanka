@@ -230,6 +230,19 @@ jobs:
         working-directory: Frontend
         run: npm ci
 
+      - name: Generate dynamic sitemap from updated backend
+        working-directory: Frontend
+        env:
+          SITEMAP_API_URL: ${{ vars.API_CUSTOM_DOMAIN != '' && format('https://{0}', vars.API_CUSTOM_DOMAIN) || needs.provision-infrastructure.outputs.api_base_url }}
+          SITEMAP_SITE_URL: ${{ needs.provision-infrastructure.outputs.static_web_app_url }}
+        run: |
+          if [[ -z "$SITEMAP_API_URL" ]]; then
+            echo "SITEMAP_API_URL is empty. Cannot generate dynamic sitemap." >&2
+            exit 1
+          fi
+
+          npm run generate:sitemap
+
       - name: Build frontend bundle
         working-directory: Frontend
         env:

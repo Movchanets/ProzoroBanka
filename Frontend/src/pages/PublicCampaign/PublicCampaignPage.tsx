@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
 import { PublicReceiptCard } from '@/components/public/PublicReceiptCard';
 import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
+import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { usePublicCampaign, usePublicCampaignReceipts } from '@/hooks/queries/usePublic';
 
 export default function PublicCampaignPage() {
@@ -12,6 +13,8 @@ export default function PublicCampaignPage() {
 
   const campaignQuery = usePublicCampaign(id);
   const receiptsQuery = usePublicCampaignReceipts(id, 1);
+
+  const campaignForSeo = campaignQuery.data;
 
   if (campaignQuery.isLoading) {
     return <div className="mx-auto w-[min(1200px,calc(100%-24px))] py-6"><Skeleton className="h-72 rounded-4xl" /></div>;
@@ -32,8 +35,58 @@ export default function PublicCampaignPage() {
   const receipts = receiptsQuery.data?.items ?? [];
 
   return (
-    <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
-      <PublicPageToolbar compact />
+    <>
+      <SeoHelmet
+        title={campaignForSeo ? `${campaignForSeo.title}: прогрес, чеки, звіти | ProzoroBanka` : 'Збір | ProzoroBanka'}
+        description={campaignForSeo
+          ? `${campaignForSeo.title}. Збір від ${campaignForSeo.organizationName} з публічним прогресом та підтвердженими чеками.`
+          : 'Публічна сторінка благодійного збору з деталями прогресу та витрат.'}
+        canonicalPath={id ? `/c/${id}` : '/c'}
+        robots="index,follow"
+        jsonLd={campaignForSeo
+          ? [
+            {
+              '@context': 'https://schema.org',
+              '@type': 'WebPage',
+              name: campaignForSeo.title,
+              description: campaignForSeo.description,
+              url: `${window.location.origin}/c/${campaignForSeo.id}`,
+              isPartOf: {
+                '@type': 'WebSite',
+                name: 'ProzoroBanka',
+                url: window.location.origin,
+              },
+            },
+            {
+              '@context': 'https://schema.org',
+              '@type': 'BreadcrumbList',
+              itemListElement: [
+                {
+                  '@type': 'ListItem',
+                  position: 1,
+                  name: 'Головна',
+                  item: window.location.origin,
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 2,
+                  name: campaignForSeo.organizationName,
+                  item: `${window.location.origin}/o/${campaignForSeo.organizationSlug}`,
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 3,
+                  name: campaignForSeo.title,
+                  item: `${window.location.origin}/c/${campaignForSeo.id}`,
+                },
+              ],
+            },
+          ]
+          : undefined}
+      />
+
+      <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
+        <PublicPageToolbar compact />
 
       <section data-testid="public-campaign-header" className="rounded-4xl border border-border bg-card p-6 sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Публічний збір</p>
@@ -86,6 +139,7 @@ export default function PublicCampaignPage() {
           ))}
         </CardContent>
       </Card>
-    </main>
+      </main>
+    </>
   );
 }

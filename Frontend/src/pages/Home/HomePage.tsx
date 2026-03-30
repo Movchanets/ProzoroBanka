@@ -10,6 +10,7 @@ import { OrganizationCard } from '@/components/public/OrganizationCard';
 import { CampaignCard } from '@/components/public/CampaignCard';
 import { ComingSoonStub } from '@/components/public/ComingSoonStub';
 import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
+import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { useHomeCampaignFeed, useSearchOrganizations } from '@/hooks/queries/usePublic';
 
 type HomeTab = 'campaigns' | 'organizations';
@@ -46,8 +47,23 @@ export default function HomePage() {
     : 'Спробуйте змінити фільтри або очистити пошуковий запит.';
 
   return (
-    <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
-      <PublicPageToolbar />
+    <>
+      <SeoHelmet
+        title="Прозорі збори та організації | ProzoroBanka"
+        description="Публічний каталог перевірених волонтерських організацій і благодійних зборів з відкритими даними про прогрес та витрати."
+        canonicalPath="/"
+        robots="index,follow"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: 'ProzoroBanka',
+          url: window.location.origin,
+          inLanguage: 'uk-UA',
+        }}
+      />
+
+      <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
+        <PublicPageToolbar />
 
       <section data-testid="home-hero-section" className="relative overflow-hidden rounded-4xl border border-border/80 bg-[radial-gradient(120%_120%_at_100%_0%,hsl(var(--secondary)/0.24)_0%,transparent_56%),linear-gradient(120deg,hsl(var(--hero-panel))_0%,hsl(var(--hero-panel)/0.92)_100%)] p-6 text-(--hero-panel-foreground) shadow-[0_24px_80px_var(--shadow-soft)] sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-(--hero-panel-muted)">ProzoroBanka</p>
@@ -221,6 +237,7 @@ export default function HomePage() {
           </section>
         </TabsContent>
       </Tabs>
-    </main>
+      </main>
+    </>
   );
 }

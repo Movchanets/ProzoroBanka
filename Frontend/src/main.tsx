@@ -4,11 +4,14 @@ import './index.css'
 import './i18n'
 import App from './App.tsx'
 import { ThemeProvider } from '@/components/theme-provider'
+import { HelmetProvider } from 'react-helmet-async'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange storageKey="prozoro-banka-theme">
-      <App />
-    </ThemeProvider>
+    <HelmetProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange storageKey="prozoro-banka-theme">
+        <App />
+      </ThemeProvider>
+    </HelmetProvider>
   </StrictMode>,
 )

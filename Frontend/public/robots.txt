@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Private/auth routes
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /profile
+Disallow: /onboarding
+Disallow: /invite
+
+Sitemap: https://prozorobanka.pp.ua/sitemap.xml

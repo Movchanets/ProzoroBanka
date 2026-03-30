@@ -1,4 +1,4 @@
-import { CampaignStatus } from './index';
+import type { CampaignStatus } from './domains/campaigns';
 
 export interface AdminOrganizationDto {
   id: string;
