@@ -13,6 +13,7 @@ const routesManifest = path.join(distDir, "prerender-routes.json");
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.PRERENDER_PORT || 4173);
 const BASE_URL = `http://${HOST}:${PORT}`;
+const BASE_URL_WITH_SLASH = `${BASE_URL}/`;
 
 const MIME_TYPES = {
   ".html": "text/html; charset=UTF-8",
@@ -110,6 +111,12 @@ function routeToOutputFile(route) {
   return path.join(distDir, normalized, "index.html");
 }
 
+function normalizePrerenderHtml(html) {
+  // Browser serialization can turn relative URLs into absolute localhost URLs.
+  // Replace prerender-origin URLs back to root-relative paths before publishing.
+  return html.replaceAll(BASE_URL_WITH_SLASH, "/");
+}
+
 async function ensureParentDir(filePath) {
   await mkdir(path.dirname(filePath), { recursive: true });
 }
@@ -142,10 +149,11 @@ async function main() {
       }
 
       const html = await page.content();
+      const normalizedHtml = normalizePrerenderHtml(html);
 
       const outputFile = routeToOutputFile(route);
       await ensureParentDir(outputFile);
-      await writeFile(outputFile, `${html}\n`, "utf8");
+      await writeFile(outputFile, `${normalizedHtml}\n`, "utf8");
 
       console.log(`Prerendered ${route} -> ${outputFile}`);
     }

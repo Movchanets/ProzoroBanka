@@ -8,7 +8,23 @@ import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
 import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { usePublicCampaign, usePublicCampaignReceipts } from '@/hooks/queries/usePublic';
 
-const SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '') || window.location.origin;
+const ENV_SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '');
+const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+
+function resolveSiteBaseUrl(): string {
+  if (ENV_SITE_BASE_URL) {
+    return ENV_SITE_BASE_URL;
+  }
+
+  return LOCALHOST_ORIGIN_REGEX.test(window.location.origin) ? '' : window.location.origin;
+}
+
+function buildSiteUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return SITE_BASE_URL ? `${SITE_BASE_URL}${normalizedPath}` : normalizedPath;
+}
+
+const SITE_BASE_URL = resolveSiteBaseUrl();
 
 export default function PublicCampaignPage() {
   const { id } = useParams<{ id: string }>();
@@ -52,11 +68,11 @@ export default function PublicCampaignPage() {
               '@type': 'WebPage',
               name: campaignForSeo.title,
               description: campaignForSeo.description,
-              url: `${SITE_BASE_URL}/c/${campaignForSeo.id}`,
+              url: buildSiteUrl(`/c/${campaignForSeo.id}`),
               isPartOf: {
                 '@type': 'WebSite',
                 name: 'ProzoroBanka',
-                url: SITE_BASE_URL,
+                url: SITE_BASE_URL || undefined,
               },
             },
             {
@@ -67,19 +83,19 @@ export default function PublicCampaignPage() {
                   '@type': 'ListItem',
                   position: 1,
                   name: 'Головна',
-                  item: SITE_BASE_URL,
+                  item: buildSiteUrl('/'),
                 },
                 {
                   '@type': 'ListItem',
                   position: 2,
                   name: campaignForSeo.organizationName,
-                  item: `${SITE_BASE_URL}/o/${campaignForSeo.organizationSlug}`,
+                  item: buildSiteUrl(`/o/${campaignForSeo.organizationSlug}`),
                 },
                 {
                   '@type': 'ListItem',
                   position: 3,
                   name: campaignForSeo.title,
-                  item: `${SITE_BASE_URL}/c/${campaignForSeo.id}`,
+                  item: buildSiteUrl(`/c/${campaignForSeo.id}`),
                 },
               ],
             },

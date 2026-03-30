@@ -147,6 +147,77 @@
     "step2": "Create your first campaign in the \"Campaigns\" section",
     "step3": "Upload receipts for automatic reporting"
   },
+  "home": {
+    "seo": {
+      "title": "Transparent campaigns and organizations | ProzoroBanka",
+      "description": "Public catalog of verified volunteer organizations and charity campaigns with open progress and expense transparency."
+    },
+    "hero": {
+      "title": "Transparent charity campaigns for volunteer teams",
+      "description": "A public catalog of campaigns and organizations with verified progress, open financial transparency, and confirmed expense receipts."
+    },
+    "kpi": {
+      "campaignsCount": "Campaigns in listing",
+      "activeCampaignsCount": "Active campaigns",
+      "mode": "Mode"
+    },
+    "tabs": {
+      "campaigns": "Campaigns",
+      "organizations": "Organizations"
+    },
+    "seoContent": {
+      "title": "How to verify a transparent charity campaign",
+      "paragraph1": "ProzoroBanka helps you quickly assess how open and accountable a campaign is. On campaign pages, you can see the goal, current progress, verified receipts, and spending history. This helps compare charity campaigns not only by emotional appeal but also by factual data important for responsible donations.",
+      "subtitle1": "What matters before supporting a campaign",
+      "listItem1": "Whether the organization is verified and has a public team profile.",
+      "listItem2": "Whether campaign goals match the stated needs and current expenses.",
+      "listItem3": "Whether there are verified receipts and regular campaign updates.",
+      "listItem4": "Whether campaign progress and status are shown transparently.",
+      "subtitle2": "Why this matters for donors and volunteers",
+      "paragraph2": "For donors, this is a way to choose verified campaigns and see the real impact of each contribution. For volunteer teams, this is a trust tool: the more transparent the reporting and data structure, the easier it is to attract new supporters.",
+      "subtitle3": "Key trust signals",
+      "paragraph3": "Verified organization, detailed description, open progress, public receipts, and a clear campaign financial history.",
+      "subtitle4": "Data updates",
+      "paragraph4": "The campaign and organization catalog is updated regularly so you always have current information for decision-making."
+    },
+    "search": {
+      "campaignsLabel": "Search campaigns",
+      "organizationsLabel": "Search organizations",
+      "campaignsPlaceholder": "Campaign name, organization, or keyword",
+      "organizationsPlaceholder": "Enter name or slug",
+      "submit": "Search"
+    },
+    "filters": {
+      "campaignsTitle": "Campaign filter",
+      "statusPlaceholder": "Status",
+      "selectedStatus": "Selected",
+      "verifiedOrganizationsOnly": "Verified organizations only",
+      "applyToCampaignTab": "Apply to campaign tab",
+      "onlyVerifiedOrganizations": "Verified organizations only",
+      "onlyWithActiveCampaigns": "Only with active campaigns",
+      "status": {
+        "all": "All",
+        "active": "Active",
+        "completed": "Completed"
+      }
+    },
+    "comingSoon": {
+      "filtersTitle": "Advanced filters",
+      "filtersDescription": "Campaign categories, geography, and tags will be added in the next phase.",
+      "feedTitle": "Campaign updates feed",
+      "feedDescription": "A timeline of expenses and key campaign updates will appear here soon."
+    },
+    "errors": {
+      "loadCampaigns": "Failed to load campaigns",
+      "loadOrganizations": "Failed to load organizations",
+      "retry": "Try again"
+    },
+    "empty": {
+      "title": "Nothing found",
+      "campaigns": "Try another campaign status or change the search query.",
+      "organizations": "Try changing filters or clearing the search query."
+    }
+  },
   "profile": {
     "eyebrow": "Profile",
     "heroTitle": "{{name}} account is ready",

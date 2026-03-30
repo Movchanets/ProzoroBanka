@@ -18,7 +18,23 @@ function mapTabToStatus(tab: 'all' | 'active' | 'completed') {
   return undefined;
 }
 
-const SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '') || window.location.origin;
+const ENV_SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '');
+const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+
+function resolveSiteBaseUrl(): string {
+  if (ENV_SITE_BASE_URL) {
+    return ENV_SITE_BASE_URL;
+  }
+
+  return LOCALHOST_ORIGIN_REGEX.test(window.location.origin) ? '' : window.location.origin;
+}
+
+function buildSiteUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return SITE_BASE_URL ? `${SITE_BASE_URL}${normalizedPath}` : normalizedPath;
+}
+
+const SITE_BASE_URL = resolveSiteBaseUrl();
 
 export default function PublicOrganizationPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -63,7 +79,7 @@ export default function PublicOrganizationPage() {
               '@context': 'https://schema.org',
               '@type': 'Organization',
               name: organizationForSeo.name,
-              url: `${SITE_BASE_URL}/o/${organizationForSeo.slug}`,
+              url: buildSiteUrl(`/o/${organizationForSeo.slug}`),
               description: organizationForSeo.description,
               sameAs: organizationForSeo.website ? [organizationForSeo.website] : undefined,
             },
@@ -75,13 +91,13 @@ export default function PublicOrganizationPage() {
                   '@type': 'ListItem',
                   position: 1,
                   name: 'Головна',
-                  item: SITE_BASE_URL,
+                  item: buildSiteUrl('/'),
                 },
                 {
                   '@type': 'ListItem',
                   position: 2,
                   name: organizationForSeo.name,
-                  item: `${SITE_BASE_URL}/o/${organizationForSeo.slug}`,
+                  item: buildSiteUrl(`/o/${organizationForSeo.slug}`),
                 },
               ],
             },

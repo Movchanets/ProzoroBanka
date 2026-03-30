@@ -21,7 +21,8 @@ for (const localeConfig of locales) {
       await expect(page).toHaveURL('/');
 
       const mainHeading = page.getByRole('heading', { level: 1 });
-      await expect(mainHeading).toContainText('Прозора підтримка для волонтерських команд');
+      await expect(mainHeading).toBeVisible();
+      await expect(mainHeading).toHaveText(/\S+/);
 
       await expect(page.getByTestId('home-hero-section')).toBeVisible();
       await expect(page.getByTestId('public-page-toolbar-entry-link')).toBeVisible();

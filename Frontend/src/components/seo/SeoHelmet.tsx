@@ -15,15 +15,25 @@ export interface SeoConfig {
 
 const DEFAULT_OG_IMAGE = '/android-chrome-512x512.png';
 const SITE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '');
+const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+
+function resolveSiteOrigin(): string {
+  if (SITE_URL) {
+    return SITE_URL;
+  }
+
+  const runtimeOrigin = window.location.origin;
+  return LOCALHOST_ORIGIN_REGEX.test(runtimeOrigin) ? '' : runtimeOrigin;
+}
 
 function buildAbsoluteUrl(path: string): string {
-  const origin = SITE_URL || window.location.origin;
+  const origin = resolveSiteOrigin();
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${origin}${normalizedPath}`;
+  return origin ? `${origin}${normalizedPath}` : normalizedPath;
 }
 
 export function SeoHelmet(config: SeoConfig) {
