@@ -2,21 +2,11 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { CampaignStatus } from '@/types';
+import { CampaignStatus, type PublicCampaign } from '@/types';
 import { VerifiedBadge } from './VerifiedBadge';
 
 interface CampaignCardProps {
-  campaign: {
-    id: string;
-    title: string;
-    description?: string;
-    goalAmount: number;
-    currentAmount: number;
-    status: number;
-    organizationName: string;
-    organizationSlug: string;
-    organizationVerified: boolean;
-  };
+  campaign: PublicCampaign;
 }
 
 function getStatusLabel(status: number) {

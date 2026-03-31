@@ -37,6 +37,22 @@ const campaignPayload = {
   ],
 };
 
+const campaignListItem = {
+  id: campaignPayload.id,
+  title: campaignPayload.title,
+  description: campaignPayload.description,
+  coverImageUrl: campaignPayload.coverImageUrl,
+  goalAmount: campaignPayload.goalAmount,
+  currentAmount: campaignPayload.currentAmount,
+  status: 1,
+  startDate: null,
+  deadline: null,
+  receiptCount: 1,
+  organizationName: orgPayload.name,
+  organizationSlug: orgPayload.slug,
+  organizationVerified: true,
+};
+
 const receiptsPayload = {
   items: [
     { id: 'r1', merchantName: 'Епіцентр', totalAmount: 54000, transactionDate: '2026-03-20T00:00:00Z', addedByName: 'Ірина Коваль' },
@@ -65,27 +81,37 @@ test.describe('Public pages', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(orgPayload) });
     });
 
+    await page.route('**/api/public/campaigns/search?**', async (route) => {
+      const url = new URL(route.request().url());
+      const query = (url.searchParams.get('query') ?? '').toLowerCase();
+      const status = url.searchParams.get('status');
+      const verifiedOnly = url.searchParams.get('verifiedOnly');
+      const matchesSearch = !query
+        || campaignListItem.title.toLowerCase().includes(query)
+        || (campaignListItem.description?.toLowerCase().includes(query) ?? false)
+        || campaignListItem.organizationName.toLowerCase().includes(query);
+      const matchesStatus = !status || status === String(campaignListItem.status);
+      const matchesVerified = verifiedOnly !== 'true' || campaignListItem.organizationVerified;
+      const items = matchesSearch && matchesStatus && matchesVerified ? [campaignListItem] : [];
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items,
+          page: 1,
+          pageSize: 24,
+          totalCount: items.length,
+        }),
+      });
+    });
+
     await page.route('**/api/public/organizations/promin/campaigns**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          items: [
-            {
-              id: campaignPayload.id,
-              title: campaignPayload.title,
-              description: campaignPayload.description,
-              coverImageUrl: campaignPayload.coverImageUrl,
-              goalAmount: campaignPayload.goalAmount,
-              currentAmount: campaignPayload.currentAmount,
-              status: 1,
-              startDate: null,
-              deadline: null,
-              receiptCount: 1,
-              organizationName: orgPayload.name,
-              organizationSlug: orgPayload.slug,
-            },
-          ],
+          items: [campaignListItem],
           page: 1,
           pageSize: 12,
           totalCount: 1,
@@ -122,7 +148,7 @@ test.describe('Public pages', () => {
     });
   });
 
-  test('TC-01: home page loads and shows organization grid', async ({ page }) => {
+  test('TC-01: home page loads and shows campaign grid', async ({ page }) => {
     test.info().annotations.push({ type: 'locale-check', description: 'Public pages load in bilingual-ready UI.' });
 
     await page.goto('/');
@@ -143,10 +169,17 @@ test.describe('Public pages', () => {
     await page.getByTestId('home-campaign-status-select').click();
     await expect(page.getByRole('listbox')).toBeVisible();
     await page.getByRole('option', { name: /Активні|Active/i }).click();
-    await page.getByTestId('home-search-submit-button').click();
+    await Promise.all([
+      page.waitForResponse((response) =>
+        response.url().includes('/api/public/campaigns/search') && response.ok(),
+      ),
+      page.getByTestId('home-search-submit-button').click(),
+    ]);
 
     await expect(page.getByTestId('home-campaign-verified-org-toggle')).not.toBeChecked();
     await expect(page.getByTestId('home-campaign-grid')).toBeVisible();
+    await expect(page.getByTestId('home-campaign-card-link').first()).toBeVisible();
+    await expect(page.getByText(/тепловізори/i).first()).toBeVisible();
 
     await page.getByTestId('home-main-tab-organizations').click();
     await expect(page.getByTestId('home-org-grid')).toBeVisible();

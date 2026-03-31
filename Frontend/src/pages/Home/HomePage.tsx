@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useDeferredValue, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -37,16 +37,28 @@ export default function HomePage() {
   const [campaignVerifiedOnly, setCampaignVerifiedOnly] = useState(true);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [activeOnly, setActiveOnly] = useState(false);
+  const deferredQuery = useDeferredValue(query);
 
-  const organizationSearch = useSearchOrganizations(query, 1, verifiedOnly, activeOnly);
-  const campaignSearch = useHomeCampaignFeed(query, campaignStatus, campaignVerifiedOnly);
-
-  const organizations = useMemo(() => organizationSearch.data?.items ?? [], [organizationSearch.data]);
-  const campaigns = useMemo(() => campaignSearch.data ?? [], [campaignSearch.data]);
-  const activeCampaignCount = useMemo(
-    () => campaigns.filter((campaign) => campaign.status === CampaignStatus.Active).length,
-    [campaigns],
+  const organizationSearch = useSearchOrganizations(
+    deferredQuery,
+    1,
+    verifiedOnly,
+    activeOnly,
+    'activeCampaigns',
+    12,
+    tab === 'organizations',
   );
+  const campaignSearch = useHomeCampaignFeed(
+    deferredQuery,
+    campaignStatus,
+    campaignVerifiedOnly,
+    24,
+    tab === 'campaigns',
+  );
+
+  const organizations = organizationSearch.data?.items ?? [];
+  const campaigns = campaignSearch.data ?? [];
+  const activeCampaignCount = campaigns.filter((campaign) => campaign.status === CampaignStatus.Active).length;
 
   const activeQuery = tab === 'campaigns' ? campaignSearch : organizationSearch;
   const activeItemCount = tab === 'campaigns' ? campaigns.length : organizations.length;
@@ -157,7 +169,11 @@ export default function HomePage() {
             <Button
               type="button"
               onClick={() => {
-                void campaignSearch.refetch();
+                if (tab === 'campaigns') {
+                  void campaignSearch.refetch();
+                  return;
+                }
+
                 void organizationSearch.refetch();
               }}
               data-testid="home-search-submit-button"
@@ -244,7 +260,11 @@ export default function HomePage() {
                 type="button"
                 variant="secondary"
                 onClick={() => {
-                  void campaignSearch.refetch();
+                  if (tab === 'campaigns') {
+                    void campaignSearch.refetch();
+                    return;
+                  }
+
                   void organizationSearch.refetch();
                 }}
               >

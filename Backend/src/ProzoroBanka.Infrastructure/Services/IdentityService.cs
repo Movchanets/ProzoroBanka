@@ -6,6 +6,7 @@ using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
+using ProzoroBanka.Infrastructure.Data;
 using ProzoroBanka.Infrastructure.Identity;
 
 namespace ProzoroBanka.Infrastructure.Services;
@@ -451,17 +452,16 @@ public class UserService : IUserService
 		if (user is null)
 			return ServiceResponse.Failure("Користувача не знайдено.");
 
-		// Видалення доменного User
-		var domainUser = await FindDomainUserAsync(user, ct);
-		if (domainUser is not null)
-		{
-			// Передача організацій іншим учасникам або системному адміністратору
-			var ownedOrganizations = await _dbContext.Organizations
-				.Where(o => o.OwnerUserId == domainUser.Id)
-				.Include(o => o.Members)
-				.ToListAsync(ct);
+		if (_dbContext is not ApplicationDbContext applicationDbContext)
+			throw new InvalidOperationException("ApplicationDbContext is required for transactional user deletion.");
 
-			if (ownedOrganizations.Count > 0)
+		await using var transaction = await applicationDbContext.Database.BeginTransactionAsync(ct);
+
+		try
+		{
+			// Видалення доменного User
+			var domainUser = await FindDomainUserAsync(user, ct);
+			if (domainUser is not null)
 			{
 				var admins = await _userManager.GetUsersInRoleAsync(ApplicationRoles.Admin);
 				var systemAdmin = admins.FirstOrDefault(a => a.Id != user.Id);
@@ -472,61 +472,98 @@ public class UserService : IUserService
 					systemAdminDomainUser = await FindDomainUserAsync(systemAdmin, ct);
 				}
 
-				foreach (var org in ownedOrganizations)
+				// Передача організацій іншим учасникам або системному адміністратору
+				var ownedOrganizations = await _dbContext.Organizations
+					.Where(o => o.OwnerUserId == domainUser.Id)
+					.Include(o => o.Members)
+					.ToListAsync(ct);
+
+				var reassignedOrganizationOwners = new Dictionary<Guid, Guid>();
+
+				if (ownedOrganizations.Count > 0)
 				{
-					var nextOwner = org.Members
-						.Where(m => m.UserId != domainUser.Id)
-						.OrderBy(m => m.JoinedAt)
-						.FirstOrDefault();
-
-					if (nextOwner is not null)
+					foreach (var org in ownedOrganizations)
 					{
-						org.OwnerUserId = nextOwner.UserId;
-						nextOwner.Role = OrganizationRole.Owner;
-						nextOwner.PermissionsFlags = OrganizationPermissions.All;
-					}
-					else if (systemAdminDomainUser is not null)
-					{
-						org.OwnerUserId = systemAdminDomainUser.Id;
-
-						var existingSystemAdminMember = org.Members
-							.FirstOrDefault(member => member.UserId == systemAdminDomainUser.Id);
-
-						if (existingSystemAdminMember is not null)
+						if (!TryAssignOrganizationOwner(org, domainUser.Id, systemAdminDomainUser, out var replacementOwnerId))
 						{
-							existingSystemAdminMember.Role = OrganizationRole.Owner;
-							existingSystemAdminMember.PermissionsFlags = OrganizationPermissions.All;
+							await transaction.RollbackAsync(ct);
+							return ServiceResponse.Failure("Неможливо видалити користувача: організація не має інших учасників і системний адміністратор відсутній.");
 						}
-						else
-						{
-							_dbContext.OrganizationMembers.Add(new OrganizationMember
-							{
-								OrganizationId = org.Id,
-								UserId = systemAdminDomainUser.Id,
-								Role = OrganizationRole.Owner,
-								PermissionsFlags = OrganizationPermissions.All,
-								JoinedAt = DateTime.UtcNow
-							});
-						}
+
+						reassignedOrganizationOwners[org.Id] = replacementOwnerId;
 					}
-					else
+
+					await _dbContext.SaveChangesAsync(ct);
+				}
+
+				var invitations = await _dbContext.Invitations
+					.Where(i => i.InviterId == domainUser.Id)
+					.ToListAsync(ct);
+
+				if (invitations.Count > 0)
+				{
+					_dbContext.Invitations.RemoveRange(invitations);
+				}
+
+				var campaigns = await _dbContext.Campaigns
+					.Where(c => c.CreatedByUserId == domainUser.Id)
+					.ToListAsync(ct);
+
+				if (campaigns.Count > 0)
+				{
+					var organizationOwners = await _dbContext.Organizations
+						.Where(o => campaigns.Select(c => c.OrganizationId).Contains(o.Id))
+						.Select(o => new { o.Id, o.OwnerUserId })
+						.ToDictionaryAsync(o => o.Id, o => o.OwnerUserId, ct);
+
+					foreach (var campaign in campaigns)
 					{
-						return ServiceResponse.Failure("Неможливо видалити користувача: організація не має інших учасників і системний адміністратор відсутній.");
+						if (!TryResolveCampaignOwnerId(
+								campaign.OrganizationId,
+								domainUser.Id,
+								systemAdminDomainUser,
+								reassignedOrganizationOwners,
+								organizationOwners,
+								out var replacementOwnerId))
+						{
+							await transaction.RollbackAsync(ct);
+							return ServiceResponse.Failure("Неможливо видалити користувача: не знайдено користувача для перепризначення кампаній.");
+						}
+
+						campaign.CreatedByUserId = replacementOwnerId;
 					}
 				}
+
+				await _dbContext.SaveChangesAsync(ct);
+
+				var result = await _userManager.DeleteAsync(user);
+				if (!result.Succeeded)
+				{
+					await transaction.RollbackAsync(ct);
+					return ServiceResponse.Failure(string.Join("; ", result.Errors.Select(e => e.Description)));
+				}
+
+				_dbContext.Users.Remove(domainUser);
 				await _dbContext.SaveChangesAsync(ct);
 			}
-
-			_dbContext.Users.Remove(domainUser);
-			await _dbContext.SaveChangesAsync(ct);
+			else
+			{
+				var result = await _userManager.DeleteAsync(user);
+				if (!result.Succeeded)
+				{
+					await transaction.RollbackAsync(ct);
+					return ServiceResponse.Failure(string.Join("; ", result.Errors.Select(e => e.Description)));
+				}
+			}
+			await transaction.CommitAsync(ct);
 			return ServiceResponse.Success("Користувача видалено.");
 		}
-
-		// Якщо DomainUser не знайдено, видаляємо тільки IdentityUser
-		var result = await _userManager.DeleteAsync(user);
-		return result.Succeeded
-			? ServiceResponse.Success("Користувача видалено.")
-			: ServiceResponse.Failure(string.Join("; ", result.Errors.Select(e => e.Description)));
+		catch (Exception ex)
+		{
+			await transaction.RollbackAsync(ct);
+			_logger.LogError(ex, "Failed to delete user {ApplicationUserId}", applicationUserId);
+			return ServiceResponse.Failure("Не вдалося видалити користувача.");
+		}
 	}
 
 	public async Task<ServiceResponse> ForgotPasswordAsync(string email, string origin, CancellationToken ct)
@@ -566,6 +603,88 @@ public class UserService : IUserService
 	}
 
 	// ── Helpers ──
+
+	private bool TryAssignOrganizationOwner(
+		Organization organization,
+		Guid deletedDomainUserId,
+		User? systemAdminDomainUser,
+		out Guid replacementOwnerId)
+	{
+		var nextOwner = organization.Members
+			.Where(m => m.UserId != deletedDomainUserId)
+			.OrderBy(m => m.JoinedAt)
+			.FirstOrDefault();
+
+		if (nextOwner is not null)
+		{
+			organization.OwnerUserId = nextOwner.UserId;
+			nextOwner.Role = OrganizationRole.Owner;
+			nextOwner.PermissionsFlags = OrganizationPermissions.All;
+			replacementOwnerId = nextOwner.UserId;
+			return true;
+		}
+
+		if (systemAdminDomainUser is null)
+		{
+			replacementOwnerId = Guid.Empty;
+			return false;
+		}
+
+		organization.OwnerUserId = systemAdminDomainUser.Id;
+
+		var existingSystemAdminMember = organization.Members
+			.FirstOrDefault(member => member.UserId == systemAdminDomainUser.Id);
+
+		if (existingSystemAdminMember is not null)
+		{
+			existingSystemAdminMember.Role = OrganizationRole.Owner;
+			existingSystemAdminMember.PermissionsFlags = OrganizationPermissions.All;
+		}
+		else
+		{
+			_dbContext.OrganizationMembers.Add(new OrganizationMember
+			{
+				OrganizationId = organization.Id,
+				UserId = systemAdminDomainUser.Id,
+				Role = OrganizationRole.Owner,
+				PermissionsFlags = OrganizationPermissions.All,
+				JoinedAt = DateTime.UtcNow
+			});
+		}
+
+		replacementOwnerId = systemAdminDomainUser.Id;
+		return true;
+	}
+
+	private static bool TryResolveCampaignOwnerId(
+		Guid organizationId,
+		Guid deletedDomainUserId,
+		User? systemAdminDomainUser,
+		IReadOnlyDictionary<Guid, Guid> reassignedOrganizationOwners,
+		IReadOnlyDictionary<Guid, Guid> organizationOwners,
+		out Guid replacementOwnerId)
+	{
+		if (reassignedOrganizationOwners.TryGetValue(organizationId, out replacementOwnerId))
+		{
+			return true;
+		}
+
+		if (organizationOwners.TryGetValue(organizationId, out var organizationOwnerId)
+			&& organizationOwnerId != deletedDomainUserId)
+		{
+			replacementOwnerId = organizationOwnerId;
+			return true;
+		}
+
+		if (systemAdminDomainUser is not null)
+		{
+			replacementOwnerId = systemAdminDomainUser.Id;
+			return true;
+		}
+
+		replacementOwnerId = Guid.Empty;
+		return false;
+	}
 
 	private static string BuildPasswordResetUrl(string origin, string email, string token)
 	{

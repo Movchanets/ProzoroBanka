@@ -251,10 +251,122 @@ public class UserServiceTests
 		Assert.Equal(OrganizationPermissions.All, systemAdminMember.PermissionsFlags);
 	}
 
+	[Fact]
+	public async Task DeleteUserAsync_WithActiveInvitationsAndCampaigns_ShouldSucceed()
+	{
+		var deletedIdentityUserId = Guid.NewGuid();
+		var deletedDomainUserId = Guid.NewGuid();
+		var nextOwnerDomainUserId = Guid.NewGuid();
+		var organizationId = Guid.NewGuid();
+		var invitationId = Guid.NewGuid();
+		var campaignId = Guid.NewGuid();
+
+		await using (var seedDb = _fixture.CreateContext())
+		{
+			seedDb.DomainUsers.AddRange(
+				new User
+				{
+					Id = deletedDomainUserId,
+					IdentityUserId = deletedIdentityUserId,
+					Email = $"delete-{deletedDomainUserId:N}@test.com",
+					FirstName = "Delete",
+					LastName = "Me"
+				},
+				new User
+				{
+					Id = nextOwnerDomainUserId,
+					Email = $"next-owner-{nextOwnerDomainUserId:N}@test.com",
+					FirstName = "Next",
+					LastName = "Owner"
+				});
+
+			seedDb.Organizations.Add(new Organization
+			{
+				Id = organizationId,
+				Name = "Deletion Regression Org",
+				Slug = $"deletion-regression-{organizationId:N}",
+				OwnerUserId = deletedDomainUserId
+			});
+			await seedDb.SaveChangesAsync();
+
+			seedDb.OrganizationMembers.Add(new OrganizationMember
+			{
+				OrganizationId = organizationId,
+				UserId = nextOwnerDomainUserId,
+				Role = OrganizationRole.Admin,
+				PermissionsFlags = OrganizationPermissions.ManageCampaigns | OrganizationPermissions.ManageInvitations,
+				JoinedAt = DateTime.UtcNow.AddDays(-14)
+			});
+
+			seedDb.Invitations.Add(new Invitation
+			{
+				Id = invitationId,
+				OrganizationId = organizationId,
+				InviterId = deletedDomainUserId,
+				Email = $"invite-{Guid.NewGuid():N}@test.com",
+				Token = $"invite-token-{Guid.NewGuid():N}",
+				DefaultRole = OrganizationRole.Reporter,
+				Status = InvitationStatus.Pending,
+				ExpiresAt = DateTime.UtcNow.AddDays(7)
+			});
+
+			seedDb.Campaigns.Add(new Campaign
+			{
+				Id = campaignId,
+				OrganizationId = organizationId,
+				CreatedByUserId = deletedDomainUserId,
+				Title = "Deletion Regression Campaign",
+				Description = "Campaign linked to deleting user",
+				GoalAmount = 10000m,
+				CurrentAmount = 2500m,
+				Status = CampaignStatus.Active
+			});
+
+			await seedDb.SaveChangesAsync();
+		}
+
+		await using var db = _fixture.CreateContext();
+
+		var deletedIdentityUser = new ApplicationUser
+		{
+			Id = deletedIdentityUserId,
+			Email = $"delete-{deletedDomainUserId:N}@test.com",
+			DomainUserId = deletedDomainUserId
+		};
+
+		var userManagerMock = CreateUserManagerMock();
+		userManagerMock
+			.Setup(manager => manager.FindByIdAsync(deletedIdentityUserId.ToString()))
+			.ReturnsAsync(deletedIdentityUser);
+		userManagerMock
+			.Setup(manager => manager.GetUsersInRoleAsync(ApplicationRoles.Admin))
+			.ReturnsAsync([]);
+
+		var service = CreateService(db, userManagerMock);
+
+		var result = await service.DeleteUserAsync(deletedIdentityUserId, CancellationToken.None);
+
+		Assert.True(result.IsSuccess);
+		userManagerMock.Verify(manager => manager.DeleteAsync(It.Is<ApplicationUser>(user => user.Id == deletedIdentityUserId)), Times.Once);
+		Assert.False(await db.DomainUsers.AnyAsync(user => user.Id == deletedDomainUserId));
+		Assert.False(await db.Invitations.AnyAsync(invitation => invitation.Id == invitationId));
+
+		var campaign = await db.Campaigns.SingleAsync(entity => entity.Id == campaignId);
+		Assert.Equal(nextOwnerDomainUserId, campaign.CreatedByUserId);
+
+		var organization = await db.Organizations.Include(org => org.Members)
+			.SingleAsync(org => org.Id == organizationId);
+		Assert.Equal(nextOwnerDomainUserId, organization.OwnerUserId);
+
+		var promotedMember = organization.Members.Single(member => member.UserId == nextOwnerDomainUserId);
+		Assert.Equal(OrganizationRole.Owner, promotedMember.Role);
+		Assert.Equal(OrganizationPermissions.All, promotedMember.PermissionsFlags);
+	}
+
 	private static Mock<UserManager<ApplicationUser>> CreateUserManagerMock()
 	{
 		var store = new Mock<IUserStore<ApplicationUser>>();
-		return new Mock<UserManager<ApplicationUser>>(
+		var mock = new Mock<UserManager<ApplicationUser>>(
 			store.Object,
 			null!,
 			null!,
@@ -264,6 +376,10 @@ public class UserServiceTests
 			null!,
 			null!,
 			null!);
+		mock
+			.Setup(manager => manager.DeleteAsync(It.IsAny<ApplicationUser>()))
+			.ReturnsAsync(IdentityResult.Success);
+		return mock;
 	}
 
 	private static Mock<SignInManager<ApplicationUser>> CreateSignInManagerMock(Mock<UserManager<ApplicationUser>> userManagerMock)

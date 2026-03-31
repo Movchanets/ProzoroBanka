@@ -2,6 +2,26 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { SeoHelmet, type SeoConfig } from '@/components/seo/SeoHelmet';
 
+function hasDedicatedPageSeo(pathname: string): boolean {
+  return pathname === '/' || pathname.startsWith('/o/') || pathname.startsWith('/c/') || pathname === '/404';
+}
+
+function isKnownAppRoute(pathname: string): boolean {
+  if (pathname === '/login' || pathname === '/register' || pathname === '/forgot-password' || pathname === '/reset-password') {
+    return true;
+  }
+
+  if (pathname === '/onboarding' || pathname === '/profile' || pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
+    return true;
+  }
+
+  if (pathname.startsWith('/invite/') || pathname.startsWith('/receipt/')) {
+    return true;
+  }
+
+  return hasDedicatedPageSeo(pathname);
+}
+
 function isPublicIndexablePath(pathname: string): boolean {
   return pathname === '/' || pathname.startsWith('/o/') || pathname.startsWith('/c/');
 }
@@ -68,6 +88,10 @@ function resolveRouteSeo(pathname: string, t: (key: string) => string): SeoConfi
 export function RouteSeoSync() {
   const { pathname } = useLocation();
   const { t } = useTranslation();
+
+  if (hasDedicatedPageSeo(pathname) || !isKnownAppRoute(pathname)) {
+    return null;
+  }
 
   return <SeoHelmet {...resolveRouteSeo(pathname, t)} />;
 }
