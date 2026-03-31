@@ -9,6 +9,7 @@ using ProzoroBanka.Application.Public.Queries.GetPublicCampaignReceipts;
 using ProzoroBanka.Application.Public.Queries.GetPublicOrganization;
 using ProzoroBanka.Application.Public.Queries.GetPublicOrganizationCampaigns;
 using ProzoroBanka.Application.Public.Queries.GetPublicReceipt;
+using ProzoroBanka.Application.Public.Queries.SearchPublicCampaigns;
 using ProzoroBanka.Application.Public.Queries.SearchOrganizations;
 using ProzoroBanka.Domain.Enums;
 
@@ -85,6 +86,25 @@ public class PublicController : ApiControllerBase
 		var result = await _sender.Send(new GetOrganizationTransparencyQuery(slug), ct);
 		if (!result.IsSuccess)
 			return NotFound(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpGet("/api/public/campaigns/search")]
+	[OutputCache(
+		PolicyName = "PublicCampaignSearch",
+		VaryByQueryKeys = ["query", "status", "page", "pageSize", "verifiedOnly"])]
+	[ProducesResponseType(typeof(PublicListResponse<PublicCampaignDto>), StatusCodes.Status200OK)]
+	public async Task<IActionResult> SearchCampaigns(
+		[FromQuery] string? query,
+		[FromQuery] CampaignStatus? status,
+		[FromQuery] int page = 1,
+		[FromQuery] int pageSize = 24,
+		[FromQuery] bool verifiedOnly = false,
+		CancellationToken ct = default)
+	{
+		var result = await _sender.Send(
+			new SearchPublicCampaignsQuery(query, status, page, pageSize, verifiedOnly), ct);
 
 		return Ok(result.Payload);
 	}

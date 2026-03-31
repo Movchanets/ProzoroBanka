@@ -36,7 +36,7 @@ public class GetPublicOrganizationCampaignsHandler
 		var org = await _db.Organizations
 			.AsNoTracking()
 			.Where(o => o.Slug == request.Slug)
-			.Select(o => new { o.Id, o.Name, o.Slug })
+			.Select(o => new { o.Id, o.Name, o.Slug, o.IsVerified })
 			.FirstOrDefaultAsync(cancellationToken);
 
 		if (org is null)
@@ -69,7 +69,8 @@ public class GetPublicOrganizationCampaignsHandler
 				c.Deadline,
 				0,
 				org.Name,
-				org.Slug))
+				org.Slug,
+				org.IsVerified))
 			.ToListAsync(cancellationToken);
 
 		return ServiceResponse<PublicListResponse<PublicCampaignDto>>.Success(

@@ -51,6 +51,7 @@ export const publicService = {
     page: number,
     verifiedOnly: boolean,
     activeOnly: boolean,
+    sortBy?: 'verified' | 'totalRaised' | 'activeCampaigns',
     pageSize = 12,
   ) => {
     const params = new URLSearchParams();
@@ -59,6 +60,7 @@ export const publicService = {
     params.set('pageSize', String(pageSize));
     if (verifiedOnly) params.set('verifiedOnly', 'true');
     if (activeOnly) params.set('activeOnly', 'true');
+    if (sortBy) params.set('sortBy', sortBy);
     return apiFetch<PublicListResponse<PublicOrganization>>(`/api/public/organizations?${params.toString()}`)
       .then((response) => ({
         ...response,
@@ -82,6 +84,26 @@ export const publicService = {
     params.set('pageSize', String(pageSize));
     if (status !== undefined) params.set('status', String(status));
     return apiFetch<PublicListResponse<PublicCampaign>>(`/api/public/organizations/${slug}/campaigns?${params.toString()}`)
+      .then((response) => ({
+        ...response,
+        items: response.items.map(mapPublicCampaignAmount),
+      }));
+  },
+
+  searchCampaigns: (
+    query: string,
+    status?: CampaignStatus,
+    verifiedOnly = false,
+    page = 1,
+    pageSize = 24,
+  ) => {
+    const params = new URLSearchParams();
+    if (query.trim()) params.set('query', query.trim());
+    if (status !== undefined) params.set('status', String(status));
+    params.set('page', String(page));
+    params.set('pageSize', String(pageSize));
+    if (verifiedOnly) params.set('verifiedOnly', 'true');
+    return apiFetch<PublicListResponse<PublicCampaign>>(`/api/public/campaigns/search?${params.toString()}`)
       .then((response) => ({
         ...response,
         items: response.items.map(mapPublicCampaignAmount),

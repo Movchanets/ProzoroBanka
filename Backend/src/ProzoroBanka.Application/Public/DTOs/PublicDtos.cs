@@ -40,7 +40,8 @@ public record PublicCampaignDto(
 	DateTime? Deadline,
 	int ReceiptCount,
 	string OrganizationName,
-	string OrganizationSlug);
+	string OrganizationSlug,
+	bool OrganizationVerified);
 
 public record PublicCampaignDetailDto(
 	Guid Id,

@@ -42,6 +42,7 @@ export interface PublicCampaign {
   receiptCount: number;
   organizationName: string;
   organizationSlug: string;
+  organizationVerified: boolean;
 }
 
 export interface PublicReceipt {

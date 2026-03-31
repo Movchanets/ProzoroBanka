@@ -160,6 +160,12 @@ public static class DependencyInjection
 
             // ── Public Campaigns ──
 
+            // Пошук/список публічних зборів — 2 хв
+            options.AddPolicy("PublicCampaignSearch", builder => builder
+                .Expire(TimeSpan.FromMinutes(2))
+                .SetVaryByQuery("query", "status", "page", "pageSize", "verifiedOnly")
+                .Tag("campaigns"));
+
             // Публічний збір — 2 хв (баланс змінюється часто)
             options.AddPolicy("PublicCampaign", builder => builder
                 .Expire(TimeSpan.FromMinutes(2))
@@ -196,4 +202,3 @@ public static class DependencyInjection
         });
     }
 }
-

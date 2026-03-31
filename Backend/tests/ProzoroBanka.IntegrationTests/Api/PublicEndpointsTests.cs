@@ -39,6 +39,28 @@ public class PublicEndpointsTests : IClassFixture<TestWebApplicationFactory>
 	}
 
 	[Fact]
+	public async Task PublicCampaignSearch_ReturnsCampaignsWithoutAuth()
+	{
+		await AuthenticateAsAdminAsync();
+		var unique = Guid.NewGuid().ToString("N");
+		var orgId = await CreateOrganizationAsync($"Search Org {unique}");
+		var org = await GetOrganizationAsync(orgId);
+		var campaignId = await CreateCampaignAsync(orgId, $"Search Campaign {unique}");
+		await ActivateCampaignAsync(campaignId);
+
+		_client.DefaultRequestHeaders.Authorization = null;
+
+		var response = await _client.GetAsync($"/api/public/campaigns/search?query={Uri.EscapeDataString(unique)}&verifiedOnly=false&page=1&pageSize=12");
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+		var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+		var items = payload.GetProperty("items");
+		Assert.True(items.GetArrayLength() >= 1);
+		Assert.Contains(items.EnumerateArray(), item => item.GetProperty("id").GetGuid() == campaignId);
+		Assert.Contains(items.EnumerateArray(), item => item.GetProperty("organizationSlug").GetString() == org.GetProperty("slug").GetString());
+	}
+
+	[Fact]
 	public async Task PublicReceipt_ReturnsNotFound_ForNonVerifiedReceipt()
 	{
 		await AuthenticateAsAdminAsync();
