@@ -39,7 +39,6 @@ jobs:
       site_url: ${{ steps.resolve.outputs.site_url }}
       static_web_app_name: ${{ steps.resolve.outputs.static_web_app_name }}
       resource_group_name: ${{ steps.resolve.outputs.resource_group_name }}
-      deploy_token: ${{ steps.resolve.outputs.deploy_token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -54,7 +53,6 @@ jobs:
           FRONTEND_ROOT_CUSTOM_DOMAIN: ${{ vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN != '' && vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN || secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN }}
           FRONTEND_CUSTOM_DOMAIN: ${{ vars.STATIC_WEB_APP_CUSTOM_DOMAIN != '' && vars.STATIC_WEB_APP_CUSTOM_DOMAIN || secrets.STATIC_WEB_APP_CUSTOM_DOMAIN }}
           FRONTEND_SITE_URL: ${{ vars.FRONTEND_SITE_URL != '' && vars.FRONTEND_SITE_URL || secrets.FRONTEND_SITE_URL }}
-          FRONTEND_SWA_DEPLOY_TOKEN: ${{ secrets.FRONTEND_SWA_DEPLOY_TOKEN }}
           STATIC_WEB_APP_NAME: ${{ vars.STATIC_WEB_APP_NAME != '' && vars.STATIC_WEB_APP_NAME || secrets.STATIC_WEB_APP_NAME }}
           RESOURCE_GROUP_NAME: ${{ vars.RESOURCE_GROUP_NAME != '' && vars.RESOURCE_GROUP_NAME || secrets.RESOURCE_GROUP_NAME }}
         run: |
@@ -83,7 +81,6 @@ jobs:
             echo "site_url=${SITE_URL}"
             echo "static_web_app_name=${STATIC_WEB_APP_NAME}"
             echo "resource_group_name=${RESOURCE_GROUP_NAME}"
-            echo "deploy_token=${FRONTEND_SWA_DEPLOY_TOKEN}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Azure login
@@ -134,7 +131,6 @@ jobs:
             echo "site_url=${SITE_URL}"
             echo "static_web_app_name=$(terraform output -raw static_web_app_name)"
             echo "resource_group_name=$(terraform output -raw resource_group_name)"
-            echo "deploy_token="
           } >> "$GITHUB_OUTPUT"
 
       - name: Normalize resolved outputs
@@ -145,18 +141,15 @@ jobs:
           SITE_URL_SECRETS: ${{ steps.resolve-secrets.outputs.site_url }}
           SWA_NAME_SECRETS: ${{ steps.resolve-secrets.outputs.static_web_app_name }}
           RG_NAME_SECRETS: ${{ steps.resolve-secrets.outputs.resource_group_name }}
-          TOKEN_SECRETS: ${{ steps.resolve-secrets.outputs.deploy_token }}
           API_URL_TF: ${{ steps.resolve-terraform.outputs.api_url }}
           SITE_URL_TF: ${{ steps.resolve-terraform.outputs.site_url }}
           SWA_NAME_TF: ${{ steps.resolve-terraform.outputs.static_web_app_name }}
           RG_NAME_TF: ${{ steps.resolve-terraform.outputs.resource_group_name }}
-          TOKEN_TF: ${{ steps.resolve-terraform.outputs.deploy_token }}
         run: |
           API_URL="${API_URL_SECRETS:-$API_URL_TF}"
           SITE_URL="${SITE_URL_SECRETS:-$SITE_URL_TF}"
           SWA_NAME="${SWA_NAME_SECRETS:-$SWA_NAME_TF}"
           RG_NAME="${RG_NAME_SECRETS:-$RG_NAME_TF}"
-          TOKEN="${TOKEN_SECRETS:-$TOKEN_TF}"
 
           if [[ -z "$API_URL" || -z "$SITE_URL" ]]; then
             echo "Resolved API URL or site URL is empty." >&2
@@ -168,7 +161,6 @@ jobs:
             echo "site_url=${SITE_URL}"
             echo "static_web_app_name=${SWA_NAME}"
             echo "resource_group_name=${RG_NAME}"
-            echo "deploy_token=${TOKEN}"
           } >> "$GITHUB_OUTPUT"
 
   rebuild-and-deploy-frontend:
@@ -213,27 +205,27 @@ jobs:
         run: npm run build:prerender
 
       - name: Deploy using static token
-        if: ${{ needs.resolve-frontend-config.outputs.deploy_token != '' }}
+        if: ${{ secrets.FRONTEND_SWA_DEPLOY_TOKEN != '' }}
         uses: Azure/static-web-apps-deploy@v1
         with:
           action: upload
           skip_app_build: true
           app_location: Frontend/dist
-          azure_static_web_apps_api_token: ${{ needs.resolve-frontend-config.outputs.deploy_token }}
+          azure_static_web_apps_api_token: ${{ secrets.FRONTEND_SWA_DEPLOY_TOKEN }}
 
       - name: Azure login
-        if: ${{ needs.resolve-frontend-config.outputs.deploy_token == '' }}
+        if: ${{ secrets.FRONTEND_SWA_DEPLOY_TOKEN == '' }}
         uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Ensure Azure CLI Static Web Apps extension
-        if: ${{ needs.resolve-frontend-config.outputs.deploy_token == '' }}
+        if: ${{ secrets.FRONTEND_SWA_DEPLOY_TOKEN == '' }}
         shell: bash
         run: az extension add --name staticwebapp --upgrade
 
       - name: Resolve Static Web Apps deployment token
-        if: ${{ needs.resolve-frontend-config.outputs.deploy_token == '' }}
+        if: ${{ secrets.FRONTEND_SWA_DEPLOY_TOKEN == '' }}
         id: swa-token
         shell: bash
         run: |
@@ -255,7 +247,7 @@ jobs:
           echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
 
       - name: Deploy using Azure-resolved token
-        if: ${{ needs.resolve-frontend-config.outputs.deploy_token == '' }}
+        if: ${{ secrets.FRONTEND_SWA_DEPLOY_TOKEN == '' }}
         uses: Azure/static-web-apps-deploy@v1
         with:
           action: upload

@@ -39,44 +39,50 @@ async function apiGet(relativePath) {
   return response.json();
 }
 
-async function getAllOrganizations() {
-  const pageSize = 100;
-  const firstPage = await apiGet(
-    `/api/public/organizations?page=1&pageSize=${pageSize}`,
-  );
+function getEffectivePageSize(result, requestedPageSize) {
+  const responsePageSize = Number(result?.pageSize);
+  if (Number.isFinite(responsePageSize) && responsePageSize > 0) {
+    return responsePageSize;
+  }
+
+  const fallbackPageSize = Number(requestedPageSize);
+  if (Number.isFinite(fallbackPageSize) && fallbackPageSize > 0) {
+    return fallbackPageSize;
+  }
+
+  const itemCount = result?.items?.length ?? 0;
+  return Math.max(1, itemCount);
+}
+
+async function getAllPages(buildRelativePath) {
+  const requestedPageSize = 50;
+  const firstPage = await apiGet(buildRelativePath(1, requestedPageSize));
 
   const items = [...(firstPage.items ?? [])];
   const totalCount = Number(firstPage.totalCount ?? items.length);
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const effectivePageSize = getEffectivePageSize(firstPage, requestedPageSize);
+  const totalPages = Math.max(1, Math.ceil(totalCount / effectivePageSize));
 
   for (let page = 2; page <= totalPages; page += 1) {
-    const pageResult = await apiGet(
-      `/api/public/organizations?page=${page}&pageSize=${pageSize}`,
-    );
+    const pageResult = await apiGet(buildRelativePath(page, effectivePageSize));
     items.push(...(pageResult.items ?? []));
   }
 
   return items;
 }
 
-async function getOrganizationCampaigns(slug) {
-  const pageSize = 100;
-  const firstPage = await apiGet(
-    `/api/public/organizations/${encodeURIComponent(slug)}/campaigns?page=1&pageSize=${pageSize}`,
+async function getAllOrganizations() {
+  return getAllPages(
+    (page, pageSize) =>
+      `/api/public/organizations?page=${page}&pageSize=${pageSize}`,
   );
+}
 
-  const items = [...(firstPage.items ?? [])];
-  const totalCount = Number(firstPage.totalCount ?? items.length);
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-
-  for (let page = 2; page <= totalPages; page += 1) {
-    const pageResult = await apiGet(
+async function getOrganizationCampaigns(slug) {
+  return getAllPages(
+    (page, pageSize) =>
       `/api/public/organizations/${encodeURIComponent(slug)}/campaigns?page=${page}&pageSize=${pageSize}`,
-    );
-    items.push(...(pageResult.items ?? []));
-  }
-
-  return items;
+  );
 }
 
 function buildSitemapXml(paths) {
