@@ -25,7 +25,9 @@ public class PublicController : ApiControllerBase
 	}
 
 	[HttpGet("/api/public/organizations")]
-	[OutputCache(PolicyName = "PublicOrganizations")]
+	[OutputCache(
+		PolicyName = "PublicOrganizations",
+		VaryByQueryKeys = ["query", "page", "pageSize", "verifiedOnly", "activeOnly", "sortBy"])]
 	[ProducesResponseType(typeof(PublicListResponse<PublicOrganizationDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> SearchOrganizations(
 		[FromQuery] string? query,
@@ -33,10 +35,11 @@ public class PublicController : ApiControllerBase
 		[FromQuery] int pageSize = 12,
 		[FromQuery] bool verifiedOnly = false,
 		[FromQuery] bool activeOnly = false,
+		[FromQuery] string? sortBy = null,
 		CancellationToken ct = default)
 	{
 		var result = await _sender.Send(
-			new SearchOrganizationsQuery(query, page, pageSize, verifiedOnly, activeOnly), ct);
+			new SearchOrganizationsQuery(query, page, pageSize, verifiedOnly, activeOnly, sortBy), ct);
 
 		return Ok(result.Payload);
 	}
