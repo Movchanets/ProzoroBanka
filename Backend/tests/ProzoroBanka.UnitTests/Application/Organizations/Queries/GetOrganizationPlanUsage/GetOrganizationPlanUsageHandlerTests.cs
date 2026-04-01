@@ -1,4 +1,5 @@
-using Microsoft.Extensions.Options;
+using Moq;
+using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.Queries.GetOrganizationPlanUsage;
 using ProzoroBanka.Domain.Entities;
@@ -40,13 +41,11 @@ public class GetOrganizationPlanUsageHandlerTests
 		db.Organizations.Add(org);
 		await db.SaveChangesAsync();
 
-		var options = Options.Create(new OrganizationPlansOptions
-		{
-			Free = new OrganizationPlanLimits { MaxCampaigns = 3, MaxMembers = 10, MaxOcrExtractionsPerMonth = 100 },
-			Paid = new OrganizationPlanLimits { MaxCampaigns = 100, MaxMembers = 200, MaxOcrExtractionsPerMonth = 5000 }
-		});
+		var settings = new Mock<ISystemSettingsService>();
+		settings.Setup(x => x.GetPlanLimitsAsync(OrganizationPlanType.Free, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new OrganizationPlanLimits { MaxCampaigns = 3, MaxMembers = 10, MaxOcrExtractionsPerMonth = 100 });
 
-		var handler = new GetOrganizationPlanUsageHandler(db, options);
+		var handler = new GetOrganizationPlanUsageHandler(db, settings.Object);
 		var result = await handler.Handle(
 			new GetOrganizationPlanUsageQuery(orgId),
 			CancellationToken.None);

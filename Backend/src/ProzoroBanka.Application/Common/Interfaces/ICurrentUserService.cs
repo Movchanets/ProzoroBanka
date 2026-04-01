@@ -24,4 +24,9 @@ public interface ICurrentUserService
 	/// Чи авторизований користувач.
 	/// </summary>
 	bool IsAuthenticated { get; }
+
+	/// <summary>
+	/// Чи має користувач роль системного адміністратора.
+	/// </summary>
+	bool IsAdmin { get; }
 }

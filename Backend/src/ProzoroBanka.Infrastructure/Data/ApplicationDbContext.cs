@@ -24,6 +24,7 @@ public class ApplicationDbContext
 
 	// ── Domain DbSets ──
 	public DbSet<User> DomainUsers => Set<User>();
+	public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 	public DbSet<Organization> Organizations => Set<Organization>();
 	public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
 	public DbSet<Invitation> Invitations => Set<Invitation>();
@@ -35,6 +36,7 @@ public class ApplicationDbContext
 
 	// ── IApplicationDbContext explicit implementation ──
 	DbSet<User> IApplicationDbContext.Users => DomainUsers;
+	DbSet<SystemSetting> IApplicationDbContext.SystemSettings => SystemSettings;
 	DbSet<Organization> IApplicationDbContext.Organizations => Organizations;
 	DbSet<OrganizationMember> IApplicationDbContext.OrganizationMembers => OrganizationMembers;
 	DbSet<Invitation> IApplicationDbContext.Invitations => Invitations;
@@ -122,6 +124,16 @@ public class ApplicationDbContext
 				.WithOne(m => m.User)
 				.HasForeignKey(m => m.UserId)
 				.OnDelete(DeleteBehavior.Cascade);
+		});
+
+		builder.Entity<SystemSetting>(b =>
+		{
+			b.ToTable("SystemSettings");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.Key).HasMaxLength(200).IsRequired();
+			b.Property(e => e.Value).HasMaxLength(2000).IsRequired();
+			b.HasIndex(e => e.Key).IsUnique();
+			b.HasQueryFilter(e => !e.IsDeleted);
 		});
 
 		builder.Entity<Organization>(b =>

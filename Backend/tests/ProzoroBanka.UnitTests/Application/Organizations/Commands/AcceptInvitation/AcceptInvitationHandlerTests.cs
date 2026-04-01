@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
+using Moq;
+using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.Commands.AcceptInvitation;
 using ProzoroBanka.Domain.Entities;
@@ -13,21 +14,6 @@ namespace ProzoroBanka.UnitTests.Application.Organizations.Commands.AcceptInvita
 public class AcceptInvitationHandlerTests
 {
 	private readonly PostgreSqlUnitTestFixture _fixture;
-	private static readonly IOptions<OrganizationPlansOptions> PlanOptions = Options.Create(new OrganizationPlansOptions
-	{
-		Free = new OrganizationPlanLimits
-		{
-			MaxCampaigns = 3,
-			MaxMembers = 10,
-			MaxOcrExtractionsPerMonth = 100
-		},
-		Paid = new OrganizationPlanLimits
-		{
-			MaxCampaigns = 100,
-			MaxMembers = 200,
-			MaxOcrExtractionsPerMonth = 5000
-		}
-	});
 
 	public AcceptInvitationHandlerTests(PostgreSqlUnitTestFixture fixture)
 	{
@@ -60,7 +46,7 @@ public class AcceptInvitationHandlerTests
 		});
 		await db.SaveChangesAsync();
 
-		var handler = new AcceptInvitationHandler(db, new UnitOfWork(db), PlanOptions);
+		var handler = CreateHandler(db);
 		var result = await handler.Handle(new AcceptInvitationCommand(callerId, token), CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
@@ -96,7 +82,7 @@ public class AcceptInvitationHandlerTests
 		});
 		await db.SaveChangesAsync();
 
-		var handler = new AcceptInvitationHandler(db, new UnitOfWork(db), PlanOptions);
+		var handler = CreateHandler(db);
 		var result = await handler.Handle(new AcceptInvitationCommand(callerId, expiredToken), CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
@@ -144,8 +130,8 @@ public class AcceptInvitationHandlerTests
 		await using var db1 = _fixture.CreateContext();
 		await using var db2 = _fixture.CreateContext();
 
-		var handler1 = new AcceptInvitationHandler(db1, new UnitOfWork(db1), PlanOptions);
-		var handler2 = new AcceptInvitationHandler(db2, new UnitOfWork(db2), PlanOptions);
+		var handler1 = CreateHandler(db1);
+		var handler2 = CreateHandler(db2);
 
 		var task1 = handler1.Handle(new AcceptInvitationCommand(callerId, token), CancellationToken.None);
 		var task2 = handler2.Handle(new AcceptInvitationCommand(callerId, token), CancellationToken.None);
@@ -218,7 +204,7 @@ public class AcceptInvitationHandlerTests
 
 		await db.SaveChangesAsync();
 
-		var handler = new AcceptInvitationHandler(db, new UnitOfWork(db), PlanOptions);
+		var handler = CreateHandler(db);
 		var result = await handler.Handle(new AcceptInvitationCommand(callerId, token), CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
@@ -284,7 +270,7 @@ public class AcceptInvitationHandlerTests
 
 		await db.SaveChangesAsync();
 
-		var handler = new AcceptInvitationHandler(db, new UnitOfWork(db), PlanOptions);
+		var handler = CreateHandler(db);
 		var result = await handler.Handle(new AcceptInvitationCommand(callerId, token), CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
@@ -292,5 +278,103 @@ public class AcceptInvitationHandlerTests
 		Assert.Equal(
 			InvitationStatus.Accepted,
 			(await db.Invitations.FirstAsync(i => i.Token == token)).Status);
+	}
+
+	[Fact]
+	public async Task Handle_ReactivatesSoftDeletedMembership_InsteadOfCreatingDuplicate()
+	{
+		await using var db = _fixture.CreateContext();
+		var callerId = Guid.NewGuid();
+		var inviterId = Guid.NewGuid();
+		var orgId = Guid.NewGuid();
+		var token = $"token-reactivate-{Guid.NewGuid():N}";
+
+		db.DomainUsers.AddRange(
+			new User { Id = callerId, Email = $"vol-{callerId:N}@example.com", FirstName = "V", LastName = "One" },
+			new User { Id = inviterId, Email = $"adm-{inviterId:N}@example.com", FirstName = "A", LastName = "Two" }
+		);
+
+		db.Organizations.Add(new Organization
+		{
+			Id = orgId,
+			Name = "Reactivate Org",
+			Slug = $"reactivate-org-{orgId:N}",
+			OwnerUserId = inviterId
+		});
+
+		db.OrganizationMembers.Add(new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = callerId,
+			Role = OrganizationRole.Reporter,
+			PermissionsFlags = OrganizationPermissions.ViewReports,
+			JoinedAt = DateTime.UtcNow.AddDays(-30),
+			IsDeleted = true
+		});
+
+		db.Invitations.Add(new Invitation
+		{
+			OrganizationId = orgId,
+			InviterId = inviterId,
+			Token = token,
+			DefaultRole = OrganizationRole.Admin,
+			Status = InvitationStatus.Pending,
+			ExpiresAt = DateTime.UtcNow.AddHours(2)
+		});
+
+		await db.SaveChangesAsync();
+
+		var beforeCount = await db.OrganizationMembers
+			.IgnoreQueryFilters()
+			.CountAsync(m => m.OrganizationId == orgId && m.UserId == callerId);
+
+		var handler = CreateHandler(db);
+		var result = await handler.Handle(new AcceptInvitationCommand(callerId, token), CancellationToken.None);
+
+		Assert.True(result.IsSuccess);
+
+		var afterCount = await db.OrganizationMembers
+			.IgnoreQueryFilters()
+			.CountAsync(m => m.OrganizationId == orgId && m.UserId == callerId);
+		Assert.Equal(beforeCount, afterCount);
+
+		var restored = await db.OrganizationMembers
+			.IgnoreQueryFilters()
+			.SingleAsync(m => m.OrganizationId == orgId && m.UserId == callerId);
+		Assert.False(restored.IsDeleted);
+		Assert.Equal(OrganizationRole.Admin, restored.Role);
+		var expectedAdminPermissions = OrganizationPermissions.ManageOrganization
+			| OrganizationPermissions.ManageMembers
+			| OrganizationPermissions.ManageInvitations
+			| OrganizationPermissions.ManageReceipts
+			| OrganizationPermissions.ViewReports
+			| OrganizationPermissions.UploadLogo
+			| OrganizationPermissions.ManageCampaigns;
+		Assert.Equal(expectedAdminPermissions, restored.PermissionsFlags);
+	}
+
+	private static AcceptInvitationHandler CreateHandler(ProzoroBanka.Infrastructure.Data.ApplicationDbContext db)
+	{
+		var settings = new Mock<ISystemSettingsService>();
+		settings.Setup(x => x.GetMaxJoinedOrganizationsForNonAdminAsync(It.IsAny<CancellationToken>())).ReturnsAsync(20);
+		settings.Setup(x => x.GetPlanLimitsAsync(OrganizationPlanType.Free, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new OrganizationPlanLimits
+			{
+				MaxCampaigns = 3,
+				MaxMembers = 10,
+				MaxOcrExtractionsPerMonth = 100
+			});
+		settings.Setup(x => x.GetPlanLimitsAsync(OrganizationPlanType.Paid, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new OrganizationPlanLimits
+			{
+				MaxCampaigns = 100,
+				MaxMembers = 200,
+				MaxOcrExtractionsPerMonth = 5000
+			});
+
+		var currentUser = new Mock<ICurrentUserService>();
+		currentUser.SetupGet(x => x.IsAdmin).Returns(false);
+
+		return new AcceptInvitationHandler(db, new UnitOfWork(db), settings.Object, currentUser.Object);
 	}
 }

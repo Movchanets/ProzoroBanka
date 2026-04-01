@@ -8,6 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart3, Globe, Megaphone, ReceiptText, Users, Zap } from 'lucide-react';
 
+const PLAN_LABELS: Record<number, string> = {
+  1: 'Free',
+  2: 'Paid',
+};
+
+const PLAN_DESCRIPTIONS: Record<number, string> = {
+  1: 'Безкоштовний тариф: до 3 кампаній, до 10 учасників, до 100 OCR-розпізнавань на місяць.',
+  2: 'Платний тариф: до 100 кампаній, до 200 учасників, до 5000 OCR-розпізнавань на місяць.',
+};
+
 export default function DashboardHomePage() {
   const { t } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
@@ -76,6 +86,20 @@ export default function DashboardHomePage() {
           </Card>
         ))}
       </div>
+
+      <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="dashboard-home-plan-card">
+        <CardHeader>
+          <CardTitle className="text-lg" data-testid="dashboard-home-plan-title">Тариф організації</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground" data-testid="dashboard-home-plan-name">
+            Поточний тариф: <span className="font-medium text-foreground">{PLAN_LABELS[org?.planType ?? 1]}</span>
+          </p>
+          <p className="text-sm text-muted-foreground" data-testid="dashboard-home-plan-description">
+            {PLAN_DESCRIPTIONS[org?.planType ?? 1]}
+          </p>
+        </CardContent>
+      </Card>
 
       <Card className="border border-border bg-card/60 backdrop-blur-sm">
         <CardHeader>

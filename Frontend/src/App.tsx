@@ -36,6 +36,7 @@ const AdminOrganizationsPage = lazy(() => import('./pages/Admin/AdminOrganizatio
 const AdminCampaignsPage = lazy(() => import('./pages/Admin/AdminCampaignsPage'));
 const AdminUsersPage = lazy(() => import('./pages/Admin/AdminUsersPage'));
 const AdminRolesPage = lazy(() => import('./pages/Admin/AdminRolesPage'));
+const AdminSettingsPage = lazy(() => import('./pages/Admin/AdminSettingsPage'));
 const ReactQueryDevtools = import.meta.env.DEV
   ? lazy(() => import('@tanstack/react-query-devtools').then((module) => ({ default: module.ReactQueryDevtools })))
   : null;
@@ -162,6 +163,7 @@ function App() {
               <Route path="organizations/:orgId/campaigns" element={<AdminCampaignsPage />} />
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="roles" element={<AdminRolesPage />} />
+              <Route path="settings" element={<AdminSettingsPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

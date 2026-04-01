@@ -28,10 +28,12 @@ import { apiFetch } from '@/services/api';
 import { toast } from 'sonner';
 import { Check, X, Trash, MoreVertical, ExternalLink } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useTranslation } from 'react-i18next';
 import type { AdminOrganizationDto, OrganizationPlanType, OrganizationPlanUsageDto } from '@/types/admin';
 import { OrganizationPlanType as PlanTypeEnum } from '@/types/admin';
 
 export default function AdminOrganizationsPage() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [verifiedOnly, setVerifiedOnly] = useState<boolean | undefined>(undefined);
   const [searchInput, setSearchInput] = useState('');
@@ -91,14 +93,14 @@ export default function AdminOrganizationsPage() {
   };
 
   const planLabel = (planType: OrganizationPlanType) =>
-    planType === PlanTypeEnum.Paid ? 'Paid' : 'Free';
+    planType === PlanTypeEnum.Paid ? t('admin.organizations.plan.paid') : t('admin.organizations.plan.free');
 
   return (
     <div className="space-y-6" data-testid="admin-organizations-page">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Організації</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Управління організаціями та верифікацією.</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t('admin.organizations.title')}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{t('admin.organizations.subtitle')}</p>
         </div>
       </div>
 
@@ -106,7 +108,7 @@ export default function AdminOrganizationsPage() {
         <Input
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          placeholder="Пошук за назвою, slug або email власника"
+          placeholder={t('admin.organizations.filters.searchPlaceholder')}
           data-testid="admin-organizations-search-input"
         />
         <div className="flex items-center gap-2" data-testid="admin-organizations-verified-filter-group">
@@ -115,30 +117,30 @@ export default function AdminOrganizationsPage() {
             onClick={() => { setPage(1); setVerifiedOnly(undefined); }}
             data-testid="admin-organizations-filter-all"
           >
-            Всі
+            {t('admin.organizations.filters.all')}
           </Button>
           <Button
             variant={verifiedOnly === false ? 'default' : 'outline'}
             onClick={() => { setPage(1); setVerifiedOnly(false); }}
             data-testid="admin-organizations-filter-unverified"
           >
-            Не перевірені
+            {t('admin.organizations.filters.unverified')}
           </Button>
           <Button
             variant={verifiedOnly === true ? 'default' : 'outline'}
             onClick={() => { setPage(1); setVerifiedOnly(true); }}
             data-testid="admin-organizations-filter-verified"
           >
-            Верифіковані
+            {t('admin.organizations.filters.verified')}
           </Button>
         </div>
       </div>
 
       {isError ? (
         <Alert variant="destructive" data-testid="admin-organizations-error-alert">
-          <AlertTitle>Помилка завантаження</AlertTitle>
+          <AlertTitle>{t('admin.organizations.errorTitle')}</AlertTitle>
           <AlertDescription data-testid="admin-organizations-error-message">
-            {error instanceof Error ? error.message : 'Не вдалося завантажити список організацій'}
+            {error instanceof Error ? error.message : t('admin.organizations.errorDefault')}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -147,23 +149,23 @@ export default function AdminOrganizationsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Назва</TableHead>
-              <TableHead>Власник</TableHead>
-              <TableHead>Статус</TableHead>
-              <TableHead>Тариф</TableHead>
-              <TableHead>Збори / Баланс</TableHead>
-              <TableHead>Створено</TableHead>
-              <TableHead className="text-right">Дії</TableHead>
+              <TableHead>{t('admin.organizations.table.name')}</TableHead>
+              <TableHead>{t('admin.organizations.table.owner')}</TableHead>
+              <TableHead>{t('admin.organizations.table.status')}</TableHead>
+              <TableHead>{t('admin.organizations.table.plan')}</TableHead>
+              <TableHead>{t('admin.organizations.table.campaignsAndBalance')}</TableHead>
+              <TableHead>{t('admin.organizations.table.createdAt')}</TableHead>
+              <TableHead className="text-right">{t('admin.organizations.table.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center" data-testid="admin-organizations-loading-cell">Завантаження...</TableCell>
+                <TableCell colSpan={7} className="h-24 text-center" data-testid="admin-organizations-loading-cell">{t('admin.organizations.loading')}</TableCell>
               </TableRow>
             ) : data?.items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center" data-testid="admin-organizations-empty-cell">Немає організацій</TableCell>
+                <TableCell colSpan={7} className="h-24 text-center" data-testid="admin-organizations-empty-cell">{t('admin.organizations.empty')}</TableCell>
               </TableRow>
             ) : (
               data?.items.map((org) => (
@@ -190,8 +192,8 @@ export default function AdminOrganizationsPage() {
             <h2 className="text-lg font-semibold" data-testid="admin-organizations-plan-panel-title">Керування тарифом</h2>
             <p className="text-sm text-muted-foreground" data-testid="admin-organizations-plan-panel-subtitle">
               {selectedOrganization
-                ? `Організація: ${selectedOrganization.name}`
-                : 'Оберіть організацію зі списку'}
+                ? t('admin.organizations.planPanel.organizationLabel', { name: selectedOrganization.name })
+                : t('admin.organizations.planPanel.selectOrganization')}
             </p>
           </div>
 
@@ -207,7 +209,7 @@ export default function AdminOrganizationsPage() {
               disabled={!selectedOrganization || setPlanMutation.isPending}
               data-testid="admin-organizations-plan-free-button"
             >
-              Free
+              {t('admin.organizations.plan.free')}
             </Button>
             <Button
               type="button"
@@ -220,7 +222,7 @@ export default function AdminOrganizationsPage() {
               disabled={!selectedOrganization || setPlanMutation.isPending}
               data-testid="admin-organizations-plan-paid-button"
             >
-              Paid
+              {t('admin.organizations.plan.paid')}
             </Button>
             <Button
               type="button"
@@ -228,47 +230,47 @@ export default function AdminOrganizationsPage() {
               disabled={!selectedOrganization || setPlanMutation.isPending || effectivePendingPlanType === selectedOrganization?.planType}
               data-testid="admin-organizations-plan-apply-button"
             >
-              {setPlanMutation.isPending ? 'Збереження...' : 'Застосувати'}
+              {setPlanMutation.isPending ? t('admin.organizations.planPanel.saving') : t('admin.organizations.planPanel.apply')}
             </Button>
           </div>
         </div>
 
         {selectedOrganization ? (
           <div className="text-sm text-muted-foreground" data-testid="admin-organizations-current-plan-label">
-            Поточний план: <span className="font-medium text-foreground">{planLabel(selectedOrganization.planType)}</span>
+            {t('admin.organizations.planPanel.currentPlan')}: <span className="font-medium text-foreground">{planLabel(selectedOrganization.planType)}</span>
           </div>
         ) : null}
 
         {isUsageError ? (
           <Alert variant="destructive" data-testid="admin-organizations-usage-error-alert">
-            <AlertTitle>Помилка usage</AlertTitle>
+            <AlertTitle>{t('admin.organizations.usage.errorTitle')}</AlertTitle>
             <AlertDescription data-testid="admin-organizations-usage-error-message">
-              {usageError instanceof Error ? usageError.message : 'Не вдалося завантажити usage'}
+              {usageError instanceof Error ? usageError.message : t('admin.organizations.usage.errorDefault')}
             </AlertDescription>
           </Alert>
         ) : null}
 
         {isUsageLoading ? (
-          <div className="text-sm text-muted-foreground" data-testid="admin-organizations-usage-loading">Завантаження usage...</div>
+          <div className="text-sm text-muted-foreground" data-testid="admin-organizations-usage-loading">{t('admin.organizations.usage.loading')}</div>
         ) : null}
 
         {usage ? (
           <div className="grid gap-3 sm:grid-cols-3" data-testid="admin-organizations-usage-cards">
             <UsageCard
               testId="admin-organizations-usage-campaigns"
-              title="Campaigns"
+              title={t('admin.organizations.usage.campaigns')}
               current={usage.currentCampaigns}
               max={usage.maxCampaigns}
             />
             <UsageCard
               testId="admin-organizations-usage-members"
-              title="Users"
+              title={t('admin.organizations.usage.members')}
               current={usage.currentMembers}
               max={usage.maxMembers}
             />
             <UsageCard
               testId="admin-organizations-usage-ocr"
-              title="OCR"
+              title={t('admin.organizations.usage.ocr')}
               current={usage.currentOcrExtractionsPerMonth}
               max={usage.maxOcrExtractionsPerMonth}
             />
@@ -284,10 +286,10 @@ export default function AdminOrganizationsPage() {
             onClick={() => setPage(page - 1)}
             data-testid="admin-organizations-pagination-prev"
           >
-            Попередня
+            {t('admin.organizations.pagination.previous')}
           </Button>
           <div className="flex items-center px-2 text-sm text-muted-foreground" data-testid="admin-organizations-pagination-current">
-            Сторінка {page}
+            {t('admin.organizations.pagination.page', { page })}
           </div>
           <Button
             variant="outline"
@@ -295,7 +297,7 @@ export default function AdminOrganizationsPage() {
             onClick={() => setPage(page + 1)}
             data-testid="admin-organizations-pagination-next"
           >
-            Наступна
+            {t('admin.organizations.pagination.next')}
           </Button>
         </div>
       )}
@@ -314,19 +316,20 @@ function OrganizationRow({
   isSelected: boolean;
   planLabel: (planType: OrganizationPlanType) => string;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [isVerifying, setIsVerifying] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const toggleVerify = async () => {
-    if (!window.confirm(`Змінити статус верифікації для ${org.name}?`)) return;
+    if (!window.confirm(t('admin.organizations.actions.verifyConfirm', { name: org.name }))) return;
     setIsVerifying(true);
     try {
       await apiFetch(`/api/admin/organizations/${org.id}/verify`, {
         method: 'PUT',
         body: JSON.stringify({ isVerified: !org.isVerified })
       });
-      toast.success('Статус оновлено');
+      toast.success(t('admin.organizations.actions.statusUpdated'));
       queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
     } catch (e: unknown) {
       toast.error((e as Error).message);
@@ -336,11 +339,11 @@ function OrganizationRow({
   };
 
   const deleteOrg = async () => {
-    if (!window.prompt(`УВАГА! Це видалить організацію та всі її збори. Введіть назву "${org.name}" для підтвердження:`)?.includes(org.name)) return;
+    if (!window.prompt(t('admin.organizations.actions.deleteConfirm', { name: org.name }))?.includes(org.name)) return;
     setIsDeleting(true);
     try {
       await apiFetch(`/api/admin/organizations/${org.id}`, { method: 'DELETE' });
-      toast.success('Видалено');
+      toast.success(t('admin.organizations.actions.deleted'));
       queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
     } catch (e: unknown) {
       toast.error((e as Error).message);
@@ -372,16 +375,16 @@ function OrganizationRow({
       </TableCell>
       <TableCell>
         {org.isVerified ? (
-          <Badge variant="default" className="bg-green-600" data-testid={`admin-organizations-verified-${org.id}`}>Верифікована</Badge>
+          <Badge variant="default" className="bg-green-600" data-testid={`admin-organizations-verified-${org.id}`}>{t('admin.organizations.status.verified')}</Badge>
         ) : (
-          <Badge variant="secondary" data-testid={`admin-organizations-unverified-${org.id}`}>Не перевірена</Badge>
+          <Badge variant="secondary" data-testid={`admin-organizations-unverified-${org.id}`}>{t('admin.organizations.status.unverified')}</Badge>
         )}
       </TableCell>
       <TableCell>
         <Badge variant="outline" data-testid={`admin-organizations-plan-${org.id}`}>{planLabel(org.planType)}</Badge>
       </TableCell>
       <TableCell>
-        <div className="text-sm" data-testid={`admin-organizations-campaigns-${org.id}`}>{org.campaignCount} зборів</div>
+        <div className="text-sm" data-testid={`admin-organizations-campaigns-${org.id}`}>{t('admin.organizations.row.campaignsCount', { count: org.campaignCount })}</div>
         <div className="text-xs text-muted-foreground" data-testid={`admin-organizations-raised-${org.id}`}>{org.totalRaised.toLocaleString('uk-UA')} ₴</div>
       </TableCell>
       <TableCell className="text-muted-foreground text-sm">
@@ -396,29 +399,29 @@ function OrganizationRow({
             onClick={() => onSelect(org.id, org.planType)}
             data-testid={`admin-organizations-select-${org.id}`}
           >
-            Тариф
+            {t('admin.organizations.actions.plan')}
           </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`admin-organizations-actions-${org.id}`}>
-              <span className="sr-only">Відкрити меню</span>
+              <span className="sr-only">{t('admin.organizations.actions.openMenu')}</span>
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={toggleVerify} disabled={isVerifying} data-testid={`admin-organizations-verify-${org.id}`}>
               {org.isVerified ? <X className="mr-2 h-4 w-4" /> : <Check className="mr-2 h-4 w-4" />}
-              {org.isVerified ? 'Скасувати верифікацію' : 'Верифікувати'}
+              {org.isVerified ? t('admin.organizations.actions.unverify') : t('admin.organizations.actions.verify')}
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to={`/admin/organizations/${org.id}/campaigns`} className="cursor-pointer" data-testid={`admin-organizations-campaigns-link-${org.id}`}>
                 <ExternalLink className="mr-2 h-4 w-4" />
-                Збори організації
+                {t('admin.organizations.actions.organizationCampaigns')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={deleteOrg} disabled={isDeleting} className="text-destructive focus:bg-destructive/10" data-testid={`admin-organizations-delete-${org.id}`}>
               <Trash className="mr-2 h-4 w-4" />
-              Видалити
+              {t('admin.organizations.actions.delete')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -439,6 +442,7 @@ function UsageCard({
   max: number;
   testId: string;
 }) {
+  const { t } = useTranslation();
   const isNearLimit = max > 0 && current / max >= 0.8;
   const isOverLimit = max > 0 && current >= max;
 
@@ -447,7 +451,11 @@ function UsageCard({
       <div className="text-sm font-medium">{title}</div>
       <div className="text-lg font-semibold" data-testid={`${testId}-value`}>{current} / {max}</div>
       <div className="text-xs text-muted-foreground" data-testid={`${testId}-status`}>
-        {isOverLimit ? 'Ліміт досягнуто' : isNearLimit ? 'Наближається до ліміту' : 'В межах ліміту'}
+        {isOverLimit
+          ? t('admin.organizations.usage.status.limitReached')
+          : isNearLimit
+            ? t('admin.organizations.usage.status.nearLimit')
+            : t('admin.organizations.usage.status.withinLimit')}
       </div>
     </div>
   );

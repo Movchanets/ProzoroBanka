@@ -1,4 +1,5 @@
 import type { CampaignStatus } from './domains/campaigns';
+import type { OrganizationPermissions, OrganizationRole } from './domains/organizations';
 
 export const OrganizationPlanType = {
   Free: 1,
@@ -67,6 +68,32 @@ export interface AdminUserDto {
   roles: string[];
 }
 
+export interface AdminUserOrganizationLinkDto {
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string;
+  isVerified: boolean;
+  planType: OrganizationPlanType;
+  role: OrganizationRole;
+  permissions: OrganizationPermissions;
+  joinedAt: string;
+  isOwner: boolean;
+}
+
+export interface AdminUserDetailsDto {
+  id: string;
+  domainUserId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+  profilePhotoUrl?: string;
+  isActive: boolean;
+  createdAt: string;
+  roles: string[];
+  organizations: AdminUserOrganizationLinkDto[];
+}
+
 export interface AdminUserListResponse {
   items: AdminUserDto[];
   totalCount: number;
@@ -78,6 +105,26 @@ export interface AdminUsersFilters {
   search?: string;
   isActive?: boolean;
   role?: string;
+}
+
+export interface AdminUserLimitsSettingsDto {
+  maxOwnedOrganizationsForNonAdmin: number;
+}
+
+export interface AdminPlanLimitsDto {
+  maxCampaigns: number;
+  maxMembers: number;
+  maxOcrExtractionsPerMonth: number;
+}
+
+export interface AdminPlansSettingsDto {
+  free: AdminPlanLimitsDto;
+  paid: AdminPlanLimitsDto;
+}
+
+export interface AdminGeneralSettingsDto {
+  maxOwnedOrganizationsForNonAdmin: number;
+  maxJoinedOrganizationsForNonAdmin: number;
 }
 
 export interface OrganizationPlanUsageDto {

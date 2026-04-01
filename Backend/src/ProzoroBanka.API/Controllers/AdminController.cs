@@ -2,12 +2,22 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
+using ProzoroBanka.API.Authorization;
 using ProzoroBanka.Application.Admin.Commands.AdminChangeCampaignStatus;
 using ProzoroBanka.Application.Admin.Commands.AdminDeleteOrganization;
+using ProzoroBanka.Application.Admin.Commands.RemoveUserOrganizationLink;
+using ProzoroBanka.Application.Admin.Commands.UpdateAdminGeneralSettings;
+using ProzoroBanka.Application.Admin.Commands.UpdateAdminPlansSettings;
+using ProzoroBanka.Application.Admin.Commands.UpdateUserLimitsSettings;
+using ProzoroBanka.Application.Admin.Commands.UpdateUserOrganizationLink;
 using ProzoroBanka.Application.Admin.Commands.VerifyOrganization;
 using ProzoroBanka.Application.Admin.DTOs;
 using ProzoroBanka.Application.Admin.Queries.GetAllOrganizations;
+using ProzoroBanka.Application.Admin.Queries.GetAdminGeneralSettings;
+using ProzoroBanka.Application.Admin.Queries.GetAdminPlansSettings;
 using ProzoroBanka.Application.Admin.Queries.GetOrganizationCampaigns;
+using ProzoroBanka.Application.Admin.Queries.GetUserDetails;
+using ProzoroBanka.Application.Admin.Queries.GetUserLimitsSettings;
 using ProzoroBanka.Application.Admin.Queries.GetUsers;
 using ProzoroBanka.Application.Admin.Queries.GetRoles;
 using ProzoroBanka.Application.Users.Commands.DeleteUser;
@@ -144,6 +154,19 @@ public class AdminController : ControllerBase
 		return Ok(result.Payload);
 	}
 
+	[HttpGet("users/{id:guid}")]
+	[ProducesResponseType(typeof(AdminUserDetailsDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> GetUserDetails(Guid id, CancellationToken ct = default)
+	{
+		var result = await _sender.Send(new GetUserDetailsQuery(id), ct);
+
+		if (!result.IsSuccess)
+			return NotFound(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
 	/// <summary>
 	/// Отримати всі доступні ролі.
 	/// </summary>
@@ -206,5 +229,118 @@ public class AdminController : ControllerBase
 			return BadRequest(new { Error = result.Message });
 
 		return Ok(new { Message = result.Message });
+	}
+
+	[HttpPut("users/{id:guid}/organizations/{organizationId:guid}")]
+	[ProducesResponseType(typeof(AdminUserOrganizationLinkDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> UpdateUserOrganizationLink(
+		Guid id,
+		Guid organizationId,
+		[FromBody] AdminUpdateUserOrganizationLinkRequest request,
+		CancellationToken ct)
+	{
+		var result = await _sender.Send(
+			new UpdateUserOrganizationLinkCommand(id, organizationId, request.Role, request.Permissions),
+			ct);
+
+		if (!result.IsSuccess)
+			return BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpDelete("users/{id:guid}/organizations/{organizationId:guid}")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> RemoveUserOrganizationLink(Guid id, Guid organizationId, CancellationToken ct)
+	{
+		var result = await _sender.Send(new RemoveUserOrganizationLinkCommand(id, organizationId), ct);
+
+		if (!result.IsSuccess)
+			return BadRequest(new { Error = result.Message });
+
+		return Ok(new { Message = result.Message });
+	}
+
+	[HttpGet("settings/users")]
+	[HasPermission(Permissions.SystemSettings)]
+	[ProducesResponseType(typeof(AdminUserLimitsSettingsDto), StatusCodes.Status200OK)]
+	public async Task<IActionResult> GetUserLimitsSettings(CancellationToken ct = default)
+	{
+		var result = await _sender.Send(new GetUserLimitsSettingsQuery(), ct);
+		return Ok(result.Payload);
+	}
+
+	[HttpPut("settings/users")]
+	[HasPermission(Permissions.SystemSettings)]
+	[ProducesResponseType(typeof(AdminUserLimitsSettingsDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> UpdateUserLimitsSettings(
+		[FromBody] AdminUpdateUserLimitsSettingsRequest request,
+		CancellationToken ct)
+	{
+		var result = await _sender.Send(
+			new UpdateUserLimitsSettingsCommand(request.MaxOwnedOrganizationsForNonAdmin),
+			ct);
+
+		if (!result.IsSuccess)
+			return BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpGet("settings/plans")]
+	[HasPermission(Permissions.SystemSettings)]
+	[ProducesResponseType(typeof(AdminPlansSettingsDto), StatusCodes.Status200OK)]
+	public async Task<IActionResult> GetAdminPlansSettings(CancellationToken ct = default)
+	{
+		var result = await _sender.Send(new GetAdminPlansSettingsQuery(), ct);
+		return Ok(result.Payload);
+	}
+
+	[HttpPut("settings/plans")]
+	[HasPermission(Permissions.SystemSettings)]
+	[ProducesResponseType(typeof(AdminPlansSettingsDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> UpdateAdminPlansSettings(
+		[FromBody] AdminUpdatePlansSettingsRequest request,
+		CancellationToken ct = default)
+	{
+		var result = await _sender.Send(new UpdateAdminPlansSettingsCommand(request.Free, request.Paid), ct);
+
+		if (!result.IsSuccess)
+			return BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpGet("settings/general")]
+	[HasPermission(Permissions.SystemSettings)]
+	[ProducesResponseType(typeof(AdminGeneralSettingsDto), StatusCodes.Status200OK)]
+	public async Task<IActionResult> GetAdminGeneralSettings(CancellationToken ct = default)
+	{
+		var result = await _sender.Send(new GetAdminGeneralSettingsQuery(), ct);
+		return Ok(result.Payload);
+	}
+
+	[HttpPut("settings/general")]
+	[HasPermission(Permissions.SystemSettings)]
+	[ProducesResponseType(typeof(AdminGeneralSettingsDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> UpdateAdminGeneralSettings(
+		[FromBody] AdminUpdateGeneralSettingsRequest request,
+		CancellationToken ct = default)
+	{
+		var result = await _sender.Send(
+			new UpdateAdminGeneralSettingsCommand(
+				request.MaxOwnedOrganizationsForNonAdmin,
+				request.MaxJoinedOrganizationsForNonAdmin),
+			ct);
+
+		if (!result.IsSuccess)
+			return BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
 	}
 }

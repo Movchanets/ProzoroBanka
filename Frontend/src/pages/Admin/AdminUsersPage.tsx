@@ -5,6 +5,9 @@ import {
   useAdminAssignRoles,
   useAdminDeleteUser,
   useAdminSetUserLockout,
+  useAdminUserDetails,
+  useAdminRemoveUserOrganizationLink,
+  useAdminUpdateUserOrganizationLink,
 } from '@/hooks/queries/useAdminQueries';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
@@ -35,10 +38,22 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppRoles } from '@/constants/appRoles';
-import type { AdminUserDto, AdminRoleDto } from '@/types/admin';
+import { OrganizationPermissions, OrganizationRole } from '@/types/domains/organizations';
+import type { AdminUserDto, AdminRoleDto, AdminUserOrganizationLinkDto } from '@/types/admin';
 
 type StatusFilter = 'all' | 'active' | 'locked';
+
+const organizationPermissionOptions = [
+  { flag: OrganizationPermissions.ManageOrganization, label: 'Керування організацією' },
+  { flag: OrganizationPermissions.ManageMembers, label: 'Учасники' },
+  { flag: OrganizationPermissions.ManageInvitations, label: 'Запрошення' },
+  { flag: OrganizationPermissions.ManageReceipts, label: 'Чеки' },
+  { flag: OrganizationPermissions.ViewReports, label: 'Звіти' },
+  { flag: OrganizationPermissions.UploadLogo, label: 'Логотип' },
+  { flag: OrganizationPermissions.ManageCampaigns, label: 'Збори' },
+] as const;
 
 function parseStatusFilter(value: string | null): StatusFilter {
   if (value === 'active' || value === 'locked') {
@@ -46,6 +61,25 @@ function parseStatusFilter(value: string | null): StatusFilter {
   }
 
   return 'all';
+}
+
+function hasPermission(value: number, flag: number) {
+  return (value & flag) === flag;
+}
+
+function roleLabel(role: OrganizationRole) {
+  switch (role) {
+    case OrganizationRole.Owner:
+      return 'Owner';
+    case OrganizationRole.Admin:
+      return 'Admin';
+    default:
+      return 'Reporter';
+  }
+}
+
+function planLabel(planType: 1 | 2) {
+  return planType === 2 ? 'Paid' : 'Free';
 }
 
 export default function AdminUsersPage() {
@@ -59,6 +93,7 @@ export default function AdminUsersPage() {
 
   const [searchInput, setSearchInput] = useState(searchFromUrl);
   const [editingUser, setEditingUser] = useState<AdminUserDto | null>(null);
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     setSearchInput(searchFromUrl);
@@ -156,7 +191,7 @@ export default function AdminUsersPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Користувачі</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Керування ролями, блокуванням та видаленням користувачів.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Керування ролями, блокуванням та membership-зв&apos;язками користувачів.</p>
         </div>
       </div>
 
@@ -278,6 +313,7 @@ export default function AdminUsersPage() {
                 <UserRow
                   key={user.id}
                   user={user}
+                  onOpenProfile={() => setViewingUserId(user.id)}
                   onEditRoles={() => setEditingUser(user)}
                 />
               ))
@@ -322,11 +358,27 @@ export default function AdminUsersPage() {
           onClose={() => setEditingUser(null)}
         />
       )}
+
+      {viewingUserId && (
+        <UserDetailsDialog
+          userId={viewingUserId}
+          onClose={() => setViewingUserId(null)}
+          onEditRoles={(user) => setEditingUser(user)}
+        />
+      )}
     </div>
   );
 }
 
-function UserRow({ user, onEditRoles }: { user: AdminUserDto; onEditRoles: () => void }) {
+function UserRow({
+  user,
+  onOpenProfile,
+  onEditRoles,
+}: {
+  user: AdminUserDto;
+  onOpenProfile: () => void;
+  onEditRoles: () => void;
+}) {
   const initials = `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.trim().toUpperCase() || 'U';
   const lockoutMutation = useAdminSetUserLockout(user.id);
   const deleteMutation = useAdminDeleteUser(user.id);
@@ -390,6 +442,16 @@ function UserRow({ user, onEditRoles }: { user: AdminUserDto; onEditRoles: () =>
       </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-2">
+          <Button
+            data-testid={`admin-users-profile-${user.id}`}
+            variant="outline"
+            size="sm"
+            onClick={onOpenProfile}
+            disabled={lockoutMutation.isPending || deleteMutation.isPending}
+          >
+            Профіль
+          </Button>
+
           <Button
             data-testid={`admin-users-edit-roles-${user.id}`}
             variant="outline"
@@ -490,5 +552,236 @@ function EditRolesDialog({ user, availableRoles, onClose }: { user: AdminUserDto
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function UserDetailsDialog({
+  userId,
+  onClose,
+  onEditRoles,
+}: {
+  userId: string;
+  onClose: () => void;
+  onEditRoles: (user: AdminUserDto) => void;
+}) {
+  const { data: user, isLoading } = useAdminUserDetails(userId);
+
+  return (
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>Профіль користувача</DialogTitle>
+          <DialogDescription>
+            Перегляд профілю, організацій та редагування membership-зв&apos;язків.
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading || !user ? (
+          <div className="py-8 text-sm text-muted-foreground">Завантаження профілю...</div>
+        ) : (
+          <ScrollArea className="max-h-[70vh] pr-4">
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-muted/20 p-4">
+                <div className="flex items-center gap-4">
+                  {user.profilePhotoUrl ? (
+                    <img src={user.profilePhotoUrl} alt="avatar" className="h-16 w-16 rounded-2xl object-cover" />
+                  ) : (
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-lg font-semibold text-primary">
+                      {(user.firstName[0] ?? '')}{(user.lastName[0] ?? '')}
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <div className="text-lg font-semibold">{user.firstName} {user.lastName}</div>
+                    <div className="text-sm text-muted-foreground">{user.email}</div>
+                    <div className="text-sm text-muted-foreground">
+                      Телефон: {user.phoneNumber?.trim() ? user.phoneNumber : 'не вказано'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-right">
+                  <div>
+                    <Badge variant={user.isActive ? 'outline' : 'secondary'}>
+                      {user.isActive ? 'Активний' : 'Заблокований'}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Зареєстровано {format(new Date(user.createdAt), 'dd.MM.yyyy')}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEditRoles({
+                      id: user.id,
+                      domainUserId: user.domainUserId,
+                      email: user.email,
+                      firstName: user.firstName,
+                      lastName: user.lastName,
+                      profilePhotoUrl: user.profilePhotoUrl,
+                      isActive: user.isActive,
+                      createdAt: user.createdAt,
+                      roles: user.roles,
+                    })}
+                  >
+                    Редагувати системні ролі
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="text-sm font-medium">Системні ролі</div>
+                <div className="flex flex-wrap gap-2">
+                  {user.roles.length > 0 ? user.roles.map((role) => (
+                    <Badge key={role} variant={role === AppRoles.Admin ? 'default' : 'secondary'}>
+                      {role}
+                    </Badge>
+                  )) : (
+                    <span className="text-sm text-muted-foreground">Немає ролей</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium">Організації користувача</div>
+                    <div className="text-xs text-muted-foreground">
+                      Тут можна переглянути профіль організацій і відредагувати membership-зв&apos;язки.
+                    </div>
+                  </div>
+                  <Badge variant="outline">{user.organizations.length} організацій</Badge>
+                </div>
+
+                {user.organizations.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                    У користувача ще немає зв&apos;язків з організаціями.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {user.organizations.map((organization) => (
+                      <OrganizationMembershipCard
+                        key={`${organization.organizationId}-${organization.role}-${organization.permissions}`}
+                        userId={user.id}
+                        organization={organization}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </ScrollArea>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function OrganizationMembershipCard({
+  userId,
+  organization,
+}: {
+  userId: string;
+  organization: AdminUserOrganizationLinkDto;
+}) {
+  const updateMembershipMutation = useAdminUpdateUserOrganizationLink(userId);
+  const removeMembershipMutation = useAdminRemoveUserOrganizationLink(userId);
+  const [role, setRole] = useState<OrganizationRole>(organization.role);
+  const [permissions, setPermissions] = useState<number>(organization.permissions);
+
+  const handleTogglePermission = (flag: number) => {
+    setPermissions((previous) => (hasPermission(previous, flag) ? previous & ~flag : previous | flag));
+  };
+
+  const handleSave = async () => {
+    await updateMembershipMutation.mutateAsync({
+      organizationId: organization.organizationId,
+      role,
+      permissions,
+    });
+  };
+
+  const handleRemove = async () => {
+    if (!window.confirm(`Видалити зв'язок користувача з організацією "${organization.organizationName}"?`)) {
+      return;
+    }
+
+    await removeMembershipMutation.mutateAsync(organization.organizationId);
+  };
+
+  return (
+    <div className="rounded-xl border border-border p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold">{organization.organizationName}</div>
+          <div className="text-xs text-muted-foreground">/{organization.organizationSlug}</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Badge variant="outline">{planLabel(organization.planType)}</Badge>
+            <Badge variant={organization.isVerified ? 'default' : 'secondary'}>
+              {organization.isVerified ? 'Верифікована' : 'Не верифікована'}
+            </Badge>
+            {organization.isOwner && <Badge>Owner</Badge>}
+          </div>
+        </div>
+
+        <div className="text-right text-xs text-muted-foreground">
+          <div>Приєднався: {format(new Date(organization.joinedAt), 'dd.MM.yyyy')}</div>
+          <div>Поточна роль: {roleLabel(organization.role)}</div>
+        </div>
+      </div>
+
+      {organization.isOwner ? (
+        <div className="mt-4 text-sm text-muted-foreground">
+          Це власник організації. Для безпечності цей зв&apos;язок лише переглядається.
+        </div>
+      ) : (
+        <div className="mt-4 space-y-4">
+          <div className="grid gap-2 md:grid-cols-[220px_1fr] md:items-center">
+            <div className="text-sm font-medium">Роль в організації</div>
+            <Select value={String(role)} onValueChange={(value) => setRole(Number(value) as OrganizationRole)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={String(OrganizationRole.Admin)}>Admin</SelectItem>
+                <SelectItem value={String(OrganizationRole.Reporter)}>Reporter</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            {organizationPermissionOptions.map((permission) => (
+              <label
+                key={permission.flag}
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm"
+              >
+                <Checkbox
+                  checked={hasPermission(permissions, permission.flag)}
+                  onCheckedChange={() => handleTogglePermission(permission.flag)}
+                />
+                <span>{permission.label}</span>
+              </label>
+            ))}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={handleSave}
+              disabled={updateMembershipMutation.isPending || removeMembershipMutation.isPending}
+            >
+              {updateMembershipMutation.isPending ? 'Збереження...' : 'Зберегти зв&apos;язок'}
+            </Button>
+            <Button
+              variant="soft"
+              className="text-destructive hover:bg-destructive/10"
+              onClick={handleRemove}
+              disabled={updateMembershipMutation.isPending || removeMembershipMutation.isPending}
+            >
+              {removeMembershipMutation.isPending ? 'Видалення...' : 'Видалити зв&apos;язок'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

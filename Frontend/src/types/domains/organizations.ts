@@ -6,6 +6,27 @@ export const OrganizationRole = {
 
 export type OrganizationRole = typeof OrganizationRole[keyof typeof OrganizationRole];
 
+export const OrganizationPermissions = {
+  None: 0,
+  ManageOrganization: 1 << 0,
+  ManageMembers: 1 << 1,
+  ManageInvitations: 1 << 2,
+  ManageReceipts: 1 << 3,
+  ViewReports: 1 << 4,
+  UploadLogo: 1 << 5,
+  ManageCampaigns: 1 << 6,
+  All:
+    (1 << 0) |
+    (1 << 1) |
+    (1 << 2) |
+    (1 << 3) |
+    (1 << 4) |
+    (1 << 5) |
+    (1 << 6),
+} as const;
+
+export type OrganizationPermissions = typeof OrganizationPermissions[keyof typeof OrganizationPermissions];
+
 export const OrganizationRoleLabel: Record<OrganizationRole, string> = {
   [OrganizationRole.Owner]: 'roles.owner',
   [OrganizationRole.Admin]: 'roles.admin',
@@ -21,6 +42,7 @@ export interface Organization {
   isVerified: boolean;
   memberCount: number;
   createdAt: string;
+  planType: 1 | 2;
 }
 
 export interface OrganizationDetail extends Organization {
