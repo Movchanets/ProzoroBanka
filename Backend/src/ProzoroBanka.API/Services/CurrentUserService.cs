@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ProzoroBanka.Infrastructure.Identity;
 using ProzoroBanka.Application.Common.Interfaces;
 
 namespace ProzoroBanka.API.Services;
@@ -22,7 +23,7 @@ public class CurrentUserService : ICurrentUserService
 		get
 		{
 			var id = User?.FindFirstValue(ClaimTypes.NameIdentifier);
-			return id is not null ? Guid.Parse(id) : null;
+			return Guid.TryParse(id, out var parsedId) ? parsedId : null;
 		}
 	}
 
@@ -31,11 +32,16 @@ public class CurrentUserService : ICurrentUserService
 		get
 		{
 			var id = User?.FindFirstValue("domain_user_id");
-			return id is not null ? Guid.Parse(id) : null;
+			return Guid.TryParse(id, out var parsedId) ? parsedId : null;
 		}
 	}
 
 	public string? Email => User?.FindFirstValue(ClaimTypes.Email);
 
 	public bool IsAuthenticated => User?.Identity?.IsAuthenticated ?? false;
+
+	public bool IsAdmin
+	{
+		get { return User?.IsInRole(ApplicationRoles.Admin) ?? false; }
+	}
 }

@@ -244,6 +244,140 @@ public class AdminUserManagementEndpointsTests : IClassFixture<TestWebApplicatio
 			string.Equals(user.GetProperty("email").GetString(), targetEmail, StringComparison.OrdinalIgnoreCase));
 	}
 
+	[Fact]
+	public async Task UserDetails_AndMembershipUpdateEndpoints_WorkForAdmin()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var targetEmail = $"details-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(targetEmail, "Password123!");
+		var userId = await GetUserIdByEmailAsync(targetEmail);
+
+		Guid targetDomainUserId;
+		Guid organizationId = Guid.NewGuid();
+
+		await using (var setupScope = _factory.Services.CreateAsyncScope())
+		{
+			var db = setupScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			var userManager = setupScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+			var targetIdentityUser = await userManager.FindByEmailAsync(targetEmail);
+			var adminIdentityUser = await userManager.FindByEmailAsync("admin@example.com");
+
+			Assert.NotNull(targetIdentityUser);
+			Assert.NotNull(targetIdentityUser!.DomainUserId);
+			Assert.NotNull(adminIdentityUser);
+			Assert.NotNull(adminIdentityUser!.DomainUserId);
+			targetDomainUserId = targetIdentityUser.DomainUserId!.Value;
+
+			db.Organizations.Add(new Organization
+			{
+				Id = organizationId,
+				Name = $"Details Org {Guid.NewGuid():N}",
+				Slug = $"details-org-{Guid.NewGuid():N}",
+				OwnerUserId = adminIdentityUser.DomainUserId!.Value
+			});
+			await db.SaveChangesAsync();
+
+			db.OrganizationMembers.Add(new OrganizationMember
+			{
+				OrganizationId = organizationId,
+				UserId = targetDomainUserId,
+				Role = OrganizationRole.Reporter,
+				PermissionsFlags = OrganizationPermissions.ManageReceipts,
+				JoinedAt = DateTime.UtcNow.AddDays(-5)
+			});
+			await db.SaveChangesAsync();
+		}
+
+		var detailsResponse = await _client.GetAsync($"/api/admin/users/{userId}");
+		detailsResponse.EnsureSuccessStatusCode();
+		var detailsJson = await detailsResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Equal(targetEmail, detailsJson.GetProperty("email").GetString());
+		Assert.Contains(detailsJson.GetProperty("organizations").EnumerateArray(), item => item.GetProperty("organizationId").GetGuid() == organizationId);
+
+		var updateResponse = await _client.PutAsJsonAsync($"/api/admin/users/{userId}/organizations/{organizationId}", new
+		{
+			role = OrganizationRole.Admin,
+			permissions = (int)(OrganizationPermissions.ManageOrganization | OrganizationPermissions.ManageMembers)
+		});
+		updateResponse.EnsureSuccessStatusCode();
+
+		await using var assertScope = _factory.Services.CreateAsyncScope();
+		var assertDb = assertScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+		var membership = await assertDb.OrganizationMembers.SingleAsync(entity => entity.OrganizationId == organizationId && entity.UserId == targetDomainUserId);
+		Assert.Equal(OrganizationRole.Admin, membership.Role);
+		Assert.Equal(OrganizationPermissions.ManageOrganization | OrganizationPermissions.ManageMembers, membership.PermissionsFlags);
+	}
+
+	[Fact]
+	public async Task UpdateUserLimitsSettings_ChangesGlobalNonAdminOrganizationLimit()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var updateResponse = await _client.PutAsJsonAsync("/api/admin/settings/users", new
+		{
+			maxOwnedOrganizationsForNonAdmin = 12
+		});
+		updateResponse.EnsureSuccessStatusCode();
+
+		var getResponse = await _client.GetAsync("/api/admin/settings/users");
+		getResponse.EnsureSuccessStatusCode();
+		var json = await getResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Equal(12, json.GetProperty("maxOwnedOrganizationsForNonAdmin").GetInt32());
+	}
+
+	[Fact]
+	public async Task AdminGeneralSettingsEndpoints_UpdateAndReturnOwnedAndJoinedLimits()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var updateResponse = await _client.PutAsJsonAsync("/api/admin/settings/general", new
+		{
+			maxOwnedOrganizationsForNonAdmin = 15,
+			maxJoinedOrganizationsForNonAdmin = 30
+		});
+		updateResponse.EnsureSuccessStatusCode();
+
+		var getResponse = await _client.GetAsync("/api/admin/settings/general");
+		getResponse.EnsureSuccessStatusCode();
+		var json = await getResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Equal(15, json.GetProperty("maxOwnedOrganizationsForNonAdmin").GetInt32());
+		Assert.Equal(30, json.GetProperty("maxJoinedOrganizationsForNonAdmin").GetInt32());
+	}
+
+	[Fact]
+	public async Task AdminPlansSettingsEndpoints_UpdateAndReturnFreeAndPaidLimits()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var updateResponse = await _client.PutAsJsonAsync("/api/admin/settings/plans", new
+		{
+			free = new
+			{
+				maxCampaigns = 4,
+				maxMembers = 12,
+				maxOcrExtractionsPerMonth = 150
+			},
+			paid = new
+			{
+				maxCampaigns = 120,
+				maxMembers = 250,
+				maxOcrExtractionsPerMonth = 6000
+			}
+		});
+		updateResponse.EnsureSuccessStatusCode();
+
+		var getResponse = await _client.GetAsync("/api/admin/settings/plans");
+		getResponse.EnsureSuccessStatusCode();
+		var json = await getResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Equal(4, json.GetProperty("free").GetProperty("maxCampaigns").GetInt32());
+		Assert.Equal(12, json.GetProperty("free").GetProperty("maxMembers").GetInt32());
+		Assert.Equal(150, json.GetProperty("free").GetProperty("maxOcrExtractionsPerMonth").GetInt32());
+		Assert.Equal(120, json.GetProperty("paid").GetProperty("maxCampaigns").GetInt32());
+		Assert.Equal(250, json.GetProperty("paid").GetProperty("maxMembers").GetInt32());
+		Assert.Equal(6000, json.GetProperty("paid").GetProperty("maxOcrExtractionsPerMonth").GetInt32());
+	}
+
 	private async Task RegisterAsync(string email, string password)
 	{
 		var response = await _client.PostAsJsonAsync("/api/auth/register", new

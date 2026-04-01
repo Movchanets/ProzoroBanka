@@ -529,5 +529,121 @@
     "title": "Volunteer portal",
     "subtitle": "Update your profile, photo, and stay ready to upload receipts without an extra admin step.",
     "avatarAlt": "Profile photo"
+  },
+  "admin": {
+    "layout": {
+      "title": "Admin panel",
+      "back": "Back",
+      "collapse": "Collapse",
+      "roleAdmin": "Admin",
+      "nav": {
+        "organizations": "Organizations",
+        "users": "Users",
+        "roles": "Roles",
+        "settings": "Settings"
+      }
+    },
+    "settings": {
+      "title": "General settings",
+      "subtitle": "Centralized management of plan limits and global runtime variables.",
+      "shared": {
+        "saving": "Saving...",
+        "errorTitle": "Loading error"
+      },
+      "plans": {
+        "title": "Plan limits",
+        "description": "Configure Free and Paid plans for campaigns, members, and OCR.",
+        "freeTitle": "Free plan",
+        "paidTitle": "Paid plan",
+        "maxCampaigns": "Max campaigns",
+        "maxMembers": "Max members",
+        "maxOcrPerMonth": "OCR per month",
+        "save": "Save plan limits",
+        "loading": "Loading plan limits...",
+        "notFound": "Plan limits were not found.",
+        "loadError": "Failed to load plan limits"
+      },
+      "general": {
+        "title": "Global variables",
+        "description": "Global limits for creating and joining organizations.",
+        "maxOwnedOrganizations": "Max owned organizations (non-admin)",
+        "maxJoinedOrganizations": "Max joined organizations (non-admin)",
+        "save": "Save global variables",
+        "loading": "Loading global variables...",
+        "notFound": "Global variables were not found.",
+        "loadError": "Failed to load global variables"
+      }
+    },
+    "organizations": {
+      "title": "Organizations",
+      "subtitle": "Manage organizations and verification status.",
+      "errorTitle": "Loading error",
+      "errorDefault": "Failed to load organizations list",
+      "loading": "Loading...",
+      "empty": "No organizations",
+      "filters": {
+        "searchPlaceholder": "Search by name, slug, or owner email",
+        "all": "All",
+        "unverified": "Unverified",
+        "verified": "Verified"
+      },
+      "table": {
+        "name": "Name",
+        "owner": "Owner",
+        "status": "Status",
+        "plan": "Plan",
+        "campaignsAndBalance": "Campaigns / Balance",
+        "createdAt": "Created",
+        "actions": "Actions"
+      },
+      "status": {
+        "verified": "Verified",
+        "unverified": "Unverified"
+      },
+      "plan": {
+        "free": "Free",
+        "paid": "Paid"
+      },
+      "planPanel": {
+        "organizationLabel": "Organization: {{name}}",
+        "selectOrganization": "Select an organization from the list",
+        "saving": "Saving...",
+        "apply": "Apply",
+        "currentPlan": "Current plan"
+      },
+      "usage": {
+        "errorTitle": "Usage error",
+        "errorDefault": "Failed to load usage",
+        "loading": "Loading usage...",
+        "campaigns": "Campaigns",
+        "members": "Members",
+        "ocr": "OCR",
+        "status": {
+          "limitReached": "Limit reached",
+          "nearLimit": "Near limit",
+          "withinLimit": "Within limit"
+        }
+      },
+      "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "page": "Page {{page}}"
+      },
+      "row": {
+        "campaignsCount": "{{count}} campaigns"
+      },
+      "actions": {
+        "plan": "Plan",
+        "openMenu": "Open menu",
+        "verify": "Verify",
+        "unverify": "Remove verification",
+        "organizationCampaigns": "Organization campaigns",
+        "delete": "Delete",
+        "verifyConfirm": "Change verification status for {{name}}?",
+        "deleteConfirm": "WARNING! This will delete the organization and all its campaigns. Enter name \"{{name}}\" to confirm:",
+        "statusUpdated": "Status updated",
+        "deleted": "Deleted"
+      }
+    }
   }
 }

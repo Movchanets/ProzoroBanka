@@ -2,11 +2,9 @@ import { test, expect } from '@playwright/test';
 
 import { t, setTestLanguage } from './support/i18n';
 import {
-  createOrganizationViaApi,
-  getAccessTokenFromAuthStorage,
+  createOrganizationForCurrentSession,
   loginViaUi,
-  registerRandomUserViaApi,
-  setAuthStorage,
+  registerAndSetAuthStorage,
 } from './support/e2e-auth';
 
 const VALID_EMAIL = process.env.E2E_EMAIL ?? 'admin@example.com';
@@ -23,13 +21,11 @@ async function loginAs(page: import('@playwright/test').Page) {
 }
 
 async function registerFreshUser(page: import('@playwright/test').Page) {
-  const registeredUser = await registerRandomUserViaApi(page.request, {
+  await registerAndSetAuthStorage(page, {
     firstName: 'E2E',
     lastName: 'User',
     emailPrefix: 'dashboard-e2e',
   });
-
-  await setAuthStorage(page, registeredUser.auth);
 
   await page.goto('/onboarding');
   await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10000 });
@@ -37,8 +33,7 @@ async function registerFreshUser(page: import('@playwright/test').Page) {
 
 /** Create an org via API and return its ID. Must be called AFTER loginAs(). */
 async function createOrgViaAPI(page: import('@playwright/test').Page, name: string): Promise<string> {
-  const token = await getAccessTokenFromAuthStorage(page);
-  return createOrganizationViaApi(page.request, token, name);
+  return createOrganizationForCurrentSession(page, name);
 }
 
 /** Navigate to onboarding and open the create org dialog */
@@ -85,6 +80,11 @@ async function openDashboardNavLink(page: import('@playwright/test').Page, key: 
       await clickOrFallbackNavigate(candidate);
       return;
     }
+  }
+
+  if (linksCount > 0) {
+    await clickOrFallbackNavigate(allLinks.first());
+    return;
   }
 
   const mobileMenuButton = page.getByTestId('dashboard-mobile-menu-button');
@@ -343,6 +343,9 @@ test.describe('Dashboard — Organization Settings', () => {
     await expect(page.getByTestId('org-settings-website-input')).toBeVisible();
     await expect(page.getByTestId('org-settings-email-input')).toBeVisible();
     await expect(page.getByTestId('org-settings-phone-input')).toBeVisible();
+    await expect(page.getByTestId('org-settings-plan-placeholder-card')).toBeVisible();
+    await expect(page.getByTestId('org-settings-plan-placeholder-title')).toBeVisible();
+    await expect(page.getByTestId('org-settings-plan-placeholder-description')).toBeVisible();
 
     await expect(page.getByTestId('org-settings-save-button')).toBeVisible();
   });
@@ -611,10 +614,13 @@ test.describe('Dashboard — Home Page', () => {
       description: 'Verifies that the dashboard home page shows organization stats.',
     });
 
-    await expect(page.getByText(t('dashboard.statMembers'))).toBeVisible();
-    await expect(page.getByText(t('dashboard.statActiveCampaigns'))).toBeVisible();
-    await expect(page.getByText(t('dashboard.statRaised'))).toBeVisible();
+    await expect(page.getByText(t('dashboard.statMembers'), { exact: true })).toBeVisible();
+    await expect(page.getByText(t('dashboard.statActiveCampaigns'), { exact: true })).toBeVisible();
+    await expect(page.getByText(t('dashboard.statRaised'), { exact: true })).toBeVisible();
     await expect(page.locator('main').getByText(t('dashboard.statReceipts')).first()).toBeVisible();
+    await expect(page.getByTestId('dashboard-home-plan-card')).toBeVisible();
+    await expect(page.getByTestId('dashboard-home-plan-name')).toBeVisible();
+    await expect(page.getByTestId('dashboard-home-plan-description')).toBeVisible();
   });
 
   // =========================================================================

@@ -1,3 +1,5 @@
+using ProzoroBanka.Domain.Enums;
+
 namespace ProzoroBanka.Domain.Entities;
 
 /// <summary>
@@ -15,8 +17,12 @@ public class Organization : BaseEntity
 	public string? Phone { get; set; }
 
 	public Guid OwnerUserId { get; set; }
-
 	public User OwnerUser { get; set; } = null!;
+
+	public OrganizationPlanType PlanType { get; set; } = OrganizationPlanType.Free;
+	public DateTime? PlanChangedAtUtc { get; set; }
+	public Guid? PlanChangedByUserId { get; set; }
+
 	public ICollection<OrganizationMember> Members { get; set; } = new List<OrganizationMember>();
 	public ICollection<Invitation> Invitations { get; set; } = new List<Invitation>();
 	public ICollection<Campaign> Campaigns { get; set; } = new List<Campaign>();

@@ -54,7 +54,8 @@ internal static class ApplicationRoleDefinitions
 			"reports.export",
 			"monobank.sync",
 			"monobank.read",
-			"system.settings"
+			"system.settings",
+			"organizations.plan.manage"
 		]);
 
 	public static IReadOnlyCollection<ApplicationRoleDefinition> All { get; } =

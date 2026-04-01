@@ -32,6 +32,7 @@ public static class Permissions
 	public const string OrganizationsUpdate = "organizations.update";
 	public const string OrganizationsDelete = "organizations.delete";
 	public const string OrganizationsMembersManage = "organizations.members.manage";
+	public const string OrganizationsPlanManage = "organizations.plan.manage";
 
 	// ── Campaigns ──
 	public const string CampaignsManage = "campaigns.manage";

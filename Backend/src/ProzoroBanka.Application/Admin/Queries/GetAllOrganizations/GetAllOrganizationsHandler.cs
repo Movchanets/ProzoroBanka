@@ -24,6 +24,15 @@ public class GetAllOrganizationsHandler
 	{
 		var query = _db.Organizations.Where(o => !o.IsDeleted);
 
+		if (!string.IsNullOrWhiteSpace(request.Search))
+		{
+			var term = request.Search.Trim();
+			query = query.Where(o =>
+				o.Name.Contains(term) ||
+				o.Slug.Contains(term) ||
+				o.OwnerUser.Email.Contains(term));
+		}
+
 		if (request.VerifiedOnly == true)
 			query = query.Where(o => o.IsVerified);
 		else if (request.VerifiedOnly == false)
@@ -52,7 +61,8 @@ public class GetAllOrganizationsHandler
 				MemberCount = o.Members.Count(),
 				CampaignCount = o.Campaigns.Count(c => !c.IsDeleted),
 				TotalRaised = o.Campaigns.Where(c => !c.IsDeleted).Sum(c => c.CurrentAmount),
-				o.CreatedAt
+				o.CreatedAt,
+				o.PlanType
 			})
 			.ToListAsync(ct);
 
@@ -72,7 +82,8 @@ public class GetAllOrganizationsHandler
 			o.MemberCount,
 			o.CampaignCount,
 			o.TotalRaised,
-			o.CreatedAt
+			o.CreatedAt,
+			o.PlanType
 		)).ToList();
 
 		var response = new AdminOrganizationListResponse(items, totalCount, request.Page, request.PageSize);

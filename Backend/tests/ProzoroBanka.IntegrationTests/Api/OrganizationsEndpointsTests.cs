@@ -88,6 +88,36 @@ public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFacto
 		Assert.Equal(HttpStatusCode.Unauthorized, getResponse.StatusCode);
 	}
 
+	[Fact]
+	public async Task CreateOrganization_NonAdmin_WhenOwnsTenOrganizations_ReturnsBadRequest()
+	{
+		var email = $"volunteer-limit-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(email, "Password123!");
+		await AuthenticateAsync(email, "Password123!");
+
+		for (var i = 0; i < 10; i++)
+		{
+			var createOk = await _client.PostAsJsonAsync("/api/organizations", new
+			{
+				name = $"Volunteer Org {i} {Guid.NewGuid():N}",
+				description = "Limit seed",
+				website = "https://volunteer.example.org",
+				contactEmail = "volunteer@example.org"
+			});
+			Assert.Equal(HttpStatusCode.OK, createOk.StatusCode);
+		}
+
+		var createOverflow = await _client.PostAsJsonAsync("/api/organizations", new
+		{
+			name = $"Volunteer Overflow {Guid.NewGuid():N}",
+			description = "Should fail",
+			website = "https://overflow.example.org",
+			contactEmail = "overflow@example.org"
+		});
+
+		Assert.Equal(HttpStatusCode.BadRequest, createOverflow.StatusCode);
+	}
+
 	private async Task<Guid> CreateOrganizationAsync(string name)
 	{
 		var response = await _client.PostAsJsonAsync("/api/organizations", new
@@ -104,10 +134,30 @@ public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFacto
 
 	private async Task AuthenticateAsAdminAsync()
 	{
+		await AuthenticateAsync("admin@example.com", "Admin123!ChangeMe");
+	}
+
+	private async Task RegisterAsync(string email, string password)
+	{
+		var response = await _client.PostAsJsonAsync("/api/auth/register", new
+		{
+			email,
+			password,
+			confirmPassword = password,
+			firstName = "Test",
+			lastName = "Volunteer",
+			turnstileToken = "test-token"
+		});
+
+		response.EnsureSuccessStatusCode();
+	}
+
+	private async Task AuthenticateAsync(string email, string password)
+	{
 		var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
 		{
-			email = "admin@example.com",
-			password = "Admin123!ChangeMe",
+			email,
+			password,
 			turnstileToken = "test-token"
 		});
 		loginResponse.EnsureSuccessStatusCode();

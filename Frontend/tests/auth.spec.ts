@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { E2E_TURNSTILE_TEST_TOKEN, ensureTurnstileTokenForE2E } from './support/e2e-auth';
+import { applyLocale, TEST_LOCALES } from './support/locale-matrix';
 
 import en from '../src/i18n/locales/en.json' with { type: 'json' };
 import uk from '../src/i18n/locales/uk.json' with { type: 'json' };
@@ -11,27 +12,25 @@ const VALID_PASSWORD = process.env.E2E_PASSWORD ?? 'Qwerty-1';
 const locales = {
   uk: {
     browserLocale: 'uk-UA',
-    uiLanguage: 'uk',
     dictionary: uk,
   },
   en: {
     browserLocale: 'en-US',
-    uiLanguage: 'en',
     dictionary: en,
   },
 } as const;
 
-for (const [localeKey, localeConfig] of Object.entries(locales) as Array<[keyof typeof locales, (typeof locales)[keyof typeof locales]]>) {
+for (const localeConfig of TEST_LOCALES) {
+  const localeKey = localeConfig.key;
+  const localeDictionary = locales[localeKey].dictionary;
   test.describe(`Authentication Flow - Login Functionality [${localeKey}]`, () => {
     test.use({ locale: localeConfig.browserLocale });
 
     test.beforeEach(async ({ page }) => {
-      await page.addInitScript((lang) => {
-        localStorage.setItem('prozoro-banka-lang', lang);
-      }, localeConfig.uiLanguage);
+      await applyLocale(page, localeConfig.uiLanguage);
 
       await page.goto('/login');
-      await expect(page.getByRole('heading', { name: localeConfig.dictionary.auth.login.title })).toBeVisible();
+      await expect(page.getByRole('heading', { name: localeDictionary.auth.login.title })).toBeVisible();
       await ensureTurnstileTokenForE2E(page, { timeoutMs: 20_000 });
     });
 
@@ -86,7 +85,7 @@ for (const [localeKey, localeConfig] of Object.entries(locales) as Array<[keyof 
       await page.getByTestId('login-password-input').fill(VALID_PASSWORD);
       await page.getByTestId('login-submit-button').click();
 
-      await expect(page.getByText(localeConfig.dictionary.validation.emailInvalid)).toBeVisible();
+      await expect(page.getByText(localeDictionary.validation.emailInvalid)).toBeVisible();
       await expect(page).toHaveURL(/.*\/login/);
     });
 

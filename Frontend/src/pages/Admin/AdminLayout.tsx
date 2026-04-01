@@ -7,20 +7,23 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 import {
   ShieldAlert,
   Building2,
   Users,
   KeyRound,
+  Settings,
   PanelLeftClose,
   PanelLeft,
   ArrowLeft
 } from 'lucide-react';
 
 const navItems = [
-  { label: 'Організації', icon: Building2, path: '' }, // empty means /admin
-  { label: 'Користувачі', icon: Users, path: 'users' },
-  { label: 'Ролі', icon: KeyRound, path: 'roles' },
+  { labelKey: 'admin.layout.nav.organizations', icon: Building2, path: 'organizations' },
+  { labelKey: 'admin.layout.nav.users', icon: Users, path: 'users' },
+  { labelKey: 'admin.layout.nav.roles', icon: KeyRound, path: 'roles' },
+  { labelKey: 'admin.layout.nav.settings', icon: Settings, path: 'settings' },
 ];
 
 function SidebarContent({
@@ -30,6 +33,7 @@ function SidebarContent({
   collapsed: boolean;
   onToggleCollapse: () => void;
 }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { data: organizations } = useMyOrganizations();
   const primaryOrganizationId = organizations?.[0]?.id;
@@ -47,7 +51,7 @@ function SidebarContent({
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-3 px-4 pt-6 pb-4">
         <ShieldAlert className="h-6 w-6 text-primary" />
-        {!collapsed && <span className="text-lg font-bold">Адмін Панель</span>}
+        {!collapsed && <span className="text-lg font-bold">{t('admin.layout.title')}</span>}
       </div>
 
       <Separator className="mx-3 w-auto" />
@@ -58,7 +62,7 @@ function SidebarContent({
             key={item.path}
             data-testid={`admin-nav-${item.path || 'organizations'}`}
             to={`/admin${item.path ? `/${item.path}` : ''}`}
-            end={item.path === ''}
+            end={item.path === 'organizations'}
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted',
@@ -68,7 +72,7 @@ function SidebarContent({
             }
           >
             <item.icon className="h-[18px] w-[18px] shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
+            {!collapsed && <span>{t(item.labelKey)}</span>}
           </NavLink>
         ))}
       </nav>
@@ -83,7 +87,7 @@ function SidebarContent({
           ) : (
             <>
               <ArrowLeft className="h-[18px] w-[18px]" />
-              <span className="flex-1 text-left">Повернутись</span>
+              <span className="flex-1 text-left">{t('admin.layout.back')}</span>
             </>
           )}
         </button>
@@ -96,7 +100,7 @@ function SidebarContent({
           ) : (
             <>
               <PanelLeftClose className="h-[18px] w-[18px]" />
-              <span className="flex-1 text-left">Згорнути</span>
+              <span className="flex-1 text-left">{t('admin.layout.collapse')}</span>
             </>
           )}
         </button>
@@ -106,6 +110,7 @@ function SidebarContent({
 }
 
 function AdminHeader() {
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.trim().toUpperCase() || 'AM';
 
@@ -129,7 +134,7 @@ function AdminHeader() {
               )}
             </span>
             <span className="hidden text-sm font-medium md:inline">
-              {user?.firstName} {user?.lastName} ({AppRoles.Admin})
+              {user?.firstName} {user?.lastName} ({t('admin.layout.roleAdmin')})
             </span>
           </div>
         </div>

@@ -12,11 +12,19 @@ public class AcceptInvitationHandler : IRequestHandler<AcceptInvitationCommand, 
 {
 	private readonly IApplicationDbContext _db;
 	private readonly IUnitOfWork _unitOfWork;
+	private readonly ISystemSettingsService _systemSettings;
+	private readonly ICurrentUserService _currentUser;
 
-	public AcceptInvitationHandler(IApplicationDbContext db, IUnitOfWork unitOfWork)
+	public AcceptInvitationHandler(
+		IApplicationDbContext db,
+		IUnitOfWork unitOfWork,
+		ISystemSettingsService systemSettings,
+		ICurrentUserService currentUser)
 	{
 		_db = db;
 		_unitOfWork = unitOfWork;
+		_systemSettings = systemSettings;
+		_currentUser = currentUser;
 	}
 
 	public async Task<ServiceResponse> Handle(
@@ -67,18 +75,55 @@ public class AcceptInvitationHandler : IRequestHandler<AcceptInvitationCommand, 
 			}
 		}
 
-		// Check if already a member
-		var alreadyMember = await _db.OrganizationMembers
-			.AnyAsync(
+		var existingMembership = await _db.OrganizationMembers
+			.IgnoreQueryFilters()
+			.FirstOrDefaultAsync(
 				m => m.OrganizationId == invitation.OrganizationId &&
-					 m.UserId == request.CallerDomainUserId &&
-					 !m.IsDeleted,
+					 m.UserId == request.CallerDomainUserId,
 				cancellationToken);
 
-		if (alreadyMember)
+		if (existingMembership is not null && !existingMembership.IsDeleted)
 		{
 			await transaction.RollbackAsync(cancellationToken);
 			return ServiceResponse.Failure("Ви вже є учасником цієї організації");
+		}
+
+		if (!_currentUser.IsAdmin)
+		{
+			var maxJoinedOrganizations = await _systemSettings.GetMaxJoinedOrganizationsForNonAdminAsync(cancellationToken);
+			var joinedOrganizationsCount = await _db.OrganizationMembers
+				.CountAsync(m => m.UserId == request.CallerDomainUserId && !m.IsDeleted, cancellationToken);
+
+			if (joinedOrganizationsCount >= maxJoinedOrganizations)
+			{
+				await transaction.RollbackAsync(cancellationToken);
+				return ServiceResponse.Failure($"Для звичайних користувачів доступно максимум {maxJoinedOrganizations} приєднань до організацій");
+			}
+		}
+
+		var organizationPlan = await _db.Organizations
+			.AsNoTracking()
+			.Where(o => o.Id == invitation.OrganizationId && !o.IsDeleted)
+			.Select(o => (OrganizationPlanType?)o.PlanType)
+			.FirstOrDefaultAsync(cancellationToken);
+
+		if (organizationPlan is null)
+		{
+			await transaction.RollbackAsync(cancellationToken);
+			return ServiceResponse.Failure("Організацію не знайдено");
+		}
+
+		var planLimits = await _systemSettings.GetPlanLimitsAsync(organizationPlan.Value, cancellationToken);
+		var activeMembersCount = await _db.OrganizationMembers
+			.CountAsync(
+				m => m.OrganizationId == invitation.OrganizationId &&
+					 !m.IsDeleted,
+				cancellationToken);
+
+		if (activeMembersCount >= planLimits.MaxMembers)
+		{
+			await transaction.RollbackAsync(cancellationToken);
+			return ServiceResponse.Failure("Досягнуто ліміт учасників для поточного тарифного плану");
 		}
 
 		// The conditional update prevents a second concurrent request from accepting
@@ -99,16 +144,26 @@ public class AcceptInvitationHandler : IRequestHandler<AcceptInvitationCommand, 
 
 		invitation.Status = InvitationStatus.Accepted;
 
-		var member = new OrganizationMember
+		if (existingMembership is not null)
 		{
-			OrganizationId = invitation.OrganizationId,
-			UserId = request.CallerDomainUserId,
-			Role = invitation.DefaultRole,
-			PermissionsFlags = InvitationRules.GetPermissionsForRole(invitation.DefaultRole),
-			JoinedAt = DateTime.UtcNow
-		};
+			existingMembership.IsDeleted = false;
+			existingMembership.Role = invitation.DefaultRole;
+			existingMembership.PermissionsFlags = InvitationRules.GetPermissionsForRole(invitation.DefaultRole);
+			existingMembership.JoinedAt = DateTime.UtcNow;
+		}
+		else
+		{
+			var member = new OrganizationMember
+			{
+				OrganizationId = invitation.OrganizationId,
+				UserId = request.CallerDomainUserId,
+				Role = invitation.DefaultRole,
+				PermissionsFlags = InvitationRules.GetPermissionsForRole(invitation.DefaultRole),
+				JoinedAt = DateTime.UtcNow
+			};
 
-		_db.OrganizationMembers.Add(member);
+			_db.OrganizationMembers.Add(member);
+		}
 
 		await _db.SaveChangesAsync(cancellationToken);
 		await transaction.CommitAsync(cancellationToken);

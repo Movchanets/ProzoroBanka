@@ -9,6 +9,7 @@ namespace ProzoroBanka.Application.Common.Interfaces;
 public interface IApplicationDbContext
 {
     DbSet<User> Users { get; }
+    DbSet<SystemSetting> SystemSettings { get; }
     DbSet<Organization> Organizations { get; }
     DbSet<OrganizationMember> OrganizationMembers { get; }
     DbSet<Invitation> Invitations { get; }

@@ -25,6 +25,19 @@ export interface RegisteredUser {
   password: string;
 }
 
+function buildAuthStorageState(auth: AuthResponse): string {
+  return JSON.stringify({
+    state: {
+      accessToken: auth.accessToken,
+      refreshToken: auth.refreshToken,
+      accessTokenExpiry: auth.accessTokenExpiry,
+      user: auth.user,
+      isAuthenticated: true,
+    },
+    version: 0,
+  });
+}
+
 export async function registerRandomUserViaApi(
   request: APIRequestContext,
   options?: {
@@ -63,22 +76,17 @@ export async function registerRandomUserViaApi(
 }
 
 export async function setAuthStorage(page: Page, auth: AuthResponse): Promise<void> {
-  await page.goto('/');
-  await page.evaluate((payload) => {
-    localStorage.setItem(
-      'auth-storage',
-      JSON.stringify({
-        state: {
-          accessToken: payload.accessToken,
-          refreshToken: payload.refreshToken,
-          accessTokenExpiry: payload.accessTokenExpiry,
-          user: payload.user,
-          isAuthenticated: true,
-        },
-        version: 0,
-      }),
-    );
-  }, auth);
+  const serializedAuthState = buildAuthStorageState(auth);
+
+  await page.addInitScript((value) => {
+    localStorage.setItem('auth-storage', value);
+  }, serializedAuthState);
+
+  if (page.url().startsWith('http://') || page.url().startsWith('https://')) {
+    await page.evaluate((value) => {
+      localStorage.setItem('auth-storage', value);
+    }, serializedAuthState);
+  }
 }
 
 export async function getAccessTokenFromAuthStorage(page: Page): Promise<string> {
@@ -192,6 +200,25 @@ export async function loginViaUi(
   if (options?.expectedUrlPattern) {
     await expect(page).toHaveURL(options.expectedUrlPattern, { timeout: 10_000 });
   }
+}
+
+export async function registerAndSetAuthStorage(
+  page: Page,
+  options?: {
+    firstName?: string;
+    lastName?: string;
+    emailPrefix?: string;
+    password?: string;
+  },
+): Promise<RegisteredUser> {
+  const registeredUser = await registerRandomUserViaApi(page.request, options);
+  await setAuthStorage(page, registeredUser.auth);
+  return registeredUser;
+}
+
+export async function createOrganizationForCurrentSession(page: Page, name: string): Promise<string> {
+  const token = await getAccessTokenFromAuthStorage(page);
+  return createOrganizationViaApi(page.request, token, name);
 }
 
 export async function ensureTurnstileTokenForE2E(

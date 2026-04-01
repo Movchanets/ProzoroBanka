@@ -12,7 +12,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:rebuild": "FORCE_DOCKER_BUILD=true playwright test",
+    "test:docker:rebuild": "bash ../scripts/start-test-containers.sh --rebuild"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

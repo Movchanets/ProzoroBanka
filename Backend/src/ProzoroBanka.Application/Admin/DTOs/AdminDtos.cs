@@ -23,7 +23,8 @@ public record AdminOrganizationDto(
 	int MemberCount,
 	int CampaignCount,
 	decimal TotalRaised,
-	DateTime CreatedAt);
+	DateTime CreatedAt,
+	OrganizationPlanType PlanType);
 
 /// <summary>
 /// Вхідна модель з пагінацією для списку організацій.
@@ -77,6 +78,30 @@ public record AdminUserDto(
 	DateTime CreatedAt,
 	IList<string> Roles);
 
+public record AdminUserOrganizationLinkDto(
+	Guid OrganizationId,
+	string OrganizationName,
+	string OrganizationSlug,
+	bool IsVerified,
+	OrganizationPlanType PlanType,
+	OrganizationRole Role,
+	OrganizationPermissions Permissions,
+	DateTime JoinedAt,
+	bool IsOwner);
+
+public record AdminUserDetailsDto(
+	Guid Id,
+	Guid DomainUserId,
+	string Email,
+	string FirstName,
+	string LastName,
+	string? PhoneNumber,
+	string? ProfilePhotoUrl,
+	bool IsActive,
+	DateTime CreatedAt,
+	IList<string> Roles,
+	IReadOnlyList<AdminUserOrganizationLinkDto> Organizations);
+
 /// <summary>
 /// Відповідь списку користувачів.
 /// </summary>
@@ -95,3 +120,32 @@ public record AdminAssignRolesRequest(IEnumerable<string> Roles);
 /// Запит для блокування/розблокування користувача.
 /// </summary>
 public record AdminSetUserLockoutRequest(bool Locked);
+
+public record AdminUpdateUserOrganizationLinkRequest(
+	OrganizationRole Role,
+	OrganizationPermissions Permissions);
+
+public record AdminUserLimitsSettingsDto(int MaxOwnedOrganizationsForNonAdmin);
+
+public record AdminUpdateUserLimitsSettingsRequest(int MaxOwnedOrganizationsForNonAdmin);
+
+public record AdminPlanLimitsDto(
+	int MaxCampaigns,
+	int MaxMembers,
+	int MaxOcrExtractionsPerMonth);
+
+public record AdminPlansSettingsDto(
+	AdminPlanLimitsDto Free,
+	AdminPlanLimitsDto Paid);
+
+public record AdminUpdatePlansSettingsRequest(
+	AdminPlanLimitsDto Free,
+	AdminPlanLimitsDto Paid);
+
+public record AdminGeneralSettingsDto(
+	int MaxOwnedOrganizationsForNonAdmin,
+	int MaxJoinedOrganizationsForNonAdmin);
+
+public record AdminUpdateGeneralSettingsRequest(
+	int MaxOwnedOrganizationsForNonAdmin,
+	int MaxJoinedOrganizationsForNonAdmin);

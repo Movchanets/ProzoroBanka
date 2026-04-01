@@ -155,6 +155,9 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: Frontend
+        env:
+          PLAYWRIGHT_TEST_DB: prozoro_banka_ci
+          FORCE_DOCKER_BUILD: "false"
         run: npm run test:e2e -- --project=chromium
 
       - name: Upload Playwright report

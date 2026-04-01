@@ -59,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IEmailNotificationService, SmtpEmailNotificationService>();
+        services.AddScoped<ISystemSettingsService, SystemSettingsService>();
 
         // ── Repositories ──
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();

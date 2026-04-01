@@ -14,7 +14,18 @@ public record OrganizationDto(
 	string? Phone,
 	Guid OwnerUserId,
 	int MemberCount,
-	DateTime CreatedAt
+	DateTime CreatedAt,
+	OrganizationPlanType PlanType
+);
+
+public record OrganizationPlanUsageDto(
+	OrganizationPlanType PlanType,
+	int MaxCampaigns,
+	int CurrentCampaigns,
+	int MaxMembers,
+	int CurrentMembers,
+	int MaxOcrExtractionsPerMonth,
+	int CurrentOcrExtractionsPerMonth
 );
 
 public record OrganizationMemberDto(

@@ -109,6 +109,15 @@ export default function OrgSettingsPage() {
         </CardContent>
       </Card>
 
+      <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="org-settings-plan-placeholder-card">
+        <CardHeader>
+          <CardTitle className="text-lg" data-testid="org-settings-plan-placeholder-title">Зміна тарифу</CardTitle>
+          <CardDescription data-testid="org-settings-plan-placeholder-description">
+            Керування тарифом скоро буде доступне в налаштуваннях організації. Поки що для зміни тарифу зверніться до адміністратора платформи.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
       <Separator />
 
       <Card className="border border-border bg-card/60 backdrop-blur-sm">
