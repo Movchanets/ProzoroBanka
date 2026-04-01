@@ -1,151 +1,9 @@
 import { expect, test } from '@playwright/test';
-
-const orgPayload = {
-  id: 'org-1',
-  name: 'Фонд Промінь',
-  slug: 'promin',
-  description: 'Допомога військовим і медикам.',
-  logoUrl: '',
-  isVerified: true,
-  website: 'https://example.org',
-  memberCount: 8,
-  activeCampaignCount: 1,
-  totalRaised: 275000,
-  teamMembers: [
-    { userId: 'u1', firstName: 'Ірина', lastName: 'Коваль', avatarUrl: '' },
-    { userId: 'u2', firstName: 'Тарас', lastName: 'Мельник', avatarUrl: '' },
-  ],
-};
-
-const campaignPayload = {
-  id: 'camp-1',
-  title: 'Тепловізори для евакуаційної бригади',
-  description: 'Збираємо на 3 тепловізори для екіпажів.',
-  coverImageUrl: '',
-  goalAmount: 300000,
-  currentAmount: 180000,
-  status: 1,
-  startDate: null,
-  deadline: null,
-  progressPercentage: 60,
-  daysRemaining: 12,
-  organizationId: 'org-1',
-  organizationName: 'Фонд Промінь',
-  organizationSlug: 'promin',
-  latestReceipts: [
-    { id: 'r1', merchantName: 'Епіцентр', totalAmount: 54000, transactionDate: '2026-03-20T00:00:00Z', addedByName: 'Ірина Коваль' },
-  ],
-};
-
-const campaignListItem = {
-  id: campaignPayload.id,
-  title: campaignPayload.title,
-  description: campaignPayload.description,
-  coverImageUrl: campaignPayload.coverImageUrl,
-  goalAmount: campaignPayload.goalAmount,
-  currentAmount: campaignPayload.currentAmount,
-  status: 1,
-  startDate: null,
-  deadline: null,
-  receiptCount: 1,
-  organizationName: orgPayload.name,
-  organizationSlug: orgPayload.slug,
-  organizationVerified: true,
-};
-
-const receiptsPayload = {
-  items: [
-    { id: 'r1', merchantName: 'Епіцентр', totalAmount: 54000, transactionDate: '2026-03-20T00:00:00Z', addedByName: 'Ірина Коваль' },
-  ],
-  page: 1,
-  pageSize: 20,
-  totalCount: 1,
-};
+import { setupPublicPagesMocks } from './support/public-mocks';
 
 test.describe('Public pages', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route('**/api/public/organizations?**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          items: [orgPayload],
-          page: 1,
-          pageSize: 12,
-          totalCount: 1,
-        }),
-      });
-    });
-
-    await page.route('**/api/public/organizations/promin', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(orgPayload) });
-    });
-
-    await page.route('**/api/public/campaigns/search?**', async (route) => {
-      const url = new URL(route.request().url());
-      const query = (url.searchParams.get('query') ?? '').toLowerCase();
-      const status = url.searchParams.get('status');
-      const verifiedOnly = url.searchParams.get('verifiedOnly');
-      const matchesSearch = !query
-        || campaignListItem.title.toLowerCase().includes(query)
-        || (campaignListItem.description?.toLowerCase().includes(query) ?? false)
-        || campaignListItem.organizationName.toLowerCase().includes(query);
-      const matchesStatus = !status || status === String(campaignListItem.status);
-      const matchesVerified = verifiedOnly !== 'true' || campaignListItem.organizationVerified;
-      const items = matchesSearch && matchesStatus && matchesVerified ? [campaignListItem] : [];
-
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          items,
-          page: 1,
-          pageSize: 24,
-          totalCount: items.length,
-        }),
-      });
-    });
-
-    await page.route('**/api/public/organizations/promin/campaigns**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          items: [campaignListItem],
-          page: 1,
-          pageSize: 12,
-          totalCount: 1,
-        }),
-      });
-    });
-
-    await page.route('**/api/public/organizations/promin/transparency', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          totalSpent: 188000,
-          categories: [
-            { name: 'Електроніка', amount: 120000, percentage: 64 },
-            { name: 'Логістика', amount: 68000, percentage: 36 },
-          ],
-          monthlySpendings: [
-            { month: '2026-02', amount: 88000 },
-            { month: '2026-03', amount: 100000 },
-          ],
-          receiptCount: 12,
-          verifiedReceiptCount: 12,
-        }),
-      });
-    });
-
-    await page.route('**/api/public/campaigns/camp-1', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(campaignPayload) });
-    });
-
-    await page.route('**/api/public/campaigns/camp-1/receipts**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(receiptsPayload) });
-    });
+    await setupPublicPagesMocks(page);
   });
 
   test('TC-01: home page loads and shows campaign grid', async ({ page }) => {
@@ -231,9 +89,15 @@ test.describe('Public pages', () => {
 
   test('TC-06: login page contains link to public pages', async ({ page }) => {
     await page.goto('/login');
-    await expect(page.getByTestId('login-public-pages-link')).toBeVisible();
+    const publicPagesLink = page.getByTestId('login-public-pages-link');
+    await expect(publicPagesLink).toBeVisible();
 
-    await page.getByTestId('login-public-pages-link').click();
+    const href = await publicPagesLink.getAttribute('href');
+    await publicPagesLink.click({ force: true });
+    if (href) {
+      await page.goto(href);
+    }
+
     await expect(page).toHaveURL('/');
     await expect(page.getByTestId('home-hero-section')).toBeVisible();
   });

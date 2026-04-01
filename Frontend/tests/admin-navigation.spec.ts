@@ -1,30 +1,23 @@
 import { test, expect } from '@playwright/test';
 
-import en from '../src/i18n/locales/en.json' with { type: 'json' };
-import uk from '../src/i18n/locales/uk.json' with { type: 'json' };
+import { expectAdminRoleInStorage } from './support/admin-fixtures';
 import {
   createOrganizationViaApi,
   E2E_TURNSTILE_TEST_TOKEN,
   getAccessTokenFromAuthStorage,
   loginViaUi,
 } from './support/e2e-auth';
+import { applyLocale, TEST_LOCALES } from './support/locale-matrix';
 
 const VALID_EMAIL = process.env.E2E_EMAIL ?? 'admin@example.com';
 const VALID_PASSWORD = process.env.E2E_PASSWORD ?? 'Qwerty-1';
 
-const locales = [
-  { key: 'uk', browserLocale: 'uk-UA', uiLanguage: 'uk', dictionary: uk },
-  { key: 'en', browserLocale: 'en-US', uiLanguage: 'en', dictionary: en },
-] as const;
-
-for (const localeConfig of locales) {
+for (const localeConfig of TEST_LOCALES) {
   test.describe(`Admin navigation [${localeConfig.key}]`, () => {
     test.use({ locale: localeConfig.browserLocale });
 
     test('admin can open admin panel from dashboard', async ({ page }) => {
-      await page.addInitScript((lang) => {
-        localStorage.setItem('prozoro-banka-lang', lang);
-      }, localeConfig.uiLanguage);
+      await applyLocale(page, localeConfig.uiLanguage);
 
       await loginViaUi(page, VALID_EMAIL, VALID_PASSWORD, {
         gotoPath: '/login',
@@ -32,19 +25,7 @@ for (const localeConfig of locales) {
         setLanguage: false,
       });
 
-      await expect
-        .poll(
-          async () =>
-            page.evaluate(() => {
-              const raw = localStorage.getItem('auth-storage');
-              if (!raw) return 0;
-
-              const parsed = JSON.parse(raw) as { state?: { user?: { roles?: string[] } } };
-              return parsed.state?.user?.roles?.length ?? 0;
-            }),
-          { timeout: 10_000 },
-        )
-        .toBeGreaterThan(0);
+      await expectAdminRoleInStorage(page);
 
       const token = await getAccessTokenFromAuthStorage(page);
       const orgId = await createOrganizationViaApi(page.request, token, `Admin nav org ${Date.now()}`);
@@ -57,9 +38,7 @@ for (const localeConfig of locales) {
     });
 
     test('regular user should not see admin transition controls', async ({ page, request }) => {
-      await page.addInitScript((lang) => {
-        localStorage.setItem('prozoro-banka-lang', lang);
-      }, localeConfig.uiLanguage);
+      await applyLocale(page, localeConfig.uiLanguage);
 
       const unique = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
       const email = `regular-${unique}@example.com`;

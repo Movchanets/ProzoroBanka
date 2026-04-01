@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 import { t } from './support/i18n';
 import { loginViaUi, registerRandomUserViaApi } from './support/e2e-auth';
+import { applyLocale } from './support/locale-matrix';
 
 let validEmail = process.env.E2E_EMAIL ?? '';
 const validPassword = process.env.E2E_PASSWORD ?? 'Qwerty-1';
@@ -27,7 +28,30 @@ async function loginAs(page: import('@playwright/test').Page, email: string, pas
   await loginViaUi(page, email, password, {
     gotoPath: '/login',
     expectedUrlPattern: /.*\/(onboarding|dashboard).*/,
+    setLanguage: false,
   });
+}
+
+async function openProfilePage(
+  page: import('@playwright/test').Page,
+  options?: { waitForProfileData?: boolean },
+) {
+  await page.goto('/profile');
+  await expect(page).toHaveURL(/.*\/profile/);
+  await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
+
+  if (options?.waitForProfileData) {
+    await expect(page.getByText(t('profile.loadingProfile'))).not.toBeVisible({ timeout: 10000 });
+  }
+}
+
+async function loginAndOpenProfile(
+  page: import('@playwright/test').Page,
+  options?: { waitForProfileData?: boolean },
+) {
+  await applyLocale(page, 'uk');
+  await loginAs(page, validEmail, validPassword);
+  await openProfilePage(page, options);
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -38,11 +62,7 @@ test.beforeAll(async ({ request }) => {
 
 test.describe('User Profile — Display', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAs(page, validEmail, validPassword);
-    await page.goto('/profile');
-    await expect(page).toHaveURL(/.*\/profile/);
-    // Wait for route fallback to disappear (lazy-loaded page)
-    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
+    await loginAndOpenProfile(page);
   });
 
   // =========================================================================
@@ -122,13 +142,7 @@ test.describe('User Profile — Display', () => {
 
 test.describe('User Profile — Editing', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAs(page, validEmail, validPassword);
-    await page.goto('/profile');
-    await expect(page).toHaveURL(/.*\/profile/);
-    // Wait for route fallback to disappear
-    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
-    // Wait for profile data to load
-    await expect(page.getByText(t('profile.loadingProfile'))).not.toBeVisible({ timeout: 10000 });
+    await loginAndOpenProfile(page, { waitForProfileData: true });
   });
 
   // =========================================================================
@@ -343,6 +357,7 @@ test.describe('User Profile — Edge Cases', () => {
       description: 'Verifies that the profile page displays a loading indicator while user data is being fetched.',
     });
 
+    await applyLocale(page, 'uk');
     await loginAs(page, validEmail, validPassword);
 
     // Slow down and tag the GET profile response to avoid matching unrelated requests.
@@ -411,13 +426,7 @@ test.describe('User Profile — Edge Cases', () => {
       description: 'Verifies that when the profile update API call fails, an appropriate error message is displayed.',
     });
 
-    await loginAs(page, validEmail, validPassword);
-
-    await page.goto('/profile');
-    // Wait for route fallback to disappear
-    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
-    // Wait for profile data to load
-    await expect(page.getByText(t('profile.loadingProfile'))).not.toBeVisible({ timeout: 10000 });
+    await loginAndOpenProfile(page, { waitForProfileData: true });
 
     // Mock API failure for profile update
     await page.route('**/api/auth/me', (route) => {

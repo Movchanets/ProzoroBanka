@@ -8,11 +8,41 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 COMPOSE_CMD="docker compose -f docker-compose.yml -f docker-compose.ci.yml"
+SERVICES=(postgres redis api frontend)
+FORCE_REBUILD_FLAG=false
+
+if [[ "${1:-}" == "--rebuild" ]]; then
+	FORCE_REBUILD_FLAG=true
+fi
+
+all_services_running=true
+for service in "${SERVICES[@]}"; do
+	container_id="$($COMPOSE_CMD ps -q "$service" 2>/dev/null || true)"
+	if [[ -z "$container_id" ]]; then
+		all_services_running=false
+		break
+	fi
+
+	container_state="$(docker inspect -f '{{.State.Running}}' "$container_id" 2>/dev/null || echo false)"
+	if [[ "$container_state" != "true" ]]; then
+		all_services_running=false
+		break
+	fi
+done
 
 # Start containers
 echo "[start-test-containers] Starting Docker containers (Postgres + Redis + API + Frontend)..."
 cd "$REPO_ROOT"
-$COMPOSE_CMD up -d --build postgres redis api frontend
+if [[ "$FORCE_REBUILD_FLAG" == "true" || "${FORCE_DOCKER_BUILD:-false}" == "true" ]]; then
+	echo "[start-test-containers] FORCE_DOCKER_BUILD=true, rebuilding images..."
+	$COMPOSE_CMD up -d --build "${SERVICES[@]}"
+elif [[ "$all_services_running" == "true" ]]; then
+	echo "[start-test-containers] Services are already running, skipping rebuild (--no-build)."
+	$COMPOSE_CMD up -d --no-build "${SERVICES[@]}"
+else
+	echo "[start-test-containers] Some services are not running, starting with build."
+	$COMPOSE_CMD up -d --build "${SERVICES[@]}"
+fi
 
 # Wait for Postgres to be ready
 echo "[start-test-containers] Waiting for Postgres to be ready..."

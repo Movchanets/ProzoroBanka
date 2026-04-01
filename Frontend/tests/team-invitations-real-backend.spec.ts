@@ -4,6 +4,7 @@ import { setTestLanguage } from './support/i18n';
 import {
   createEmailInviteViaApi,
   createOrganizationViaApi,
+  registerAndSetAuthStorage,
   registerRandomUserViaApi,
   setAuthStorage,
 } from './support/e2e-auth';
@@ -21,7 +22,7 @@ test.describe('Team Invitations — Real Backend', () => {
       description: 'Real backend flow: create owner/invitee users, create org, send email invite, onboarding->profile transition, accept in profile, back to onboarding/dashboard, verify and change role in Team actions.',
     });
 
-    const owner = await registerRandomUserViaApi(page.request, {
+    const owner = await registerAndSetAuthStorage(page, {
       firstName: 'Owner',
       lastName: 'E2E',
       emailPrefix: 'e2e-invite',
@@ -32,7 +33,6 @@ test.describe('Team Invitations — Real Backend', () => {
       emailPrefix: 'e2e-invite',
     });
 
-    await setAuthStorage(page, owner.auth);
     const orgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `Invite Org ${Date.now()}`);
 
     await page.goto(`/dashboard/${orgId}/team`);
@@ -113,12 +113,11 @@ test.describe('Team Invitations — Real Backend', () => {
       description: 'Real backend flow: owner opens invite dialog, generates link invite, verifies API success and generated invite URL visibility.',
     });
 
-    const owner = await registerRandomUserViaApi(page.request, {
+    const owner = await registerAndSetAuthStorage(page, {
       firstName: 'Owner',
       lastName: 'LinkInvite',
       emailPrefix: 'e2e-invite',
     });
-    await setAuthStorage(page, owner.auth);
     const orgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `Invite Link Org ${Date.now()}`);
 
     await page.goto(`/dashboard/${orgId}/team`);
@@ -149,7 +148,7 @@ test.describe('Team Invitations — Real Backend', () => {
       description: 'Real backend flow: owner creates email invite, invitee opens profile invitations tab, declines invite and verifies it no longer appears as incoming pending.',
     });
 
-    const owner = await registerRandomUserViaApi(page.request, {
+    const owner = await registerAndSetAuthStorage(page, {
       firstName: 'Owner',
       lastName: 'DeclineFlow',
       emailPrefix: 'e2e-invite',
@@ -160,7 +159,6 @@ test.describe('Team Invitations — Real Backend', () => {
       emailPrefix: 'e2e-invite',
     });
 
-    await setAuthStorage(page, owner.auth);
     const orgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `Invite Decline Org ${Date.now()}`);
     await createEmailInviteViaApi(page.request, owner.auth.accessToken, orgId, invitee.auth.user.email, 2);
 
@@ -192,7 +190,7 @@ test.describe('Team Invitations — Real Backend', () => {
       description: 'Real backend flow: owner sends invitation, opens profile invitations tab and cancels sent invitation from there.',
     });
 
-    const owner = await registerRandomUserViaApi(page.request, {
+    const owner = await registerAndSetAuthStorage(page, {
       firstName: 'Owner',
       lastName: 'CancelSent',
       emailPrefix: 'e2e-invite',
@@ -203,7 +201,6 @@ test.describe('Team Invitations — Real Backend', () => {
       emailPrefix: 'e2e-invite',
     });
 
-    await setAuthStorage(page, owner.auth);
     const orgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `Invite Cancel Sent Org ${Date.now()}`);
 
     await page.goto(`/dashboard/${orgId}/team`);

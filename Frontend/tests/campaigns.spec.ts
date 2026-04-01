@@ -1,29 +1,25 @@
 import { test, expect } from '@playwright/test';
 import {
-  createOrganizationViaApi,
+  createOrganizationForCurrentSession,
   E2E_API_BASE_URL,
   getAccessTokenFromAuthStorage,
-  registerRandomUserViaApi,
-  setAuthStorage,
+  registerAndSetAuthStorage,
 } from './support/e2e-auth';
 
 test.describe.configure({ timeout: 60_000 });
 
 async function registerFreshUser(page: import('@playwright/test').Page) {
-  const registeredUser = await registerRandomUserViaApi(page.request, {
+  await registerAndSetAuthStorage(page, {
     firstName: 'E2E',
     lastName: 'User',
     emailPrefix: 'campaign-e2e',
   });
-
-  await setAuthStorage(page, registeredUser.auth);
   await page.goto('/onboarding');
   await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10_000 });
 }
 
 async function createOrgViaAPI(page: import('@playwright/test').Page, name: string): Promise<string> {
-  const token = await getAccessTokenFromAuthStorage(page);
-  return createOrganizationViaApi(page.request, token, name);
+  return createOrganizationForCurrentSession(page, name);
 }
 
 async function createCampaignViaApi(
