@@ -22,14 +22,19 @@ public class GetOrganizationPlanUsageHandlerTests
 	{
 		await using var db = _fixture.CreateContext();
 		var orgId = Guid.NewGuid();
+		var userId = Guid.NewGuid();
+
+		db.DomainUsers.Add(new User { Id = userId, Email = "usage@test.com", FirstName = "U", LastName = "S" });
 
 		var org = new Organization
 		{
 			Id = orgId,
 			Name = "Free Org",
+			Slug = "free-org",
+			OwnerUserId = userId,
 			PlanType = OrganizationPlanType.Free,
-			Members = new List<OrganizationMember> { new OrganizationMember { UserId = Guid.NewGuid() } },
-			Campaigns = new List<Campaign> { new Campaign { GoalAmount = 100 } }
+			Members = new List<OrganizationMember> { new OrganizationMember { UserId = userId, Role = OrganizationRole.Owner } },
+			Campaigns = new List<Campaign> { new Campaign { GoalAmount = 100, Title = "Test Campaign", CreatedByUserId = userId } }
 		};
 
 		db.Organizations.Add(org);

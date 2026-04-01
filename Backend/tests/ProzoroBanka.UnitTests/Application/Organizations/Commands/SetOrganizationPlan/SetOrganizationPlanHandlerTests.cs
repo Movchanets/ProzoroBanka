@@ -24,11 +24,17 @@ public class SetOrganizationPlanHandlerTests
 		await using var db = _fixture.CreateContext();
 		var orgId = Guid.NewGuid();
 		var adminId = Guid.NewGuid();
+		var userId = Guid.NewGuid();
+
+		db.DomainUsers.Add(new User { Id = adminId, Email = "admin@test.com", FirstName = "A", LastName = "B" });
+		db.DomainUsers.Add(new User { Id = userId, Email = "user@test.com", FirstName = "U", LastName = "S" });
 
 		db.Organizations.Add(new Organization
 		{
 			Id = orgId,
 			Name = "Test Org",
+			Slug = "test-org",
+			OwnerUserId = userId,
 			PlanType = OrganizationPlanType.Free
 		});
 		await db.SaveChangesAsync();
@@ -56,11 +62,17 @@ public class SetOrganizationPlanHandlerTests
 		await using var db = _fixture.CreateContext();
 		var orgId = Guid.NewGuid();
 		var adminId = Guid.NewGuid();
+		var userId = Guid.NewGuid();
+
+		db.DomainUsers.Add(new User { Id = adminId, Email = "admin2@test.com", FirstName = "A", LastName = "B" });
+		db.DomainUsers.Add(new User { Id = userId, Email = "user2@test.com", FirstName = "U", LastName = "S" });
 
 		db.Organizations.Add(new Organization
 		{
 			Id = orgId,
 			Name = "Test Org",
+			Slug = "test-org2",
+			OwnerUserId = userId,
 			PlanType = OrganizationPlanType.Free
 		});
 		await db.SaveChangesAsync();
