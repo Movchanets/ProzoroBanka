@@ -23,7 +23,8 @@ public record AdminOrganizationDto(
 	int MemberCount,
 	int CampaignCount,
 	decimal TotalRaised,
-	DateTime CreatedAt);
+	DateTime CreatedAt,
+	OrganizationPlanType PlanType);
 
 /// <summary>
 /// Вхідна модель з пагінацією для списку організацій.

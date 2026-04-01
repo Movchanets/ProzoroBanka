@@ -1,5 +1,12 @@
 import type { CampaignStatus } from './domains/campaigns';
 
+export const OrganizationPlanType = {
+  Free: 1,
+  Paid: 2,
+} as const;
+
+export type OrganizationPlanType = typeof OrganizationPlanType[keyof typeof OrganizationPlanType];
+
 export interface AdminOrganizationDto {
   id: string;
   name: string;
@@ -17,6 +24,7 @@ export interface AdminOrganizationDto {
   campaignCount: number;
   totalRaised: number;
   createdAt: string;
+  planType: OrganizationPlanType;
 }
 
 export interface AdminOrganizationListResponse {
@@ -70,4 +78,14 @@ export interface AdminUsersFilters {
   search?: string;
   isActive?: boolean;
   role?: string;
+}
+
+export interface OrganizationPlanUsageDto {
+  planType: OrganizationPlanType;
+  maxCampaigns: number;
+  currentCampaigns: number;
+  maxMembers: number;
+  currentMembers: number;
+  maxOcrExtractionsPerMonth: number;
+  currentOcrExtractionsPerMonth: number;
 }

@@ -7,27 +7,59 @@ import type {
   AdminUserListResponse,
   AdminRoleDto,
   AdminUsersFilters,
+  OrganizationPlanType,
+  OrganizationPlanUsageDto,
 } from '../../types/admin';
 import { toast } from 'sonner';
 
 export const adminQueryKeys = {
-  organizations: (page: number, verifiedOnly?: boolean) => ['admin', 'organizations', page, verifiedOnly] as const,
+  organizations: (page: number, verifiedOnly?: boolean, search?: string) => ['admin', 'organizations', page, verifiedOnly, search] as const,
   organizationCampaigns: (orgId: string, page: number) => ['admin', 'organizations', orgId, 'campaigns', page] as const,
+  organizationPlanUsage: (orgId: string) => ['admin', 'organizations', orgId, 'plan-usage'] as const,
   users: (page: number, filters?: AdminUsersFilters) => ['admin', 'users', page, filters] as const,
   roles: () => ['admin', 'roles'] as const,
 };
 
-export function useAdminOrganizations(page: number, verifiedOnly?: boolean) {
+export function useAdminOrganizations(page: number, verifiedOnly?: boolean, search?: string) {
   return useQuery({
-    queryKey: adminQueryKeys.organizations(page, verifiedOnly),
+    queryKey: adminQueryKeys.organizations(page, verifiedOnly, search),
     queryFn: () => {
       const url = new URL('/api/admin/organizations', window.location.origin);
       url.searchParams.set('page', page.toString());
       if (verifiedOnly !== undefined && verifiedOnly !== null) {
         url.searchParams.set('verifiedOnly', String(verifiedOnly));
       }
+      if (search?.trim()) {
+        url.searchParams.set('search', search.trim());
+      }
       return apiFetch<AdminOrganizationListResponse>(url.pathname + url.search);
     },
+  });
+}
+
+export function useAdminOrganizationPlanUsage(orgId: string | null) {
+  return useQuery({
+    queryKey: adminQueryKeys.organizationPlanUsage(orgId ?? ''),
+    queryFn: () => apiFetch<ServiceResponse<OrganizationPlanUsageDto>>(`/api/admin/organizations/${orgId}/plan-usage`),
+    enabled: !!orgId,
+  });
+}
+
+export function useAdminSetOrganizationPlan(orgId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (planType: OrganizationPlanType) =>
+      apiFetch<ServiceResponse<null>>(`/api/admin/organizations/${orgId}/plan`, {
+        method: 'PUT',
+        body: JSON.stringify({ planType }),
+      }),
+    onSuccess: () => {
+      toast.success('Тариф організації оновлено');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.organizationPlanUsage(orgId ?? '') });
+    },
+    onError: (error) => toast.error(error.message),
   });
 }
 

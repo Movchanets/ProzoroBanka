@@ -45,9 +45,10 @@ public class AdminController : ControllerBase
 		[FromQuery] int page = 1,
 		[FromQuery] int pageSize = 20,
 		[FromQuery] bool? verifiedOnly = null,
+		[FromQuery] string? search = null,
 		CancellationToken ct = default)
 	{
-		var result = await _sender.Send(new GetAllOrganizationsQuery(page, pageSize, verifiedOnly), ct);
+		var result = await _sender.Send(new GetAllOrganizationsQuery(page, pageSize, verifiedOnly, search), ct);
 		return Ok(result.Payload);
 	}
 

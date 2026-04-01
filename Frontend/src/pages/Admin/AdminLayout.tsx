@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { label: 'Організації', icon: Building2, path: '' }, // empty means /admin
+  { label: 'Організації', icon: Building2, path: 'organizations' },
   { label: 'Користувачі', icon: Users, path: 'users' },
   { label: 'Ролі', icon: KeyRound, path: 'roles' },
 ];
@@ -58,7 +58,7 @@ function SidebarContent({
             key={item.path}
             data-testid={`admin-nav-${item.path || 'organizations'}`}
             to={`/admin${item.path ? `/${item.path}` : ''}`}
-            end={item.path === ''}
+            end={item.path === 'organizations'}
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted',

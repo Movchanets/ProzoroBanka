@@ -157,7 +157,8 @@ function App() {
                 </AdminRoute>
               }
             >
-              <Route index element={<AdminOrganizationsPage />} />
+              <Route index element={<Navigate to="organizations" replace />} />
+              <Route path="organizations" element={<AdminOrganizationsPage />} />
               <Route path="organizations/:orgId/campaigns" element={<AdminCampaignsPage />} />
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="roles" element={<AdminRolesPage />} />
