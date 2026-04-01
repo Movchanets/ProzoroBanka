@@ -40,7 +40,8 @@ public class GetMyOrganizationsHandler
 				m.Organization.Phone,
 				m.Organization.OwnerUserId,
 				MemberCount = m.Organization.Members.Count,
-				m.Organization.CreatedAt
+				m.Organization.CreatedAt,
+				m.Organization.PlanType
 			})
 			.ToListAsync(cancellationToken);
 
@@ -57,7 +58,8 @@ public class GetMyOrganizationsHandler
 				org.Phone,
 				org.OwnerUserId,
 				org.MemberCount,
-				org.CreatedAt))
+				org.CreatedAt,
+				org.PlanType))
 			.ToList();
 
 		return ServiceResponse<IReadOnlyList<OrganizationDto>>.Success(result);

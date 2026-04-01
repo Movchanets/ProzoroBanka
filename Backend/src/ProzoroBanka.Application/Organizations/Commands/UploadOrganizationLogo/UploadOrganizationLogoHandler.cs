@@ -67,6 +67,6 @@ public class UploadOrganizationLogoHandler
 		return ServiceResponse<OrganizationDto>.Success(new OrganizationDto(
 			org.Id, org.Name, org.Slug, org.Description, StorageUrlResolver.Resolve(_fileStorage, org.LogoStorageKey),
 			org.IsVerified, org.Website, org.ContactEmail, org.Phone, org.OwnerUserId,
-			membersCount, org.CreatedAt));
+			membersCount, org.CreatedAt, org.PlanType));
 	}
 }

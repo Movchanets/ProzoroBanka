@@ -43,6 +43,9 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
+    builder.Services.Configure<ProzoroBanka.Application.Common.Models.OrganizationPlansOptions>(
+        builder.Configuration.GetSection(ProzoroBanka.Application.Common.Models.OrganizationPlansOptions.SectionName));
+
     // ── CurrentUserService ──
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
