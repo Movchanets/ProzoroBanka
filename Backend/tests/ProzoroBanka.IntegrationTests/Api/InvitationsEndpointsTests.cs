@@ -2,15 +2,21 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using ProzoroBanka.Domain.Enums;
+using ProzoroBanka.Infrastructure.Data;
 
 namespace ProzoroBanka.IntegrationTests.Api;
 
 public class InvitationsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 {
 	private readonly HttpClient _client;
+	private readonly TestWebApplicationFactory _factory;
 
 	public InvitationsEndpointsTests(TestWebApplicationFactory factory)
 	{
+		_factory = factory;
 		_client = factory.CreateClient();
 	}
 
@@ -106,6 +112,78 @@ public class InvitationsEndpointsTests : IClassFixture<TestWebApplicationFactory
 
 		var invites = await invitesResponse.Content.ReadFromJsonAsync<JsonElement>();
 		Assert.Contains(invites.EnumerateArray(), i => i.GetProperty("email").GetString() == targetEmail);
+	}
+
+	[Fact]
+	public async Task AcceptInvitation_WhenFreePlanMemberLimitReached_ReturnsBadRequest_AndInvitationStaysPending()
+	{
+		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync();
+
+		await using (var scope = _factory.Services.CreateAsyncScope())
+		{
+			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+			var existingMemberIds = await db.OrganizationMembers
+				.Where(m => m.OrganizationId == orgId && !m.IsDeleted)
+				.Select(m => m.UserId)
+				.ToListAsync();
+
+			for (var i = 0; i < 9; i++)
+			{
+				var userId = Guid.NewGuid();
+				db.DomainUsers.Add(new ProzoroBanka.Domain.Entities.User
+				{
+					Id = userId,
+					Email = $"limit-existing-{userId:N}@example.com",
+					FirstName = "Limit",
+					LastName = $"{i}"
+				});
+
+				db.OrganizationMembers.Add(new ProzoroBanka.Domain.Entities.OrganizationMember
+				{
+					OrganizationId = orgId,
+					UserId = userId,
+					Role = OrganizationRole.Reporter,
+					PermissionsFlags = OrganizationPermissions.ViewReports,
+					JoinedAt = DateTime.UtcNow
+				});
+			}
+
+			await db.SaveChangesAsync();
+		}
+
+		var inviteeEmail = $"limit-invitee-{Guid.NewGuid():N}@example.com";
+		var createInviteResponse = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/invites/email", new
+		{
+			email = inviteeEmail,
+			role = 2
+		});
+		createInviteResponse.EnsureSuccessStatusCode();
+
+		await RegisterAsync(inviteeEmail, "Password123!");
+		await AuthenticateAsync(inviteeEmail, "Password123!");
+
+		var invitationsResponse = await _client.GetAsync("/api/invitations/my");
+		invitationsResponse.EnsureSuccessStatusCode();
+		var invitations = await invitationsResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var targetInvitation = invitations.EnumerateArray()
+			.First(i => i.GetProperty("organizationId").GetGuid() == orgId);
+		var token = targetInvitation.GetProperty("token").GetString()!;
+
+		var acceptResponse = await _client.PostAsync($"/api/invitations/{token}/accept", content: null);
+		Assert.Equal(HttpStatusCode.BadRequest, acceptResponse.StatusCode);
+
+		var errorBody = await acceptResponse.Content.ReadAsStringAsync();
+		Assert.Contains("ліміт", errorBody, StringComparison.OrdinalIgnoreCase);
+
+		await using var assertScope = _factory.Services.CreateAsyncScope();
+		var assertDb = assertScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+		var invitationStatus = await assertDb.Invitations
+			.Where(i => i.Token == token)
+			.Select(i => i.Status)
+			.SingleAsync();
+		Assert.Equal(InvitationStatus.Pending, invitationStatus);
 	}
 
 	private async Task<Guid> CreateOrganizationAsync()

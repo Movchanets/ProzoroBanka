@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.InvitationSupport;
@@ -12,11 +13,13 @@ public class AcceptInvitationHandler : IRequestHandler<AcceptInvitationCommand, 
 {
 	private readonly IApplicationDbContext _db;
 	private readonly IUnitOfWork _unitOfWork;
+	private readonly OrganizationPlansOptions _plansOptions;
 
-	public AcceptInvitationHandler(IApplicationDbContext db, IUnitOfWork unitOfWork)
+	public AcceptInvitationHandler(IApplicationDbContext db, IUnitOfWork unitOfWork, IOptions<OrganizationPlansOptions> plansOptions)
 	{
 		_db = db;
 		_unitOfWork = unitOfWork;
+		_plansOptions = plansOptions.Value;
 	}
 
 	public async Task<ServiceResponse> Handle(
@@ -79,6 +82,31 @@ public class AcceptInvitationHandler : IRequestHandler<AcceptInvitationCommand, 
 		{
 			await transaction.RollbackAsync(cancellationToken);
 			return ServiceResponse.Failure("Ви вже є учасником цієї організації");
+		}
+
+		var organizationPlan = await _db.Organizations
+			.AsNoTracking()
+			.Where(o => o.Id == invitation.OrganizationId && !o.IsDeleted)
+			.Select(o => (OrganizationPlanType?)o.PlanType)
+			.FirstOrDefaultAsync(cancellationToken);
+
+		if (organizationPlan is null)
+		{
+			await transaction.RollbackAsync(cancellationToken);
+			return ServiceResponse.Failure("Організацію не знайдено");
+		}
+
+		var planLimits = organizationPlan == OrganizationPlanType.Paid ? _plansOptions.Paid : _plansOptions.Free;
+		var activeMembersCount = await _db.OrganizationMembers
+			.CountAsync(
+				m => m.OrganizationId == invitation.OrganizationId &&
+					 !m.IsDeleted,
+				cancellationToken);
+
+		if (activeMembersCount >= planLimits.MaxMembers)
+		{
+			await transaction.RollbackAsync(cancellationToken);
+			return ServiceResponse.Failure("Досягнуто ліміт учасників для поточного тарифного плану");
 		}
 
 		// The conditional update prevents a second concurrent request from accepting

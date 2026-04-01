@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.Commands.AcceptInvitation;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
@@ -11,6 +13,21 @@ namespace ProzoroBanka.UnitTests.Application.Organizations.Commands.AcceptInvita
 public class AcceptInvitationHandlerTests
 {
 	private readonly PostgreSqlUnitTestFixture _fixture;
+	private static readonly IOptions<OrganizationPlansOptions> PlanOptions = Options.Create(new OrganizationPlansOptions
+	{
+		Free = new OrganizationPlanLimits
+		{
+			MaxCampaigns = 3,
+			MaxMembers = 10,
+			MaxOcrExtractionsPerMonth = 100
+		},
+		Paid = new OrganizationPlanLimits
+		{
+			MaxCampaigns = 100,
+			MaxMembers = 200,
+			MaxOcrExtractionsPerMonth = 5000
+		}
+	});
 
 	public AcceptInvitationHandlerTests(PostgreSqlUnitTestFixture fixture)
 	{
@@ -43,7 +60,7 @@ public class AcceptInvitationHandlerTests
 		});
 		await db.SaveChangesAsync();
 
-		var handler = new AcceptInvitationHandler(db, new UnitOfWork(db));
+		var handler = new AcceptInvitationHandler(db, new UnitOfWork(db), PlanOptions);
 		var result = await handler.Handle(new AcceptInvitationCommand(callerId, token), CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
@@ -79,7 +96,7 @@ public class AcceptInvitationHandlerTests
 		});
 		await db.SaveChangesAsync();
 
-		var handler = new AcceptInvitationHandler(db, new UnitOfWork(db));
+		var handler = new AcceptInvitationHandler(db, new UnitOfWork(db), PlanOptions);
 		var result = await handler.Handle(new AcceptInvitationCommand(callerId, expiredToken), CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
@@ -127,8 +144,8 @@ public class AcceptInvitationHandlerTests
 		await using var db1 = _fixture.CreateContext();
 		await using var db2 = _fixture.CreateContext();
 
-		var handler1 = new AcceptInvitationHandler(db1, new UnitOfWork(db1));
-		var handler2 = new AcceptInvitationHandler(db2, new UnitOfWork(db2));
+		var handler1 = new AcceptInvitationHandler(db1, new UnitOfWork(db1), PlanOptions);
+		var handler2 = new AcceptInvitationHandler(db2, new UnitOfWork(db2), PlanOptions);
 
 		var task1 = handler1.Handle(new AcceptInvitationCommand(callerId, token), CancellationToken.None);
 		var task2 = handler2.Handle(new AcceptInvitationCommand(callerId, token), CancellationToken.None);
@@ -144,5 +161,136 @@ public class AcceptInvitationHandlerTests
 		var memberCount = await verifyDb.OrganizationMembers
 			.CountAsync(m => m.OrganizationId == orgId && m.UserId == callerId && !m.IsDeleted);
 		Assert.Equal(1, memberCount);
+	}
+
+	[Fact]
+	public async Task Handle_ReturnsFailure_WhenFreePlanMemberLimitReached_AndKeepsInvitationPending()
+	{
+		await using var db = _fixture.CreateContext();
+		var callerId = Guid.NewGuid();
+		var inviterId = Guid.NewGuid();
+		var orgId = Guid.NewGuid();
+		var token = $"token-limit-free-{Guid.NewGuid():N}";
+
+		var users = new List<User>
+		{
+			new() { Id = callerId, Email = $"vol-{callerId:N}@example.com", FirstName = "V", LastName = "One" },
+			new() { Id = inviterId, Email = $"adm-{inviterId:N}@example.com", FirstName = "A", LastName = "Two" }
+		};
+
+		for (var i = 0; i < 10; i++)
+		{
+			var id = Guid.NewGuid();
+			users.Add(new User { Id = id, Email = $"member-{id:N}@example.com", FirstName = "M", LastName = $"{i}" });
+		}
+
+		db.DomainUsers.AddRange(users);
+		db.Organizations.Add(new Organization
+		{
+			Id = orgId,
+			Name = "Free Limit Org",
+			Slug = $"free-limit-org-{orgId:N}",
+			OwnerUserId = inviterId,
+			PlanType = OrganizationPlanType.Free
+		});
+
+		foreach (var user in users.Skip(2))
+		{
+			db.OrganizationMembers.Add(new OrganizationMember
+			{
+				OrganizationId = orgId,
+				UserId = user.Id,
+				Role = OrganizationRole.Reporter,
+				PermissionsFlags = OrganizationPermissions.ViewReports,
+				JoinedAt = DateTime.UtcNow
+			});
+		}
+
+		db.Invitations.Add(new Invitation
+		{
+			OrganizationId = orgId,
+			InviterId = inviterId,
+			Token = token,
+			DefaultRole = OrganizationRole.Reporter,
+			Status = InvitationStatus.Pending,
+			ExpiresAt = DateTime.UtcNow.AddHours(2)
+		});
+
+		await db.SaveChangesAsync();
+
+		var handler = new AcceptInvitationHandler(db, new UnitOfWork(db), PlanOptions);
+		var result = await handler.Handle(new AcceptInvitationCommand(callerId, token), CancellationToken.None);
+
+		Assert.False(result.IsSuccess);
+		Assert.Contains("ліміт", result.Message, StringComparison.OrdinalIgnoreCase);
+		Assert.Equal(
+			InvitationStatus.Pending,
+			(await db.Invitations.FirstAsync(i => i.Token == token)).Status);
+		Assert.False(await db.OrganizationMembers.AnyAsync(m => m.OrganizationId == orgId && m.UserId == callerId));
+	}
+
+	[Fact]
+	public async Task Handle_AcceptsInvitation_WhenPaidPlanHasCapacity()
+	{
+		await using var db = _fixture.CreateContext();
+		var callerId = Guid.NewGuid();
+		var inviterId = Guid.NewGuid();
+		var orgId = Guid.NewGuid();
+		var token = $"token-limit-paid-{Guid.NewGuid():N}";
+
+		var users = new List<User>
+		{
+			new() { Id = callerId, Email = $"vol-{callerId:N}@example.com", FirstName = "V", LastName = "One" },
+			new() { Id = inviterId, Email = $"adm-{inviterId:N}@example.com", FirstName = "A", LastName = "Two" }
+		};
+
+		for (var i = 0; i < 10; i++)
+		{
+			var id = Guid.NewGuid();
+			users.Add(new User { Id = id, Email = $"member-paid-{id:N}@example.com", FirstName = "P", LastName = $"{i}" });
+		}
+
+		db.DomainUsers.AddRange(users);
+		db.Organizations.Add(new Organization
+		{
+			Id = orgId,
+			Name = "Paid Limit Org",
+			Slug = $"paid-limit-org-{orgId:N}",
+			OwnerUserId = inviterId,
+			PlanType = OrganizationPlanType.Paid
+		});
+
+		foreach (var user in users.Skip(2))
+		{
+			db.OrganizationMembers.Add(new OrganizationMember
+			{
+				OrganizationId = orgId,
+				UserId = user.Id,
+				Role = OrganizationRole.Reporter,
+				PermissionsFlags = OrganizationPermissions.ViewReports,
+				JoinedAt = DateTime.UtcNow
+			});
+		}
+
+		db.Invitations.Add(new Invitation
+		{
+			OrganizationId = orgId,
+			InviterId = inviterId,
+			Token = token,
+			DefaultRole = OrganizationRole.Reporter,
+			Status = InvitationStatus.Pending,
+			ExpiresAt = DateTime.UtcNow.AddHours(2)
+		});
+
+		await db.SaveChangesAsync();
+
+		var handler = new AcceptInvitationHandler(db, new UnitOfWork(db), PlanOptions);
+		var result = await handler.Handle(new AcceptInvitationCommand(callerId, token), CancellationToken.None);
+
+		Assert.True(result.IsSuccess);
+		Assert.True(await db.OrganizationMembers.AnyAsync(m => m.OrganizationId == orgId && m.UserId == callerId));
+		Assert.Equal(
+			InvitationStatus.Accepted,
+			(await db.Invitations.FirstAsync(i => i.Token == token)).Status);
 	}
 }
