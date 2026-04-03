@@ -22,9 +22,9 @@ export function PublicPageToolbar({ compact = false }: PublicPageToolbarProps) {
         data-testid="public-page-toolbar-entry-link"
         variant="secondary"
         size={compact ? 'sm' : 'default'}
-        className="touch-manipulation bg-secondary !text-secondary-foreground hover:bg-secondary/90 [&_svg]:!text-secondary-foreground"
+        className="touch-manipulation bg-secondary !text-white hover:bg-secondary/90 [&_svg]:!text-white"
       >
-        <Link to={isAuthenticated ? '/onboarding' : '/login'} aria-label={entryLabel} className="!text-secondary-foreground">
+        <Link to={isAuthenticated ? '/onboarding' : '/login'} aria-label={entryLabel} className="!text-white">
           <Compass className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">{entryLabel}</span>
           <ArrowRight className="hidden h-4 w-4 sm:inline" aria-hidden="true" />
