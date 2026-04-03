@@ -22,8 +22,11 @@ const campaignPayload = {
   title: 'Тепловізори для евакуаційної бригади',
   description: 'Збираємо на 3 тепловізори для екіпажів.',
   coverImageUrl: '',
+  sendUrl: 'https://send.monobank.ua/jar/mock',
   goalAmount: 300000,
   currentAmount: 180000,
+  documentedAmount: 144000,
+  documentationPercent: 48,
   status: 1,
   startDate: null,
   deadline: null,
@@ -42,8 +45,11 @@ const campaignListItem = {
   title: campaignPayload.title,
   description: campaignPayload.description,
   coverImageUrl: campaignPayload.coverImageUrl,
+  sendUrl: campaignPayload.sendUrl,
   goalAmount: campaignPayload.goalAmount,
   currentAmount: campaignPayload.currentAmount,
+  documentedAmount: campaignPayload.documentedAmount,
+  documentationPercent: campaignPayload.documentationPercent,
   status: 1,
   startDate: null,
   deadline: null,
@@ -60,6 +66,27 @@ const receiptsPayload = {
   page: 1,
   pageSize: 20,
   totalCount: 1,
+};
+
+const receiptDetailPayload = {
+  id: 'r1',
+  merchantName: 'Епіцентр',
+  totalAmount: 54000,
+  transactionDate: '2026-03-20T00:00:00Z',
+  status: 'Verified',
+  imageUrl: 'https://cdn.example.com/receipt-r1.png',
+  structuredOutputJson: JSON.stringify({
+    fiscalNumber: 'FN-123456',
+    receiptCode: 'RC-123456',
+    items: [
+      { name: 'Тепловізійний модуль', quantity: 1, price: 54000 },
+    ],
+  }),
+  addedByName: 'Ірина Коваль',
+  campaignId: 'camp-1',
+  campaignTitle: 'Тепловізори для евакуаційної бригади',
+  organizationName: 'Фонд Промінь',
+  organizationSlug: 'promin',
 };
 
 export async function setupPublicPagesMocks(page: Page): Promise<void> {
@@ -144,5 +171,9 @@ export async function setupPublicPagesMocks(page: Page): Promise<void> {
 
   await page.route('**/api/public/campaigns/camp-1/receipts**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(receiptsPayload) });
+  });
+
+  await page.route('**/api/public/receipts/r1', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(receiptDetailPayload) });
   });
 }

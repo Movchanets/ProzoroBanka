@@ -12,6 +12,7 @@ public interface IApplicationDbContext
     DbSet<SystemSetting> SystemSettings { get; }
     DbSet<Organization> Organizations { get; }
     DbSet<OrganizationMember> OrganizationMembers { get; }
+    DbSet<OrganizationStateRegistryCredential> OrganizationStateRegistryCredentials { get; }
     DbSet<Invitation> Invitations { get; }
     DbSet<Receipt> Receipts { get; }
     DbSet<MonobankTransaction> MonobankTransactions { get; }

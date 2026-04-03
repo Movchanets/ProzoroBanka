@@ -58,7 +58,7 @@ public class GetPublicOrganizationCampaignsHandler
 
 		var orgDocumentedAmount = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.Verified)
+			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.StateVerified)
 			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
 
 		var totalCount = await query.CountAsync(cancellationToken);

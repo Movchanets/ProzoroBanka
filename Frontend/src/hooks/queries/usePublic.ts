@@ -28,6 +28,7 @@ export const publicKeys = {
   campaign: (campaignId: string) => [...publicKeys.all, 'campaign', campaignId] as const,
   campaignReceipts: (campaignId: string, page: number) =>
     [...publicKeys.all, 'campaignReceipts', campaignId, page] as const,
+  receipt: (receiptId: string) => [...publicKeys.all, 'receipt', receiptId] as const,
   transparency: (slug: string) => [...publicKeys.all, 'transparency', slug] as const,
 };
 
@@ -110,6 +111,15 @@ export function usePublicCampaignReceipts(campaignId: string | null | undefined,
     queryKey: publicKeys.campaignReceipts(campaignId ?? '', page),
     queryFn: () => publicService.getCampaignReceipts(campaignId ?? '', page),
     enabled: Boolean(campaignId),
+    ...publicQueryDefaults,
+  });
+}
+
+export function usePublicReceipt(receiptId: string | null | undefined) {
+  return useQuery({
+    queryKey: publicKeys.receipt(receiptId ?? ''),
+    queryFn: () => publicService.getReceipt(receiptId ?? ''),
+    enabled: Boolean(receiptId),
     ...publicQueryDefaults,
   });
 }

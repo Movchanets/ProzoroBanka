@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ProzoroBanka.Application.Contracts.Email;
 using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Infrastructure.Data;
 using Testcontainers.PostgreSql;
 
@@ -59,9 +60,12 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
 				["Seed:Admin:Password"] = "Admin123!ChangeMe",
 				["Seed:Admin:FirstName"] = "System",
 				["Seed:Admin:LastName"] = "Administrator",
+				["Encryption:Key"] = "MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=",
 				["Storage:Provider"] = "Local",
 				["Storage:Local:FolderName"] = "uploads-test",
 				["Turnstile:SecretKey"] = "test-secret",
+				["StateValidator:Enabled"] = "true",
+				["StateValidator:DailyLimitPerToken"] = "900",
 				["Redis:Enabled"] = "false",
 				["Redis:ConnectionString"] = ""
 			});
@@ -71,10 +75,12 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
 		{
 			services.RemoveAll<ITurnstileService>();
 			services.RemoveAll<IEmailNotificationService>();
+			services.RemoveAll<IStateReceiptValidator>();
 
 			services.AddSingleton<ITurnstileService, AlwaysValidTurnstileService>();
 			services.AddSingleton<RecordingEmailNotificationService>(EmailRecorder);
 			services.AddSingleton<IEmailNotificationService>(sp => sp.GetRequiredService<RecordingEmailNotificationService>());
+			services.AddSingleton<IStateReceiptValidator, AlwaysValidStateReceiptValidator>();
 		});
 	}
 
@@ -84,6 +90,15 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
 		{
 			return Task.FromResult(true);
 		}
+	}
+
+	private sealed class AlwaysValidStateReceiptValidator : IStateReceiptValidator
+	{
+		public Task<RegistryValidationResult> ValidateFiscalAsync(string fiscalNumber, string apiToken, CancellationToken ct)
+			=> Task.FromResult(new RegistryValidationResult(true, fiscalNumber, null));
+
+		public Task<RegistryValidationResult> ValidateBankTransferAsync(string receiptCode, string apiToken, CancellationToken ct)
+			=> Task.FromResult(new RegistryValidationResult(true, receiptCode, null));
 	}
 
 	public sealed class RecordingEmailNotificationService : IEmailNotificationService

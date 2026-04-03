@@ -48,7 +48,7 @@ public class GetCampaignStatsHandler
 
 		var totalDocumented = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.Verified)
+			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.StateVerified)
 			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
 
 		var stats = await _db.Campaigns

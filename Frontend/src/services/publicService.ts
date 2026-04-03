@@ -6,6 +6,7 @@ import type {
   PublicListResponse,
   PublicOrganization,
   PublicReceipt,
+  PublicReceiptDetail,
   Transparency,
 } from '../types';
 
@@ -25,6 +26,13 @@ function mapPublicCampaignAmount(campaign: PublicCampaign): PublicCampaign {
 }
 
 function mapPublicReceiptAmount(receipt: PublicReceipt): PublicReceipt {
+  return {
+    ...receipt,
+    totalAmount: receipt.totalAmount === undefined ? undefined : toHryvnia(receipt.totalAmount),
+  };
+}
+
+function mapPublicReceiptDetailAmount(receipt: PublicReceiptDetail): PublicReceiptDetail {
   return {
     ...receipt,
     totalAmount: receipt.totalAmount === undefined ? undefined : toHryvnia(receipt.totalAmount),
@@ -131,6 +139,10 @@ export const publicService = {
         items: response.items.map(mapPublicReceiptAmount),
       }));
   },
+
+  getReceipt: (receiptId: string) =>
+    apiFetch<PublicReceiptDetail>(`/api/public/receipts/${receiptId}`)
+      .then(mapPublicReceiptDetailAmount),
 
   getOrganizationTransparency: (slug: string) =>
     apiFetch<Transparency>(`/api/public/organizations/${slug}/transparency`)

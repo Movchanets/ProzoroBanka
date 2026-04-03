@@ -27,6 +27,7 @@ public class ApplicationDbContext
 	public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 	public DbSet<Organization> Organizations => Set<Organization>();
 	public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
+	public DbSet<OrganizationStateRegistryCredential> OrganizationStateRegistryCredentials => Set<OrganizationStateRegistryCredential>();
 	public DbSet<Invitation> Invitations => Set<Invitation>();
 	public DbSet<Receipt> Receipts => Set<Receipt>();
 	public DbSet<MonobankTransaction> MonobankTransactions => Set<MonobankTransaction>();
@@ -39,6 +40,7 @@ public class ApplicationDbContext
 	DbSet<SystemSetting> IApplicationDbContext.SystemSettings => SystemSettings;
 	DbSet<Organization> IApplicationDbContext.Organizations => Organizations;
 	DbSet<OrganizationMember> IApplicationDbContext.OrganizationMembers => OrganizationMembers;
+	DbSet<OrganizationStateRegistryCredential> IApplicationDbContext.OrganizationStateRegistryCredentials => OrganizationStateRegistryCredentials;
 	DbSet<Invitation> IApplicationDbContext.Invitations => Invitations;
 	DbSet<Campaign> IApplicationDbContext.Campaigns => Campaigns;
 	DbSet<CampaignTransaction> IApplicationDbContext.CampaignTransactions => CampaignTransactions;
@@ -192,10 +194,40 @@ public class ApplicationDbContext
 			b.ToTable("Receipts");
 			b.HasKey(e => e.Id);
 			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
+			b.Property(e => e.ReceiptImageStorageKey).HasMaxLength(512);
 			b.Property(e => e.OriginalFileName).HasMaxLength(256).IsRequired();
 			b.Property(e => e.MerchantName).HasMaxLength(256);
+			b.Property(e => e.RegistryType).HasConversion<int?>();
+			b.Property(e => e.FiscalNumber).HasMaxLength(128);
+			b.Property(e => e.ReceiptCode).HasMaxLength(128);
 			b.Property(e => e.TotalAmount).HasPrecision(18, 2);
+			b.Property(e => e.Currency).HasMaxLength(16);
+			b.Property(e => e.PurchasedItemName).HasMaxLength(256);
+			b.Property(e => e.PublicationStatus).HasConversion<int>();
+			b.Property(e => e.StateVerificationReference).HasMaxLength(256);
+			b.Property(e => e.VerificationFailureReason).HasMaxLength(1024);
 			b.HasQueryFilter(e => !e.IsDeleted);
+		});
+
+		builder.Entity<OrganizationStateRegistryCredential>(b =>
+		{
+			b.ToTable("OrganizationStateRegistryCredentials");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.Provider).HasConversion<int>();
+			b.Property(e => e.EncryptedApiKey).HasMaxLength(2048).IsRequired();
+			b.Property(e => e.KeyFingerprint).HasMaxLength(64).IsRequired();
+			b.HasIndex(e => new { e.OrganizationId, e.Provider }).IsUnique();
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.Organization)
+				.WithMany(o => o.StateRegistryCredentials)
+				.HasForeignKey(e => e.OrganizationId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasOne(e => e.CreatedByUser)
+				.WithMany(u => u.CreatedStateRegistryCredentials)
+				.HasForeignKey(e => e.CreatedByUserId)
+				.OnDelete(DeleteBehavior.Restrict);
 		});
 
 		builder.Entity<MonobankTransaction>(b =>

@@ -55,6 +55,21 @@ export interface PublicReceipt {
   addedByName?: string;
 }
 
+export interface PublicReceiptDetail {
+  id: string;
+  merchantName?: string;
+  totalAmount?: number;
+  transactionDate?: string;
+  status: string;
+  imageUrl: string;
+  structuredOutputJson?: string;
+  addedByName?: string;
+  campaignId?: string;
+  campaignTitle?: string;
+  organizationName?: string;
+  organizationSlug?: string;
+}
+
 export interface PublicCampaignDetail {
   id: string;
   title: string;

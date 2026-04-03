@@ -57,7 +57,7 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 
 		var latestReceipts = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.Verified)
+			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.StateVerified)
 			.OrderByDescending(r => r.TransactionDate ?? r.CreatedAt)
 			.Take(3)
 			.Select(r => new PublicReceiptDto(
@@ -74,7 +74,7 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 
 		var totalDocumented = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.Verified)
+			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.StateVerified)
 			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
 
 		var documentedAmount = Math.Min(campaign.CurrentAmount, totalDocumented);

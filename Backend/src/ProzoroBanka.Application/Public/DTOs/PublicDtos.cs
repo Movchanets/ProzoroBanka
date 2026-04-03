@@ -79,6 +79,7 @@ public record PublicReceiptDetailDto(
 	DateTime? TransactionDate,
 	string Status,
 	string ImageUrl,
+	string? StructuredOutputJson,
 	string? AddedByName,
 	Guid? CampaignId,
 	string? CampaignTitle,

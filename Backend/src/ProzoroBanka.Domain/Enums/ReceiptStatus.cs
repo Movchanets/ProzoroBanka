@@ -2,11 +2,20 @@ namespace ProzoroBanka.Domain.Enums;
 
 public enum ReceiptStatus
 {
-    Uploaded = 0,
-    Parsing = 1,
-    Parsed = 2,
-    ParseFailed = 3,
-    Matched = 4,
+    PendingOcr = 0,
+    PendingStateValidation = 1,
+    OcrExtracted = 2,
+    FailedVerification = 3,
+    ValidationDeferredRateLimit = 4,
     Draft = 5,
-    Verified = 6
+    StateVerified = 6,
+    InvalidData = 7,
+    OcrDeferredMonthlyQuota = 8,
+
+    Uploaded = PendingOcr,
+    Parsing = PendingStateValidation,
+    Parsed = OcrExtracted,
+    ParseFailed = FailedVerification,
+    Matched = ValidationDeferredRateLimit,
+    Verified = StateVerified
 }

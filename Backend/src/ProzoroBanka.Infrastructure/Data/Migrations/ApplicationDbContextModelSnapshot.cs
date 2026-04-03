@@ -461,6 +461,62 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.ToTable("OrganizationMembers", (string)null);
                 });
 
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.OrganizationStateRegistryCredential", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("BlockedUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EncryptedApiKey")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("KeyFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("LastUsedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastValidatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("OrganizationId", "Provider")
+                        .IsUnique();
+
+                    b.ToTable("OrganizationStateRegistryCredentials", (string)null);
+                });
+
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.Receipt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -469,6 +525,14 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("FiscalNumber")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -480,6 +544,12 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<DateTime?>("OcrExtractedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OcrStructuredPayloadJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("OriginalFileName")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -488,8 +558,36 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.Property<int?>("ParsedBy")
                         .HasColumnType("integer");
 
+                    b.Property<int>("PublicationStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("PurchaseDateUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PurchasedItemName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("RawOcrJson")
                         .HasColumnType("text");
+
+                    b.Property<string>("ReceiptCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ReceiptImageStorageKey")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<int?>("RegistryType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StateVerificationReference")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("StateVerifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -511,6 +609,10 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("VerificationFailureReason")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
 
                     b.HasKey("Id");
 
@@ -896,6 +998,25 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.OrganizationStateRegistryCredential", b =>
+                {
+                    b.HasOne("ProzoroBanka.Domain.Entities.User", "CreatedByUser")
+                        .WithMany("CreatedStateRegistryCredentials")
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ProzoroBanka.Domain.Entities.Organization", "Organization")
+                        .WithMany("StateRegistryCredentials")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.Receipt", b =>
                 {
                     b.HasOne("ProzoroBanka.Domain.Entities.User", "User")
@@ -959,10 +1080,14 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.Navigation("Invitations");
 
                     b.Navigation("Members");
+
+                    b.Navigation("StateRegistryCredentials");
                 });
 
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.User", b =>
                 {
+                    b.Navigation("CreatedStateRegistryCredentials");
+
                     b.Navigation("MonobankTransactions");
 
                     b.Navigation("OrganizationMemberships");

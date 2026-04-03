@@ -40,7 +40,7 @@ public class GetOrganizationTransparencyHandler
 
 		var receipts = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.Verified)
+			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.StateVerified)
 			.Select(r => new
 			{
 				r.MerchantName,

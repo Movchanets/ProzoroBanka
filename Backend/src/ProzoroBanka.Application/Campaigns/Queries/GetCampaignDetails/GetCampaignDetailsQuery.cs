@@ -74,7 +74,7 @@ public class GetCampaignDetailsHandler
 
 		var orgDocumentedAmount = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => memberIds.Contains(r.UserId) && r.Status == Domain.Enums.ReceiptStatus.Verified)
+			.Where(r => memberIds.Contains(r.UserId) && r.Status == Domain.Enums.ReceiptStatus.StateVerified)
 			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
 
 		var documentedAmount = Math.Min(campaign.CurrentAmount, orgDocumentedAmount);

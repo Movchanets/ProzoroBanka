@@ -27,7 +27,7 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 	{
 		var receipt = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => r.Id == request.ReceiptId && r.Status == ReceiptStatus.Verified)
+			.Where(r => r.Id == request.ReceiptId && r.Status == ReceiptStatus.StateVerified)
 			.Select(r => new
 			{
 				r.Id,
@@ -36,6 +36,7 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 				r.TransactionDate,
 				r.Status,
 				r.StorageKey,
+				r.RawOcrJson,
 				AddedByName = r.User.FirstName + " " + r.User.LastName
 			})
 			.FirstOrDefaultAsync(cancellationToken);
@@ -50,6 +51,7 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 			receipt.TransactionDate,
 			receipt.Status.ToString(),
 			StorageUrlResolver.Resolve(_fileStorage, receipt.StorageKey) ?? string.Empty,
+			receipt.RawOcrJson,
 			receipt.AddedByName,
 			null,
 			null,

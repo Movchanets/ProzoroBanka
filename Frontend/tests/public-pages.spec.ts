@@ -53,6 +53,11 @@ test.describe('Public pages', () => {
 
     await expect(page.getByTestId('public-org-header')).toBeVisible();
     await expect(page.getByTestId('public-org-transparency-panel')).toBeVisible();
+    await expect(page.getByTestId('public-org-transparency-category-електроніка')).toBeVisible();
+    await expect(page.getByTestId('public-org-transparency-category-логістика')).toBeVisible();
+    await expect(page.getByTestId('public-org-transparency-monthly-list')).toBeVisible();
+    await expect(page.getByTestId('public-org-transparency-month-2026-02')).toBeVisible();
+    await expect(page.getByTestId('public-org-transparency-month-2026-03')).toBeVisible();
     await expect(page.getByTestId('public-org-campaign-tabs')).toBeVisible();
 
     await page.getByTestId('public-org-campaign-tab-active').click();
@@ -67,6 +72,18 @@ test.describe('Public pages', () => {
     await expect(page.getByTestId('public-campaign-description')).toBeVisible();
     await expect(page.getByTestId('public-campaign-receipts-list')).toBeVisible();
     await expect(page.getByTestId('public-campaign-receipt-link')).toBeVisible();
+  });
+
+  test('TC-04A: navigation from campaign receipt to receipt page works', async ({ page }) => {
+    await page.goto('/c/camp-1');
+
+    await expect(page.getByTestId('public-campaign-receipt-link')).toBeVisible();
+    await page.getByTestId('public-campaign-receipt-link').first().click();
+
+    await expect(page).toHaveURL(/\/receipt\//);
+    await expect(page.getByTestId('public-receipt-page')).toBeVisible();
+    await expect(page.getByTestId('public-receipt-image')).toBeVisible();
+    await expect(page.getByTestId('public-receipt-structured-output')).toBeVisible();
   });
 
   test('TC-05: public toolbar is visible across public routes', async ({ page }) => {
@@ -84,7 +101,10 @@ test.describe('Public pages', () => {
 
     await page.goto('/receipt/r1');
     await expect(page.getByTestId('public-page-toolbar')).toBeVisible();
-    await expect(page.getByTestId('public-receipt-placeholder-page')).toBeVisible();
+    await expect(page.getByTestId('public-receipt-page')).toBeVisible();
+    await expect(page.getByTestId('public-receipt-image')).toBeVisible();
+    await expect(page.getByTestId('public-receipt-structured-output')).toBeVisible();
+    await expect(page.getByTestId('public-receipt-validation-fields')).toBeVisible();
   });
 
   test('TC-06: login page contains link to public pages', async ({ page }) => {
