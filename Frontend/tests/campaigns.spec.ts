@@ -217,4 +217,28 @@ test.describe('Dashboard — Campaigns Management', () => {
     await page.getByTestId('campaign-edit-monobank-cancel-button').click();
     await expect(page.getByTestId('campaign-edit-monobank-wizard-dialog')).not.toBeVisible();
   });
+
+  test('TC-06: Dual progress bars are visible on dashboard and public campaign pages', async ({ page }) => {
+    test.info().annotations.push({
+      type: 'description',
+      description: 'Verifies raised/documented dual progress UI is rendered for campaign detail and public page.',
+    });
+
+    const campaign = await createCampaignViaApi(page, orgId, {
+      title: `Progress Campaign ${Date.now()}`,
+      goalAmount: 80_000,
+    });
+
+    await page.goto(`/dashboard/${orgId}/campaigns/${campaign.id}`);
+    await expect(page.getByTestId('campaign-detail-page')).toBeVisible();
+    await expect(page.getByTestId('campaign-detail-progress-raised-progress')).toBeVisible();
+    await expect(page.getByTestId('campaign-detail-progress-documented-progress')).toBeVisible();
+    await expect(page.getByTestId('campaign-detail-progress-documented-amount')).toBeVisible();
+
+    await page.goto(`/c/${campaign.id}`);
+    await expect(page.getByTestId('public-campaign-header')).toBeVisible();
+    await expect(page.getByTestId('public-campaign-progress-panel-raised-progress')).toBeVisible();
+    await expect(page.getByTestId('public-campaign-progress-panel-documented-progress')).toBeVisible();
+    await expect(page.getByTestId('public-campaign-progress-panel-documented-amount')).toBeVisible();
+  });
 });

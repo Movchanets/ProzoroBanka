@@ -72,6 +72,16 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 			? 0
 			: Math.Min(100, (double)(campaign.CurrentAmount / campaign.GoalAmount * 100));
 
+		var totalDocumented = await _db.Receipts
+			.AsNoTracking()
+			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.Verified)
+			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
+
+		var documentedAmount = Math.Min(campaign.CurrentAmount, totalDocumented);
+		var documentationPercent = campaign.GoalAmount <= 0
+			? 0
+			: Math.Min(100, (double)(documentedAmount / campaign.GoalAmount * 100));
+
 		int? daysRemaining = null;
 		if (campaign.Deadline.HasValue)
 			daysRemaining = Math.Max(0, (campaign.Deadline.Value.Date - DateTime.UtcNow.Date).Days);
@@ -84,6 +94,8 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 			campaign.SendUrl,
 			campaign.GoalAmount,
 			campaign.CurrentAmount,
+			documentedAmount,
+			documentationPercent,
 			campaign.Status,
 			campaign.StartDate,
 			campaign.Deadline,

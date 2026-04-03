@@ -10,6 +10,8 @@ public record CampaignDto(
 	decimal GoalAmount,
 	decimal CurrentAmount,
 	decimal WithdrawnAmount,
+	decimal DocumentedAmount,
+	double DocumentationPercent,
 	CampaignStatus Status,
 	DateTime? StartDate,
 	DateTime? Deadline,
@@ -25,6 +27,8 @@ public record CampaignDetailDto(
 	decimal GoalAmount,
 	decimal CurrentAmount,
 	decimal WithdrawnAmount,
+	decimal DocumentedAmount,
+	double DocumentationPercent,
 	CampaignStatus Status,
 	DateTime? StartDate,
 	DateTime? Deadline,
@@ -38,7 +42,9 @@ public record CampaignDetailDto(
 public record CampaignStatsDto(
 	int TotalCampaigns,
 	int ActiveCampaigns,
-	decimal TotalRaised);
+	decimal TotalRaised,
+	decimal TotalDocumented,
+	double DocumentationPercent);
 
 // ── Controller request models ──
 

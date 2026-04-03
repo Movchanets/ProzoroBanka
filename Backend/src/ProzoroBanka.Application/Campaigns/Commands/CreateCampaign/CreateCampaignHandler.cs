@@ -13,15 +13,18 @@ public class CreateCampaignHandler : IRequestHandler<CreateCampaignCommand, Serv
 {
 	private readonly IApplicationDbContext _db;
 	private readonly IOrganizationAuthorizationService _orgAuth;
+	private readonly IOrganizationPlanLimitService _planLimitService;
 	private readonly IFileStorage _fileStorage;
 
 	public CreateCampaignHandler(
 		IApplicationDbContext db,
 		IOrganizationAuthorizationService orgAuth,
+		IOrganizationPlanLimitService planLimitService,
 		IFileStorage fileStorage)
 	{
 		_db = db;
 		_orgAuth = orgAuth;
+		_planLimitService = planLimitService;
 		_fileStorage = fileStorage;
 	}
 
@@ -40,6 +43,10 @@ public class CreateCampaignHandler : IRequestHandler<CreateCampaignCommand, Serv
 
 		if (!hasPermission)
 			return ServiceResponse<CampaignDto>.Failure("Недостатньо прав для створення збору");
+
+		var allowance = await _planLimitService.CanCreateCampaignAsync(request.OrganizationId, cancellationToken);
+		if (!allowance.CanCreate)
+			return ServiceResponse<CampaignDto>.Failure("Досягнуто ліміт зборів для поточного тарифного плану");
 
 		var campaign = new Campaign
 		{
@@ -60,7 +67,7 @@ public class CreateCampaignHandler : IRequestHandler<CreateCampaignCommand, Serv
 		return ServiceResponse<CampaignDto>.Success(new CampaignDto(
 			campaign.Id, campaign.Title, campaign.Description,
 			StorageUrlResolver.Resolve(_fileStorage, campaign.CoverImageStorageKey),
-			campaign.GoalAmount, campaign.CurrentAmount, 0,
+			campaign.GoalAmount, campaign.CurrentAmount, 0, 0, 0,
 			campaign.Status, campaign.StartDate, campaign.Deadline,
 			campaign.MonobankAccountId, campaign.SendUrl, campaign.CreatedAt));
 	}

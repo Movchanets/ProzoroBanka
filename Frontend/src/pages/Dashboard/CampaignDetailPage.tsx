@@ -6,12 +6,12 @@ import { CampaignStatusLabel } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
 import { ArrowLeft, Calendar, Edit2, Megaphone, ReceiptText, Globe, HandCoins, Clock3, Handshake, Loader2 } from 'lucide-react';
 import { SelectReceiptDialog } from './SelectReceiptDialog';
 import { toast } from 'sonner';
@@ -75,11 +75,6 @@ export default function CampaignDetailPage() {
     );
   }
 
-  const progress = campaign.goalAmount > 0
-    ? Math.min(100, Math.round((campaign.currentAmount / campaign.goalAmount) * 100))
-    : 0;
-  const raised = new Intl.NumberFormat('uk-UA').format(campaign.currentAmount / 100);
-  const goal = new Intl.NumberFormat('uk-UA').format(campaign.goalAmount / 100);
   const withdrawn = new Intl.NumberFormat('uk-UA').format(campaign.withdrawnAmount / 100);
 
   const handleAttachReceipt = (receiptId: string) => {
@@ -158,14 +153,16 @@ export default function CampaignDetailPage() {
               </div>
               
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground" data-testid="campaign-detail-amounts">{raised} ₴ <span className="text-muted-foreground/60">/ {goal} ₴</span></span>
-                  <span className="font-semibold text-primary" data-testid="campaign-detail-progress-text">{progress}%</span>
-                </div>
+                <CampaignProgressBar
+                  currentAmount={campaign.currentAmount / 100}
+                  goalAmount={campaign.goalAmount / 100}
+                  documentedAmount={campaign.documentedAmount / 100}
+                  documentationPercent={campaign.documentationPercent}
+                  testId="campaign-detail-progress"
+                />
                 <p className="text-xs text-muted-foreground" data-testid="campaign-detail-withdrawn-amount">
                   {t('campaigns.withdrawnPrefix')}: {withdrawn} ₴
                 </p>
-                <Progress value={progress} className="h-3" data-testid="campaign-detail-progress-bar" />
               </div>
             </CardHeader>
             <CardContent className="space-y-6">

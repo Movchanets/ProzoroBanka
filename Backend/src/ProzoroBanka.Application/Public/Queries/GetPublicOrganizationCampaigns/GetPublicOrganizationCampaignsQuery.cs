@@ -50,6 +50,17 @@ public class GetPublicOrganizationCampaignsHandler
 		if (request.Status.HasValue)
 			query = query.Where(c => c.Status == request.Status.Value);
 
+		var memberIds = await _db.OrganizationMembers
+			.AsNoTracking()
+			.Where(m => m.OrganizationId == org.Id && !m.IsDeleted)
+			.Select(m => m.UserId)
+			.ToListAsync(cancellationToken);
+
+		var orgDocumentedAmount = await _db.Receipts
+			.AsNoTracking()
+			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.Verified)
+			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
+
 		var totalCount = await query.CountAsync(cancellationToken);
 		var campaigns = await query
 			.OrderByDescending(c => c.Status == CampaignStatus.Active)
@@ -64,6 +75,10 @@ public class GetPublicOrganizationCampaignsHandler
 				c.SendUrl,
 				c.GoalAmount,
 				c.CurrentAmount,
+				Math.Min(c.CurrentAmount, orgDocumentedAmount),
+				c.GoalAmount <= 0
+					? 0
+					: Math.Min(100, (double)(Math.Min(c.CurrentAmount, orgDocumentedAmount) / c.GoalAmount * 100)),
 				c.Status,
 				c.StartDate,
 				c.Deadline,

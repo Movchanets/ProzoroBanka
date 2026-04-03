@@ -40,6 +40,17 @@ public class GetCampaignStatsHandler
 		if (!isMember)
 			return ServiceResponse<CampaignStatsDto>.Failure("Немає доступу до організації");
 
+		var memberIds = await _db.OrganizationMembers
+			.AsNoTracking()
+			.Where(m => m.OrganizationId == request.OrganizationId && !m.IsDeleted)
+			.Select(m => m.UserId)
+			.ToListAsync(cancellationToken);
+
+		var totalDocumented = await _db.Receipts
+			.AsNoTracking()
+			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.Verified)
+			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
+
 		var stats = await _db.Campaigns
 			.AsNoTracking()
 			.Where(c => c.OrganizationId == request.OrganizationId)
@@ -47,10 +58,25 @@ public class GetCampaignStatsHandler
 			.Select(g => new CampaignStatsDto(
 				g.Count(),
 				g.Count(c => c.Status == CampaignStatus.Active),
-				g.Sum(c => c.CurrentAmount)))
+				g.Sum(c => c.CurrentAmount),
+				0,
+				0))
 			.FirstOrDefaultAsync(cancellationToken);
 
+		if (stats is null)
+			return ServiceResponse<CampaignStatsDto>.Success(new CampaignStatsDto(0, 0, 0, 0, 0));
+
+		var boundedDocumented = Math.Min(stats.TotalRaised, totalDocumented);
+		var documentationPercent = stats.TotalRaised <= 0
+			? 0
+			: Math.Min(100, (double)(boundedDocumented / stats.TotalRaised * 100));
+
 		return ServiceResponse<CampaignStatsDto>.Success(
-			stats ?? new CampaignStatsDto(0, 0, 0));
+			new CampaignStatsDto(
+				stats.TotalCampaigns,
+				stats.ActiveCampaigns,
+				stats.TotalRaised,
+				boundedDocumented,
+				documentationPercent));
 	}
 }

@@ -127,7 +127,13 @@ export default function PublicCampaignPage() {
         </div>
       </section>
 
-      <CampaignProgressBar currentAmount={campaign.currentAmount} goalAmount={campaign.goalAmount} />
+      <CampaignProgressBar
+        currentAmount={campaign.currentAmount}
+        goalAmount={campaign.goalAmount}
+        documentedAmount={campaign.documentedAmount}
+        documentationPercent={campaign.documentationPercent}
+        testId="public-campaign-progress-panel"
+      />
 
       <Card data-testid="public-campaign-description">
         <CardHeader>

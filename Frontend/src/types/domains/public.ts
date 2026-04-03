@@ -36,6 +36,8 @@ export interface PublicCampaign {
   sendUrl?: string;
   goalAmount: number;
   currentAmount: number;
+  documentedAmount: number;
+  documentationPercent: number;
   status: CampaignStatus;
   startDate?: string;
   deadline?: string;
@@ -61,6 +63,8 @@ export interface PublicCampaignDetail {
   sendUrl?: string;
   goalAmount: number;
   currentAmount: number;
+  documentedAmount: number;
+  documentationPercent: number;
   status: CampaignStatus;
   startDate?: string;
   deadline?: string;

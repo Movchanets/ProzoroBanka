@@ -74,6 +74,8 @@ public class SearchPublicCampaignsHandler
 				c.SendUrl,
 				c.GoalAmount,
 				c.CurrentAmount,
+				0,
+				0,
 				c.Status,
 				c.StartDate,
 				c.Deadline,

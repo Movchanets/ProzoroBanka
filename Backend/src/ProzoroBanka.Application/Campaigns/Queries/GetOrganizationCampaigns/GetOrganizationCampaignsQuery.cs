@@ -45,6 +45,17 @@ public class GetOrganizationCampaignsHandler
 		if (!isMember)
 			return ServiceResponse<IReadOnlyList<CampaignDto>>.Failure("Немає доступу до організації");
 
+		var memberIds = await _db.OrganizationMembers
+			.AsNoTracking()
+			.Where(m => m.OrganizationId == request.OrganizationId && !m.IsDeleted)
+			.Select(m => m.UserId)
+			.ToListAsync(cancellationToken);
+
+		var orgDocumentedAmount = await _db.Receipts
+			.AsNoTracking()
+			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.Verified)
+			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
+
 		var query = _db.Campaigns
 			.AsNoTracking()
 			.Where(c => c.OrganizationId == request.OrganizationId);
@@ -77,7 +88,13 @@ public class GetOrganizationCampaignsHandler
 		var result = campaigns.Select(c => new CampaignDto(
 			c.Id, c.Title, c.Description,
 			StorageUrlResolver.Resolve(_fileStorage, c.CoverImageStorageKey),
-			c.GoalAmount, c.CurrentAmount, c.WithdrawnAmount,
+			c.GoalAmount,
+			c.CurrentAmount,
+			c.WithdrawnAmount,
+			Math.Min(c.CurrentAmount, orgDocumentedAmount),
+			c.GoalAmount <= 0
+				? 0
+				: Math.Min(100, (double)(Math.Min(c.CurrentAmount, orgDocumentedAmount) / c.GoalAmount * 100)),
 			c.Status, c.StartDate, c.Deadline,
 			c.MonobankAccountId, c.SendUrl, c.CreatedAt))
 			.ToList();

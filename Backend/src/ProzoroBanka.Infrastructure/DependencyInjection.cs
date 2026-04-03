@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IEmailNotificationService, SmtpEmailNotificationService>();
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
+        services.AddScoped<IOrganizationPlanLimitService, OrganizationPlanLimitService>();
 
         // ── Repositories ──
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();

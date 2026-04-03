@@ -20,6 +20,7 @@ function mapPublicCampaignAmount(campaign: PublicCampaign): PublicCampaign {
     ...campaign,
     goalAmount: toHryvnia(campaign.goalAmount),
     currentAmount: toHryvnia(campaign.currentAmount),
+    documentedAmount: toHryvnia(campaign.documentedAmount),
   };
 }
 
@@ -116,6 +117,7 @@ export const publicService = {
         ...campaign,
         goalAmount: toHryvnia(campaign.goalAmount),
         currentAmount: toHryvnia(campaign.currentAmount),
+        documentedAmount: toHryvnia(campaign.documentedAmount),
         latestReceipts: campaign.latestReceipts.map(mapPublicReceiptAmount),
       })),
 
