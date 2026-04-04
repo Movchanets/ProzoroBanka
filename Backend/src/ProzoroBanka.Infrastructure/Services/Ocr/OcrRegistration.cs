@@ -2,12 +2,15 @@ using Azure;
 using Azure.AI.FormRecognizer.DocumentAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using ProzoroBanka.Application.Common.Interfaces;
 
 namespace ProzoroBanka.Infrastructure.Services.Ocr;
 
 /// <summary>
-/// Реєстрація OCR-сервісів з вибором провайдера через appsettings:Ocr:Provider.
+/// Registers OCR services with provider selection via typed <see cref="OcrOptions"/>.
+/// Configuration is validated at startup — invalid config will block app start.
 /// </summary>
 public static class OcrRegistration
 {
@@ -15,18 +18,32 @@ public static class OcrRegistration
 		this IServiceCollection services,
 		IConfiguration configuration)
 	{
-		var ocrSection = configuration.GetSection("Ocr");
-		var provider = ocrSection.GetValue<string>("Provider") ?? "fallback";
-		var normalizedProvider = provider.Trim().ToLowerInvariant();
+		// ── Bind + validate typed options ──
+		services.AddOptions<OcrOptions>()
+			.Bind(configuration.GetSection(OcrOptions.SectionName))
+			.Validate(options =>
+			{
+				var provider = (options.Provider ?? "fallback").Trim().ToLowerInvariant();
+				return provider switch
+				{
+					"azure" or "azuredocumentintelligence" => options.Azure.IsConfigured,
+					"mistral" => options.Mistral.IsConfigured,
+					"fallback" => true, // at least one provider should be available, but we allow degraded startup
+					_ => false
+				};
+			}, "OCR provider configuration is invalid. " +
+			   "Azure requires Endpoint + ApiKey. Mistral requires ApiKey. " +
+			   "Accepted providers: azure, mistral, fallback.")
+			.ValidateOnStart();
 
-		// Реєструємо Azure DI клієнт (завжди, бо потрібен для fallback)
-		var azureSection = ocrSection.GetSection("Azure");
-		var azureEndpoint = azureSection["Endpoint"];
-		var azureKey = azureSection["ApiKey"];
-
+		// ── Read raw config for DI registration (options not yet built) ──
+		var ocrSection = configuration.GetSection(OcrOptions.SectionName);
+		var azureEndpoint = ocrSection["Azure:Endpoint"];
+		var azureKey = ocrSection["Azure:ApiKey"];
 		var isAzureConfigured = !string.IsNullOrWhiteSpace(azureEndpoint)
 			&& !string.IsNullOrWhiteSpace(azureKey);
 
+		// ── Azure DI client (always registered when configured — needed for fallback) ──
 		if (isAzureConfigured)
 		{
 			services.AddSingleton(_ => new DocumentAnalysisClient(
@@ -36,20 +53,21 @@ public static class OcrRegistration
 			services.AddScoped<AzureDocumentIntelligenceOcrService>();
 		}
 
-		// Реєструємо Mistral HTTP клієнт
-		var mistralSection = ocrSection.GetSection("Mistral");
-		var mistralApiKey = mistralSection["ApiKey"];
-		var mistralBaseUrl = mistralSection["BaseUrl"] ?? "https://api.mistral.ai";
-
-		services.AddHttpClient<MistralOcrService>(client =>
+		// ── Mistral HTTP client (always registered — used in fallback too) ──
+		services.AddHttpClient<MistralOcrService>((sp, client) =>
 		{
-			client.BaseAddress = new Uri(mistralBaseUrl);
-			if (!string.IsNullOrEmpty(mistralApiKey))
-				client.DefaultRequestHeaders.Authorization = new("Bearer", mistralApiKey);
+			var options = sp.GetRequiredService<IOptions<OcrOptions>>().Value;
+			client.BaseAddress = new Uri(options.Mistral.BaseUrl);
+			client.Timeout = TimeSpan.FromSeconds(options.Mistral.TimeoutSeconds);
+
+			if (!string.IsNullOrEmpty(options.Mistral.ApiKey))
+				client.DefaultRequestHeaders.Authorization = new("Bearer", options.Mistral.ApiKey);
 		});
 
-		// Обираємо що реєструвати як IOcrService
-		switch (normalizedProvider)
+		// ── Select IOcrService implementation ──
+		var provider = (ocrSection.GetValue<string>("Provider") ?? "fallback").Trim().ToLowerInvariant();
+
+		switch (provider)
 		{
 			case "azure":
 			case "azuredocumentintelligence":

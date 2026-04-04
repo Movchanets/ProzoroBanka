@@ -1,18 +1,16 @@
-import { test, expect } from '@playwright/test';
-
+import { test, expect } from './support/fixtures';
 import { t, setTestLanguage } from './support/i18n';
 import {
   createOrganizationForCurrentSession,
   loginViaUi,
   registerAndSetAuthStorage,
 } from './support/e2e-auth';
+import type { OnboardingPage } from './pages/OnboardingPage';
 
 const VALID_EMAIL = process.env.E2E_EMAIL ?? 'admin@example.com';
 const VALID_PASSWORD = process.env.E2E_PASSWORD ?? 'Qwerty-1';
 
 test.describe.configure({ timeout: 60_000 });
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function loginAs(page: import('@playwright/test').Page) {
   await loginViaUi(page, VALID_EMAIL, VALID_PASSWORD, {
@@ -31,119 +29,54 @@ async function registerFreshUser(page: import('@playwright/test').Page) {
   await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10000 });
 }
 
-/** Create an org via API and return its ID. Must be called AFTER loginAs(). */
 async function createOrgViaAPI(page: import('@playwright/test').Page, name: string): Promise<string> {
   return createOrganizationForCurrentSession(page, name);
 }
 
-/** Navigate to onboarding and open the create org dialog */
-async function openCreateOrgDialogFromOnboarding(page: import('@playwright/test').Page) {
+async function openCreateOrgDialogFromOnboarding(page: import('@playwright/test').Page, onboardingPage: OnboardingPage) {
   await setTestLanguage(page);
 
-  await page.goto('/onboarding');
+  await onboardingPage.goto();
   await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
 
-  await page.getByTestId('onboarding-create-organization-button').click({ force: true });
-
+  await onboardingPage.createOrgButton.click({ force: true });
   await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
 }
-
-async function openDashboardNavLink(page: import('@playwright/test').Page, key: 'home' | 'campaigns' | 'settings') {
-  const selector = `dashboard-nav-${key}`;
-  const allLinks = page.getByTestId(selector);
-  const linksCount = await allLinks.count();
-  const beforeUrl = page.url();
-
-  const clickOrFallbackNavigate = async (link: import('@playwright/test').Locator) => {
-    const href = await link.getAttribute('href').catch(() => null);
-    try {
-      await link.click({ force: true });
-    } catch {
-      if (href) {
-        await page.goto(href);
-      }
-      return;
-    }
-
-    try {
-      await expect.poll(() => page.url(), { timeout: 1000 }).not.toBe(beforeUrl);
-    } catch {
-      if (href) {
-        await page.goto(href);
-      }
-    }
-  };
-
-  for (let index = 0; index < linksCount; index += 1) {
-    const candidate = allLinks.nth(index);
-    if (await candidate.isVisible().catch(() => false)) {
-      await clickOrFallbackNavigate(candidate);
-      return;
-    }
-  }
-
-  if (linksCount > 0) {
-    await clickOrFallbackNavigate(allLinks.first());
-    return;
-  }
-
-  const mobileMenuButton = page.getByTestId('dashboard-mobile-menu-button');
-  await expect(mobileMenuButton).toBeVisible({ timeout: 10000 });
-  await mobileMenuButton.click();
-  const mobileLink = page.getByRole('dialog').getByTestId(selector).first();
-  await expect(mobileLink).toBeVisible({ timeout: 10000 });
-  await clickOrFallbackNavigate(mobileLink);
-}
-
-// ── Organization Creation Tests ──────────────────────────────────────────────
 
 test.describe('Dashboard — Organization Creation', () => {
   test.beforeEach(async ({ page }) => {
     await registerFreshUser(page);
   });
 
-  // =========================================================================
-  // TC-01: Create organization dialog opens correctly
-  // =========================================================================
-  test('TC-01: Create organization dialog opens with all required fields', async ({ page }) => {
+  test('TC-01: Create organization dialog opens with all required fields', async ({ page, onboardingPage, createOrgDialog }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that the create organization dialog opens and displays all required form fields.',
     });
 
-    await openCreateOrgDialogFromOnboarding(page);
+    await openCreateOrgDialogFromOnboarding(page, onboardingPage);
 
-    // Verify all form fields are present
-    await expect(page.getByTestId('create-org-name-input')).toBeVisible();
-    await expect(page.getByTestId('create-org-slug-input')).toBeVisible();
-    await expect(page.getByTestId('create-org-description-input')).toBeVisible();
-    await expect(page.getByTestId('create-org-website-input')).toBeVisible();
-
-    // Verify action buttons
-    await expect(page.getByTestId('create-org-cancel-button')).toBeVisible();
-    await expect(page.getByTestId('create-org-submit-button')).toBeVisible();
+    await expect(createOrgDialog.nameInput).toBeVisible();
+    await expect(createOrgDialog.slugInput).toBeVisible();
+    await expect(createOrgDialog.descriptionInput).toBeVisible();
+    await expect(createOrgDialog.websiteInput).toBeVisible();
+    await expect(createOrgDialog.cancelButton).toBeVisible();
+    await expect(createOrgDialog.submitButton).toBeVisible();
   });
 
-  // =========================================================================
-  // TC-02: Create organization with valid data
-  // =========================================================================
-  test('TC-02: Successfully create a new organization with valid data', async ({ page }) => {
+  test('TC-02: Successfully create a new organization with valid data', async ({ page, onboardingPage, createOrgDialog }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that creating an organization with valid data succeeds and redirects to the dashboard.',
     });
 
-    await openCreateOrgDialogFromOnboarding(page);
+    await openCreateOrgDialogFromOnboarding(page, onboardingPage);
 
     const orgName = `Test Org ${Date.now()}`;
 
-    await page.getByTestId('create-org-name-input').fill(orgName);
-    await page.getByTestId('create-org-description-input').fill('Test organization for E2E testing');
-    await page.getByTestId('create-org-website-input').fill('https://example.org');
+    await createOrgDialog.fill(orgName, 'Test organization for E2E testing', 'https://example.org');
 
-    // Verify slug is auto-generated
-    const slugInput = page.getByTestId('create-org-slug-input');
-    const slugValue = await slugInput.inputValue();
+    const slugValue = await createOrgDialog.slugInput.inputValue();
     expect(slugValue).toBeTruthy();
     expect(slugValue).toMatch(/^[a-z0-9-]+$/);
 
@@ -151,138 +84,105 @@ test.describe('Dashboard — Organization Creation', () => {
       (response) => response.url().includes('/api/organizations') && response.request().method() === 'POST'
     );
 
-    await page.getByTestId('create-org-submit-button').click();
+    await createOrgDialog.submitButton.click();
 
     const createResponse = await createResponsePromise;
     expect(createResponse.ok()).toBeTruthy();
 
-    // Verify redirect to dashboard
     await expect(page).toHaveURL(/.*\/dashboard\/[a-f0-9-]+/, { timeout: 10000 });
-
-    // Verify organization name appears in the header
     await expect(page.getByRole('heading', { level: 1, name: orgName, exact: true })).toBeVisible({ timeout: 10000 });
   });
 
-  // =========================================================================
-  // TC-03: Validation — empty organization name
-  // =========================================================================
-  test('TC-03: Validation prevents creating organization with empty name', async ({ page }) => {
+  test('TC-03: Validation prevents creating organization with empty name', async ({ page, onboardingPage, createOrgDialog }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that submitting without a name shows a validation error.',
     });
 
-    await openCreateOrgDialogFromOnboarding(page);
+    await openCreateOrgDialogFromOnboarding(page, onboardingPage);
 
-    await page.getByTestId('create-org-submit-button').click();
+    await createOrgDialog.submitButton.click();
 
-    // Verify validation error
     await expect(page.getByText(t('validation.orgNameMin'))).toBeVisible({ timeout: 5000 });
-
-    // Dialog should still be open
     await expect(page.getByRole('dialog')).toBeVisible();
   });
 
-  // =========================================================================
-  // TC-04: Validation — name too short
-  // =========================================================================
-  test('TC-04: Validation prevents creating organization with name too short', async ({ page }) => {
+  test('TC-04: Validation prevents creating organization with name too short', async ({ page, onboardingPage, createOrgDialog }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that entering a name shorter than 3 characters shows a validation error.',
     });
 
-    await openCreateOrgDialogFromOnboarding(page);
+    await openCreateOrgDialogFromOnboarding(page, onboardingPage);
 
-    await page.getByTestId('create-org-name-input').fill('AB');
-    await page.getByTestId('create-org-submit-button').click();
+    await createOrgDialog.nameInput.fill('AB');
+    await createOrgDialog.submitButton.click();
 
     await expect(page.getByText(t('validation.orgNameMin'))).toBeVisible({ timeout: 5000 });
   });
 
-  // =========================================================================
-  // TC-05: Validation — invalid website URL
-  // =========================================================================
-  test('TC-05: Validation prevents creating organization with invalid website URL', async ({ page }) => {
+  test('TC-05: Validation prevents creating organization with invalid website URL', async ({ page, onboardingPage, createOrgDialog }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that entering an invalid website URL shows a validation error.',
     });
 
-    await openCreateOrgDialogFromOnboarding(page);
+    await openCreateOrgDialogFromOnboarding(page, onboardingPage);
 
-    await page.getByTestId('create-org-name-input').fill('Valid Org Name');
-    await page.getByTestId('create-org-website-input').fill('not-a-valid-url');
-    await page.getByTestId('create-org-submit-button').click();
+    await createOrgDialog.nameInput.fill('Valid Org Name');
+    await createOrgDialog.websiteInput.fill('not-a-valid-url');
+    await createOrgDialog.submitButton.click();
 
     await expect(page.getByText(t('validation.urlInvalid'))).toBeVisible({ timeout: 5000 });
   });
 
-  // =========================================================================
-  // TC-06: Slug auto-generation from name
-  // =========================================================================
-  test('TC-06: Slug is auto-generated from organization name', async ({ page }) => {
+  test('TC-06: Slug is auto-generated from organization name', async ({ page, onboardingPage, createOrgDialog }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that the slug field is automatically populated based on the name input.',
     });
 
-    await openCreateOrgDialogFromOnboarding(page);
+    await openCreateOrgDialogFromOnboarding(page, onboardingPage);
 
-    const nameInput = page.getByTestId('create-org-name-input');
-    const slugInput = page.getByTestId('create-org-slug-input');
+    await createOrgDialog.nameInput.fill('Test Organization Name');
 
-    await nameInput.fill('Test Organization Name');
-
-    const slugValue = await slugInput.inputValue();
+    const slugValue = await createOrgDialog.slugInput.inputValue();
     expect(slugValue).toBe('test-organization-name');
   });
 
-  // =========================================================================
-  // TC-07: Custom slug override
-  // =========================================================================
-  test('TC-07: User can override the auto-generated slug', async ({ page }) => {
+  test('TC-07: User can override the auto-generated slug', async ({ page, onboardingPage, createOrgDialog }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that after auto-generation, the user can manually edit the slug.',
     });
 
-    await openCreateOrgDialogFromOnboarding(page);
+    await openCreateOrgDialogFromOnboarding(page, onboardingPage);
 
-    const nameInput = page.getByTestId('create-org-name-input');
-    const slugInput = page.getByTestId('create-org-slug-input');
+    await createOrgDialog.nameInput.fill('First Name');
+    expect(await createOrgDialog.slugInput.inputValue()).toBe('first-name');
 
-    await nameInput.fill('First Name');
-    expect(await slugInput.inputValue()).toBe('first-name');
+    await createOrgDialog.slugInput.clear();
+    await createOrgDialog.slugInput.fill('custom-slug');
 
-    await slugInput.clear();
-    await slugInput.fill('custom-slug');
-
-    await nameInput.fill('Second Name');
-    expect(await slugInput.inputValue()).toBe('custom-slug');
+    await createOrgDialog.nameInput.fill('Second Name');
+    expect(await createOrgDialog.slugInput.inputValue()).toBe('custom-slug');
   });
 
-  // =========================================================================
-  // TC-08: Cancel closes dialog without creating
-  // =========================================================================
-  test('TC-08: Cancel button closes dialog without creating organization', async ({ page }) => {
+  test('TC-08: Cancel button closes dialog without creating organization', async ({ page, onboardingPage, createOrgDialog }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that clicking Cancel closes the dialog.',
     });
 
-    await openCreateOrgDialogFromOnboarding(page);
+    await openCreateOrgDialogFromOnboarding(page, onboardingPage);
 
-    await page.getByTestId('create-org-name-input').fill('Should Not Be Created');
-    await page.getByTestId('create-org-cancel-button').click();
+    await createOrgDialog.nameInput.fill('Should Not Be Created');
+    await createOrgDialog.cancelButton.click();
 
     await expect(page.getByRole('dialog')).not.toBeVisible();
   });
 
-  // =========================================================================
-  // TC-09: Create organization handles API error
-  // =========================================================================
-  test('TC-09: Create organization shows error message on API failure', async ({ page }) => {
+  test('TC-09: Create organization shows error message on API failure', async ({ page, onboardingPage, createOrgDialog }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that when the API call fails, an error message is displayed.',
@@ -300,37 +200,30 @@ test.describe('Dashboard — Organization Creation', () => {
       }
     });
 
-    await openCreateOrgDialogFromOnboarding(page);
+    await openCreateOrgDialogFromOnboarding(page, onboardingPage);
 
-    await page.getByTestId('create-org-name-input').fill('Duplicate Org');
-    await page.getByTestId('create-org-submit-button').click();
+    await createOrgDialog.nameInput.fill('Duplicate Org');
+    await createOrgDialog.submitButton.click();
 
     await expect(page.getByText(/already exists|вже існує/i).first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('dialog')).toBeVisible();
   });
 });
 
-// ── Organization Settings Tests ──────────────────────────────────────────────
-
 test.describe('Dashboard — Organization Settings', () => {
   let orgId: string;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, orgSettingsPage }) => {
     await loginAs(page);
 
-    // Create org via API for consistent test setup
     orgId = await createOrgViaAPI(page, `Settings Test ${Date.now()}`);
 
-    // Navigate to settings
-    await page.goto(`/dashboard/${orgId}/settings`);
+    await orgSettingsPage.goto(orgId);
     await expect(page).toHaveURL(/.*\/settings/);
     await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
   });
 
-  // =========================================================================
-  // TC-10: Settings page loads with organization data
-  // =========================================================================
-  test('TC-10: Organization settings page displays current organization data', async ({ page }) => {
+  test('TC-10: Organization settings page displays current organization data', async ({ page, orgSettingsPage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that the settings page loads and shows the organization fields.',
@@ -338,227 +231,187 @@ test.describe('Dashboard — Organization Settings', () => {
 
     await expect(page.getByRole('heading', { name: t('nav.settings') })).toBeVisible();
 
-    await expect(page.getByTestId('org-settings-name-input')).toBeVisible();
-    await expect(page.getByTestId('org-settings-description-input')).toBeVisible();
-    await expect(page.getByTestId('org-settings-website-input')).toBeVisible();
-    await expect(page.getByTestId('org-settings-email-input')).toBeVisible();
-    await expect(page.getByTestId('org-settings-phone-input')).toBeVisible();
-    await expect(page.getByTestId('org-settings-plan-placeholder-card')).toBeVisible();
-    await expect(page.getByTestId('org-settings-plan-placeholder-title')).toBeVisible();
-    await expect(page.getByTestId('org-settings-plan-placeholder-description')).toBeVisible();
+    await expect(orgSettingsPage.nameInput).toBeVisible();
+    await expect(orgSettingsPage.descriptionInput).toBeVisible();
+    await expect(orgSettingsPage.websiteInput).toBeVisible();
+    await expect(orgSettingsPage.emailInput).toBeVisible();
+    await expect(orgSettingsPage.phoneInput).toBeVisible();
+    await expect(orgSettingsPage.planPlaceholderCard).toBeVisible();
+    await expect(orgSettingsPage.planPlaceholderTitle).toBeVisible();
+    await expect(orgSettingsPage.planPlaceholderDescription).toBeVisible();
 
-    await expect(page.getByTestId('org-settings-save-button')).toBeVisible();
+    await expect(orgSettingsPage.saveButton).toBeVisible();
   });
-  // TC-11: Update organization name
-  // =========================================================================
-  test('TC-11: Update organization name and save changes', async ({ page }) => {
+
+  test('TC-11: Update organization name and save changes', async ({ page, orgSettingsPage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that updating the organization name persists the change.',
     });
 
-    const nameInput = page.getByTestId('org-settings-name-input');
-    const originalValue = await nameInput.inputValue();
+    const originalValue = await orgSettingsPage.nameInput.inputValue();
     const newValue = `${originalValue} Updated`;
 
-    await nameInput.clear();
-    await nameInput.fill(newValue);
+    await orgSettingsPage.nameInput.clear();
+    await orgSettingsPage.nameInput.fill(newValue);
 
-    const saveButton = page.getByTestId('org-settings-save-button');
-    await expect(saveButton).toBeEnabled();
+    await expect(orgSettingsPage.saveButton).toBeEnabled();
 
     const updateResponsePromise = page.waitForResponse(
       (response) => response.url().includes(`/api/organizations/${orgId}`) && response.request().method() === 'PUT'
     );
 
-    await saveButton.click();
+    await orgSettingsPage.saveButton.click();
 
     const updateResponse = await updateResponsePromise;
     expect(updateResponse.ok()).toBeTruthy();
 
     await expect(page.getByText(t('organizations.settings.savedMessage'))).toBeVisible({ timeout: 5000 });
-    await expect(nameInput).toHaveValue(newValue);
+    await expect(orgSettingsPage.nameInput).toHaveValue(newValue);
   });
 
-  // =========================================================================
-  // TC-12: Update organization description
-  // =========================================================================
-  test('TC-12: Update organization description and save changes', async ({ page }) => {
+  test('TC-12: Update organization description and save changes', async ({ page, orgSettingsPage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that updating the organization description persists correctly.',
     });
 
-    const descriptionInput = page.getByTestId('org-settings-description-input');
     const newDescription = `Updated description at ${Date.now()}`;
 
-    await descriptionInput.clear();
-    await descriptionInput.fill(newDescription);
+    await orgSettingsPage.descriptionInput.clear();
+    await orgSettingsPage.descriptionInput.fill(newDescription);
 
-    const saveButton = page.getByTestId('org-settings-save-button');
-    await expect(saveButton).toBeEnabled();
+    await expect(orgSettingsPage.saveButton).toBeEnabled();
 
     const updateResponsePromise = page.waitForResponse(
       (response) => response.url().includes(`/api/organizations/${orgId}`) && response.request().method() === 'PUT'
     );
 
-    await saveButton.click();
+    await orgSettingsPage.saveButton.click();
 
     const updateResponse = await updateResponsePromise;
     expect(updateResponse.ok()).toBeTruthy();
 
     await expect(page.getByText(t('organizations.settings.savedMessage'))).toBeVisible({ timeout: 5000 });
-    await expect(descriptionInput).toHaveValue(newDescription);
+    await expect(orgSettingsPage.descriptionInput).toHaveValue(newDescription);
   });
 
-  // =========================================================================
-  // TC-13: Update organization website
-  // =========================================================================
-  test('TC-13: Update organization website URL', async ({ page }) => {
+  test('TC-13: Update organization website URL', async ({ page, orgSettingsPage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that updating the organization website URL persists correctly.',
     });
 
-    const websiteInput = page.getByTestId('org-settings-website-input');
     const newWebsite = 'https://updated-example.org';
 
-    await websiteInput.clear();
-    await websiteInput.fill(newWebsite);
+    await orgSettingsPage.websiteInput.clear();
+    await orgSettingsPage.websiteInput.fill(newWebsite);
 
-    const saveButton = page.getByTestId('org-settings-save-button');
-    await expect(saveButton).toBeEnabled();
+    await expect(orgSettingsPage.saveButton).toBeEnabled();
 
     const updateResponsePromise = page.waitForResponse(
       (response) => response.url().includes(`/api/organizations/${orgId}`) && response.request().method() === 'PUT'
     );
 
-    await saveButton.click();
+    await orgSettingsPage.saveButton.click();
 
     const updateResponse = await updateResponsePromise;
     expect(updateResponse.ok()).toBeTruthy();
 
     await expect(page.getByText(t('organizations.settings.savedMessage'))).toBeVisible({ timeout: 5000 });
-    await expect(websiteInput).toHaveValue(newWebsite);
+    await expect(orgSettingsPage.websiteInput).toHaveValue(newWebsite);
   });
 
-  // =========================================================================
-  // TC-14: Update contact email
-  // =========================================================================
-  test('TC-14: Update organization contact email', async ({ page }) => {
+  test('TC-14: Update organization contact email', async ({ page, orgSettingsPage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that updating the organization contact email persists correctly.',
     });
 
-    const emailInput = page.getByTestId('org-settings-email-input');
     const newEmail = 'contact@example.org';
 
-    await emailInput.clear();
-    await emailInput.fill(newEmail);
+    await orgSettingsPage.emailInput.clear();
+    await orgSettingsPage.emailInput.fill(newEmail);
 
-    const saveButton = page.getByTestId('org-settings-save-button');
-    await expect(saveButton).toBeEnabled();
+    await expect(orgSettingsPage.saveButton).toBeEnabled();
 
     const updateResponsePromise = page.waitForResponse(
       (response) => response.url().includes(`/api/organizations/${orgId}`) && response.request().method() === 'PUT'
     );
 
-    await saveButton.click();
+    await orgSettingsPage.saveButton.click();
 
     const updateResponse = await updateResponsePromise;
     expect(updateResponse.ok()).toBeTruthy();
 
     await expect(page.getByText(t('organizations.settings.savedMessage'))).toBeVisible({ timeout: 5000 });
-    await expect(emailInput).toHaveValue(newEmail);
+    await expect(orgSettingsPage.emailInput).toHaveValue(newEmail);
   });
 
-  // =========================================================================
-  // TC-15: Update phone number
-  // =========================================================================
-  test('TC-15: Update organization phone number', async ({ page }) => {
+  test('TC-15: Update organization phone number', async ({ page, orgSettingsPage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that updating the organization phone number persists correctly.',
     });
 
-    const phoneInput = page.getByTestId('org-settings-phone-input');
     const newPhone = '+380671234567';
 
-    await phoneInput.clear();
-    await phoneInput.fill(newPhone);
+    await orgSettingsPage.phoneInput.clear();
+    await orgSettingsPage.phoneInput.fill(newPhone);
 
-    const saveButton = page.getByTestId('org-settings-save-button');
-    await expect(saveButton).toBeEnabled();
+    await expect(orgSettingsPage.saveButton).toBeEnabled();
 
     const updateResponsePromise = page.waitForResponse(
       (response) => response.url().includes(`/api/organizations/${orgId}`) && response.request().method() === 'PUT'
     );
 
-    await saveButton.click();
+    await orgSettingsPage.saveButton.click();
 
     const updateResponse = await updateResponsePromise;
     expect(updateResponse.ok()).toBeTruthy();
 
     await expect(page.getByText(t('organizations.settings.savedMessage'))).toBeVisible({ timeout: 5000 });
-    await expect(phoneInput).toHaveValue(newPhone);
+    await expect(orgSettingsPage.phoneInput).toHaveValue(newPhone);
   });
 
-  // =========================================================================
-  // TC-16: Save button disabled when form is unchanged
-  // =========================================================================
-  test('TC-16: Save button is disabled when no changes are made', async ({ page }) => {
+  test('TC-16: Save button is disabled when no changes are made', async ({ orgSettingsPage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that the save button is disabled when the form has not been modified.',
     });
 
-    const saveButton = page.getByTestId('org-settings-save-button');
-    await expect(saveButton).toBeDisabled();
+    await expect(orgSettingsPage.saveButton).toBeDisabled();
   });
 
-  // =========================================================================
-  // TC-17: Validation — invalid contact email
-  // =========================================================================
-  test('TC-17: Validation prevents saving with invalid contact email', async ({ page }) => {
+  test('TC-17: Validation prevents saving with invalid contact email', async ({ page, orgSettingsPage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that entering an invalid email shows a validation error.',
     });
 
-    const emailInput = page.getByTestId('org-settings-email-input');
-    await emailInput.clear();
-    await emailInput.fill('not-an-email');
+    await orgSettingsPage.emailInput.clear();
+    await orgSettingsPage.emailInput.fill('not-an-email');
 
-    const saveButton = page.getByTestId('org-settings-save-button');
-    await saveButton.click();
+    await orgSettingsPage.saveButton.click();
 
     await expect(page.getByText(t('validation.emailInvalid'))).toBeVisible({ timeout: 5000 });
   });
 
-  // =========================================================================
-  // TC-18: Validation — invalid phone format
-  // =========================================================================
-  test('TC-18: Validation prevents saving with invalid phone format', async ({ page }) => {
+  test('TC-18: Validation prevents saving with invalid phone format', async ({ page, orgSettingsPage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that entering an invalid phone number shows a validation error.',
     });
 
-    const phoneInput = page.getByTestId('org-settings-phone-input');
-    await phoneInput.clear();
-    await phoneInput.fill('invalid-phone-!!!');
+    await orgSettingsPage.phoneInput.clear();
+    await orgSettingsPage.phoneInput.fill('invalid-phone-!!!');
 
-    const saveButton = page.getByTestId('org-settings-save-button');
-    await saveButton.click();
+    await orgSettingsPage.saveButton.click();
 
     await expect(page.getByText(t('validation.phoneInvalid'))).toBeVisible({ timeout: 5000 });
   });
 
-  // =========================================================================
-  // TC-19: Settings update handles API error
-  // =========================================================================
-  test('TC-19: Settings update shows error message on API failure', async ({ page }) => {
+  test('TC-19: Settings update shows error message on API failure', async ({ page, orgSettingsPage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that when the API call fails, an error message is displayed.',
@@ -576,39 +429,30 @@ test.describe('Dashboard — Organization Settings', () => {
       }
     });
 
-    const nameInput = page.getByTestId('org-settings-name-input');
-    await nameInput.clear();
-    await nameInput.fill('Error Test Org');
+    await orgSettingsPage.nameInput.clear();
+    await orgSettingsPage.nameInput.fill('Error Test Org');
 
-    const saveButton = page.getByTestId('org-settings-save-button');
-    await expect(saveButton).toBeEnabled();
-    await saveButton.click();
+    await expect(orgSettingsPage.saveButton).toBeEnabled();
+    await orgSettingsPage.saveButton.click();
 
     await expect(page.getByText('Internal server error').first()).toBeVisible({ timeout: 5000 });
   });
 });
 
-// ── Dashboard Home Tests ─────────────────────────────────────────────────────
-
 test.describe('Dashboard — Home Page', () => {
   let orgId: string;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, dashboardHomePage }) => {
     await loginAs(page);
 
-    // Create org via API
     orgId = await createOrgViaAPI(page, `Home Test ${Date.now()}`);
 
-    // Navigate to dashboard
-    await page.goto(`/dashboard/${orgId}`);
+    await dashboardHomePage.goto(orgId);
     await expect(page).toHaveURL(/.*\/dashboard\//);
     await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
   });
 
-  // =========================================================================
-  // TC-20: Dashboard home displays organization stats
-  // =========================================================================
-  test('TC-20: Dashboard home page displays organization statistics', async ({ page }) => {
+  test('TC-20: Dashboard home page displays organization statistics', async ({ page, dashboardHomePage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that the dashboard home page shows organization stats.',
@@ -618,14 +462,11 @@ test.describe('Dashboard — Home Page', () => {
     await expect(page.getByText(t('dashboard.statActiveCampaigns'), { exact: true })).toBeVisible();
     await expect(page.getByText(t('dashboard.statRaised'), { exact: true })).toBeVisible();
     await expect(page.locator('main').getByText(t('dashboard.statReceipts')).first()).toBeVisible();
-    await expect(page.getByTestId('dashboard-home-plan-card')).toBeVisible();
-    await expect(page.getByTestId('dashboard-home-plan-name')).toBeVisible();
-    await expect(page.getByTestId('dashboard-home-plan-description')).toBeVisible();
+    await expect(dashboardHomePage.planCard).toBeVisible();
+    await expect(dashboardHomePage.planName).toBeVisible();
+    await expect(dashboardHomePage.planDescription).toBeVisible();
   });
 
-  // =========================================================================
-  // TC-21: Dashboard home shows quick start guide
-  // =========================================================================
   test('TC-21: Dashboard home page shows quick start guide', async ({ page }) => {
     test.info().annotations.push({
       type: 'description',
@@ -638,39 +479,28 @@ test.describe('Dashboard — Home Page', () => {
     await expect(page.getByText(t('dashboard.step3'))).toBeVisible();
   });
 
-  // =========================================================================
-  // TC-22: Dashboard navigation works correctly
-  // =========================================================================
-  test('TC-22: Dashboard sidebar navigation links work correctly', async ({ page }) => {
+  test('TC-22: Dashboard sidebar navigation links work correctly', async ({ page, dashboardHomePage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Verifies that clicking sidebar navigation links navigates to the correct pages.',
     });
 
-    // Navigate to campaigns
-    await openDashboardNavLink(page, 'campaigns');
+    await dashboardHomePage.clickNavLinkSafe('campaigns');
     await expect(page).toHaveURL(/.*\/campaigns/);
 
-    // Navigate to settings
-    await openDashboardNavLink(page, 'settings');
+    await dashboardHomePage.clickNavLinkSafe('settings');
     await expect(page).toHaveURL(/.*\/settings/);
 
-    // Navigate back to dashboard home
-    await openDashboardNavLink(page, 'home');
+    await dashboardHomePage.clickNavLinkSafe('home');
     await expect(page).toHaveURL(new RegExp(`.*/dashboard/${orgId}/?$`));
   });
 });
-
-// ── Edge Cases ───────────────────────────────────────────────────────────────
 
 test.describe('Dashboard — Edge Cases', () => {
   test.beforeEach(async ({ page }) => {
     await loginAs(page);
   });
 
-  // =========================================================================
-  // TC-23: Unauthenticated access redirects to login
-  // =========================================================================
   test('TC-23: Unauthenticated users are redirected from dashboard to login', async ({ page }) => {
     test.info().annotations.push({
       type: 'description',

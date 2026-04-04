@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/fixtures';
 import { t, setTestLanguage } from './support/i18n';
 import {
   createInviteLinkViaApi,
@@ -35,37 +35,34 @@ async function createInviteScenario(
   return { owner, invitee, inviteToken };
 }
 
-async function openInviteAsGuest(page: import('@playwright/test').Page, inviteToken: string): Promise<void> {
-  await setTestLanguage(page);
-  await page.goto(`/invite/${inviteToken}`);
-  await expect(page).toHaveURL(new RegExp(`/login\\?next=%2Finvite%2F${inviteToken}$`));
-}
-
-async function loginInviteeAndReturnToInvite(
-  page: import('@playwright/test').Page,
-  inviteToken: string,
-  invitee: RegisteredUser,
-): Promise<void> {
-  await loginViaUi(page, invitee.auth.user.email, invitee.password, { gotoPath: null, setLanguage: false });
-  await expect(page).toHaveURL(new RegExp(`/invite/${inviteToken}$`));
-}
-
 test.describe('Invite Flow', () => {
-  test('TC-01: Guest is redirected to login with next, then after login sees invite page', async ({ page }) => {
+  test('TC-01: Guest is redirected to login with next, then after login sees invite page', async ({ page, invitePage }) => {
     const { invitee, inviteToken } = await createInviteScenario(page, 'Invite');
 
-    await openInviteAsGuest(page, inviteToken);
-    await loginInviteeAndReturnToInvite(page, inviteToken, invitee);
+    await setTestLanguage(page);
+    await invitePage.goto(inviteToken);
+    await expect(page).toHaveURL(new RegExp(`/login\\?next=%2Finvite%2F${inviteToken}$`));
 
-    await expect(page.getByTestId('invite-page-card')).toBeVisible();
-    await expect(page.getByTestId('invite-page-org-title')).toContainText('Invite Flow Org');
+    await loginViaUi(page, invitee.auth.user.email, invitee.password, {
+      gotoPath: null,
+      setLanguage: false,
+    });
+
+    await expect(page).toHaveURL(new RegExp(`/invite/${inviteToken}$`));
+    await expect(invitePage.inviteCard).toBeVisible();
+    await expect(invitePage.orgTitle).toContainText('Invite Flow Org');
   });
 
-  test('TC-02: Logged-in invited user can accept invitation from invite page', async ({ page }) => {
+  test('TC-02: Logged-in invited user can accept invitation from invite page', async ({ page, invitePage }) => {
     const { invitee, inviteToken } = await createInviteScenario(page, 'Accept');
 
-    await openInviteAsGuest(page, inviteToken);
-    await loginInviteeAndReturnToInvite(page, inviteToken, invitee);
+    await setTestLanguage(page);
+    await invitePage.goto(inviteToken);
+    await loginViaUi(page, invitee.auth.user.email, invitee.password, {
+      gotoPath: null,
+      setLanguage: false,
+    });
+    await expect(page).toHaveURL(new RegExp(`/invite/${inviteToken}$`));
 
     const acceptResponsePromise = page.waitForResponse(
       (response) =>
@@ -73,20 +70,25 @@ test.describe('Invite Flow', () => {
         response.request().method() === 'POST',
     );
 
-    await page.getByTestId('invite-page-accept-button').click();
+    await invitePage.acceptButton.click();
 
     const acceptResponse = await acceptResponsePromise;
     expect(acceptResponse.ok()).toBeTruthy();
 
-    await expect(page.getByTestId('invite-page-accepted-state')).toBeVisible();
-    await expect(page.getByTestId('invite-page-go-dashboard-button')).toBeVisible();
+    await expect(invitePage.acceptedState).toBeVisible();
+    await expect(invitePage.goDashboardButton).toBeVisible();
   });
 
-  test('TC-03: Logged-in invited user can decline invitation from invite page', async ({ page }) => {
+  test('TC-03: Logged-in invited user can decline invitation from invite page', async ({ page, invitePage }) => {
     const { invitee, inviteToken } = await createInviteScenario(page, 'Decline');
 
-    await openInviteAsGuest(page, inviteToken);
-    await loginInviteeAndReturnToInvite(page, inviteToken, invitee);
+    await setTestLanguage(page);
+    await invitePage.goto(inviteToken);
+    await loginViaUi(page, invitee.auth.user.email, invitee.password, {
+      gotoPath: null,
+      setLanguage: false,
+    });
+    await expect(page).toHaveURL(new RegExp(`/invite/${inviteToken}$`));
 
     const declineResponsePromise = page.waitForResponse(
       (response) =>
@@ -94,13 +96,13 @@ test.describe('Invite Flow', () => {
         response.request().method() === 'POST',
     );
 
-    await page.getByTestId('invite-page-decline-button').click();
+    await invitePage.declineButton.click();
 
     const declineResponse = await declineResponsePromise;
     expect(declineResponse.ok()).toBeTruthy();
 
-    await expect(page.getByTestId('invite-page-declined-state')).toBeVisible();
-    await expect(page.getByTestId('invite-page-go-home-button')).toBeVisible();
+    await expect(invitePage.declinedState).toBeVisible();
+    await expect(invitePage.goHomeButton).toBeVisible();
     await expect(page.getByText(t('invitations.page.declinedTitle'))).toBeVisible();
   });
 });

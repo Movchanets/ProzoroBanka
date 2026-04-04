@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/fixtures';
 
 import { seedAdminSession } from './support/admin-fixtures';
 import { mockAdminSettings, mockMyOrganizationsNav } from './support/admin-mocks';
@@ -14,44 +14,44 @@ for (const localeConfig of TEST_LOCALES) {
       await mockAdminSettings(page);
     });
 
-    test('page loads and shows settings sections', async ({ page }) => {
+    test('page loads and shows settings sections', async ({ page, adminSettingsPage }) => {
       await Promise.all([
         page.waitForResponse((response) => response.url().includes('/api/admin/settings/plans') && response.request().method() === 'GET'),
         page.waitForResponse((response) => response.url().includes('/api/admin/settings/general') && response.request().method() === 'GET'),
         page.goto('/admin/settings'),
       ]);
 
-      await expect(page.getByTestId('admin-settings-page')).toBeVisible();
-      await expect(page.getByTestId('admin-settings-section-plans')).toBeVisible();
-      await expect(page.getByTestId('admin-settings-section-general')).toBeVisible();
+      await expect(adminSettingsPage.pageContainer).toBeVisible();
+      await expect(adminSettingsPage.sectionPlans).toBeVisible();
+      await expect(adminSettingsPage.sectionGeneral).toBeVisible();
     });
 
-    test('can update plan limits', async ({ page }) => {
+    test('can update plan limits', async ({ page, adminSettingsPage }) => {
       await Promise.all([
         page.waitForResponse((response) => response.url().includes('/api/admin/settings/plans') && response.request().method() === 'GET'),
         page.waitForResponse((response) => response.url().includes('/api/admin/settings/general') && response.request().method() === 'GET'),
         page.goto('/admin/settings'),
       ]);
-      await expect(page.getByTestId('admin-settings-page')).toBeVisible({ timeout: 15000 });
-      await expect(page.getByTestId('admin-settings-free-max-members-input')).toBeVisible({ timeout: 15000 });
+      await expect(adminSettingsPage.pageContainer).toBeVisible({ timeout: 15000 });
+      await expect(adminSettingsPage.freeMaxMembersInput).toBeVisible({ timeout: 15000 });
 
-      await page.getByTestId('admin-settings-free-max-members-input').fill('11');
-      await page.getByTestId('admin-settings-paid-max-members-input').fill('210');
-      await page.getByTestId('admin-settings-plans-save-button').click();
+      await adminSettingsPage.freeMaxMembersInput.fill('11');
+      await adminSettingsPage.paidMaxMembersInput.fill('210');
+      await adminSettingsPage.plansSaveButton.click();
     });
 
-    test('can update general vars', async ({ page }) => {
+    test('can update general vars', async ({ page, adminSettingsPage }) => {
       await Promise.all([
         page.waitForResponse((response) => response.url().includes('/api/admin/settings/plans') && response.request().method() === 'GET'),
         page.waitForResponse((response) => response.url().includes('/api/admin/settings/general') && response.request().method() === 'GET'),
         page.goto('/admin/settings'),
       ]);
-      await expect(page.getByTestId('admin-settings-page')).toBeVisible({ timeout: 15000 });
-      await expect(page.getByTestId('admin-settings-max-owned-orgs-input')).toBeVisible({ timeout: 15000 });
+      await expect(adminSettingsPage.pageContainer).toBeVisible({ timeout: 15000 });
+      await expect(adminSettingsPage.maxOwnedOrgsInput).toBeVisible({ timeout: 15000 });
 
-      await page.getByTestId('admin-settings-max-owned-orgs-input').fill('12');
-      await page.getByTestId('admin-settings-max-joined-orgs-input').fill('25');
-      await page.getByTestId('admin-settings-general-save-button').click();
+      await adminSettingsPage.maxOwnedOrgsInput.fill('12');
+      await adminSettingsPage.maxJoinedOrgsInput.fill('25');
+      await adminSettingsPage.generalSaveButton.click();
     });
   });
 }

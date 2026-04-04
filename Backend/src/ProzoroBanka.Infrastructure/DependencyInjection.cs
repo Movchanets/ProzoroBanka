@@ -63,7 +63,7 @@ public static class DependencyInjection
         services.AddScoped<IEmailNotificationService, SmtpEmailNotificationService>();
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
         services.AddScoped<IOrganizationPlanLimitService, OrganizationPlanLimitService>();
-        var useOcrExtractionStub = configuration.GetValue<bool?>("Ocr:UseExtractionStub") ?? true;
+        var useOcrExtractionStub = configuration.GetValue<bool?>("Ocr:UseExtractionStub") ?? true; // consistent with OcrOptions binding
         if (useOcrExtractionStub)
         {
             services.AddScoped<IReceiptStructuredExtractionService, StubReceiptStructuredExtractionService>();

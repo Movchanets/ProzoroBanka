@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/fixtures';
 
 import { expectAdminRoleInStorage } from './support/admin-fixtures';
 import { loginViaUi, registerRandomUserViaApi } from './support/e2e-auth';
@@ -11,7 +11,7 @@ for (const localeConfig of TEST_LOCALES) {
   test.describe(`Admin users management [${localeConfig.key}]`, () => {
     test.use({ locale: localeConfig.browserLocale });
 
-    test('TC-01: admin can access users and roles pages', async ({ page }) => {
+    test('TC-01: admin can access users and roles pages', async ({ page, adminUsersPage, adminRolesPage, dashboardPage }) => {
       await applyLocale(page, localeConfig.uiLanguage);
 
       await loginViaUi(page, VALID_EMAIL, VALID_PASSWORD, {
@@ -23,20 +23,20 @@ for (const localeConfig of TEST_LOCALES) {
       await expectAdminRoleInStorage(page);
 
       await page.goto('/admin/users');
-      await expect(page.getByTestId('admin-users-page')).toBeVisible();
-      await expect(page.getByTestId('admin-users-filters')).toBeVisible();
+      await expect(adminUsersPage.pageContainer).toBeVisible();
+      await expect(adminUsersPage.filters).toBeVisible();
 
       if (test.info().project.name === 'Mobile Safari') {
         await page.goto('/admin/roles');
       } else {
-        await page.getByTestId('admin-nav-roles').click();
+        await dashboardPage.getAdminNavLink('roles').click();
       }
 
       await expect(page).toHaveURL(/.*\/admin\/roles/);
-      await expect(page.getByTestId('admin-roles-page')).toBeVisible();
+      await expect(adminRolesPage.pageContainer).toBeVisible();
     });
 
-    test('TC-02: admin can filter and lock or unlock user', async ({ page, request }) => {
+    test('TC-02: admin can filter and lock or unlock user', async ({ page, request, adminUsersPage }) => {
       await applyLocale(page, localeConfig.uiLanguage);
 
       const createdUser = await registerRandomUserViaApi(request, {
@@ -54,9 +54,9 @@ for (const localeConfig of TEST_LOCALES) {
       await expectAdminRoleInStorage(page);
 
       await page.goto('/admin/users');
-      await expect(page.getByTestId('admin-users-page')).toBeVisible();
+      await expect(adminUsersPage.pageContainer).toBeVisible();
 
-      await page.getByTestId('admin-users-search-input').fill(createdUser.auth.user.email);
+      await adminUsersPage.searchInput.fill(createdUser.auth.user.email);
       await expect
         .poll(
           async () => {
@@ -67,12 +67,9 @@ for (const localeConfig of TEST_LOCALES) {
         )
         .toBe(createdUser.auth.user.email);
 
-      await page.getByTestId('admin-users-refresh-button').click();
+      await adminUsersPage.refreshButton.click();
 
-      const targetRow = page
-        .locator('[data-testid^="admin-users-row-"]')
-        .filter({ hasText: createdUser.auth.user.email })
-        .first();
+      const targetRow = adminUsersPage.getUserRow(createdUser.auth.user.email);
       await expect(targetRow).toBeVisible();
 
       const lockoutButton = targetRow.locator('[data-testid^="admin-users-lockout-"]').first();
