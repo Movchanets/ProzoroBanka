@@ -1,4 +1,4 @@
-import { type APIResponse, type Locator, type Page } from '@playwright/test';
+import { type Locator, type Page, type Response } from '@playwright/test';
 export class CampaignCreatePage {
   private readonly page: Page;
   readonly pageContainer: Locator;
@@ -30,7 +30,7 @@ export class CampaignCreatePage {
     await this.deadlineInput.fill(payload.deadline);
   }
 
-  async submitAndWaitForCreate(orgId: string): Promise<APIResponse> {
+  async submitAndWaitForCreate(orgId: string): Promise<Response> {
     const createResponsePromise = this.page.waitForResponse(
       (response) =>
         response.url().includes(`/api/organizations/${orgId}/campaigns`) &&

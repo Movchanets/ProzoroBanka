@@ -1,4 +1,4 @@
-import { type APIResponse, type Locator, type Page } from '@playwright/test';
+import { type Locator, type Page, type Response } from '@playwright/test';
 export class CampaignEditPage {
   private readonly page: Page;
   readonly pageContainer: Locator;
@@ -48,7 +48,7 @@ export class CampaignEditPage {
     await this.descriptionInput.fill(description);
   }
 
-  async saveAndWaitForUpdate(campaignId: string): Promise<APIResponse> {
+  async saveAndWaitForUpdate(campaignId: string): Promise<Response> {
     const updateResponsePromise = this.page.waitForResponse(
       (response) => response.url().includes(`/api/campaigns/${campaignId}`) && response.request().method() === 'PUT',
     );
@@ -57,7 +57,7 @@ export class CampaignEditPage {
     return updateResponsePromise;
   }
 
-  async changeStatusAndWaitForUpdate(campaignId: string, optionTestId: string): Promise<APIResponse> {
+  async changeStatusAndWaitForUpdate(campaignId: string, optionTestId: string): Promise<Response> {
     const statusResponsePromise = this.page.waitForResponse(
       (response) => response.url().includes(`/api/campaigns/${campaignId}/status`) && response.request().method() === 'PUT',
     );

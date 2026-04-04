@@ -4,6 +4,8 @@ import {
   createOrganizationForCurrentSession,
   loginViaUi,
   registerAndSetAuthStorage,
+  createOrganizationViaApi,
+  getAccessTokenFromAuthStorage,
 } from './support/e2e-auth';
 import type { OnboardingPage } from './pages/OnboardingPage';
 
@@ -216,7 +218,8 @@ test.describe('Dashboard — Organization Settings', () => {
   test.beforeEach(async ({ page, orgSettingsPage }) => {
     await loginAs(page);
 
-    orgId = await createOrgViaAPI(page, `Settings Test ${Date.now()}`);
+    const token = await getAccessTokenFromAuthStorage(page);
+    orgId = await createOrganizationViaApi(page.request, token, `Settings Test ${Date.now()}`);
 
     await orgSettingsPage.goto(orgId);
     await expect(page).toHaveURL(/.*\/settings/);
