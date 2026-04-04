@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   useActivateReceipt,
   useExtractReceiptData,
@@ -72,7 +73,9 @@ function formatDate(value?: string) {
 export default function ReceiptsPlaceholderPage() {
   const { t } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
+  const [uploadTab, setUploadTab] = useState<'receipt' | 'items'>('receipt');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [itemPhotos, setItemPhotos] = useState<File[]>([]);
   const [receiptIdInput, setReceiptIdInput] = useState('');
   const [receipt, setReceipt] = useState<ReceiptPipeline | null>(null);
 
@@ -98,6 +101,17 @@ export default function ReceiptsPlaceholderPage() {
   const applyReceipt = (next: ReceiptPipeline) => {
     setReceipt(next);
     setReceiptIdInput(next.id);
+  };
+
+  const onItemPhotosSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0) return;
+    setItemPhotos((prev) => [...prev, ...files]);
+    event.target.value = '';
+  };
+
+  const onRemoveItemPhoto = (index: number) => {
+    setItemPhotos((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
   };
 
   const onUploadDraft = async () => {
@@ -236,27 +250,73 @@ export default function ReceiptsPlaceholderPage() {
             <FileDigit className="h-5 w-5 text-primary" />
             Завантаження чека
           </CardTitle>
-          <CardDescription>Перший етап pipeline: upload draft.</CardDescription>
+          <CardDescription>Перший інкремент для flow Receipt/Purchased items.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="receipt-file">Файл чека</Label>
-            <Input
-              id="receipt-file"
-              type="file"
-              accept="image/*,application/pdf"
-              data-testid="dashboard-receipts-upload-file-input"
-              onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
-            />
-          </div>
-          <Button
-            onClick={onUploadDraft}
-            disabled={!selectedFile || isBusy}
-            data-testid="dashboard-receipts-upload-button"
-          >
-            {uploadDraftMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Завантажити чернетку
-          </Button>
+          <Tabs value={uploadTab} onValueChange={(value) => setUploadTab(value as 'receipt' | 'items')} data-testid="dashboard-receipts-upload-tabs">
+            <TabsList className="grid w-full grid-cols-2" data-testid="dashboard-receipts-upload-tabs-list">
+              <TabsTrigger value="receipt" data-testid="dashboard-receipts-upload-tab-receipt">Receipt</TabsTrigger>
+              <TabsTrigger value="items" data-testid="dashboard-receipts-upload-tab-items">Purchased items</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="receipt" className="space-y-3" data-testid="dashboard-receipts-upload-tab-content-receipt">
+              <div className="space-y-2">
+                <Label htmlFor="receipt-file">Файл чека</Label>
+                <Input
+                  id="receipt-file"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  data-testid="dashboard-receipts-upload-file-input"
+                  onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+                />
+              </div>
+              <Button
+                onClick={onUploadDraft}
+                disabled={!selectedFile || isBusy}
+                data-testid="dashboard-receipts-upload-button"
+              >
+                {uploadDraftMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Завантажити чернетку
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="items" className="space-y-3" data-testid="dashboard-receipts-upload-tab-content-items">
+              <div className="space-y-2">
+                <Label htmlFor="item-photos">Фото придбаних товарів</Label>
+                <Input
+                  id="item-photos"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  data-testid="dashboard-receipts-items-files-input"
+                  onChange={onItemPhotosSelected}
+                />
+              </div>
+
+              {itemPhotos.length > 0 ? (
+                <ul className="space-y-2" data-testid="dashboard-receipts-items-files-list">
+                  {itemPhotos.map((photo, index) => (
+                    <li key={`${photo.name}-${index}`} className="flex items-center justify-between rounded-lg border border-border/70 px-3 py-2" data-testid={`dashboard-receipts-items-file-${index}`}>
+                      <span className="truncate text-sm" title={photo.name}>{photo.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onRemoveItemPhoto(index)}
+                        data-testid={`dashboard-receipts-items-remove-${index}`}
+                      >
+                        Видалити
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground" data-testid="dashboard-receipts-items-empty">
+                  Додайте фото товарів для наступного інкременту збереження позицій.
+                </p>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 

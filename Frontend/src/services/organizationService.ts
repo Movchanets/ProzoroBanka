@@ -4,6 +4,8 @@ import type {
   Organization,
   OrganizationDetail,
   OrganizationMember,
+  OrganizationStateRegistrySettings,
+  StateRegistryProvider,
   UpdateMemberRolePayload,
   UpdateOrganizationPayload,
 } from '../types';
@@ -68,5 +70,19 @@ export const organizationService = {
     apiFetch<void>(`/api/organizations/${id}/invite`, {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+
+  getStateRegistrySettings: (id: string) =>
+    apiFetch<OrganizationStateRegistrySettings>(`/api/organizations/${id}/state-registry-settings`),
+
+  upsertStateRegistryCredential: (id: string, provider: StateRegistryProvider, apiKey: string) =>
+    apiFetch<{ message: string }>(`/api/organizations/${id}/state-registry-credentials/${provider}`, {
+      method: 'PUT',
+      body: JSON.stringify({ apiKey }),
+    }),
+
+  deleteStateRegistryCredential: (id: string, provider: StateRegistryProvider) =>
+    apiFetch<{ message: string }>(`/api/organizations/${id}/state-registry-credentials/${provider}`, {
+      method: 'DELETE',
     }),
 };

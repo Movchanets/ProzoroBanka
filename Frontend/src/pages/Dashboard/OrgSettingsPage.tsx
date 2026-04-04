@@ -3,7 +3,15 @@ import { useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
-import { useOrganization, useUpdateOrganization, useUploadOrgLogo } from '@/hooks/queries/useOrganizations';
+import {
+  useDeleteStateRegistryCredential,
+  useOrganization,
+  useOrganizationStateRegistrySettings,
+  useUpdateOrganization,
+  useUploadOrgLogo,
+  useUpsertStateRegistryCredential,
+} from '@/hooks/queries/useOrganizations';
+import { StateRegistryProvider } from '@/types';
 import { createUpdateOrganizationSchema, type UpdateOrganizationFormData } from '@/utils/organizationSchemas';
 import { getImageUrl } from '@/lib/utils';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
@@ -21,10 +29,15 @@ export default function OrgSettingsPage() {
   const { t } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
   const { data: org, isLoading } = useOrganization(orgId);
+  const { data: stateRegistrySettings, isLoading: isLoadingStateRegistry } = useOrganizationStateRegistrySettings(orgId);
   const updateOrg = useUpdateOrganization(orgId!);
   const uploadLogo = useUploadOrgLogo(orgId!);
+  const upsertRegistryKey = useUpsertStateRegistryCredential(orgId!);
+  const deleteRegistryKey = useDeleteStateRegistryCredential(orgId!);
   const [apiError, setApiError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [taxServiceKeyInput, setTaxServiceKeyInput] = useState('');
+  const [checkGovUaKeyInput, setCheckGovUaKeyInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
@@ -76,6 +89,50 @@ export default function OrgSettingsPage() {
   };
 
   const displayedLogoUrl = localLogoPreview || getImageUrl(org?.logoUrl);
+  const isRegistryMutationPending = upsertRegistryKey.isPending || deleteRegistryKey.isPending;
+
+  const saveRegistryKeys = async () => {
+    setApiError(null);
+    setSuccessMsg(null);
+
+    const tasks: Promise<unknown>[] = [];
+    if (taxServiceKeyInput.trim().length > 0) {
+      tasks.push(upsertRegistryKey.mutateAsync({ provider: StateRegistryProvider.TaxService, apiKey: taxServiceKeyInput.trim() }));
+    }
+    if (checkGovUaKeyInput.trim().length > 0) {
+      tasks.push(upsertRegistryKey.mutateAsync({ provider: StateRegistryProvider.CheckGovUa, apiKey: checkGovUaKeyInput.trim() }));
+    }
+
+    if (tasks.length === 0) {
+      setApiError('Вкажіть хоча б один API ключ для збереження.');
+      return;
+    }
+
+    try {
+      await Promise.all(tasks);
+      setTaxServiceKeyInput('');
+      setCheckGovUaKeyInput('');
+      setSuccessMsg('Ключі держреєстрів збережено.');
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Не вдалося зберегти ключі держреєстрів.');
+    }
+  };
+
+  const clearRegistryInputs = () => {
+    setTaxServiceKeyInput('');
+    setCheckGovUaKeyInput('');
+  };
+
+  const deleteRegistryProviderKey = async (provider: typeof StateRegistryProvider[keyof typeof StateRegistryProvider]) => {
+    setApiError(null);
+    setSuccessMsg(null);
+    try {
+      await deleteRegistryKey.mutateAsync(provider);
+      setSuccessMsg('Ключ держреєстру видалено.');
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Не вдалося видалити ключ держреєстру.');
+    }
+  };
 
   if (isLoading) return (<div className="space-y-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-64 w-full rounded-2xl" /></div>);
 
@@ -116,6 +173,112 @@ export default function OrgSettingsPage() {
             Керування тарифом скоро буде доступне в налаштуваннях організації. Поки що для зміни тарифу зверніться до адміністратора платформи.
           </CardDescription>
         </CardHeader>
+      </Card>
+
+      <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="org-settings-state-api-keys-card">
+        <CardHeader>
+          <CardTitle className="text-lg" data-testid="org-settings-state-api-keys-title">Ключі держреєстрів</CardTitle>
+          <CardDescription data-testid="org-settings-state-api-keys-description">
+            Перший інкремент: UI-скелет керування ключами Tax Service та check.gov.ua.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="tax-service-key">Tax Service API key</Label>
+              <Input
+                id="tax-service-key"
+                data-testid="org-settings-tax-service-key-input"
+                placeholder="••••••••••••••••"
+                autoComplete="off"
+                value={taxServiceKeyInput}
+                onChange={(event) => setTaxServiceKeyInput(event.target.value)}
+                disabled={isRegistryMutationPending}
+              />
+              <p className="text-xs text-muted-foreground" data-testid="org-settings-tax-service-key-masked-value">
+                {stateRegistrySettings?.taxService.isConfigured
+                  ? `Збережений ключ: ${stateRegistrySettings.taxService.maskedKey ?? '********'}`
+                  : 'Ключ не налаштовано'}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="check-gov-key">check.gov.ua API key</Label>
+              <Input
+                id="check-gov-key"
+                data-testid="org-settings-check-gov-key-input"
+                placeholder="••••••••••••••••"
+                autoComplete="off"
+                value={checkGovUaKeyInput}
+                onChange={(event) => setCheckGovUaKeyInput(event.target.value)}
+                disabled={isRegistryMutationPending}
+              />
+              <p className="text-xs text-muted-foreground" data-testid="org-settings-check-gov-key-masked-value">
+                {stateRegistrySettings?.checkGovUa.isConfigured
+                  ? `Збережений ключ: ${stateRegistrySettings.checkGovUa.maskedKey ?? '********'}`
+                  : 'Ключ не налаштовано'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              data-testid="org-settings-state-keys-save-button"
+              onClick={saveRegistryKeys}
+              disabled={isRegistryMutationPending}
+            >
+              {upsertRegistryKey.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Зберегти ключі
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              data-testid="org-settings-state-keys-clear-button"
+              onClick={clearRegistryInputs}
+              disabled={isRegistryMutationPending}
+            >
+              Очистити
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              data-testid="org-settings-delete-tax-service-key-button"
+              onClick={() => deleteRegistryProviderKey(StateRegistryProvider.TaxService)}
+              disabled={isRegistryMutationPending || !stateRegistrySettings?.taxService.isConfigured}
+            >
+              Видалити Tax Service
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              data-testid="org-settings-delete-check-gov-key-button"
+              onClick={() => deleteRegistryProviderKey(StateRegistryProvider.CheckGovUa)}
+              disabled={isRegistryMutationPending || !stateRegistrySettings?.checkGovUa.isConfigured}
+            >
+              Видалити check.gov.ua
+            </Button>
+          </div>
+
+          <div className="grid gap-3 rounded-xl border border-border/70 bg-muted/20 p-4 sm:grid-cols-2" data-testid="org-settings-usage-quota-card">
+            <div>
+              <p className="text-sm text-muted-foreground" data-testid="org-settings-usage-state-label">State verification usage</p>
+              <p className="text-sm font-medium" data-testid="org-settings-usage-state-value">
+                {isLoadingStateRegistry
+                  ? 'Завантаження...'
+                  : `${stateRegistrySettings?.stateVerificationConfiguredKeys ?? 0} / ${stateRegistrySettings?.stateVerificationMaxKeys ?? 0}`}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground" data-testid="org-settings-usage-ocr-label">OCR usage</p>
+              <p className="text-sm font-medium" data-testid="org-settings-usage-ocr-value">
+                {isLoadingStateRegistry
+                  ? 'Завантаження...'
+                  : `${stateRegistrySettings?.currentOcrExtractionsPerMonth ?? 0} / ${stateRegistrySettings?.maxOcrExtractionsPerMonth ?? 0}`}
+              </p>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       <Separator />

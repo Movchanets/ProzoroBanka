@@ -83,3 +83,27 @@ export interface UpdateMemberRolePayload {
   role: OrganizationRole;
   permissions?: number;
 }
+
+export const StateRegistryProvider = {
+  TaxService: 'TaxService',
+  CheckGovUa: 'CheckGovUa',
+} as const;
+
+export type StateRegistryProvider = typeof StateRegistryProvider[keyof typeof StateRegistryProvider];
+
+export interface StateRegistryCredentialSummary {
+  provider: StateRegistryProvider;
+  isConfigured: boolean;
+  maskedKey?: string | null;
+  lastValidatedAtUtc?: string | null;
+  lastUsedAtUtc?: string | null;
+}
+
+export interface OrganizationStateRegistrySettings {
+  taxService: StateRegistryCredentialSummary;
+  checkGovUa: StateRegistryCredentialSummary;
+  stateVerificationConfiguredKeys: number;
+  stateVerificationMaxKeys: number;
+  currentOcrExtractionsPerMonth: number;
+  maxOcrExtractionsPerMonth: number;
+}

@@ -2,13 +2,16 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.Commands.CancelInvitation;
+using ProzoroBanka.Application.Organizations.Commands.DeleteStateRegistryCredential;
 using ProzoroBanka.Application.Organizations.Commands.CreateInviteLink;
 using ProzoroBanka.Application.Organizations.Commands.CreateOrganization;
 using ProzoroBanka.Application.Organizations.Commands.DeleteOrganization;
 using ProzoroBanka.Application.Organizations.Commands.InviteByEmail;
 using ProzoroBanka.Application.Organizations.Commands.LeaveOrganization;
 using ProzoroBanka.Application.Organizations.Commands.RemoveMember;
+using ProzoroBanka.Application.Organizations.Commands.UpsertStateRegistryCredential;
 using ProzoroBanka.Application.Organizations.Commands.UpdateMemberRole;
 using ProzoroBanka.Application.Organizations.Commands.UpdateOrganization;
 using ProzoroBanka.Application.Organizations.Commands.UploadOrganizationLogo;
@@ -17,6 +20,8 @@ using ProzoroBanka.Application.Organizations.Queries.GetMyOrganizations;
 using ProzoroBanka.Application.Organizations.Queries.GetOrganizationById;
 using ProzoroBanka.Application.Organizations.Queries.GetOrganizationInvitations;
 using ProzoroBanka.Application.Organizations.Queries.GetOrganizationMembers;
+using ProzoroBanka.Application.Organizations.Queries.GetOrganizationStateRegistrySettings;
+using ProzoroBanka.Domain.Enums;
 
 namespace ProzoroBanka.API.Controllers;
 
@@ -29,7 +34,9 @@ public class OrganizationsController : ApiControllerBase
 	private readonly ISender _sender;
 	private readonly ICurrentUserService _currentUser;
 
-	public OrganizationsController(ISender sender, ICurrentUserService currentUser)
+	public OrganizationsController(
+		ISender sender,
+		ICurrentUserService currentUser)
 	{
 		_sender = sender;
 		_currentUser = currentUser;
@@ -257,6 +264,74 @@ public class OrganizationsController : ApiControllerBase
 		return Ok(result.Payload);
 	}
 
+	/// <summary>Отримати налаштування ключів держреєстрів і usage по OCR/state.</summary>
+	[HttpGet("{id:guid}/state-registry-settings")]
+	[ProducesResponseType(typeof(OrganizationStateRegistrySettingsDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	public async Task<IActionResult> GetStateRegistrySettings(Guid id, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var response = await _sender.Send(new GetOrganizationStateRegistrySettingsQuery(domainUserId.Value, id), ct);
+		if (!response.IsSuccess || response.Payload is null)
+			return response.Message.Contains("не знайдено")
+				? NotFound(new { Error = response.Message })
+				: StatusCode(StatusCodes.Status403Forbidden, new { Error = response.Message });
+
+		return Ok(response.Payload);
+	}
+
+	/// <summary>Додати або оновити API-ключ для провайдера держреєстру.</summary>
+	[HttpPut("{id:guid}/state-registry-credentials/{provider}")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	public async Task<IActionResult> UpsertStateRegistryCredential(
+		Guid id,
+		RegistryProvider provider,
+		[FromBody] UpsertStateRegistryCredentialRequest request,
+		CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(
+			new UpsertStateRegistryCredentialCommand(domainUserId.Value, id, provider, request.ApiKey),
+			ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message });
+
+		return Ok(new { Message = result.Message });
+	}
+
+	/// <summary>Видалити API-ключ для провайдера держреєстру.</summary>
+	[HttpDelete("{id:guid}/state-registry-credentials/{provider}")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	public async Task<IActionResult> DeleteStateRegistryCredential(Guid id, RegistryProvider provider, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(
+			new DeleteStateRegistryCredentialCommand(domainUserId.Value, id, provider),
+			ct);
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message });
+
+		return Ok(new { Message = result.Message });
+	}
+
 	// ── Invitations ──────────────────────────────────────────────────────────
 
 	/// <summary>Створити посилання-запрошення до організації (потрібно ManageInvitations).</summary>
@@ -356,3 +431,5 @@ public class OrganizationsController : ApiControllerBase
 		return NoContent();
 	}
 }
+
+public record UpsertStateRegistryCredentialRequest(string ApiKey);

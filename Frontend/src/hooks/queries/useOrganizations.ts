@@ -3,6 +3,7 @@ import { organizationService } from '../../services/organizationService';
 import { queryClient } from '../../services/queryClient';
 import type {
   CreateOrganizationPayload,
+  StateRegistryProvider,
   UpdateMemberRolePayload,
   UpdateOrganizationPayload,
 } from '../../types';
@@ -12,6 +13,7 @@ export const orgKeys = {
   my: () => [...orgKeys.all, 'my'] as const,
   detail: (id: string) => [...orgKeys.all, 'detail', id] as const,
   members: (id: string) => [...orgKeys.all, 'members', id] as const,
+  stateRegistrySettings: (id: string) => [...orgKeys.all, 'state-registry-settings', id] as const,
 };
 
 export function useMyOrganizations() {
@@ -92,6 +94,34 @@ export function useLeaveOrganization() {
     mutationFn: (orgId: string) => organizationService.leave(orgId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: orgKeys.my() });
+    },
+  });
+}
+
+export function useOrganizationStateRegistrySettings(id: string | null | undefined) {
+  return useQuery({
+    queryKey: orgKeys.stateRegistrySettings(id!),
+    queryFn: () => organizationService.getStateRegistrySettings(id!),
+    enabled: !!id,
+  });
+}
+
+export function useUpsertStateRegistryCredential(orgId: string) {
+  return useMutation({
+    mutationFn: ({ provider, apiKey }: { provider: StateRegistryProvider; apiKey: string }) =>
+      organizationService.upsertStateRegistryCredential(orgId, provider, apiKey),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: orgKeys.stateRegistrySettings(orgId) });
+    },
+  });
+}
+
+export function useDeleteStateRegistryCredential(orgId: string) {
+  return useMutation({
+    mutationFn: (provider: StateRegistryProvider) =>
+      organizationService.deleteStateRegistryCredential(orgId, provider),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: orgKeys.stateRegistrySettings(orgId) });
     },
   });
 }
