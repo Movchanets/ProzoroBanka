@@ -200,7 +200,7 @@ try
 
     app.Run();
 }
-catch (Exception ex)
+catch (Exception ex) when (ex is not HostAbortedException && ex.GetType().Name != "StopTheHostException")
 {
     Log.Fatal(ex, "Application terminated unexpectedly");
 }
