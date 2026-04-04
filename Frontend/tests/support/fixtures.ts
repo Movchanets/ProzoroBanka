@@ -50,74 +50,74 @@ type AppFixtures = {
 };
 
 export const test = base.extend<AppFixtures>({
-  loginPage: async ({ page }, use) => {
-    await use(new LoginPage(page));
+  loginPage: async ({ page }, finishFixture) => {
+    await finishFixture(new LoginPage(page));
   },
-  dashboardPage: async ({ page }, use) => {
-    await use(new DashboardPage(page));
+  dashboardPage: async ({ page }, finishFixture) => {
+    await finishFixture(new DashboardPage(page));
   },
-  profilePage: async ({ page }, use) => {
-    await use(new ProfilePage(page));
+  profilePage: async ({ page }, finishFixture) => {
+    await finishFixture(new ProfilePage(page));
   },
-  homePage: async ({ page }, use) => {
-    await use(new HomePage(page));
+  homePage: async ({ page }, finishFixture) => {
+    await finishFixture(new HomePage(page));
   },
-  orgPublicPage: async ({ page }, use) => {
-    await use(new OrganizationPublicPage(page));
+  orgPublicPage: async ({ page }, finishFixture) => {
+    await finishFixture(new OrganizationPublicPage(page));
   },
-  campaignPublicPage: async ({ page }, use) => {
-    await use(new CampaignPublicPage(page));
+  campaignPublicPage: async ({ page }, finishFixture) => {
+    await finishFixture(new CampaignPublicPage(page));
   },
-  receiptPublicPage: async ({ page }, use) => {
-    await use(new ReceiptPublicPage(page));
+  receiptPublicPage: async ({ page }, finishFixture) => {
+    await finishFixture(new ReceiptPublicPage(page));
   },
-  publicLayout: async ({ page }, use) => {
-    await use(new PublicLayout(page));
+  publicLayout: async ({ page }, finishFixture) => {
+    await finishFixture(new PublicLayout(page));
   },
-  dashboardReceiptsPage: async ({ page }, use) => {
-    await use(new DashboardReceiptsPage(page));
+  dashboardReceiptsPage: async ({ page }, finishFixture) => {
+    await finishFixture(new DashboardReceiptsPage(page));
   },
-  invitePage: async ({ page }, use) => {
-    await use(new InvitePage(page));
+  invitePage: async ({ page }, finishFixture) => {
+    await finishFixture(new InvitePage(page));
   },
-  campaignsListPage: async ({ page }, use) => {
-    await use(new CampaignsListPage(page));
+  campaignsListPage: async ({ page }, finishFixture) => {
+    await finishFixture(new CampaignsListPage(page));
   },
-  campaignCreatePage: async ({ page }, use) => {
-    await use(new CampaignCreatePage(page));
+  campaignCreatePage: async ({ page }, finishFixture) => {
+    await finishFixture(new CampaignCreatePage(page));
   },
-  campaignDetailPage: async ({ page }, use) => {
-    await use(new CampaignDetailPage(page));
+  campaignDetailPage: async ({ page }, finishFixture) => {
+    await finishFixture(new CampaignDetailPage(page));
   },
-  campaignEditPage: async ({ page }, use) => {
-    await use(new CampaignEditPage(page));
+  campaignEditPage: async ({ page }, finishFixture) => {
+    await finishFixture(new CampaignEditPage(page));
   },
-  dashboardHomePage: async ({ page }, use) => {
-    await use(new DashboardHomePage(page));
+  dashboardHomePage: async ({ page }, finishFixture) => {
+    await finishFixture(new DashboardHomePage(page));
   },
-  orgSettingsPage: async ({ page }, use) => {
-    await use(new OrgSettingsPage(page));
+  orgSettingsPage: async ({ page }, finishFixture) => {
+    await finishFixture(new OrgSettingsPage(page));
   },
-  createOrgDialog: async ({ page }, use) => {
-    await use(new CreateOrgDialog(page));
+  createOrgDialog: async ({ page }, finishFixture) => {
+    await finishFixture(new CreateOrgDialog(page));
   },
-  onboardingPage: async ({ page }, use) => {
-    await use(new OnboardingPage(page));
+  onboardingPage: async ({ page }, finishFixture) => {
+    await finishFixture(new OnboardingPage(page));
   },
-  adminOrganizationsPage: async ({ page }, use) => {
-    await use(new AdminOrganizationsPage(page));
+  adminOrganizationsPage: async ({ page }, finishFixture) => {
+    await finishFixture(new AdminOrganizationsPage(page));
   },
-  adminUsersPage: async ({ page }, use) => {
-    await use(new AdminUsersPage(page));
+  adminUsersPage: async ({ page }, finishFixture) => {
+    await finishFixture(new AdminUsersPage(page));
   },
-  adminRolesPage: async ({ page }, use) => {
-    await use(new AdminRolesPage(page));
+  adminRolesPage: async ({ page }, finishFixture) => {
+    await finishFixture(new AdminRolesPage(page));
   },
-  adminSettingsPage: async ({ page }, use) => {
-    await use(new AdminSettingsPage(page));
+  adminSettingsPage: async ({ page }, finishFixture) => {
+    await finishFixture(new AdminSettingsPage(page));
   },
-  teamPage: async ({ page }, use) => {
-    await use(new TeamPage(page));
+  teamPage: async ({ page }, finishFixture) => {
+    await finishFixture(new TeamPage(page));
   },
 });
 
