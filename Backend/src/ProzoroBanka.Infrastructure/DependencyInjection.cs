@@ -60,7 +60,22 @@ public static class DependencyInjection
         services.AddScoped<ITokenEncryptionService, AesTokenEncryptionService>();
         services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
         services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IEmailNotificationService, SmtpEmailNotificationService>();
+        var emailProvider = (configuration["Email:Provider"] ?? "smtp").Trim().ToLowerInvariant();
+        services.AddHttpClient<ResendEmailNotificationService>((sp, httpClient) =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var baseUrl = config["Email:Resend:BaseUrl"];
+            httpClient.BaseAddress = ResendEmailNotificationService.BuildBaseUri(baseUrl);
+        });
+
+        if (emailProvider == "resend")
+        {
+            services.AddScoped<IEmailNotificationService>(sp => sp.GetRequiredService<ResendEmailNotificationService>());
+        }
+        else
+        {
+            services.AddScoped<IEmailNotificationService, SmtpEmailNotificationService>();
+        }
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
         services.AddScoped<IOrganizationPlanLimitService, OrganizationPlanLimitService>();
         var useOcrExtractionStub = configuration.GetValue<bool?>("Ocr:UseExtractionStub") ?? true; // consistent with OcrOptions binding

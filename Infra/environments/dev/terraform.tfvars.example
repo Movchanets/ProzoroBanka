@@ -13,6 +13,10 @@ container_max_replicas = 1
 container_cpu          = 0.5
 container_memory       = "1Gi"
 
+email_provider         = "smtp"
+email_resend_base_url  = "https://api.resend.com/"
+# email_resend_api_key = "re_xxx"
+
 additional_cors_allowed_origins = [
   "http://localhost:5173",
   "http://localhost:3000"

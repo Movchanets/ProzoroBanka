@@ -210,6 +210,25 @@ variable "email_from_name" {
   description = "Email sender display name used by the backend."
 }
 
+variable "email_provider" {
+  type        = string
+  default     = "smtp"
+  description = "Email provider used by the backend (smtp|resend)."
+}
+
+variable "email_resend_base_url" {
+  type        = string
+  default     = "https://api.resend.com/"
+  description = "Resend API base URL."
+}
+
+variable "email_resend_api_key" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "Resend API key."
+}
+
 variable "email_smtp_host" {
   type        = string
   default     = "smtp.gmail.com"
