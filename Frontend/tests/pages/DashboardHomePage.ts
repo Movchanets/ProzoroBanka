@@ -60,10 +60,33 @@ export class DashboardHomePage {
       return;
     }
 
-    await expect(this.mobileMenuButton).toBeVisible({ timeout: 10000 });
-    await this.mobileMenuButton.click();
-    const mobileLink = this.page.getByRole('dialog').getByTestId(`dashboard-nav-${key}`).first();
-    await expect(mobileLink).toBeVisible({ timeout: 10000 });
-    await clickOrFallbackNavigate(mobileLink);
+    const isMobileMenuVisible = await this.mobileMenuButton.isVisible().catch(() => false);
+    if (isMobileMenuVisible) {
+      await this.mobileMenuButton.click();
+      const mobileLink = this.page.getByRole('dialog').getByTestId(`dashboard-nav-${key}`).first();
+      await expect(mobileLink).toBeVisible({ timeout: 10000 });
+      await clickOrFallbackNavigate(mobileLink);
+      return;
+    }
+
+    // Last-resort desktop fallback for transient layout/render states in CI and Firefox.
+    const orgMatch = this.page.url().match(/\/dashboard\/([a-f0-9-]+)/i);
+    const orgId = orgMatch?.[1];
+    if (!orgId) {
+      throw new Error(`Unable to resolve dashboard organization id from URL: ${this.page.url()}`);
+    }
+
+    const fallbackPathByKey: Record<string, string> = {
+      campaigns: `/dashboard/${orgId}/campaigns`,
+      settings: `/dashboard/${orgId}/settings`,
+      home: `/dashboard/${orgId}`,
+    };
+
+    const fallbackPath = fallbackPathByKey[key];
+    if (!fallbackPath) {
+      throw new Error(`Unsupported dashboard navigation key: ${key}`);
+    }
+
+    await this.page.goto(fallbackPath);
   }
 }

@@ -14,24 +14,29 @@ public class VerifyReceiptHandler : IRequestHandler<VerifyReceiptCommand, Servic
 	private readonly IStateReceiptValidator _validator;
 	private readonly IRegistryCredentialService _credentialService;
 	private readonly IApiKeyDailyQuotaService _quotaService;
+	private readonly IFileStorage _fileStorage;
 
 	public VerifyReceiptHandler(
 		IApplicationDbContext db,
 		IOrganizationAuthorizationService orgAuth,
 		IStateReceiptValidator validator,
 		IRegistryCredentialService credentialService,
-		IApiKeyDailyQuotaService quotaService)
+		IApiKeyDailyQuotaService quotaService,
+		IFileStorage fileStorage)
 	{
 		_db = db;
 		_orgAuth = orgAuth;
 		_validator = validator;
 		_credentialService = credentialService;
 		_quotaService = quotaService;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(VerifyReceiptCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.Receipts.FirstOrDefaultAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
+		var receipt = await _db.Receipts
+			.Include(r => r.ItemPhotos)
+			.FirstOrDefaultAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
 		if (receipt is null)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
 
@@ -107,21 +112,6 @@ public class VerifyReceiptHandler : IRequestHandler<VerifyReceiptCommand, Servic
 
 		await _db.SaveChangesAsync(ct);
 
-		return ServiceResponse<ReceiptPipelineDto>.Success(new ReceiptPipelineDto(
-			receipt.Id,
-			receipt.OriginalFileName,
-			receipt.MerchantName,
-			receipt.TotalAmount,
-			receipt.PurchaseDateUtc,
-			receipt.Status,
-			receipt.PublicationStatus,
-			receipt.VerificationFailureReason,
-			receipt.CreatedAt,
-			receipt.FiscalNumber,
-			receipt.ReceiptCode,
-			receipt.Currency,
-			receipt.PurchasedItemName,
-			receipt.OcrStructuredPayloadJson,
-			receipt.RawOcrJson));
+		return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));
 	}
 }

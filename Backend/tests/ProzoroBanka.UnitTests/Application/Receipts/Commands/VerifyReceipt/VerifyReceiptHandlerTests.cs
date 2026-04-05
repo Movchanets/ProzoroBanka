@@ -82,7 +82,10 @@ public class VerifyReceiptHandlerTests
 		quota.Setup(q => q.TryConsumeAsync(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new QuotaDecision(true, null));
 
-		var handler = new VerifyReceiptHandler(db, orgAuth.Object, validator.Object, credentials.Object, quota.Object);
+		var fileStorage = new Mock<IFileStorage>();
+		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => key);
+
+		var handler = new VerifyReceiptHandler(db, orgAuth.Object, validator.Object, credentials.Object, quota.Object, fileStorage.Object);
 		var result = await handler.Handle(new VerifyReceiptCommand(userId, receiptId, orgId), CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
@@ -120,7 +123,10 @@ public class VerifyReceiptHandlerTests
 		quota.Setup(q => q.TryConsumeAsync(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new QuotaDecision(true, null));
 
-		var handler = new VerifyReceiptHandler(db, orgAuth.Object, validator.Object, credentials.Object, quota.Object);
+		var fileStorage = new Mock<IFileStorage>();
+		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => key);
+
+		var handler = new VerifyReceiptHandler(db, orgAuth.Object, validator.Object, credentials.Object, quota.Object, fileStorage.Object);
 		var result = await handler.Handle(new VerifyReceiptCommand(userId, receiptId, orgId), CancellationToken.None);
 
 		Assert.True(result.IsSuccess);

@@ -10,15 +10,19 @@ namespace ProzoroBanka.Application.Receipts.Commands.RetryReceiptProcessing;
 public class RetryReceiptProcessingHandler : IRequestHandler<RetryReceiptProcessingCommand, ServiceResponse<ReceiptPipelineDto>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IFileStorage _fileStorage;
 
-	public RetryReceiptProcessingHandler(IApplicationDbContext db)
+	public RetryReceiptProcessingHandler(IApplicationDbContext db, IFileStorage fileStorage)
 	{
 		_db = db;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(RetryReceiptProcessingCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.Receipts.FirstOrDefaultAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
+		var receipt = await _db.Receipts
+			.Include(r => r.ItemPhotos)
+			.FirstOrDefaultAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
 		if (receipt is null)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
 
@@ -34,21 +38,6 @@ public class RetryReceiptProcessingHandler : IRequestHandler<RetryReceiptProcess
 		receipt.VerificationFailureReason = null;
 		await _db.SaveChangesAsync(ct);
 
-		return ServiceResponse<ReceiptPipelineDto>.Success(new ReceiptPipelineDto(
-			receipt.Id,
-			receipt.OriginalFileName,
-			receipt.MerchantName,
-			receipt.TotalAmount,
-			receipt.PurchaseDateUtc,
-			receipt.Status,
-			receipt.PublicationStatus,
-			receipt.VerificationFailureReason,
-			receipt.CreatedAt,
-			receipt.FiscalNumber,
-			receipt.ReceiptCode,
-			receipt.Currency,
-			receipt.PurchasedItemName,
-			receipt.OcrStructuredPayloadJson,
-			receipt.RawOcrJson));
+		return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));
 	}
 }

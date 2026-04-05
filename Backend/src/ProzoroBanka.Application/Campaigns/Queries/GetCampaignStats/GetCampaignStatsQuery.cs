@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Campaigns.DTOs;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Domain.Enums;
@@ -40,16 +41,19 @@ public class GetCampaignStatsHandler
 		if (!isMember)
 			return ServiceResponse<CampaignStatsDto>.Failure("Немає доступу до організації");
 
-		var memberIds = await _db.OrganizationMembers
+		var campaignIds = await _db.Campaigns
 			.AsNoTracking()
-			.Where(m => m.OrganizationId == request.OrganizationId && !m.IsDeleted)
-			.Select(m => m.UserId)
+			.Where(c => c.OrganizationId == request.OrganizationId)
+			.Select(c => c.Id)
 			.ToListAsync(cancellationToken);
 
 		var totalDocumented = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.StateVerified)
+			.Where(r => r.CampaignId.HasValue
+				&& campaignIds.Contains(r.CampaignId.Value)
+				&& r.Status == ReceiptStatus.StateVerified)
 			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
+		var totalDocumentedMinorUnits = MoneyConversion.ToMinorUnits(totalDocumented);
 
 		var stats = await _db.Campaigns
 			.AsNoTracking()
@@ -66,10 +70,10 @@ public class GetCampaignStatsHandler
 		if (stats is null)
 			return ServiceResponse<CampaignStatsDto>.Success(new CampaignStatsDto(0, 0, 0, 0, 0));
 
-		var boundedDocumented = Math.Min(stats.TotalRaised, totalDocumented);
+		var boundedDocumented = Math.Min(stats.TotalRaised, totalDocumentedMinorUnits);
 		var documentationPercent = stats.TotalRaised <= 0
 			? 0
-			: Math.Min(100, (double)(boundedDocumented / stats.TotalRaised * 100));
+			: Math.Min(100, (double)boundedDocumented / stats.TotalRaised * 100);
 
 		return ServiceResponse<CampaignStatsDto>.Success(
 			new CampaignStatsDto(

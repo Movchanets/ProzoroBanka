@@ -63,15 +63,15 @@ public class CreateCampaignHandlerTests
 
 		var handler = new CreateCampaignHandler(db, orgAuth.Object, planLimitService.Object, fileStorage.Object);
 		var result = await handler.Handle(
-			new CreateCampaignCommand(userId, orgId, "Збір на допомогу", "Опис збору", 10000m, null, "https://send.monobank.ua/jar/test"),
+			new CreateCampaignCommand(userId, orgId, "Збір на допомогу", "Опис збору", 10000, null, "https://send.monobank.ua/jar/test"),
 			CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
 		Assert.NotNull(result.Payload);
 		Assert.Equal("Збір на допомогу", result.Payload.Title);
 		Assert.Equal(CampaignStatus.Draft, result.Payload.Status);
-		Assert.Equal(10000m, result.Payload.GoalAmount);
-		Assert.Equal(0m, result.Payload.CurrentAmount);
+		Assert.Equal(10000, result.Payload.GoalAmount);
+		Assert.Equal(0, result.Payload.CurrentAmount);
 		Assert.Equal("https://send.monobank.ua/jar/test", result.Payload.SendUrl);
 	}
 
@@ -88,7 +88,7 @@ public class CreateCampaignHandlerTests
 
 		var handler = new CreateCampaignHandler(db, orgAuth.Object, planLimitService.Object, fileStorage.Object);
 		var result = await handler.Handle(
-			new CreateCampaignCommand(userId, fakeOrgId, "Test", null, 5000m, null, null),
+			new CreateCampaignCommand(userId, fakeOrgId, "Test", null, 5000, null, null),
 			CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
@@ -110,7 +110,7 @@ public class CreateCampaignHandlerTests
 
 		var handler = new CreateCampaignHandler(db, orgAuth.Object, planLimitService.Object, fileStorage.Object);
 		var result = await handler.Handle(
-			new CreateCampaignCommand(userId, orgId, "Test", null, 5000m, null, null),
+			new CreateCampaignCommand(userId, orgId, "Test", null, 5000, null, null),
 			CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
@@ -135,7 +135,7 @@ public class CreateCampaignHandlerTests
 
 		var handler = new CreateCampaignHandler(db, orgAuth.Object, planLimitService.Object, fileStorage.Object);
 		var result = await handler.Handle(
-			new CreateCampaignCommand(userId, orgId, "Test", null, 5000m, null, null),
+			new CreateCampaignCommand(userId, orgId, "Test", null, 5000, null, null),
 			CancellationToken.None);
 
 		Assert.False(result.IsSuccess);

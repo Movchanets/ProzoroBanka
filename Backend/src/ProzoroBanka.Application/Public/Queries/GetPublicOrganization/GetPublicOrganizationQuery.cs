@@ -40,7 +40,7 @@ public class GetPublicOrganizationHandler : IRequestHandler<GetPublicOrganizatio
 				MemberCount = o.Members.Count,
 				ActiveCampaignCount = o.Campaigns.Count(c => c.Status == CampaignStatus.Active),
 				TotalRaised = o.Campaigns.Where(c => c.Status != CampaignStatus.Draft)
-					.Sum(c => (decimal?)c.CurrentAmount) ?? 0m
+					.Sum(c => (long?)c.CurrentAmount) ?? 0L
 			})
 			.FirstOrDefaultAsync(cancellationToken);
 

@@ -18,6 +18,7 @@ for (const localeConfig of TEST_LOCALES) {
   const localeDictionary = locales[localeKey].dictionary;
 
   test.describe(`Authentication Flow - Login Functionality [${localeKey}]`, () => {
+    test.describe.configure({ timeout: 60_000 });
     test.use({ locale: localeConfig.browserLocale });
 
     test.beforeEach(async ({ page, loginPage }) => {

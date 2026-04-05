@@ -49,15 +49,11 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 		if (campaign is null)
 			return ServiceResponse<PublicCampaignDetailDto>.Failure("Збір не знайдено");
 
-		var memberIds = await _db.OrganizationMembers
-			.AsNoTracking()
-			.Where(m => m.OrganizationId == campaign.OrganizationId)
-			.Select(m => m.UserId)
-			.ToListAsync(cancellationToken);
-
 		var latestReceipts = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.StateVerified)
+			.Where(r => r.CampaignId == campaign.Id
+				&& r.Status == ReceiptStatus.StateVerified
+				&& r.PublicationStatus == ReceiptPublicationStatus.Active)
 			.OrderByDescending(r => r.TransactionDate ?? r.CreatedAt)
 			.Take(3)
 			.Select(r => new PublicReceiptDto(
@@ -70,17 +66,19 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 
 		var progress = campaign.GoalAmount <= 0
 			? 0
-			: Math.Min(100, (double)(campaign.CurrentAmount / campaign.GoalAmount * 100));
+			: Math.Min(100, (double)campaign.CurrentAmount / campaign.GoalAmount * 100);
 
 		var totalDocumented = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.StateVerified)
+			.Where(r => r.CampaignId == campaign.Id
+				&& r.Status == ReceiptStatus.StateVerified
+				&& r.PublicationStatus == ReceiptPublicationStatus.Active)
 			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
+		var documentedAmount = MoneyConversion.ToMinorUnits(totalDocumented);
 
-		var documentedAmount = Math.Min(campaign.CurrentAmount, totalDocumented);
 		var documentationPercent = campaign.GoalAmount <= 0
 			? 0
-			: Math.Min(100, (double)(documentedAmount / campaign.GoalAmount * 100));
+			: Math.Min(100, (double)documentedAmount / campaign.GoalAmount * 100);
 
 		int? daysRemaining = null;
 		if (campaign.Deadline.HasValue)

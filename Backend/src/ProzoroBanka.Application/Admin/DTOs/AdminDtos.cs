@@ -22,7 +22,7 @@ public record AdminOrganizationDto(
 	string OwnerEmail,
 	int MemberCount,
 	int CampaignCount,
-	decimal TotalRaised,
+	long TotalRaised,
 	DateTime CreatedAt,
 	OrganizationPlanType PlanType);
 
@@ -43,8 +43,8 @@ public record AdminCampaignDto(
 	string Title,
 	string? Description,
 	string? CoverImageUrl,
-	decimal GoalAmount,
-	decimal CurrentAmount,
+	long GoalAmount,
+	long CurrentAmount,
 	string? SendUrl,
 	CampaignStatus Status,
 	DateTime? StartDate,

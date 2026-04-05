@@ -30,6 +30,7 @@ public class ApplicationDbContext
 	public DbSet<OrganizationStateRegistryCredential> OrganizationStateRegistryCredentials => Set<OrganizationStateRegistryCredential>();
 	public DbSet<Invitation> Invitations => Set<Invitation>();
 	public DbSet<Receipt> Receipts => Set<Receipt>();
+	public DbSet<ReceiptItemPhoto> ReceiptItemPhotos => Set<ReceiptItemPhoto>();
 	public DbSet<MonobankTransaction> MonobankTransactions => Set<MonobankTransaction>();
 	public DbSet<MatchResult> MatchResults => Set<MatchResult>();
 	public DbSet<Campaign> Campaigns => Set<Campaign>();
@@ -193,9 +194,11 @@ public class ApplicationDbContext
 		{
 			b.ToTable("Receipts");
 			b.HasKey(e => e.Id);
+			b.HasIndex(e => e.CampaignId);
 			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
 			b.Property(e => e.ReceiptImageStorageKey).HasMaxLength(512);
 			b.Property(e => e.OriginalFileName).HasMaxLength(256).IsRequired();
+			b.Property(e => e.Alias).HasMaxLength(160);
 			b.Property(e => e.MerchantName).HasMaxLength(256);
 			b.Property(e => e.RegistryType).HasConversion<int?>();
 			b.Property(e => e.FiscalNumber).HasMaxLength(128);
@@ -206,6 +209,27 @@ public class ApplicationDbContext
 			b.Property(e => e.PublicationStatus).HasConversion<int>();
 			b.Property(e => e.StateVerificationReference).HasMaxLength(256);
 			b.Property(e => e.VerificationFailureReason).HasMaxLength(1024);
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.Campaign)
+				.WithMany(c => c.Receipts)
+				.HasForeignKey(e => e.CampaignId)
+				.OnDelete(DeleteBehavior.SetNull);
+
+			b.HasMany(e => e.ItemPhotos)
+				.WithOne(p => p.Receipt)
+				.HasForeignKey(p => p.ReceiptId)
+				.OnDelete(DeleteBehavior.Cascade);
+		});
+
+		builder.Entity<ReceiptItemPhoto>(b =>
+		{
+			b.ToTable("ReceiptItemPhotos");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
+			b.Property(e => e.OriginalFileName).HasMaxLength(256).IsRequired();
+			b.HasIndex(e => e.ReceiptId);
+			b.HasIndex(e => new { e.ReceiptId, e.SortOrder });
 			b.HasQueryFilter(e => !e.IsDeleted);
 		});
 
@@ -266,8 +290,6 @@ public class ApplicationDbContext
 			b.Property(e => e.Title).HasMaxLength(300).IsRequired();
 			b.Property(e => e.Description).HasMaxLength(5000);
 			b.Property(e => e.CoverImageStorageKey).HasMaxLength(512);
-			b.Property(e => e.GoalAmount).HasPrecision(18, 2);
-			b.Property(e => e.CurrentAmount).HasPrecision(18, 2);
 			b.Property(e => e.Status).HasConversion<int>();
 			b.Property(e => e.MonobankAccountId).HasMaxLength(128);
 			b.Property(e => e.SendUrl).HasMaxLength(512);
@@ -297,7 +319,6 @@ public class ApplicationDbContext
 			b.Property(e => e.ExternalTransactionId).HasMaxLength(128).IsRequired();
 			b.HasIndex(e => new { e.CampaignId, e.ExternalTransactionId }).IsUnique();
 			b.HasIndex(e => new { e.CampaignId, e.TransactionTimeUtc });
-			b.Property(e => e.Amount).HasPrecision(18, 2);
 			b.Property(e => e.Description).HasMaxLength(512);
 			b.Property(e => e.Source).HasConversion<int>();
 			b.Property(e => e.ProviderPayloadHash).HasMaxLength(128);

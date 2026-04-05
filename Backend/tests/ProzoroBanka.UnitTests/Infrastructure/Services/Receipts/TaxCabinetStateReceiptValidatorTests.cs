@@ -85,6 +85,52 @@ public class TaxCabinetStateReceiptValidatorTests
 		Assert.Contains("disabled", result.FailureReason, StringComparison.OrdinalIgnoreCase);
 	}
 
+	[Fact]
+	public async Task ValidateFiscalAsync_WhenDisabledAndVerifyWhenDisabledEnabled_ReturnsVerified()
+	{
+		var options = Options.Create(new StateValidatorOptions
+		{
+			Enabled = false,
+			VerifyWhenDisabled = true
+		});
+
+		using var httpClient = new HttpClient(new StubHttpMessageHandler(_ => throw new InvalidOperationException("Should not be called")))
+		{
+			BaseAddress = new Uri("https://cabinet.tax.gov.ua")
+		};
+
+		var sut = new TaxCabinetStateReceiptValidator(httpClient, options);
+
+		var result = await sut.ValidateFiscalAsync("123456", "token-abc", CancellationToken.None);
+
+		Assert.True(result.IsVerified);
+		Assert.Equal("123456", result.VerificationReference);
+		Assert.Null(result.FailureReason);
+	}
+
+	[Fact]
+	public async Task ValidateBankTransferAsync_WhenDisabledAndVerifyWhenDisabledEnabled_ReturnsVerified()
+	{
+		var options = Options.Create(new StateValidatorOptions
+		{
+			Enabled = false,
+			VerifyWhenDisabled = true
+		});
+
+		using var httpClient = new HttpClient(new StubHttpMessageHandler(_ => throw new InvalidOperationException("Should not be called")))
+		{
+			BaseAddress = new Uri("https://cabinet.tax.gov.ua")
+		};
+
+		var sut = new TaxCabinetStateReceiptValidator(httpClient, options);
+
+		var result = await sut.ValidateBankTransferAsync("34554355", "token-abc", CancellationToken.None);
+
+		Assert.True(result.IsVerified);
+		Assert.Equal("34554355", result.VerificationReference);
+		Assert.Null(result.FailureReason);
+	}
+
 	private sealed class StubHttpMessageHandler : HttpMessageHandler
 	{
 		private readonly Func<HttpRequestMessage, HttpResponseMessage> _responseFactory;

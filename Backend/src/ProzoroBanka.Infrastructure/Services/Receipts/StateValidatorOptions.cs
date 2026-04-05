@@ -5,6 +5,7 @@ public class StateValidatorOptions
 	public const string SectionName = "StateValidator";
 
 	public bool Enabled { get; set; }
+	public bool VerifyWhenDisabled { get; set; }
 	public int DailyLimitPerToken { get; set; } = 900;
 	public string BaseUrl { get; set; } = "https://cabinet.tax.gov.ua";
 	public int TimeoutSeconds { get; set; } = 20;

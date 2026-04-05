@@ -8,6 +8,8 @@ import { CampaignPublicPage } from '../pages/CampaignPublicPage';
 import { ReceiptPublicPage } from '../pages/ReceiptPublicPage';
 import { PublicLayout } from '../pages/PublicLayout';
 import { DashboardReceiptsPage } from '../pages/DashboardReceiptsPage';
+import { ReceiptsListPage } from '../pages/ReceiptsListPage';
+import { ReceiptDetailPage } from '../pages/ReceiptDetailPage';
 import { InvitePage } from '../pages/InvitePage';
 import { CampaignsListPage } from '../pages/CampaignsListPage';
 import { CampaignCreatePage } from '../pages/CampaignCreatePage';
@@ -33,6 +35,8 @@ type AppFixtures = {
   receiptPublicPage: ReceiptPublicPage;
   publicLayout: PublicLayout;
   dashboardReceiptsPage: DashboardReceiptsPage;
+  receiptsListPage: ReceiptsListPage;
+  receiptDetailPage: ReceiptDetailPage;
   invitePage: InvitePage;
   campaignsListPage: CampaignsListPage;
   campaignCreatePage: CampaignCreatePage;
@@ -76,6 +80,12 @@ export const test = base.extend<AppFixtures>({
   },
   dashboardReceiptsPage: async ({ page }, finishFixture) => {
     await finishFixture(new DashboardReceiptsPage(page));
+  },
+  receiptsListPage: async ({ page }, finishFixture) => {
+    await finishFixture(new ReceiptsListPage(page));
+  },
+  receiptDetailPage: async ({ page }, finishFixture) => {
+    await finishFixture(new ReceiptDetailPage(page));
   },
   invitePage: async ({ page }, finishFixture) => {
     await finishFixture(new InvitePage(page));

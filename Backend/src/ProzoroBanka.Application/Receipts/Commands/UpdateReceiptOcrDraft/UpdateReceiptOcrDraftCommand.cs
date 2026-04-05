@@ -7,6 +7,7 @@ namespace ProzoroBanka.Application.Receipts.Commands.UpdateReceiptOcrDraft;
 public record UpdateReceiptOcrDraftCommand(
 	Guid CallerDomainUserId,
 	Guid ReceiptId,
+	string? Alias,
 	string? MerchantName,
 	decimal? TotalAmount,
 	DateTime? PurchaseDateUtc,

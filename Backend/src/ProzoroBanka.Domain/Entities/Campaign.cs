@@ -15,14 +15,14 @@ public class Campaign : BaseEntity
 	public string? CoverImageStorageKey { get; set; }
 
 	/// <summary>
-	/// Фінансова ціль збору (грн).
+	/// Фінансова ціль збору (копійки).
 	/// </summary>
-	public decimal GoalAmount { get; set; }
+	public long GoalAmount { get; set; }
 
 	/// <summary>
-	/// Поточна зібрана сума (грн). Оновлюється вручну (Фаза 3) або через sync (Фаза 07).
+	/// Поточна зібрана сума (копійки). Оновлюється вручну (Фаза 3) або через sync (Фаза 07).
 	/// </summary>
-	public decimal CurrentAmount { get; set; }
+	public long CurrentAmount { get; set; }
 
 	public CampaignStatus Status { get; set; } = CampaignStatus.Draft;
 	public DateTime? StartDate { get; set; }
@@ -42,4 +42,5 @@ public class Campaign : BaseEntity
 	public Organization Organization { get; set; } = null!;
 	public User CreatedBy { get; set; } = null!;
 	public ICollection<CampaignTransaction> Transactions { get; set; } = new List<CampaignTransaction>();
+	public ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
 }

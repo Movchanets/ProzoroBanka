@@ -78,7 +78,10 @@ public class ExtractReceiptDataHandlerTests
 				"{\"merchant\":\"ATB\"}",
 				null));
 
-		var handler = new ExtractReceiptDataHandler(db, orgAuth.Object, extraction.Object, quota.Object);
+		var fileStorage = new Mock<IFileStorage>();
+		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => key);
+
+		var handler = new ExtractReceiptDataHandler(db, orgAuth.Object, extraction.Object, quota.Object, fileStorage.Object);
 		await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
 
 		var result = await handler.Handle(new ExtractReceiptDataCommand(userId, receiptId, stream, "receipt.png", orgId), CancellationToken.None);
@@ -110,7 +113,9 @@ public class ExtractReceiptDataHandlerTests
 			.ReturnsAsync(true);
 
 		var extraction = new Mock<IReceiptStructuredExtractionService>();
-		var handler = new ExtractReceiptDataHandler(db, orgAuth.Object, extraction.Object, quota.Object);
+		var fileStorage = new Mock<IFileStorage>();
+		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => key);
+		var handler = new ExtractReceiptDataHandler(db, orgAuth.Object, extraction.Object, quota.Object, fileStorage.Object);
 		await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
 
 		var result = await handler.Handle(new ExtractReceiptDataCommand(userId, receiptId, stream, "receipt.png", orgId), CancellationToken.None);

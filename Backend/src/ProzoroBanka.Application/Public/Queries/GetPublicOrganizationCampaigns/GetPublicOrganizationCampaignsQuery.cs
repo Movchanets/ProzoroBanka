@@ -50,24 +50,36 @@ public class GetPublicOrganizationCampaignsHandler
 		if (request.Status.HasValue)
 			query = query.Where(c => c.Status == request.Status.Value);
 
-		var memberIds = await _db.OrganizationMembers
-			.AsNoTracking()
-			.Where(m => m.OrganizationId == org.Id && !m.IsDeleted)
-			.Select(m => m.UserId)
-			.ToListAsync(cancellationToken);
-
-		var orgDocumentedAmount = await _db.Receipts
-			.AsNoTracking()
-			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.StateVerified)
-			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
-
 		var totalCount = await query.CountAsync(cancellationToken);
-		var campaigns = await query
+		var campaignRows = await query
 			.OrderByDescending(c => c.Status == CampaignStatus.Active)
 			.ThenByDescending(c => c.CreatedAt)
 			.Skip((page - 1) * pageSize)
 			.Take(pageSize)
-			.Select(c => new PublicCampaignDto(
+			.Select(c => new
+			{
+				c.Id,
+				c.Title,
+				c.Description,
+				c.CoverImageStorageKey,
+				c.SendUrl,
+				c.GoalAmount,
+				c.CurrentAmount,
+				DocumentedAmountRaw = _db.Receipts
+					.Where(r => r.CampaignId == c.Id
+						&& r.Status == ReceiptStatus.StateVerified
+						&& r.PublicationStatus == ReceiptPublicationStatus.Active)
+					.Sum(r => (decimal?)r.TotalAmount) ?? 0m,
+				c.Status,
+				c.StartDate,
+				c.Deadline,
+				ReceiptCount = _db.Receipts.Count(r => r.CampaignId == c.Id
+					&& r.Status == ReceiptStatus.StateVerified
+					&& r.PublicationStatus == ReceiptPublicationStatus.Active)
+			})
+			.ToListAsync(cancellationToken);
+
+		var campaigns = campaignRows.Select(c => new PublicCampaignDto(
 				c.Id,
 				c.Title,
 				c.Description,
@@ -75,18 +87,18 @@ public class GetPublicOrganizationCampaignsHandler
 				c.SendUrl,
 				c.GoalAmount,
 				c.CurrentAmount,
-				Math.Min(c.CurrentAmount, orgDocumentedAmount),
+				Math.Min(c.CurrentAmount, MoneyConversion.ToMinorUnits(c.DocumentedAmountRaw)),
 				c.GoalAmount <= 0
 					? 0
-					: Math.Min(100, (double)(Math.Min(c.CurrentAmount, orgDocumentedAmount) / c.GoalAmount * 100)),
+					: Math.Min(100, (double)Math.Min(c.CurrentAmount, MoneyConversion.ToMinorUnits(c.DocumentedAmountRaw)) / c.GoalAmount * 100),
 				c.Status,
 				c.StartDate,
 				c.Deadline,
-				0,
+				c.ReceiptCount,
 				org.Name,
 				org.Slug,
 				org.IsVerified))
-			.ToListAsync(cancellationToken);
+			.ToList();
 
 		return ServiceResponse<PublicListResponse<PublicCampaignDto>>.Success(
 			new PublicListResponse<PublicCampaignDto>(campaigns, page, pageSize, totalCount));

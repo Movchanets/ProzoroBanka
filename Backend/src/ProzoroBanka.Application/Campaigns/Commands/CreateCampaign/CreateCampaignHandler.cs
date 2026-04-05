@@ -69,6 +69,6 @@ public class CreateCampaignHandler : IRequestHandler<CreateCampaignCommand, Serv
 			StorageUrlResolver.Resolve(_fileStorage, campaign.CoverImageStorageKey),
 			campaign.GoalAmount, campaign.CurrentAmount, 0, 0, 0,
 			campaign.Status, campaign.StartDate, campaign.Deadline,
-			campaign.MonobankAccountId, campaign.SendUrl, campaign.CreatedAt));
+			campaign.MonobankAccountId, campaign.SendUrl, 0, campaign.CreatedAt));
 	}
 }

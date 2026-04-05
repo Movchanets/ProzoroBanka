@@ -41,21 +41,6 @@ public class UploadReceiptDraftHandler : IRequestHandler<UploadReceiptDraftComma
 		_db.Receipts.Add(receipt);
 		await _db.SaveChangesAsync(ct);
 
-		return ServiceResponse<ReceiptPipelineDto>.Success(new ReceiptPipelineDto(
-			receipt.Id,
-			receipt.OriginalFileName,
-			receipt.MerchantName,
-			receipt.TotalAmount,
-			receipt.PurchaseDateUtc,
-			receipt.Status,
-			receipt.PublicationStatus,
-			receipt.VerificationFailureReason,
-			receipt.CreatedAt,
-			receipt.FiscalNumber,
-			receipt.ReceiptCode,
-			receipt.Currency,
-			receipt.PurchasedItemName,
-			receipt.OcrStructuredPayloadJson,
-			receipt.RawOcrJson));
+		return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));
 	}
 }

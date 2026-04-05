@@ -23,7 +23,8 @@ const CampaignsListPage = lazy(() => import('./pages/Dashboard/CampaignsListPage
 const CampaignCreatePage = lazy(() => import('./pages/Dashboard/CampaignCreatePage'));
 const CampaignEditPage = lazy(() => import('./pages/Dashboard/CampaignEditPage'));
 const CampaignDetailPage = lazy(() => import('./pages/Dashboard/CampaignDetailPage'));
-const ReceiptsPlaceholderPage = lazy(() => import('./pages/Dashboard/ReceiptsPlaceholderPage'));
+const ReceiptsListPage = lazy(() => import('./pages/Dashboard/ReceiptsListPage'));
+const ReceiptDetailPage = lazy(() => import('./pages/Dashboard/ReceiptDetailPage'));
 const InvitePage = lazy(() => import('./pages/Invite/InvitePage'));
 const HomePage = lazy(() => import('./pages/Home/HomePage'));
 const PublicOrganizationPage = lazy(() => import('./pages/PublicOrganization/PublicOrganizationPage'));
@@ -146,7 +147,9 @@ function App() {
               <Route path="campaigns/new" element={<CampaignCreatePage />} />
               <Route path="campaigns/:campaignId" element={<CampaignDetailPage />} />
               <Route path="campaigns/:campaignId/edit" element={<CampaignEditPage />} />
-              <Route path="receipts" element={<ReceiptsPlaceholderPage />} />
+              <Route path="receipts" element={<ReceiptsListPage />} />
+              <Route path="receipts/new" element={<ReceiptDetailPage />} />
+              <Route path="receipts/:receiptId" element={<ReceiptDetailPage />} />
             </Route>
 
             {/* Admin routes */}

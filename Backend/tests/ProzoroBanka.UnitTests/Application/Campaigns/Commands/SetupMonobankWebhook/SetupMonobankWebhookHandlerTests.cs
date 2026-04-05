@@ -45,7 +45,7 @@ public class SetupMonobankWebhookHandlerTests
 			OrganizationId = orgId,
 			CreatedByUserId = userId,
 			Title = "Test Campaign",
-			GoalAmount = 50000m,
+			GoalAmount = 50000,
 			Status = CampaignStatus.Active
 		};
 		db.Campaigns.Add(campaign);
@@ -88,8 +88,8 @@ public class SetupMonobankWebhookHandlerTests
 		var updated = await db.Campaigns.FindAsync(campaignId);
 		Assert.Equal("jar-123", updated!.MonobankAccountId);
 		Assert.Equal("https://send.monobank.ua/jar/6iKLHCZxKF", updated.SendUrl);
-		Assert.Equal(12345m, updated.CurrentAmount);
-		Assert.Equal(50000m, updated.GoalAmount);
+		Assert.Equal(12345, updated.CurrentAmount);
+		Assert.Equal(50000, updated.GoalAmount);
 
 		// Verify token was used only for stateless Monobank calls
 		monobank.Verify(x => x.GetClientInfoAsync("test-token", It.IsAny<CancellationToken>()), Times.Once);
@@ -130,7 +130,7 @@ public class SetupMonobankWebhookHandlerTests
 		var updated = await db.Campaigns.FindAsync(campaignId);
 		Assert.Null(updated!.MonobankAccountId);
 		Assert.Null(updated.SendUrl);
-		Assert.Equal(0m, updated.CurrentAmount);
+		Assert.Equal(0, updated.CurrentAmount);
 	}
 
 	[Fact]
@@ -165,7 +165,7 @@ public class SetupMonobankWebhookHandlerTests
 		var updated = await db.Campaigns.FindAsync(campaignId);
 		Assert.Null(updated!.MonobankAccountId);
 		Assert.Null(updated.SendUrl);
-		Assert.Equal(0m, updated.CurrentAmount);
+		Assert.Equal(0, updated.CurrentAmount);
 
 		monobank.Verify(x => x.RegisterWebhookAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
 	}

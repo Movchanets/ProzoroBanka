@@ -49,6 +49,8 @@ export type ReceiptPublicationStatus = typeof ReceiptPublicationStatus[keyof typ
 export interface ReceiptPipeline {
   id: string;
   originalFileName: string;
+  receiptImageUrl?: string;
+  alias?: string;
   merchantName?: string;
   totalAmount?: number;
   purchaseDateUtc?: string;
@@ -56,15 +58,40 @@ export interface ReceiptPipeline {
   publicationStatus: ReceiptPublicationStatus;
   verificationFailureReason?: string;
   createdAt: string;
+  campaignId?: string;
+  campaignTitle?: string;
   fiscalNumber?: string;
   receiptCode?: string;
   currency?: string;
   purchasedItemName?: string;
+  itemPhotos?: ReceiptItemPhoto[];
   ocrStructuredPayloadJson?: string;
   rawOcrJson?: string;
 }
 
+export interface ReceiptListItem {
+  id: string;
+  originalFileName: string;
+  alias?: string;
+  merchantName?: string;
+  totalAmount?: number;
+  purchaseDateUtc?: string;
+  status: ReceiptStatus;
+  publicationStatus: ReceiptPublicationStatus;
+  campaignId?: string;
+  campaignTitle?: string;
+  createdAt: string;
+}
+
+export interface ReceiptItemPhoto {
+  id: string;
+  originalFileName: string;
+  photoUrl: string;
+  sortOrder: number;
+}
+
 export interface UpdateReceiptOcrDraftRequest {
+  alias?: string;
   merchantName?: string;
   totalAmount?: number | null;
   purchaseDateUtc?: string | null;
@@ -73,6 +100,10 @@ export interface UpdateReceiptOcrDraftRequest {
   currency?: string;
   purchasedItemName?: string;
   ocrStructuredPayloadJson?: string;
+}
+
+export interface ReorderReceiptItemPhotosRequest {
+  photoIds: string[];
 }
 
 export interface MonobankTransaction {

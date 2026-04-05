@@ -317,8 +317,8 @@ public class UserServiceTests
 				CreatedByUserId = deletedDomainUserId,
 				Title = "Deletion Regression Campaign",
 				Description = "Campaign linked to deleting user",
-				GoalAmount = 10000m,
-				CurrentAmount = 2500m,
+				GoalAmount = 10000,
+				CurrentAmount = 2500,
 				Status = CampaignStatus.Active
 			});
 

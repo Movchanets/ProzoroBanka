@@ -2,10 +2,11 @@ import { test, expect } from './support/fixtures';
 import { t, setTestLanguage } from './support/i18n';
 import {
   createOrganizationForCurrentSession,
-  loginViaUi,
+  loginViaApi,
   registerAndSetAuthStorage,
   createOrganizationViaApi,
-  getAccessTokenFromAuthStorage,
+  setAuthStorage,
+  type AuthResponse,
 } from './support/e2e-auth';
 import type { OnboardingPage } from './pages/OnboardingPage';
 
@@ -15,9 +16,13 @@ const VALID_PASSWORD = process.env.E2E_PASSWORD ?? 'Qwerty-1';
 test.describe.configure({ timeout: 60_000 });
 
 async function loginAs(page: import('@playwright/test').Page) {
-  await loginViaUi(page, VALID_EMAIL, VALID_PASSWORD, {
-    expectedUrlPattern: /.*\/(onboarding|dashboard).*/,
-  });
+  await setTestLanguage(page, 'uk');
+
+  const auth = await loginViaApi(page.request, VALID_EMAIL, VALID_PASSWORD);
+  await setAuthStorage(page, auth);
+
+  await page.goto('/dashboard');
+  await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10_000 });
 }
 
 async function registerFreshUser(page: import('@playwright/test').Page) {
@@ -214,12 +219,19 @@ test.describe('Dashboard — Organization Creation', () => {
 
 test.describe('Dashboard — Organization Settings', () => {
   let orgId: string;
+  let adminAuth: AuthResponse;
+
+  test.beforeAll(async ({ request }) => {
+    adminAuth = await loginViaApi(request, VALID_EMAIL, VALID_PASSWORD);
+  });
 
   test.beforeEach(async ({ page, orgSettingsPage }) => {
-    await loginAs(page);
+    await setTestLanguage(page, 'uk');
+    await setAuthStorage(page, adminAuth);
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10_000 });
 
-    const token = await getAccessTokenFromAuthStorage(page);
-    orgId = await createOrganizationViaApi(page.request, token, `Settings Test ${Date.now()}`);
+    orgId = await createOrganizationViaApi(page.request, adminAuth.accessToken, `Settings Test ${Date.now()}`);
 
     await orgSettingsPage.goto(orgId);
     await expect(page).toHaveURL(/.*\/settings/);

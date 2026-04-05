@@ -8,6 +8,7 @@ namespace ProzoroBanka.Domain.Entities;
 public class Receipt : BaseEntity
 {
     public Guid UserId { get; set; }
+    public Guid? CampaignId { get; set; }
 
     /// <summary>
     /// Ключ у сховищі (storage key), а не публічний URL.
@@ -28,6 +29,7 @@ public class Receipt : BaseEntity
     /// Оригінальне ім'я файлу.
     /// </summary>
     public string OriginalFileName { get; set; } = string.Empty;
+    public string? Alias { get; set; }
 
     public string? MerchantName { get; set; }
     public RegistryReceiptType? RegistryType { get; set; }
@@ -50,4 +52,6 @@ public class Receipt : BaseEntity
 
     // ── Navigation ──
     public User User { get; set; } = null!;
+    public Campaign? Campaign { get; set; }
+    public ICollection<ReceiptItemPhoto> ItemPhotos { get; set; } = new List<ReceiptItemPhoto>();
 }

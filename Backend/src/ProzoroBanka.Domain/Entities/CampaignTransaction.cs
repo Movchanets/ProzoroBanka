@@ -16,9 +16,9 @@ public class CampaignTransaction : BaseEntity
 	public string ExternalTransactionId { get; set; } = string.Empty;
 
 	/// <summary>
-	/// Сума у гривнях (UAH).
+	/// Сума в копійках (minor units).
 	/// </summary>
-	public decimal Amount { get; set; }
+	public long Amount { get; set; }
 
 	/// <summary>
 	/// Коментар донора або опис транзакції.

@@ -29,7 +29,7 @@ public class GetPublicCampaignReceiptsHandler
 		var campaign = await _db.Campaigns
 			.AsNoTracking()
 			.Where(c => c.Id == request.CampaignId && c.Status != CampaignStatus.Draft)
-			.Select(c => new { c.OrganizationId })
+			.Select(c => new { c.Id })
 			.FirstOrDefaultAsync(cancellationToken);
 
 		if (campaign is null)
@@ -38,15 +38,11 @@ public class GetPublicCampaignReceiptsHandler
 		var page = Math.Max(1, request.Page);
 		var pageSize = Math.Clamp(request.PageSize, 1, 50);
 
-		var memberIds = await _db.OrganizationMembers
-			.AsNoTracking()
-			.Where(m => m.OrganizationId == campaign.OrganizationId)
-			.Select(m => m.UserId)
-			.ToListAsync(cancellationToken);
-
 		var receiptsQuery = _db.Receipts
 			.AsNoTracking()
-			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.StateVerified)
+			.Where(r => r.CampaignId == campaign.Id
+				&& r.Status == ReceiptStatus.StateVerified
+				&& r.PublicationStatus == ReceiptPublicationStatus.Active)
 			.AsQueryable();
 
 		var totalCount = await receiptsQuery.CountAsync(cancellationToken);

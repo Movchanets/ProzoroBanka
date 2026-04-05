@@ -9,7 +9,7 @@ namespace ProzoroBanka.Application.Campaigns.Commands.UpdateCampaignBalance;
 public record UpdateCampaignBalanceCommand(
 	Guid CallerDomainUserId,
 	Guid CampaignId,
-	decimal NewCurrentAmount,
+	long NewCurrentAmount,
 	string? Reason) : IRequest<ServiceResponse>, ICacheInvalidatingCommand
 {
 	public IEnumerable<string> CacheTags => [CacheTag.Campaigns];

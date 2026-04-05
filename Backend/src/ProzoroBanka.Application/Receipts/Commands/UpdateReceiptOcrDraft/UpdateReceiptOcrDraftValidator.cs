@@ -9,6 +9,7 @@ public class UpdateReceiptOcrDraftValidator : AbstractValidator<UpdateReceiptOcr
 	{
 		RuleFor(x => x.CallerDomainUserId).NotEmpty();
 		RuleFor(x => x.ReceiptId).NotEmpty();
+		RuleFor(x => x.Alias).MaximumLength(160);
 		RuleFor(x => x.MerchantName).MaximumLength(256);
 		RuleFor(x => x.FiscalNumber).MaximumLength(128);
 		RuleFor(x => x.ReceiptCode).MaximumLength(128);

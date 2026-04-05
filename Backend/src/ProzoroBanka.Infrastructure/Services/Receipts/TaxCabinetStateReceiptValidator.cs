@@ -21,6 +21,9 @@ public class TaxCabinetStateReceiptValidator : IStateReceiptValidator
 		if (string.IsNullOrWhiteSpace(fiscalNumber))
 			return new RegistryValidationResult(false, null, "FiscalNumber не заповнено");
 
+		if (!_options.Enabled && _options.VerifyWhenDisabled)
+			return new RegistryValidationResult(true, fiscalNumber, null);
+
 		if (!_options.Enabled)
 			return new RegistryValidationResult(false, null, "State validation service is disabled by configuration");
 
@@ -71,6 +74,9 @@ public class TaxCabinetStateReceiptValidator : IStateReceiptValidator
 	{
 		if (string.IsNullOrWhiteSpace(receiptCode))
 			return new RegistryValidationResult(false, null, "ReceiptCode не заповнено");
+
+		if (!_options.Enabled && _options.VerifyWhenDisabled)
+			return new RegistryValidationResult(true, receiptCode, null);
 
 		if (!_options.Enabled)
 			return new RegistryValidationResult(false, null, "State validation service is disabled by configuration");

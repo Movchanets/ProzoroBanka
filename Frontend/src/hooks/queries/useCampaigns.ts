@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { campaignService } from '../../services/campaignService';
 import { queryClient } from '../../services/queryClient';
+import { receiptKeys } from './useReceipts';
 import type { 
   CampaignStatus, 
   ChangeCampaignStatusPayload, 
@@ -14,6 +15,7 @@ export const campaignKeys = {
   detail: (id: string) => ['campaign', id] as const,
   stats: (orgId: string) => ['campaignStats', orgId] as const,
   transactions: (id: string, page: number, pageSize: number) => ['campaignTransactions', id, page, pageSize] as const,
+  receipts: (id: string) => ['campaignReceipts', id] as const,
 };
 
 export function useCampaigns(orgId: string | null | undefined, status?: CampaignStatus) {
@@ -50,6 +52,14 @@ export function useCampaignTransactions(
     queryFn: () => campaignService.getTransactions(campaignId!, page, pageSize),
     enabled: !!campaignId,
     placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useCampaignReceipts(campaignId: string | null | undefined) {
+  return useQuery({
+    queryKey: campaignKeys.receipts(campaignId!),
+    queryFn: () => campaignService.getReceipts(campaignId!),
+    enabled: !!campaignId,
   });
 }
 
@@ -133,6 +143,20 @@ export function useUpdateCampaignBalance(orgId: string) {
       queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: campaignKeys.stats(orgId) });
       queryClient.invalidateQueries({ queryKey: ['campaignTransactions', variables.id] });
+    },
+  });
+}
+
+export function useAttachReceiptToCampaign(orgId: string) {
+  return useMutation({
+    mutationFn: ({ campaignId, receiptId }: { campaignId: string; receiptId: string }) =>
+      campaignService.attachReceipt(campaignId, receiptId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.all(orgId) });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.stats(orgId) });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.receipts(variables.campaignId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all });
     },
   });
 }

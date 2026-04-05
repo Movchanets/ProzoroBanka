@@ -45,17 +45,6 @@ public class GetOrganizationCampaignsHandler
 		if (!isMember)
 			return ServiceResponse<IReadOnlyList<CampaignDto>>.Failure("Немає доступу до організації");
 
-		var memberIds = await _db.OrganizationMembers
-			.AsNoTracking()
-			.Where(m => m.OrganizationId == request.OrganizationId && !m.IsDeleted)
-			.Select(m => m.UserId)
-			.ToListAsync(cancellationToken);
-
-		var orgDocumentedAmount = await _db.Receipts
-			.AsNoTracking()
-			.Where(r => memberIds.Contains(r.UserId) && r.Status == ReceiptStatus.StateVerified)
-			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
-
 		var query = _db.Campaigns
 			.AsNoTracking()
 			.Where(c => c.OrganizationId == request.OrganizationId);
@@ -73,9 +62,13 @@ public class GetOrganizationCampaignsHandler
 				c.CoverImageStorageKey,
 				c.GoalAmount,
 				c.CurrentAmount,
+				DocumentedAmount = _db.Receipts
+					.Where(r => r.CampaignId == c.Id && r.Status == ReceiptStatus.StateVerified)
+					.Sum(r => (decimal?)(r.TotalAmount ?? 0)) ?? 0,
+				ReceiptCount = _db.Receipts.Count(r => r.CampaignId == c.Id),
 				WithdrawnAmount = _db.CampaignTransactions
 					.Where(t => t.CampaignId == c.Id && t.Amount < 0)
-					.Sum(t => (decimal?)(-t.Amount)) ?? 0,
+					.Sum(t => (long?)(-t.Amount)) ?? 0,
 				c.Status,
 				c.StartDate,
 				c.Deadline,
@@ -91,12 +84,12 @@ public class GetOrganizationCampaignsHandler
 			c.GoalAmount,
 			c.CurrentAmount,
 			c.WithdrawnAmount,
-			Math.Min(c.CurrentAmount, orgDocumentedAmount),
+			Math.Min(c.CurrentAmount, MoneyConversion.ToMinorUnits(c.DocumentedAmount)),
 			c.GoalAmount <= 0
 				? 0
-				: Math.Min(100, (double)(Math.Min(c.CurrentAmount, orgDocumentedAmount) / c.GoalAmount * 100)),
+				: Math.Min(100, (double)Math.Min(c.CurrentAmount, MoneyConversion.ToMinorUnits(c.DocumentedAmount)) / c.GoalAmount * 100),
 			c.Status, c.StartDate, c.Deadline,
-			c.MonobankAccountId, c.SendUrl, c.CreatedAt))
+			c.MonobankAccountId, c.SendUrl, c.ReceiptCount, c.CreatedAt))
 			.ToList();
 
 		return ServiceResponse<IReadOnlyList<CampaignDto>>.Success(result);

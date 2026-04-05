@@ -1,43 +1,36 @@
 import { test, expect } from './support/fixtures';
 
 import { t } from './support/i18n';
-import { loginViaUi, registerRandomUserViaApi } from './support/e2e-auth';
+import { loginViaApi, registerRandomUserViaApi, setAuthStorage, type AuthResponse } from './support/e2e-auth';
 import { applyLocale } from './support/locale-matrix';
 
 let validEmail = process.env.E2E_EMAIL ?? '';
 const validPassword = process.env.E2E_PASSWORD ?? 'Qwerty-1';
+let testAuth: AuthResponse;
 
-async function ensureTestUser(request: import('@playwright/test').APIRequestContext) {
-  if (validEmail) {
+test.beforeAll(async ({ request }) => {
+  if (!validEmail) {
+    const registeredUser = await registerRandomUserViaApi(request, {
+      firstName: 'Profile',
+      lastName: 'Tester',
+      emailPrefix: 'profile-e2e',
+      password: validPassword,
+    });
+
+    validEmail = registeredUser.auth.user.email;
+    testAuth = registeredUser.auth;
     return;
   }
 
-  const registeredUser = await registerRandomUserViaApi(request, {
-    firstName: 'Profile',
-    lastName: 'Tester',
-    emailPrefix: 'profile-e2e',
-    password: validPassword,
-  });
-
-  validEmail = registeredUser.auth.user.email;
-}
-
-async function loginAs(page: import('@playwright/test').Page, email: string, password: string) {
-  await loginViaUi(page, email, password, {
-    gotoPath: '/login',
-    expectedUrlPattern: /.*\/(onboarding|dashboard).*/,
-    setLanguage: false,
-  });
-}
-
-test.beforeAll(async ({ request }) => {
-  await ensureTestUser(request);
+  testAuth = await loginViaApi(request, validEmail, validPassword);
 });
 
 test.describe('User Profile — Display', () => {
   test.beforeEach(async ({ page, profilePage }) => {
     await applyLocale(page, 'uk');
-    await loginAs(page, validEmail, validPassword);
+    await setAuthStorage(page, testAuth);
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10_000 });
     await profilePage.goto();
     await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
   });
@@ -95,7 +88,9 @@ test.describe('User Profile — Display', () => {
 test.describe('User Profile — Editing', () => {
   test.beforeEach(async ({ page, profilePage }) => {
     await applyLocale(page, 'uk');
-    await loginAs(page, validEmail, validPassword);
+    await setAuthStorage(page, testAuth);
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10_000 });
     await profilePage.goto();
     await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
     await expect(page.getByText(t('profile.loadingProfile'))).not.toBeVisible({ timeout: 10000 });
@@ -244,7 +239,9 @@ test.describe('User Profile — Edge Cases', () => {
     });
 
     await applyLocale(page, 'uk');
-    await loginAs(page, validEmail, validPassword);
+    await setAuthStorage(page, testAuth);
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10_000 });
 
     await page.route('**/api/auth/me', async (route) => {
       if (route.request().method() !== 'GET') {
@@ -301,7 +298,9 @@ test.describe('User Profile — Edge Cases', () => {
     });
 
     await applyLocale(page, 'uk');
-    await loginAs(page, validEmail, validPassword);
+    await setAuthStorage(page, testAuth);
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10_000 });
     await profilePage.goto();
     await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
     await expect(page.getByText(t('profile.loadingProfile'))).not.toBeVisible({ timeout: 10000 });

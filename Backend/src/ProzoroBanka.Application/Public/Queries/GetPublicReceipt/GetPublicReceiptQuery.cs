@@ -27,7 +27,9 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 	{
 		var receipt = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => r.Id == request.ReceiptId && r.Status == ReceiptStatus.StateVerified)
+			.Where(r => r.Id == request.ReceiptId
+				&& r.Status == ReceiptStatus.StateVerified
+				&& r.PublicationStatus == ReceiptPublicationStatus.Active)
 			.Select(r => new
 			{
 				r.Id,
@@ -36,8 +38,12 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 				r.TransactionDate,
 				r.Status,
 				r.StorageKey,
-				r.RawOcrJson,
-				AddedByName = r.User.FirstName + " " + r.User.LastName
+				r.OcrStructuredPayloadJson,
+				AddedByName = r.User.FirstName + " " + r.User.LastName,
+				r.CampaignId,
+				CampaignTitle = r.Campaign != null ? r.Campaign.Title : null,
+				OrganizationName = r.Campaign != null ? r.Campaign.Organization.Name : null,
+				OrganizationSlug = r.Campaign != null ? r.Campaign.Organization.Slug : null
 			})
 			.FirstOrDefaultAsync(cancellationToken);
 
@@ -51,11 +57,11 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 			receipt.TransactionDate,
 			receipt.Status.ToString(),
 			StorageUrlResolver.Resolve(_fileStorage, receipt.StorageKey) ?? string.Empty,
-			receipt.RawOcrJson,
+			receipt.OcrStructuredPayloadJson,
 			receipt.AddedByName,
-			null,
-			null,
-			null,
-			null));
+			receipt.CampaignId,
+			receipt.CampaignTitle,
+			receipt.OrganizationName,
+			receipt.OrganizationSlug));
 	}
 }

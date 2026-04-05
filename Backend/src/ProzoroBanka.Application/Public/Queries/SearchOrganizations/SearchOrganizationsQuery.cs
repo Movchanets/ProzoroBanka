@@ -20,7 +20,7 @@ internal sealed record SearchOrganizationListItem(
 	string? Website,
 	int MemberCount,
 	int ActiveCampaignCount,
-	decimal TotalRaised);
+	long TotalRaised);
 
 public record SearchOrganizationsQuery(
 	string? Query,
@@ -96,7 +96,7 @@ public class SearchOrganizationsHandler
 				_db.Campaigns.Count(c => c.OrganizationId == o.Id && c.Status == CampaignStatus.Active),
 				_db.Campaigns
 					.Where(c => c.OrganizationId == o.Id && c.Status != CampaignStatus.Draft)
-					.Sum(c => (decimal?)c.CurrentAmount) ?? 0m))
+					.Sum(c => (long?)c.CurrentAmount) ?? 0L))
 			.ToListAsync(cancellationToken);
 
 		var orgIds = pageItems.Select(i => i.Id).ToList();
@@ -157,12 +157,12 @@ public class SearchOrganizationsHandler
 				.ThenByDescending(o => _db.Campaigns.Count(c => c.OrganizationId == o.Id && c.Status == CampaignStatus.Active))
 				.ThenByDescending(o => _db.Campaigns
 					.Where(c => c.OrganizationId == o.Id && c.Status != CampaignStatus.Draft)
-					.Sum(c => (decimal?)c.CurrentAmount) ?? 0m)
+					.Sum(c => (long?)c.CurrentAmount) ?? 0L)
 				.ThenBy(o => o.Name),
 			"totalraised" or "raised" => query
 				.OrderByDescending(o => _db.Campaigns
 					.Where(c => c.OrganizationId == o.Id && c.Status != CampaignStatus.Draft)
-					.Sum(c => (decimal?)c.CurrentAmount) ?? 0m)
+					.Sum(c => (long?)c.CurrentAmount) ?? 0L)
 				.ThenByDescending(o => _db.Campaigns.Count(c => c.OrganizationId == o.Id && c.Status == CampaignStatus.Active))
 				.ThenByDescending(o => o.IsVerified)
 				.ThenBy(o => o.Name),
@@ -170,14 +170,14 @@ public class SearchOrganizationsHandler
 				.OrderByDescending(o => _db.Campaigns.Count(c => c.OrganizationId == o.Id && c.Status == CampaignStatus.Active))
 				.ThenByDescending(o => _db.Campaigns
 					.Where(c => c.OrganizationId == o.Id && c.Status != CampaignStatus.Draft)
-					.Sum(c => (decimal?)c.CurrentAmount) ?? 0m)
+					.Sum(c => (long?)c.CurrentAmount) ?? 0L)
 				.ThenByDescending(o => o.IsVerified)
 				.ThenBy(o => o.Name),
 			_ => query
 				.OrderByDescending(o => _db.Campaigns.Count(c => c.OrganizationId == o.Id && c.Status == CampaignStatus.Active))
 				.ThenByDescending(o => _db.Campaigns
 					.Where(c => c.OrganizationId == o.Id && c.Status != CampaignStatus.Draft)
-					.Sum(c => (decimal?)c.CurrentAmount) ?? 0m)
+					.Sum(c => (long?)c.CurrentAmount) ?? 0L)
 				.ThenByDescending(o => o.IsVerified)
 				.ThenBy(o => o.Name)
 		};

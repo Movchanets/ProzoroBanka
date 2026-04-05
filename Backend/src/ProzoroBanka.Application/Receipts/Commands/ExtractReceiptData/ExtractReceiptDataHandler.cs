@@ -13,22 +13,27 @@ public class ExtractReceiptDataHandler : IRequestHandler<ExtractReceiptDataComma
 	private readonly IOrganizationAuthorizationService _orgAuth;
 	private readonly IReceiptStructuredExtractionService _extractionService;
 	private readonly IOcrMonthlyQuotaService _ocrQuotaService;
+	private readonly IFileStorage _fileStorage;
 
 	public ExtractReceiptDataHandler(
 		IApplicationDbContext db,
 		IOrganizationAuthorizationService orgAuth,
 		IReceiptStructuredExtractionService extractionService,
-		IOcrMonthlyQuotaService ocrQuotaService)
+		IOcrMonthlyQuotaService ocrQuotaService,
+		IFileStorage fileStorage)
 	{
 		_db = db;
 		_orgAuth = orgAuth;
 		_extractionService = extractionService;
 		_ocrQuotaService = ocrQuotaService;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(ExtractReceiptDataCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.Receipts.FirstOrDefaultAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
+		var receipt = await _db.Receipts
+			.Include(r => r.ItemPhotos)
+			.FirstOrDefaultAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
 		if (receipt is null)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
 
@@ -74,21 +79,6 @@ public class ExtractReceiptDataHandler : IRequestHandler<ExtractReceiptDataComma
 
 		await _db.SaveChangesAsync(ct);
 
-		return ServiceResponse<ReceiptPipelineDto>.Success(new ReceiptPipelineDto(
-			receipt.Id,
-			receipt.OriginalFileName,
-			receipt.MerchantName,
-			receipt.TotalAmount,
-			receipt.PurchaseDateUtc,
-			receipt.Status,
-			receipt.PublicationStatus,
-			receipt.VerificationFailureReason,
-			receipt.CreatedAt,
-			receipt.FiscalNumber,
-			receipt.ReceiptCode,
-			receipt.Currency,
-			receipt.PurchasedItemName,
-			receipt.OcrStructuredPayloadJson,
-			receipt.RawOcrJson));
+		return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));
 	}
 }

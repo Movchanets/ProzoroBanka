@@ -10,15 +10,19 @@ namespace ProzoroBanka.Application.Receipts.Commands.ActivateReceipt;
 public class ActivateReceiptHandler : IRequestHandler<ActivateReceiptCommand, ServiceResponse<ReceiptPipelineDto>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IFileStorage _fileStorage;
 
-	public ActivateReceiptHandler(IApplicationDbContext db)
+	public ActivateReceiptHandler(IApplicationDbContext db, IFileStorage fileStorage)
 	{
 		_db = db;
+		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(ActivateReceiptCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.Receipts.FirstOrDefaultAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
+		var receipt = await _db.Receipts
+			.Include(r => r.ItemPhotos)
+			.FirstOrDefaultAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
 		if (receipt is null)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
 
@@ -28,21 +32,6 @@ public class ActivateReceiptHandler : IRequestHandler<ActivateReceiptCommand, Se
 		receipt.PublicationStatus = ReceiptPublicationStatus.Active;
 		await _db.SaveChangesAsync(ct);
 
-		return ServiceResponse<ReceiptPipelineDto>.Success(new ReceiptPipelineDto(
-			receipt.Id,
-			receipt.OriginalFileName,
-			receipt.MerchantName,
-			receipt.TotalAmount,
-			receipt.PurchaseDateUtc,
-			receipt.Status,
-			receipt.PublicationStatus,
-			receipt.VerificationFailureReason,
-			receipt.CreatedAt,
-			receipt.FiscalNumber,
-			receipt.ReceiptCode,
-			receipt.Currency,
-			receipt.PurchasedItemName,
-			receipt.OcrStructuredPayloadJson,
-			receipt.RawOcrJson));
+		return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));
 	}
 }
