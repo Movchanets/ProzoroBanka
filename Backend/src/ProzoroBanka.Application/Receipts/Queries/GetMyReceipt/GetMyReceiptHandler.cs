@@ -29,7 +29,13 @@ public class GetMyReceiptHandler : IRequestHandler<GetMyReceiptQuery, ServiceRes
 				r.Status,
 				r.PublicationStatus,
 				r.VerificationFailureReason,
-				r.CreatedAt))
+				r.CreatedAt,
+				r.FiscalNumber,
+				r.ReceiptCode,
+				r.Currency,
+				r.PurchasedItemName,
+				r.OcrStructuredPayloadJson,
+				r.RawOcrJson))
 			.FirstOrDefaultAsync(ct);
 
 		return receipt is null

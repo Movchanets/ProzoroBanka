@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { receiptService } from '@/services/receiptService';
+import type { UpdateReceiptOcrDraftRequest } from '@/types';
 
 export function useUploadReceiptDraft() {
   return useMutation({
@@ -30,6 +31,18 @@ export function useVerifyReceipt() {
       receiptId: string;
       organizationId: string;
     }) => receiptService.verify(receiptId, organizationId),
+  });
+}
+
+export function useUpdateReceiptOcrDraft() {
+  return useMutation({
+    mutationFn: ({
+      receiptId,
+      payload,
+    }: {
+      receiptId: string;
+      payload: UpdateReceiptOcrDraftRequest;
+    }) => receiptService.updateOcrDraft(receiptId, payload),
   });
 }
 

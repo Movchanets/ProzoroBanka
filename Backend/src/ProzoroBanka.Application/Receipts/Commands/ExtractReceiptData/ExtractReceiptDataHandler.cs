@@ -83,6 +83,12 @@ public class ExtractReceiptDataHandler : IRequestHandler<ExtractReceiptDataComma
 			receipt.Status,
 			receipt.PublicationStatus,
 			receipt.VerificationFailureReason,
-			receipt.CreatedAt));
+			receipt.CreatedAt,
+			receipt.FiscalNumber,
+			receipt.ReceiptCode,
+			receipt.Currency,
+			receipt.PurchasedItemName,
+			receipt.OcrStructuredPayloadJson,
+			receipt.RawOcrJson));
 	}
 }

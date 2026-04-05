@@ -6,6 +6,7 @@ using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Receipts.Commands.ActivateReceipt;
 using ProzoroBanka.Application.Receipts.Commands.ExtractReceiptData;
 using ProzoroBanka.Application.Receipts.Commands.RetryReceiptProcessing;
+using ProzoroBanka.Application.Receipts.Commands.UpdateReceiptOcrDraft;
 using ProzoroBanka.Application.Receipts.Commands.UploadReceiptDraft;
 using ProzoroBanka.Application.Receipts.Commands.VerifyReceipt;
 using ProzoroBanka.Application.Receipts.DTOs;
@@ -79,6 +80,31 @@ public class ReceiptsController : ApiControllerBase
 			return Unauthorized();
 
 		var result = await _sender.Send(new VerifyReceiptCommand(userId.Value, id, request.OrganizationId), ct);
+		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
+	}
+
+	[HttpPatch("{id:guid}/ocr-draft")]
+	[HasPermission(Permissions.ReceiptsUpdate)]
+	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> UpdateOcrDraft(Guid id, [FromBody] UpdateReceiptOcrDraftRequest request, CancellationToken ct)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new UpdateReceiptOcrDraftCommand(
+			userId.Value,
+			id,
+			request.MerchantName,
+			request.TotalAmount,
+			request.PurchaseDateUtc,
+			request.FiscalNumber,
+			request.ReceiptCode,
+			request.Currency,
+			request.PurchasedItemName,
+			request.OcrStructuredPayloadJson), ct);
+
 		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
 	}
 

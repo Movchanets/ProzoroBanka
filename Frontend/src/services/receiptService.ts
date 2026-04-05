@@ -1,5 +1,5 @@
 import { apiFetch } from './api';
-import type { ReceiptPipeline } from '@/types';
+import type { ReceiptPipeline, UpdateReceiptOcrDraftRequest } from '@/types';
 
 export const receiptService = {
   uploadDraft: (file: File) => {
@@ -26,6 +26,12 @@ export const receiptService = {
     apiFetch<ReceiptPipeline>(`/api/receipts/${receiptId}/verify`, {
       method: 'POST',
       body: JSON.stringify({ organizationId }),
+    }),
+
+  updateOcrDraft: (receiptId: string, payload: UpdateReceiptOcrDraftRequest) =>
+    apiFetch<ReceiptPipeline>(`/api/receipts/${receiptId}/ocr-draft`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
     }),
 
   activate: (receiptId: string) =>

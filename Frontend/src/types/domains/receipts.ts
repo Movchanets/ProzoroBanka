@@ -56,6 +56,23 @@ export interface ReceiptPipeline {
   publicationStatus: ReceiptPublicationStatus;
   verificationFailureReason?: string;
   createdAt: string;
+  fiscalNumber?: string;
+  receiptCode?: string;
+  currency?: string;
+  purchasedItemName?: string;
+  ocrStructuredPayloadJson?: string;
+  rawOcrJson?: string;
+}
+
+export interface UpdateReceiptOcrDraftRequest {
+  merchantName?: string;
+  totalAmount?: number | null;
+  purchaseDateUtc?: string | null;
+  fiscalNumber?: string;
+  receiptCode?: string;
+  currency?: string;
+  purchasedItemName?: string;
+  ocrStructuredPayloadJson?: string;
 }
 
 export interface MonobankTransaction {
