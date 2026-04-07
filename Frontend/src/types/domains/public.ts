@@ -68,6 +68,8 @@ export interface PublicReceiptDetail {
   campaignTitle?: string;
   organizationName?: string;
   organizationSlug?: string;
+  verificationUrl?: string;
+  isConfirmed: boolean;
 }
 
 export interface PublicCampaignDetail {

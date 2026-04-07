@@ -52,19 +52,22 @@ public class ExtractReceiptDataHandler : IRequestHandler<ExtractReceiptDataComma
 		}
 
 		request.FileStream.Position = 0;
-		var extraction = await _extractionService.ExtractAsync(request.FileStream, request.FileName, ct);
+		var extraction = await _extractionService.ExtractAsync(request.FileStream, request.FileName, request.ModelIdentifier, ct);
+		var normalizedPurchaseDateUtc = NormalizeToUtc(extraction.PurchaseDateUtc);
+		var normalizedTotalAmount = NormalizeToKopecks(extraction.TotalAmount);
 
 		receipt.MerchantName = extraction.MerchantName;
-		receipt.TotalAmount = extraction.TotalAmount;
-		receipt.PurchaseDateUtc = extraction.PurchaseDateUtc;
-		receipt.TransactionDate = extraction.PurchaseDateUtc;
-		receipt.FiscalNumber = extraction.FiscalNumber;
+		receipt.TotalAmount = normalizedTotalAmount;
+		receipt.PurchaseDateUtc = normalizedPurchaseDateUtc;
+		receipt.TransactionDate = normalizedPurchaseDateUtc;
+		receipt.FiscalNumber = extraction.FiscalRegisterNumber ?? extraction.FiscalNumber;
 		receipt.ReceiptCode = extraction.ReceiptCode;
 		receipt.Currency = extraction.Currency;
 		receipt.PurchasedItemName = extraction.PurchasedItemName;
 		receipt.OcrStructuredPayloadJson = extraction.StructuredPayloadJson;
 		receipt.RawOcrJson = extraction.RawPayloadJson;
 		receipt.OcrExtractedAtUtc = DateTime.UtcNow;
+		receipt.ParsedByModel = extraction.UsedModel;
 
 		if (extraction.Success)
 		{
@@ -80,5 +83,27 @@ public class ExtractReceiptDataHandler : IRequestHandler<ExtractReceiptDataComma
 		await _db.SaveChangesAsync(ct);
 
 		return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));
+	}
+
+	private static DateTime? NormalizeToUtc(DateTime? value)
+	{
+		if (!value.HasValue)
+			return null;
+
+		var dateTime = value.Value;
+		return dateTime.Kind switch
+		{
+			DateTimeKind.Utc => dateTime,
+			DateTimeKind.Local => dateTime.ToUniversalTime(),
+			_ => DateTime.SpecifyKind(dateTime, DateTimeKind.Utc)
+		};
+	}
+
+	private static decimal? NormalizeToKopecks(decimal? value)
+	{
+		if (!value.HasValue)
+			return null;
+
+		return Math.Round(value.Value * 100m, 0, MidpointRounding.AwayFromZero);
 	}
 }

@@ -64,7 +64,7 @@ public class ExtractReceiptDataHandlerTests
 
 		var extraction = new Mock<IReceiptStructuredExtractionService>();
 		extraction
-			.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "receipt.png", It.IsAny<CancellationToken>()))
+			.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "receipt.png", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new ReceiptStructuredExtractionResult(
 				true,
 				"ATB",
@@ -72,6 +72,7 @@ public class ExtractReceiptDataHandlerTests
 				DateTime.UtcNow.Date,
 				"FN-123",
 				null,
+				"FN-123",
 				"UAH",
 				"Хліб",
 				"{\"fiscalNumber\":\"FN-123\"}",

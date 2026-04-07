@@ -35,6 +35,7 @@ public class ApplicationDbContext
 	public DbSet<MatchResult> MatchResults => Set<MatchResult>();
 	public DbSet<Campaign> Campaigns => Set<Campaign>();
 	public DbSet<CampaignTransaction> CampaignTransactions => Set<CampaignTransaction>();
+	public DbSet<OcrModelConfig> OcrModelConfigs => Set<OcrModelConfig>();
 
 	// ── IApplicationDbContext explicit implementation ──
 	DbSet<User> IApplicationDbContext.Users => DomainUsers;
@@ -43,8 +44,13 @@ public class ApplicationDbContext
 	DbSet<OrganizationMember> IApplicationDbContext.OrganizationMembers => OrganizationMembers;
 	DbSet<OrganizationStateRegistryCredential> IApplicationDbContext.OrganizationStateRegistryCredentials => OrganizationStateRegistryCredentials;
 	DbSet<Invitation> IApplicationDbContext.Invitations => Invitations;
+	DbSet<Receipt> IApplicationDbContext.Receipts => Receipts;
+	DbSet<ReceiptItemPhoto> IApplicationDbContext.ReceiptItemPhotos => ReceiptItemPhotos;
+	DbSet<MonobankTransaction> IApplicationDbContext.MonobankTransactions => MonobankTransactions;
+	DbSet<MatchResult> IApplicationDbContext.MatchResults => MatchResults;
 	DbSet<Campaign> IApplicationDbContext.Campaigns => Campaigns;
 	DbSet<CampaignTransaction> IApplicationDbContext.CampaignTransactions => CampaignTransactions;
+	DbSet<OcrModelConfig> IApplicationDbContext.OcrModelConfigs => OcrModelConfigs;
 
 	protected override void OnModelCreating(ModelBuilder builder)
 	{
@@ -139,6 +145,17 @@ public class ApplicationDbContext
 			b.HasQueryFilter(e => !e.IsDeleted);
 		});
 
+		builder.Entity<OcrModelConfig>(b =>
+		{
+			b.ToTable("OcrModelConfigs");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.Name).HasMaxLength(200).IsRequired();
+			b.Property(e => e.ModelIdentifier).HasMaxLength(200).IsRequired();
+			b.Property(e => e.Provider).HasMaxLength(64).IsRequired();
+			b.HasIndex(e => e.ModelIdentifier).IsUnique();
+			b.HasQueryFilter(e => !e.IsDeleted);
+		});
+
 		builder.Entity<Organization>(b =>
 		{
 			b.ToTable("Organizations");
@@ -207,6 +224,7 @@ public class ApplicationDbContext
 			b.Property(e => e.Currency).HasMaxLength(16);
 			b.Property(e => e.PurchasedItemName).HasMaxLength(256);
 			b.Property(e => e.PublicationStatus).HasConversion<int>();
+			b.Property(e => e.ParsedByModel).HasMaxLength(128);
 			b.Property(e => e.StateVerificationReference).HasMaxLength(256);
 			b.Property(e => e.VerificationFailureReason).HasMaxLength(1024);
 			b.HasQueryFilter(e => !e.IsDeleted);

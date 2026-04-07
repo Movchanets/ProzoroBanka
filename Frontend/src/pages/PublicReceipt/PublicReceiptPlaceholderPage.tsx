@@ -1,41 +1,49 @@
 import { Link, useParams } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
-
-const HARDCODED_RECEIPT = {
-  merchantName: 'Епіцентр',
-  totalAmount: 540,
-  transactionDate: '2026-03-20T00:00:00Z',
-  status: 'StateVerified',
-  imageUrl: 'https://images.unsplash.com/photo-1556740749-887f6717d7e4?q=80&w=1200&auto=format&fit=crop',
-  structuredOutputJson: JSON.stringify({
-    fiscalNumber: 'FN-123456',
-    receiptCode: 'RC-123456',
-    currency: 'UAH',
-    items: [
-      { name: 'Тепловізійний модуль', quantity: 1, price: 54000 },
-    ],
-  }),
-  addedByName: 'Ірина Коваль',
-  campaignId: 'camp-1',
-  organizationSlug: 'promin',
-};
+import { usePublicReceipt } from '@/hooks/queries/usePublic';
+import { ReceiptItemsTable } from '@/components/receipt/ReceiptItemsTable';
 
 export default function PublicReceiptPlaceholderPage() {
   const { id } = useParams<{ id: string }>();
-  const receipt = {
-    ...HARDCODED_RECEIPT,
-    id: id ?? 'r1',
-  };
+  const { data: receipt, isLoading, error } = usePublicReceipt(id);
   let structuredOutputPretty = 'Немає структурованих OCR-даних для цього чека.';
 
-  if (receipt.structuredOutputJson) {
+  if (receipt?.structuredOutputJson) {
     try {
       structuredOutputPretty = JSON.stringify(JSON.parse(receipt.structuredOutputJson), null, 2);
     } catch {
       structuredOutputPretty = receipt.structuredOutputJson;
     }
+  }
+
+  if (isLoading) {
+    return (
+      <main className="mx-auto flex w-[min(1100px,calc(100%-24px))] flex-col gap-6 py-8 sm:w-[min(1100px,calc(100%-40px))]" data-testid="public-receipt-page">
+        <PublicPageToolbar compact />
+        <Card className="rounded-4xl border border-border/80">
+          <CardContent className="flex min-h-56 items-center justify-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span className="text-sm text-muted-foreground" data-testid="public-receipt-loading">Завантаження чека...</span>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  if (!receipt || error) {
+    return (
+      <main className="mx-auto flex w-[min(1100px,calc(100%-24px))] flex-col gap-6 py-8 sm:w-[min(1100px,calc(100%-40px))]" data-testid="public-receipt-page">
+        <PublicPageToolbar compact />
+        <Card className="rounded-4xl border border-border/80">
+          <CardContent className="flex min-h-56 items-center justify-center">
+            <p className="text-sm text-muted-foreground" data-testid="public-receipt-not-found">Чек не знайдено або ще не доступний публічно.</p>
+          </CardContent>
+        </Card>
+      </main>
+    );
   }
 
   return (
@@ -45,6 +53,9 @@ export default function PublicReceiptPlaceholderPage() {
       <Card className="overflow-hidden rounded-4xl border border-border/80">
         <CardHeader className="space-y-3 bg-[linear-gradient(135deg,hsl(var(--hero-panel)/0.22),transparent_70%)]">
           <Badge variant="outline" className="w-fit" data-testid="public-receipt-status-badge">{receipt.status}</Badge>
+          {receipt.isConfirmed ? (
+            <Badge variant="secondary" className="w-fit" data-testid="public-receipt-confirmed-badge">Підтверджено</Badge>
+          ) : null}
           <CardTitle className="text-2xl" data-testid="public-receipt-title">
             {receipt.merchantName || 'Публічний перегляд чека'}
           </CardTitle>
@@ -88,11 +99,25 @@ export default function PublicReceiptPlaceholderPage() {
                   <dt className="text-muted-foreground">Додано</dt>
                   <dd className="font-medium text-foreground" data-testid="public-receipt-added-by">{receipt.addedByName || 'Н/д'}</dd>
                 </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">Перевірка ДПС</dt>
+                  <dd className="font-medium text-foreground" data-testid="public-receipt-verification-link">
+                    {receipt.verificationUrl ? (
+                      <a href={receipt.verificationUrl} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-4">
+                        Відкрити
+                      </a>
+                    ) : 'Н/д'}
+                  </dd>
+                </div>
               </dl>
             </article>
 
             <article className="rounded-2xl border border-border bg-card p-4" data-testid="public-receipt-structured-output">
               <h2 className="text-base font-semibold text-foreground">Structured OCR output</h2>
+              <div className="mt-4">
+                <h3 className="mb-3 text-sm font-semibold text-foreground">Позиції товарів</h3>
+                <ReceiptItemsTable structuredOutputJson={receipt.structuredOutputJson} testIdPrefix="public-receipt-items" />
+              </div>
               <pre className="mt-3 max-h-90 overflow-auto rounded-xl border border-border bg-muted/30 p-3 text-xs leading-5 text-foreground whitespace-pre-wrap">
                 {structuredOutputPretty}
               </pre>

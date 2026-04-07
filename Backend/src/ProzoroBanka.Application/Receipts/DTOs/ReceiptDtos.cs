@@ -22,7 +22,9 @@ public record ReceiptPipelineDto(
 	string? PurchasedItemName = null,
 	IReadOnlyList<ReceiptItemPhotoDto>? ItemPhotos = null,
 	string? OcrStructuredPayloadJson = null,
-	string? RawOcrJson = null);
+	string? RawOcrJson = null,
+	string? VerificationUrl = null,
+	bool IsConfirmed = false);
 
 public record ReceiptItemPhotoDto(
 	Guid Id,

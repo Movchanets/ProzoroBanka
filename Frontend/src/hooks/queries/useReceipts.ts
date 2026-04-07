@@ -58,11 +58,13 @@ export function useExtractReceiptData() {
       receiptId,
       organizationId,
       file,
+      modelIdentifier,
     }: {
       receiptId: string;
       organizationId: string;
       file: File;
-    }) => receiptService.extract(receiptId, organizationId, file),
+      modelIdentifier?: string;
+    }) => receiptService.extract(receiptId, organizationId, file, modelIdentifier),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
       queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.receiptId) });

@@ -1,16 +1,13 @@
-using Azure;
-using Azure.AI.FormRecognizer.DocumentAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ProzoroBanka.Application.Common.Interfaces;
 
 namespace ProzoroBanka.Infrastructure.Services.Ocr;
 
 /// <summary>
-/// Registers OCR services with provider selection via typed <see cref="OcrOptions"/>.
-/// Configuration is validated at startup — invalid config will block app start.
+/// Registers OCR services and Factory.
+/// Configuration is validated at startup.
 /// </summary>
 public static class OcrRegistration
 {
@@ -23,37 +20,12 @@ public static class OcrRegistration
 			.Bind(configuration.GetSection(OcrOptions.SectionName))
 			.Validate(options =>
 			{
-				var provider = (options.Provider ?? "fallback").Trim().ToLowerInvariant();
-				return provider switch
-				{
-					"azure" or "azuredocumentintelligence" => options.Azure.IsConfigured,
-					"mistral" => options.Mistral.IsConfigured,
-					"fallback" => true, // at least one provider should be available, but we allow degraded startup
-					_ => false
-				};
-			}, "OCR provider configuration is invalid. " +
-			   "Azure requires Endpoint + ApiKey. Mistral requires ApiKey. " +
-			   "Accepted providers: azure, mistral, fallback.")
+				if (options.UseExtractionStub) return true;
+				return options.Mistral.IsConfigured || options.OpenRouter.IsConfigured;
+			}, "OCR configuration must have at least one valid provider (Mistral or OpenRouter) if UseExtractionStub is false.")
 			.ValidateOnStart();
 
-		// ── Read raw config for DI registration (options not yet built) ──
-		var ocrSection = configuration.GetSection(OcrOptions.SectionName);
-		var azureEndpoint = ocrSection["Azure:Endpoint"];
-		var azureKey = ocrSection["Azure:ApiKey"];
-		var isAzureConfigured = !string.IsNullOrWhiteSpace(azureEndpoint)
-			&& !string.IsNullOrWhiteSpace(azureKey);
-
-		// ── Azure DI client (always registered when configured — needed for fallback) ──
-		if (isAzureConfigured)
-		{
-			services.AddSingleton(_ => new DocumentAnalysisClient(
-				new Uri(azureEndpoint!),
-				new AzureKeyCredential(azureKey!)));
-
-			services.AddScoped<AzureDocumentIntelligenceOcrService>();
-		}
-
-		// ── Mistral HTTP client (always registered — used in fallback too) ──
+		// ── Mistral HTTP client ──
 		services.AddHttpClient<MistralOcrService>((sp, client) =>
 		{
 			var options = sp.GetRequiredService<IOptions<OcrOptions>>().Value;
@@ -64,32 +36,19 @@ public static class OcrRegistration
 				client.DefaultRequestHeaders.Authorization = new("Bearer", options.Mistral.ApiKey);
 		});
 
-		// ── Select IOcrService implementation ──
-		var provider = (ocrSection.GetValue<string>("Provider") ?? "fallback").Trim().ToLowerInvariant();
-
-		switch (provider)
+		// ── OpenRouter HTTP client ──
+		services.AddHttpClient<OpenRouterOcrService>((sp, client) =>
 		{
-			case "azure":
-			case "azuredocumentintelligence":
-				services.AddScoped<IOcrService>(sp =>
-					isAzureConfigured
-						? sp.GetRequiredService<AzureDocumentIntelligenceOcrService>()
-						: sp.GetRequiredService<FallbackOcrService>());
-				break;
+			var options = sp.GetRequiredService<IOptions<OcrOptions>>().Value;
+			client.BaseAddress = new Uri(options.OpenRouter.BaseUrl);
+			client.Timeout = TimeSpan.FromSeconds(options.OpenRouter.TimeoutSeconds);
 
-			case "mistral":
-				services.AddScoped<IOcrService>(sp =>
-					sp.GetRequiredService<MistralOcrService>());
-				break;
+			if (!string.IsNullOrEmpty(options.OpenRouter.ApiKey))
+				client.DefaultRequestHeaders.Authorization = new("Bearer", options.OpenRouter.ApiKey);
+		});
 
-			case "fallback":
-			default:
-				services.AddScoped<IOcrService>(sp =>
-					sp.GetRequiredService<FallbackOcrService>());
-				break;
-		}
-
-		services.AddScoped<FallbackOcrService>();
+		// ── Factory Registration ──
+		services.AddScoped<IOcrServiceFactory, OcrServiceFactory>();
 
 		return services;
 	}

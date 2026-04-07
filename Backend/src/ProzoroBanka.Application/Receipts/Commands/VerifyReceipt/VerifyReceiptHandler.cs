@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Receipts.DTOs;
@@ -103,11 +104,26 @@ public class VerifyReceiptHandler : IRequestHandler<VerifyReceiptCommand, Servic
 			receipt.Status = ReceiptStatus.StateVerified;
 			receipt.StateVerifiedAtUtc = DateTime.UtcNow;
 			receipt.VerificationFailureReason = null;
+			if (string.IsNullOrWhiteSpace(receipt.StateVerificationReference)
+				&& ReceiptVerificationLinkBuilder.TryBuildTaxCabinetLink(receipt, out var verificationUrl, out _))
+			{
+				receipt.StateVerificationReference = verificationUrl;
+			}
 		}
 		else
 		{
-			receipt.Status = ReceiptStatus.FailedVerification;
-			receipt.VerificationFailureReason = validation.FailureReason ?? "Державна верифікація неуспішна";
+			if (ReceiptVerificationLinkBuilder.TryBuildTaxCabinetLink(receipt, out var verificationUrl, out _))
+			{
+				receipt.Status = ReceiptStatus.StateVerified;
+				receipt.StateVerifiedAtUtc = DateTime.UtcNow;
+				receipt.StateVerificationReference = verificationUrl;
+				receipt.VerificationFailureReason = null;
+			}
+			else
+			{
+				receipt.Status = ReceiptStatus.FailedVerification;
+				receipt.VerificationFailureReason = validation.FailureReason ?? "Державна верифікація неуспішна";
+			}
 		}
 
 		await _db.SaveChangesAsync(ct);

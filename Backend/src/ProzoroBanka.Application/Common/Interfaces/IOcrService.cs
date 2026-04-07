@@ -4,8 +4,8 @@ namespace ProzoroBanka.Application.Common.Interfaces;
 
 /// <summary>
 /// Абстрактний контракт для OCR-сервісу парсингу чеків.
-/// Реалізації: AzureDocumentIntelligenceOcrService, MistralOcrService.
-/// Провайдер обирається через appsettings:Ocr:Provider.
+/// Реалізації: MistralOcrService, OpenRouterOcrService.
+/// Конкретний сервіс обирається через IOcrServiceFactory на основі OcrModelConfig.
 /// </summary>
 public interface IOcrService
 {
@@ -17,5 +17,5 @@ public interface IOcrService
     /// <summary>
     /// Парсить зображення чека та повертає структуровані дані.
     /// </summary>
-    Task<OcrResult> ParseReceiptAsync(Stream imageStream, string fileName, CancellationToken ct = default);
+    Task<OcrResult> ParseReceiptAsync(Stream imageStream, string fileName, string? modelIdentifier = null, CancellationToken ct = default);
 }

@@ -8,69 +8,34 @@ namespace ProzoroBanka.UnitTests.Infrastructure.Services.Ocr;
 public class OcrOptionsValidationTests
 {
 	[Fact]
-	public void DefaultOptions_AreValid_WhenProviderIsFallback()
+	public void DefaultOptions_AreValid_WhenExtractionStubEnabled()
 	{
-		var config = BuildConfig(new Dictionary<string, string?>
-		{
-			["Ocr:Provider"] = "fallback"
-		});
+		var config = BuildConfig(new Dictionary<string, string?>());
 
 		var options = BindAndValidate(config);
 
-		Assert.Equal("fallback", options.Provider);
 		Assert.True(options.UseExtractionStub);
 	}
 
-	[Theory]
-	[InlineData("azure")]
-	[InlineData("AzureDocumentIntelligence")]
-	public void AzureProvider_RequiresEndpointAndApiKey(string provider)
-	{
-		var config = BuildConfig(new Dictionary<string, string?>
-		{
-			["Ocr:Provider"] = provider,
-			["Ocr:Azure:Endpoint"] = "",
-			["Ocr:Azure:ApiKey"] = ""
-		});
-
-		Assert.Throws<OptionsValidationException>(() => BindAndValidate(config));
-	}
-
-	[Theory]
-	[InlineData("azure")]
-	[InlineData("AzureDocumentIntelligence")]
-	public void AzureProvider_ValidWhenConfigured(string provider)
-	{
-		var config = BuildConfig(new Dictionary<string, string?>
-		{
-			["Ocr:Provider"] = provider,
-			["Ocr:Azure:Endpoint"] = "https://my-di.cognitiveservices.azure.com/",
-			["Ocr:Azure:ApiKey"] = "test-api-key"
-		});
-
-		var options = BindAndValidate(config);
-
-		Assert.True(options.Azure.IsConfigured);
-	}
-
 	[Fact]
-	public void MistralProvider_RequiresApiKey()
+	public void NonStub_RequiresAtLeastOneConfiguredProvider()
 	{
 		var config = BuildConfig(new Dictionary<string, string?>
 		{
-			["Ocr:Provider"] = "mistral",
-			["Ocr:Mistral:ApiKey"] = ""
+			["Ocr:UseExtractionStub"] = "false",
+			["Ocr:Mistral:ApiKey"] = "",
+			["Ocr:OpenRouter:ApiKey"] = ""
 		});
 
 		Assert.Throws<OptionsValidationException>(() => BindAndValidate(config));
 	}
 
 	[Fact]
-	public void MistralProvider_ValidWhenApiKeySet()
+	public void NonStub_IsValid_WhenMistralConfigured()
 	{
 		var config = BuildConfig(new Dictionary<string, string?>
 		{
-			["Ocr:Provider"] = "mistral",
+			["Ocr:UseExtractionStub"] = "false",
 			["Ocr:Mistral:ApiKey"] = "test-mistral-key",
 			["Ocr:Mistral:BaseUrl"] = "https://api.mistral.ai"
 		});
@@ -78,47 +43,43 @@ public class OcrOptionsValidationTests
 		var options = BindAndValidate(config);
 
 		Assert.True(options.Mistral.IsConfigured);
-		Assert.Equal("https://api.mistral.ai", options.Mistral.BaseUrl);
 	}
 
 	[Fact]
-	public void UnknownProvider_FailsValidation()
+	public void NonStub_IsValid_WhenOpenRouterConfigured()
 	{
 		var config = BuildConfig(new Dictionary<string, string?>
 		{
-			["Ocr:Provider"] = "unknown-provider"
-		});
-
-		Assert.Throws<OptionsValidationException>(() => BindAndValidate(config));
-	}
-
-	[Fact]
-	public void TimeoutsAndModelIds_AreBindable()
-	{
-		var config = BuildConfig(new Dictionary<string, string?>
-		{
-			["Ocr:Provider"] = "fallback",
-			["Ocr:Azure:TimeoutSeconds"] = "45",
-			["Ocr:Azure:ModelId"] = "prebuilt-invoice",
-			["Ocr:Mistral:TimeoutSeconds"] = "90",
-			["Ocr:Mistral:ModelId"] = "mistral-ocr-v2"
+			["Ocr:UseExtractionStub"] = "false",
+			["Ocr:OpenRouter:ApiKey"] = "test-openrouter-key",
+			["Ocr:OpenRouter:BaseUrl"] = "https://openrouter.ai/api"
 		});
 
 		var options = BindAndValidate(config);
 
-		Assert.Equal(45, options.Azure.TimeoutSeconds);
-		Assert.Equal("prebuilt-invoice", options.Azure.ModelId);
+		Assert.True(options.OpenRouter.IsConfigured);
+		Assert.Equal("https://openrouter.ai/api", options.OpenRouter.BaseUrl);
+	}
+
+	[Fact]
+	public void Timeouts_AreBindable()
+	{
+		var config = BuildConfig(new Dictionary<string, string?>
+		{
+			["Ocr:Mistral:TimeoutSeconds"] = "90",
+			["Ocr:OpenRouter:TimeoutSeconds"] = "45"
+		});
+
+		var options = BindAndValidate(config);
+
 		Assert.Equal(90, options.Mistral.TimeoutSeconds);
-		Assert.Equal("mistral-ocr-v2", options.Mistral.ModelId);
+		Assert.Equal(45, options.OpenRouter.TimeoutSeconds);
 	}
 
 	[Fact]
 	public void UseExtractionStub_DefaultsToTrue()
 	{
-		var config = BuildConfig(new Dictionary<string, string?>
-		{
-			["Ocr:Provider"] = "fallback"
-		});
+		var config = BuildConfig(new Dictionary<string, string?>());
 
 		var options = BindAndValidate(config);
 
@@ -130,8 +91,8 @@ public class OcrOptionsValidationTests
 	{
 		var config = BuildConfig(new Dictionary<string, string?>
 		{
-			["Ocr:Provider"] = "fallback",
-			["Ocr:UseExtractionStub"] = "false"
+			["Ocr:UseExtractionStub"] = "false",
+			["Ocr:Mistral:ApiKey"] = "test-mistral-key"
 		});
 
 		var options = BindAndValidate(config);

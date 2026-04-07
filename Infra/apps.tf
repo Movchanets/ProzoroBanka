@@ -81,13 +81,13 @@ resource "azurerm_container_app" "api" {
   }
 
   secret {
-    name  = "ocr-azure-api-key"
-    value = local.ocr_azure_api_key
+    name  = "ocr-mistral-api-key"
+    value = var.ocr_mistral_api_key
   }
 
   secret {
-    name  = "ocr-mistral-api-key"
-    value = var.ocr_mistral_api_key
+    name  = "ocr-openrouter-api-key"
+    value = var.ocr_openrouter_api_key
   }
 
   secret {
@@ -157,23 +157,13 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name  = "Ocr__Provider"
-        value = var.ocr_provider
-      }
-
-      env {
-        name  = "Ocr__Azure__Endpoint"
-        value = local.ocr_azure_endpoint
-      }
-
-      env {
-        name        = "Ocr__Azure__ApiKey"
-        secret_name = "ocr-azure-api-key"
-      }
-
-      env {
         name        = "Ocr__Mistral__ApiKey"
         secret_name = "ocr-mistral-api-key"
+      }
+
+      env {
+        name        = "Ocr__OpenRouter__ApiKey"
+        secret_name = "ocr-openrouter-api-key"
       }
 
       env {

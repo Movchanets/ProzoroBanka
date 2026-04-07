@@ -7,5 +7,6 @@ public interface IReceiptStructuredExtractionService
 	Task<ReceiptStructuredExtractionResult> ExtractAsync(
 		Stream receiptImage,
 		string fileName,
+		string? modelIdentifier,
 		CancellationToken ct);
 }

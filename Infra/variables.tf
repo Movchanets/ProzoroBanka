@@ -76,23 +76,6 @@ variable "api_custom_domain" {
   description = "Optional custom domain for API Container App, for example api.prozorobanka.pp.ua."
 }
 
-variable "create_ocr_azure_resource" {
-  type        = bool
-  default     = false
-  description = "Create an Azure Document Intelligence resource and wire its endpoint/key into the backend automatically."
-}
-
-variable "ocr_azure_resource_name" {
-  type        = string
-  default     = ""
-  description = "Optional override for the Azure Document Intelligence resource name."
-}
-
-variable "ocr_azure_sku_name" {
-  type        = string
-  default     = "S0"
-  description = "SKU for Azure Document Intelligence."
-}
 
 variable "storage_account_name" {
   type        = string
@@ -273,31 +256,18 @@ variable "seed_admin_password" {
   description = "Seed administrator password used during environment bootstrap."
 }
 
-variable "ocr_provider" {
-  type        = string
-  default     = "fallback"
-  description = "OCR provider setting passed to the backend."
-}
-
-variable "ocr_azure_endpoint" {
-  type        = string
-  default     = ""
-  sensitive   = true
-  description = "Azure Document Intelligence endpoint. Ignored when create_ocr_azure_resource=true."
-}
-
-variable "ocr_azure_api_key" {
-  type        = string
-  default     = ""
-  sensitive   = true
-  description = "Azure Document Intelligence API key. Ignored when create_ocr_azure_resource=true."
-}
-
 variable "ocr_mistral_api_key" {
   type        = string
   default     = ""
   sensitive   = true
   description = "Mistral OCR API key."
+}
+
+variable "ocr_openrouter_api_key" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "OpenRouter OCR API key."
 }
 
 variable "redis_enabled" {

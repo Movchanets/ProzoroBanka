@@ -35,5 +35,10 @@ public static class ReceiptDtoMapper
 					photo.SortOrder))
 				.ToList(),
 			receipt.OcrStructuredPayloadJson,
-			receipt.RawOcrJson);
+			receipt.RawOcrJson,
+			ReceiptVerificationLinkBuilder.TryBuildTaxCabinetLink(receipt, out var verificationUrl, out _) ? verificationUrl : receipt.StateVerificationReference,
+			receipt.Status == Domain.Enums.ReceiptStatus.StateVerified
+				&& (ReceiptVerificationLinkBuilder.TryBuildTaxCabinetLink(receipt, out var generatedVerificationUrl, out _)
+					? !string.IsNullOrWhiteSpace(generatedVerificationUrl)
+					: !string.IsNullOrWhiteSpace(receipt.StateVerificationReference)));
 }

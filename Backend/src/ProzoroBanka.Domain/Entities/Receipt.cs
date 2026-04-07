@@ -44,7 +44,7 @@ public class Receipt : BaseEntity
     public string? RawOcrJson { get; set; }
     public string? OcrStructuredPayloadJson { get; set; }
     public DateTime? OcrExtractedAtUtc { get; set; }
-    public OcrProvider? ParsedBy { get; set; }
+    public string? ParsedByModel { get; set; }
     public Guid? MatchedTransactionId { get; set; }
     public string? StateVerificationReference { get; set; }
     public DateTime? StateVerifiedAtUtc { get; set; }

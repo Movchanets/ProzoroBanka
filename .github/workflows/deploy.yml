@@ -132,13 +132,65 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
 
+      - name: Resolve Terraform state key
+        id: tfstate-key
+        shell: bash
+        run: |
+          echo "key=prozoro-banka-${{ needs.determine-environment.outputs.deploy_environment }}.tfstate" >> "$GITHUB_OUTPUT"
+
+      - name: Backup current Terraform state
+        id: tfstate-backup
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          STATE_KEY="${{ steps.tfstate-key.outputs.key }}"
+          BACKUP_DIR="tfstate-backups"
+          mkdir -p "$BACKUP_DIR"
+
+          EXISTS=$(az storage blob exists \
+            --auth-mode login \
+            --account-name "${{ secrets.TFSTATE_STORAGE_ACCOUNT }}" \
+            --container-name "${{ secrets.TFSTATE_CONTAINER }}" \
+            --name "$STATE_KEY" \
+            --query exists -o tsv)
+
+          if [[ "$EXISTS" != "true" ]]; then
+            echo "No remote tfstate found yet for key $STATE_KEY, skipping backup."
+            echo "backup_created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
+          BACKUP_FILE="$BACKUP_DIR/${STATE_KEY}.${TIMESTAMP}.backup"
+
+          az storage blob download \
+            --auth-mode login \
+            --account-name "${{ secrets.TFSTATE_STORAGE_ACCOUNT }}" \
+            --container-name "${{ secrets.TFSTATE_CONTAINER }}" \
+            --name "$STATE_KEY" \
+            --file "$BACKUP_FILE" \
+            --overwrite true
+
+          echo "Backed up tfstate to $BACKUP_FILE"
+          echo "backup_created=true" >> "$GITHUB_OUTPUT"
+          echo "backup_file=$BACKUP_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Upload tfstate backup artifact
+        if: ${{ steps.tfstate-backup.outputs.backup_created == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfstate-backup-${{ needs.determine-environment.outputs.deploy_environment }}-${{ github.run_id }}
+          path: ${{ steps.tfstate-backup.outputs.backup_file }}
+          if-no-files-found: error
+
       - name: Terraform init
         run: |
           terraform init \
             -backend-config="resource_group_name=${{ secrets.TFSTATE_RESOURCE_GROUP }}" \
             -backend-config="storage_account_name=${{ secrets.TFSTATE_STORAGE_ACCOUNT }}" \
             -backend-config="container_name=${{ secrets.TFSTATE_CONTAINER }}" \
-            -backend-config="key=prozoro-banka-${{ needs.determine-environment.outputs.deploy_environment }}.tfstate"
+            -backend-config="key=${{ steps.tfstate-key.outputs.key }}"
 
       - name: Terraform plan
         env:
@@ -164,16 +216,13 @@ jobs:
           TF_VAR_email_smtp_password: ${{ secrets.SMTP_PASSWORD }}
           TF_VAR_seed_admin_email: ${{ secrets.SEED_ADMIN_EMAIL }}
           TF_VAR_seed_admin_password: ${{ secrets.SEED_ADMIN_PASSWORD }}
-          TF_VAR_ocr_provider: ${{ secrets.OCR_PROVIDER }}
-          TF_VAR_ocr_azure_endpoint: ${{ secrets.OCR_AZURE_ENDPOINT }}
-          TF_VAR_ocr_azure_api_key: ${{ secrets.OCR_AZURE_API_KEY }}
           TF_VAR_ocr_mistral_api_key: ${{ secrets.OCR_MISTRAL_API_KEY }}
+          TF_VAR_ocr_openrouter_api_key: ${{ secrets.OCR_OPENROUTER_API_KEY }}
           TF_VAR_redis_enabled: ${{ secrets.REDIS_ENABLED }}
           TF_VAR_redis_connection_string: ${{ secrets.REDIS_CONNECTION_STRING }}
           TF_VAR_redis_instance_name: ${{ secrets.REDIS_INSTANCE_NAME }}
           TF_VAR_storage_container_name: ${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}
           TF_VAR_blob_cdn_url: ${{ secrets.AZURE_BLOB_CDN_URL }}
-          TF_VAR_create_ocr_azure_resource: ${{ secrets.CREATE_OCR_AZURE_RESOURCE }}
           TF_VAR_static_web_app_custom_domain: ${{ vars.STATIC_WEB_APP_CUSTOM_DOMAIN != '' && vars.STATIC_WEB_APP_CUSTOM_DOMAIN || secrets.STATIC_WEB_APP_CUSTOM_DOMAIN }}
           TF_VAR_static_web_app_custom_domain_validation_type: ${{ vars.STATIC_WEB_APP_CUSTOM_DOMAIN_VALIDATION_TYPE != '' && vars.STATIC_WEB_APP_CUSTOM_DOMAIN_VALIDATION_TYPE || secrets.STATIC_WEB_APP_CUSTOM_DOMAIN_VALIDATION_TYPE }}
           TF_VAR_static_web_app_root_custom_domain: ${{ vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN != '' && vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN || secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN }}

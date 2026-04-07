@@ -26,10 +26,13 @@ export const receiptService = {
     });
   },
 
-  extract: (receiptId: string, organizationId: string, file: File) => {
+  extract: (receiptId: string, organizationId: string, file: File, modelIdentifier?: string) => {
     const formData = new FormData();
     formData.append('organizationId', organizationId);
     formData.append('file', file);
+    if (modelIdentifier) {
+      formData.append('modelIdentifier', modelIdentifier);
+    }
 
     return apiFetch<ReceiptPipeline>(`/api/receipts/${receiptId}/extract`, {
       method: 'POST',

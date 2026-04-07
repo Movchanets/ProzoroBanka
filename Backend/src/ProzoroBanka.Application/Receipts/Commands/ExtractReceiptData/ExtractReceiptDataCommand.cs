@@ -9,4 +9,5 @@ public record ExtractReceiptDataCommand(
 	Guid ReceiptId,
 	Stream FileStream,
 	string FileName,
-	Guid OrganizationId) : IRequest<ServiceResponse<ReceiptPipelineDto>>;
+	Guid OrganizationId,
+	string? ModelIdentifier = null) : IRequest<ServiceResponse<ReceiptPipelineDto>>;

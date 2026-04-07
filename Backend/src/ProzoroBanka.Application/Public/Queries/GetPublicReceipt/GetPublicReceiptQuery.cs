@@ -36,9 +36,13 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 				r.MerchantName,
 				r.TotalAmount,
 				r.TransactionDate,
+				r.PurchaseDateUtc,
 				r.Status,
 				r.StorageKey,
 				r.OcrStructuredPayloadJson,
+				r.FiscalNumber,
+				r.ReceiptCode,
+				r.StateVerificationReference,
 				AddedByName = r.User.FirstName + " " + r.User.LastName,
 				r.CampaignId,
 				CampaignTitle = r.Campaign != null ? r.Campaign.Title : null,
@@ -49,6 +53,20 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 
 		if (receipt is null)
 			return ServiceResponse<PublicReceiptDetailDto>.Failure("Чек не знайдено");
+
+		var verificationUrl = ReceiptVerificationLinkBuilder.TryBuildTaxCabinetLink(new Domain.Entities.Receipt
+		{
+			PurchaseDateUtc = receipt.PurchaseDateUtc,
+			TransactionDate = receipt.TransactionDate,
+			FiscalNumber = receipt.FiscalNumber,
+			ReceiptCode = receipt.ReceiptCode,
+			TotalAmount = receipt.TotalAmount,
+			StateVerificationReference = receipt.StateVerificationReference
+		}, out var generatedVerificationUrl, out _)
+			? generatedVerificationUrl
+			: receipt.StateVerificationReference;
+
+		var isConfirmed = receipt.Status == ReceiptStatus.StateVerified && !string.IsNullOrWhiteSpace(verificationUrl);
 
 		return ServiceResponse<PublicReceiptDetailDto>.Success(new PublicReceiptDetailDto(
 			receipt.Id,
@@ -62,6 +80,8 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 			receipt.CampaignId,
 			receipt.CampaignTitle,
 			receipt.OrganizationName,
-			receipt.OrganizationSlug));
+			receipt.OrganizationSlug,
+			verificationUrl,
+			isConfirmed));
 	}
 }

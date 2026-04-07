@@ -7,9 +7,11 @@ public record ReceiptStructuredExtractionResult(
 	DateTime? PurchaseDateUtc,
 	string? FiscalNumber,
 	string? ReceiptCode,
+	string? FiscalRegisterNumber,
 	string? Currency,
 	string? PurchasedItemName,
 	string? StructuredPayloadJson,
 	string? RawPayloadJson,
-	string? ErrorMessage
+	string? ErrorMessage,
+	string? UsedModel = null
 );

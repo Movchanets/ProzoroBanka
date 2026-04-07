@@ -348,6 +348,50 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.ToTable("MonobankTransactions", (string)null);
                 });
 
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.OcrModelConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ModelIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ModelIdentifier")
+                        .IsUnique();
+
+                    b.ToTable("OcrModelConfigs", (string)null);
+                });
+
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.Organization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -559,8 +603,9 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
-                    b.Property<int?>("ParsedBy")
-                        .HasColumnType("integer");
+                    b.Property<string>("ParsedByModel")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<int>("PublicationStatus")
                         .HasColumnType("integer");

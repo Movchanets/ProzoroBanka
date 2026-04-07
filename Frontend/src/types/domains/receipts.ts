@@ -18,13 +18,14 @@ export const ReceiptStatus = {
 
 export type ReceiptStatus = typeof ReceiptStatus[keyof typeof ReceiptStatus];
 
-export const OcrProvider = {
-  AzureDocumentIntelligence: 0,
-  MistralOcr: 1,
-  Manual: 2,
-} as const;
-
-export type OcrProvider = typeof OcrProvider[keyof typeof OcrProvider];
+export interface OcrModelConfig {
+  id: string;
+  name: string;
+  modelIdentifier: string;
+  provider: string;
+  isActive: boolean;
+  isDefault: boolean;
+}
 
 export interface Receipt {
   id: string;
@@ -34,7 +35,7 @@ export interface Receipt {
   totalAmount?: number;
   transactionDate?: string;
   status: ReceiptStatus;
-  parsedBy?: OcrProvider;
+  parsedByModel?: string;
   matchedTransactionId?: string;
   createdAt: string;
 }
@@ -67,6 +68,8 @@ export interface ReceiptPipeline {
   itemPhotos?: ReceiptItemPhoto[];
   ocrStructuredPayloadJson?: string;
   rawOcrJson?: string;
+  verificationUrl?: string;
+  isConfirmed?: boolean;
 }
 
 export interface ReceiptListItem {

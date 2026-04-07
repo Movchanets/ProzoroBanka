@@ -6,16 +6,17 @@ namespace ProzoroBanka.Infrastructure.Services.Receipts;
 
 public class ReceiptStructuredExtractionService : IReceiptStructuredExtractionService
 {
-	private readonly IOcrService _ocrService;
+	private readonly IOcrServiceFactory _ocrFactory;
 
-	public ReceiptStructuredExtractionService(IOcrService ocrService)
+	public ReceiptStructuredExtractionService(IOcrServiceFactory ocrFactory)
 	{
-		_ocrService = ocrService;
+		_ocrFactory = ocrFactory;
 	}
 
-	public async Task<ReceiptStructuredExtractionResult> ExtractAsync(Stream receiptImage, string fileName, CancellationToken ct)
+	public async Task<ReceiptStructuredExtractionResult> ExtractAsync(Stream receiptImage, string fileName, string? modelIdentifier, CancellationToken ct)
 	{
-		var result = await _ocrService.ParseReceiptAsync(receiptImage, fileName, ct);
+		var (service, usedModel) = await _ocrFactory.ResolveAsync(modelIdentifier, ct);
+		var result = await service.ParseReceiptAsync(receiptImage, fileName, usedModel, ct);
 		if (!result.Success)
 		{
 			return new ReceiptStructuredExtractionResult(
@@ -28,8 +29,10 @@ public class ReceiptStructuredExtractionService : IReceiptStructuredExtractionSe
 				null,
 				null,
 				null,
+				null,
 				result.RawJson,
-				result.ErrorMessage ?? "OCR extraction failed");
+				result.ErrorMessage ?? "OCR extraction failed",
+				usedModel);
 		}
 
 		string? fiscalNumber = null;
@@ -42,10 +45,11 @@ public class ReceiptStructuredExtractionService : IReceiptStructuredExtractionSe
 			{
 				using var document = JsonDocument.Parse(result.RawJson);
 				var root = document.RootElement;
-				fiscalNumber = TryGetString(root, "fiscalNumber");
-				receiptCode = TryGetString(root, "receiptCode");
+				fiscalNumber = TryGetString(root, "fiscalNumber", "fiscal_number");
+				receiptCode = TryGetString(root, "receiptCode", "receipt_number");
 				currency = TryGetString(root, "currency");
-				purchasedItemName = TryGetString(root, "purchasedItemName") ?? TryGetFirstItemName(root);
+				purchasedItemName = TryGetString(root, "purchasedItemName", "purchased_item_name")
+					?? TryGetFirstItemName(root);
 			}
 			catch
 			{
@@ -58,20 +62,32 @@ public class ReceiptStructuredExtractionService : IReceiptStructuredExtractionSe
 			result.MerchantName,
 			result.TotalAmount,
 			result.TransactionDate,
-			fiscalNumber,
-			receiptCode,
+			result.FiscalRegisterNumber ?? fiscalNumber,
+			result.FiscalReceiptNumber ?? receiptCode,
+			result.FiscalRegisterNumber ?? fiscalNumber, // FiscalRegisterNumber explicit field
 			currency,
 			purchasedItemName,
 			result.RawJson,
 			result.RawJson,
-			null);
+			null,
+			usedModel);
 	}
 
-	private static string? TryGetString(JsonElement root, string property)
+	private static string? TryGetString(JsonElement root, params string[] propertyNames)
 	{
-		if (!root.TryGetProperty(property, out var value) || value.ValueKind == JsonValueKind.Null)
-			return null;
-		return value.GetString();
+		foreach (var property in propertyNames)
+		{
+			if (!root.TryGetProperty(property, out var value) || value.ValueKind == JsonValueKind.Null)
+				continue;
+
+			if (value.ValueKind == JsonValueKind.String)
+				return value.GetString();
+
+			if (value.ValueKind == JsonValueKind.Number)
+				return value.GetRawText();
+		}
+
+		return null;
 	}
 
 	private static string? TryGetFirstItemName(JsonElement root)
@@ -83,6 +99,6 @@ public class ReceiptStructuredExtractionService : IReceiptStructuredExtractionSe
 		if (first.ValueKind != JsonValueKind.Object)
 			return null;
 
-		return first.TryGetProperty("name", out var name) ? name.GetString() : null;
+		return TryGetString(first, "name", "item_name", "title");
 	}
 }

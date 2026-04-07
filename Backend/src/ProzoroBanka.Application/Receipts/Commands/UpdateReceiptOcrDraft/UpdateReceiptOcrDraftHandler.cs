@@ -39,7 +39,7 @@ public class UpdateReceiptOcrDraftHandler : IRequestHandler<UpdateReceiptOcrDraf
 		receipt.Currency = Normalize(request.Currency);
 		receipt.PurchasedItemName = Normalize(request.PurchasedItemName);
 		receipt.OcrStructuredPayloadJson = NormalizeJson(request.OcrStructuredPayloadJson);
-		receipt.ParsedBy = OcrProvider.Manual;
+		receipt.ParsedByModel = "manual";
 		receipt.RegistryType = !string.IsNullOrWhiteSpace(receipt.FiscalNumber)
 			? RegistryReceiptType.Fiscal
 			: !string.IsNullOrWhiteSpace(receipt.ReceiptCode)

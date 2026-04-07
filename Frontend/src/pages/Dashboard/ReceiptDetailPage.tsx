@@ -30,8 +30,10 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { ReceiptItemsTable } from '@/components/receipt/ReceiptItemsTable';
 import {
   useActivateReceipt,
   useAddReceiptItemPhotos,
@@ -46,8 +48,10 @@ import {
   useUploadReceiptDraft,
   useVerifyReceipt,
 } from '@/hooks/queries/useReceipts';
+import { useOcrModels } from '@/hooks/queries/useOcrModels';
 import { cn } from '@/lib/utils';
 import {
+  type OcrModelConfig,
   ReceiptPublicationStatus,
   type ReceiptItemPhoto as PersistedReceiptItemPhoto,
   type ReceiptPipeline,
@@ -112,11 +116,17 @@ interface CropSession {
 
 function formatAmount(value?: number) {
   if (typeof value !== 'number') return '—';
+  const hryvnias = value / 100;
   return new Intl.NumberFormat('uk-UA', {
     style: 'currency',
     currency: 'UAH',
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(hryvnias);
+}
+
+function formatAmountInputValue(value?: number) {
+  if (typeof value !== 'number') return '';
+  return (value / 100).toString();
 }
 
 function formatDate(value?: string) {
@@ -195,13 +205,17 @@ function buildOcrDraft(receipt: ReceiptPipeline | null): OcrDraft {
 
   return {
     merchantName: getStringValue(structuredPayload.merchantName) ?? receipt.merchantName ?? '',
-    totalAmount: getAmountString(structuredPayload.totalAmount) || (typeof receipt.totalAmount === 'number' ? receipt.totalAmount.toString() : ''),
+    totalAmount: getAmountString(structuredPayload.totalAmount) || formatAmountInputValue(receipt.totalAmount),
     purchaseDateUtc: formatDateTimeLocalValue(getStringValue(structuredPayload.purchaseDateUtc) ?? receipt.purchaseDateUtc),
     fiscalNumber: getStringValue(structuredPayload.fiscalNumber) ?? receipt.fiscalNumber ?? '',
     receiptCode: getStringValue(structuredPayload.receiptCode) ?? receipt.receiptCode ?? '',
     currency: getStringValue(structuredPayload.currency) ?? receipt.currency ?? '',
     purchasedItemName: getStringValue(structuredPayload.purchasedItemName) ?? receipt.purchasedItemName ?? '',
   };
+}
+
+function getReceiptItemsPayload(receipt: ReceiptPipeline | null) {
+  return receipt?.ocrStructuredPayloadJson ?? receipt?.rawOcrJson ?? null;
 }
 
 function isImageFile(file: File) {
@@ -215,6 +229,35 @@ function replaceExtension(fileName: string, extension: string) {
 
 function isBlobUrl(value: string) {
   return value.startsWith('blob:');
+}
+
+function toProxySafeUploadUrl(url: string) {
+  if (!url) return url;
+
+  if (url.startsWith('/uploads/')) {
+    return url;
+  }
+
+  try {
+    const parsedUrl = new URL(url, window.location.origin);
+    if (!parsedUrl.pathname.startsWith('/uploads/')) {
+      return url;
+    }
+
+    const apiBaseUrl = import.meta.env.VITE_API_URL;
+    if (!apiBaseUrl) {
+      return `${parsedUrl.pathname}${parsedUrl.search}`;
+    }
+
+    const apiOrigin = new URL(apiBaseUrl, window.location.origin).origin;
+    if (parsedUrl.origin !== apiOrigin) {
+      return url;
+    }
+
+    return `${parsedUrl.pathname}${parsedUrl.search}`;
+  } catch {
+    return url;
+  }
 }
 
 function revokePreviewUrl(value?: string | null) {
@@ -264,6 +307,7 @@ export default function ReceiptDetailPage() {
   const [ocrJsonInput, setOcrJsonInput] = useState(buildJsonFromDraft(emptyOcrDraft));
   const [ocrJsonError, setOcrJsonError] = useState<string | null>(null);
   const [hasOcrChanges, setHasOcrChanges] = useState(false);
+  const [selectedModelIdentifier, setSelectedModelIdentifier] = useState<string>('');
   const selectedFilePreviewRef = useRef<string | null>(null);
   const itemPhotosRef = useRef<ItemPhotoAsset[]>([]);
   const cropSessionRef = useRef<CropSession | null>(null);
@@ -280,6 +324,7 @@ export default function ReceiptDetailPage() {
   const reorderItemPhotosMutation = useReorderReceiptItemPhotos();
   const deleteItemPhotoMutation = useDeleteReceiptItemPhoto();
   const getReceiptMutation = useGetMyReceipt();
+  const { data: ocrModels } = useOcrModels(Boolean(orgId));
 
   const activeReceiptId = useMemo(
     () => receipt?.id ?? receiptIdInput.trim(),
@@ -324,6 +369,20 @@ export default function ReceiptDetailPage() {
   const canExtract = useMemo(() => {
     return !!orgId && !!activeReceiptId && (!!selectedFile || !!receipt?.receiptImageUrl);
   }, [orgId, activeReceiptId, selectedFile, receipt?.receiptImageUrl]);
+
+  useEffect(() => {
+    if (!ocrModels || ocrModels.length === 0) {
+      setSelectedModelIdentifier('');
+      return;
+    }
+
+    if (selectedModelIdentifier && ocrModels.some((model) => model.modelIdentifier === selectedModelIdentifier)) {
+      return;
+    }
+
+    const defaultModel = ocrModels.find((model) => model.isDefault) ?? ocrModels[0];
+    setSelectedModelIdentifier(defaultModel?.modelIdentifier ?? '');
+  }, [ocrModels, selectedModelIdentifier]);
 
   useEffect(() => {
     selectedFilePreviewRef.current = selectedFilePreview;
@@ -561,7 +620,7 @@ export default function ReceiptDetailPage() {
   const onRecropItemPhoto = async (item: ItemPhotoAsset) => {
     try {
       const file = item.file ?? await (async () => {
-        const response = await fetch(item.previewUrl);
+        const response = await fetch(toProxySafeUploadUrl(item.previewUrl), { credentials: 'include' });
         if (!response.ok) {
           throw new Error('Не вдалося завантажити фото товару для перекропу');
         }
@@ -753,7 +812,7 @@ export default function ReceiptDetailPage() {
       return null;
     }
 
-    const response = await fetch(previewUrl, { credentials: 'include' });
+    const response = await fetch(toProxySafeUploadUrl(previewUrl), { credentials: 'include' });
     if (!response.ok) {
       throw new Error('Не вдалося завантажити файл чека з backend для OCR');
     }
@@ -791,6 +850,7 @@ export default function ReceiptDetailPage() {
         receiptId: activeReceiptId,
         organizationId: orgId,
         file: fileForExtract,
+        modelIdentifier: selectedModelIdentifier || undefined,
       });
       applyReceipt(result);
       toast.success('OCR етап виконано');
@@ -820,12 +880,14 @@ export default function ReceiptDetailPage() {
     }
 
     try {
+      const draftTotalAmount = parseAmount(ocrDraft.totalAmount);
+
       const result = await updateOcrDraftMutation.mutateAsync({
         receiptId: activeReceiptId,
         payload: {
           alias: normalizeText(aliasInput),
           merchantName: normalizeText(ocrDraft.merchantName),
-          totalAmount: parseAmount(ocrDraft.totalAmount),
+          totalAmount: draftTotalAmount === null ? null : Math.round(draftTotalAmount * 100),
           purchaseDateUtc: ocrDraft.purchaseDateUtc ? new Date(ocrDraft.purchaseDateUtc).toISOString() : null,
           fiscalNumber: normalizeText(ocrDraft.fiscalNumber),
           receiptCode: normalizeText(ocrDraft.receiptCode),
@@ -1114,6 +1176,25 @@ export default function ReceiptDetailPage() {
             />
           </div>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="sm:col-span-2 xl:col-span-2 space-y-1">
+              <Label htmlFor="dashboard-receipts-ocr-model-select">OCR модель</Label>
+              <Select value={selectedModelIdentifier} onValueChange={setSelectedModelIdentifier}>
+                <SelectTrigger id="dashboard-receipts-ocr-model-select" data-testid="dashboard-receipts-ocr-model-select">
+                  <SelectValue placeholder="Оберіть OCR модель" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(ocrModels ?? []).map((model: OcrModelConfig) => (
+                    <SelectItem
+                      key={model.id}
+                      value={model.modelIdentifier}
+                      data-testid={`dashboard-receipts-ocr-model-option-${model.id}`}
+                    >
+                      {model.name} ({model.provider})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button
               onClick={onExtract}
               disabled={!canExtract || isBusy}
@@ -1265,6 +1346,14 @@ export default function ReceiptDetailPage() {
                   </div>
 
                   <div className="space-y-2">
+                    <Label>Позиції товарів</Label>
+                    <ReceiptItemsTable
+                      structuredOutputJson={getReceiptItemsPayload(receipt)}
+                      testIdPrefix="dashboard-receipts-items"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="ocr-raw-json">Raw OCR payload</Label>
                     {receipt.rawOcrJson ? (
                       <Textarea id="ocr-raw-json" value={receipt.rawOcrJson} readOnly className="min-h-48 font-mono text-xs" />
@@ -1303,6 +1392,9 @@ export default function ReceiptDetailPage() {
                 <Badge data-testid="dashboard-receipts-status-badge">
                   {statusLabelMap[receipt.status] ?? `Status ${receipt.status}`}
                 </Badge>
+                {receipt.isConfirmed ? (
+                  <Badge variant="secondary" data-testid="dashboard-receipts-confirmed-badge">Підтверджено</Badge>
+                ) : null}
                 <Badge variant="outline" data-testid="dashboard-receipts-publication-badge">
                   {publicationLabelMap[receipt.publicationStatus] ?? `Publication ${receipt.publicationStatus}`}
                 </Badge>
@@ -1351,6 +1443,21 @@ export default function ReceiptDetailPage() {
                 <div>
                   <dt className="text-muted-foreground">Збір</dt>
                   <dd className="font-medium">{receipt.campaignTitle || 'Не прикріплено'}</dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-muted-foreground">Посилання перевірки ДПС</dt>
+                  <dd className="font-medium" data-testid="dashboard-receipts-state-verification-link">
+                    {receipt.verificationUrl ? (
+                      <a
+                        href={receipt.verificationUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary underline underline-offset-4"
+                      >
+                        Відкрити перевірку
+                      </a>
+                    ) : '—'}
+                  </dd>
                 </div>
               </dl>
 

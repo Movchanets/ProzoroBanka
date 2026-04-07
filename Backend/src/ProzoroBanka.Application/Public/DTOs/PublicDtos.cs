@@ -84,7 +84,9 @@ public record PublicReceiptDetailDto(
 	Guid? CampaignId,
 	string? CampaignTitle,
 	string? OrganizationName,
-	string? OrganizationSlug);
+	string? OrganizationSlug,
+	string? VerificationUrl,
+	bool IsConfirmed);
 
 public record TransparencyCategoryDto(
 	string Name,

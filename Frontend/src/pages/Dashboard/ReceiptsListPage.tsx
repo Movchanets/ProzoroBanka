@@ -60,11 +60,13 @@ function formatAmount(value?: number) {
     return '—';
   }
 
+  const hryvnias = value / 100;
+
   return new Intl.NumberFormat('uk-UA', {
     style: 'currency',
     currency: 'UAH',
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(hryvnias);
 }
 
 function formatDate(value?: string) {

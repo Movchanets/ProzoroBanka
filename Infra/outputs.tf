@@ -43,22 +43,7 @@ output "static_web_app_custom_domain" {
   description = "Custom domain attached to the Azure Static Web App, if configured."
 }
 
-output "ocr_azure_resource_name" {
-  value       = try(azurerm_cognitive_account.ocr[0].name, null)
-  description = "Azure Document Intelligence resource name, if Terraform creates it."
-}
 
-output "ocr_azure_endpoint" {
-  value       = local.ocr_azure_endpoint != "" ? local.ocr_azure_endpoint : null
-  sensitive   = true
-  description = "Azure Document Intelligence endpoint used by the backend."
-}
-
-output "ocr_azure_api_key" {
-  value       = local.ocr_azure_api_key != "" ? local.ocr_azure_api_key : null
-  sensitive   = true
-  description = "Azure Document Intelligence API key used by the backend."
-}
 
 output "storage_account_name" {
   value       = azurerm_storage_account.main.name

@@ -81,7 +81,7 @@ public class ReceiptsController : ApiControllerBase
 	[HasPermission(Permissions.ReceiptsUpdate)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
-	public async Task<IActionResult> Extract(Guid id, [FromForm] Guid organizationId, [FromForm] IFormFile? file, CancellationToken ct)
+	public async Task<IActionResult> Extract(Guid id, [FromForm] Guid organizationId, [FromForm] IFormFile? file, [FromForm] string? modelIdentifier = null, CancellationToken ct = default)
 	{
 		var userId = _currentUser.DomainUserId;
 		if (userId is null)
@@ -91,7 +91,7 @@ public class ReceiptsController : ApiControllerBase
 
 		await using var stream = file.OpenReadStream();
 		var result = await _sender.Send(
-			new ExtractReceiptDataCommand(userId.Value, id, stream, file.FileName, organizationId),
+			new ExtractReceiptDataCommand(userId.Value, id, stream, file.FileName, organizationId, modelIdentifier),
 			ct);
 
 		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
