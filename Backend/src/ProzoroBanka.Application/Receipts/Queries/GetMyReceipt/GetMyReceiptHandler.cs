@@ -51,7 +51,9 @@ public class GetMyReceiptHandler : IRequestHandler<GetMyReceiptQuery, ServiceRes
 						photo.SortOrder))
 					.ToList(),
 				r.OcrStructuredPayloadJson,
-				r.RawOcrJson))
+				r.RawOcrJson,
+				null,
+				false))
 			.FirstOrDefaultAsync(ct);
 
 		return receipt is null
