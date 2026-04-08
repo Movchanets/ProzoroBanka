@@ -66,9 +66,11 @@ public class GetPublicCampaignReceiptsHandlerTests
 			{
 				Id = Guid.NewGuid(),
 				UserId = memberId,
+				CampaignId = campaignId,
 				StorageKey = "member-verified.jpg",
 				OriginalFileName = "member-verified.jpg",
 				Status = ReceiptStatus.Verified,
+				PublicationStatus = ReceiptPublicationStatus.Active,
 				TotalAmount = 120m,
 				CreatedAt = DateTime.UtcNow
 			},
@@ -76,9 +78,11 @@ public class GetPublicCampaignReceiptsHandlerTests
 			{
 				Id = Guid.NewGuid(),
 				UserId = memberId,
+				CampaignId = campaignId,
 				StorageKey = "member-draft.jpg",
 				OriginalFileName = "member-draft.jpg",
 				Status = ReceiptStatus.Draft,
+				PublicationStatus = ReceiptPublicationStatus.Active,
 				TotalAmount = 75m,
 				CreatedAt = DateTime.UtcNow
 			},
@@ -86,9 +90,11 @@ public class GetPublicCampaignReceiptsHandlerTests
 			{
 				Id = Guid.NewGuid(),
 				UserId = outsiderId,
+				CampaignId = campaignId,
 				StorageKey = "outsider-verified.jpg",
 				OriginalFileName = "outsider-verified.jpg",
 				Status = ReceiptStatus.Verified,
+				PublicationStatus = ReceiptPublicationStatus.Draft,
 				TotalAmount = 250m,
 				CreatedAt = DateTime.UtcNow
 			});

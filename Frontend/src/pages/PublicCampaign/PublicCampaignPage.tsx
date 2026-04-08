@@ -110,7 +110,7 @@ export default function PublicCampaignPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Публічний збір</p>
         <h1 className="mt-2 text-3xl font-extrabold text-foreground">{campaign.title}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <Link data-testid="public-campaign-org-link" className="inline-flex rounded-xl bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground shadow-sm hover:bg-secondary/90" to={`/o/${campaign.organizationSlug}`}>
+          <Link data-testid="public-campaign-org-link" className="inline-flex rounded-xl bg-secondary px-3 py-2 text-sm font-semibold !text-white shadow-sm hover:bg-secondary/90" to={`/o/${campaign.organizationSlug}`}>
             Організація: {campaign.organizationName}
           </Link>
           {campaign.sendUrl ? (
@@ -127,7 +127,13 @@ export default function PublicCampaignPage() {
         </div>
       </section>
 
-      <CampaignProgressBar currentAmount={campaign.currentAmount} goalAmount={campaign.goalAmount} />
+      <CampaignProgressBar
+        currentAmount={campaign.currentAmount}
+        goalAmount={campaign.goalAmount}
+        documentedAmount={campaign.documentedAmount}
+        documentationPercent={campaign.documentationPercent}
+        testId="public-campaign-progress-panel"
+      />
 
       <Card data-testid="public-campaign-description">
         <CardHeader>

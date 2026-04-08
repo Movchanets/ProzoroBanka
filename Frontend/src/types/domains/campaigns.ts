@@ -23,6 +23,8 @@ export interface Campaign {
   goalAmount: number;
   currentAmount: number;
   withdrawnAmount: number;
+  documentedAmount: number;
+  documentationPercent: number;
   status: CampaignStatus;
   startDate?: string;
   deadline?: string;
@@ -41,6 +43,8 @@ export interface CampaignStats {
   totalCampaigns: number;
   activeCampaigns: number;
   totalRaised: number;
+  totalDocumented: number;
+  documentationPercent: number;
 }
 
 export interface CreateCampaignPayload {

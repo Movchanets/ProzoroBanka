@@ -160,8 +160,8 @@ public class AdminUserManagementEndpointsTests : IClassFixture<TestWebApplicatio
 				CreatedByUserId = targetDomainUserId,
 				Title = $"Delete Campaign {Guid.NewGuid():N}",
 				Description = "Regression test for admin delete",
-				GoalAmount = 25000m,
-				CurrentAmount = 5000m,
+				GoalAmount = 25000,
+				CurrentAmount = 5000,
 				Status = CampaignStatus.Active
 			});
 

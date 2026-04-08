@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/fixtures';
 
 import { seedAdminSession } from './support/admin-fixtures';
 import { fulfillOrganizationsList, mockMyOrganizationsNav } from './support/admin-mocks';
@@ -15,7 +15,7 @@ for (const localeConfig of TEST_LOCALES) {
       await mockMyOrganizationsNav(page);
     });
 
-    test('TC-01: page loads and key controls are visible', async ({ page }) => {
+    test('TC-01: page loads and key controls are visible', async ({ page, adminOrganizationsPage }) => {
       const selectedPlan: OrganizationPlanType = 1;
 
       await page.route('**/api/admin/organizations**', async (route) => {
@@ -61,15 +61,15 @@ for (const localeConfig of TEST_LOCALES) {
         page.goto('/admin/organizations'),
       ]);
 
-      await expect(page.getByTestId('admin-organizations-page')).toBeVisible();
-      await expect(page.getByTestId('admin-organizations-search-input')).toBeVisible();
-      await expect(page.getByTestId('admin-organizations-filter-all')).toBeVisible();
-      await expect(page.getByTestId('admin-organizations-row-org-1')).toBeVisible();
-      await expect(page.getByTestId('admin-organizations-plan-panel')).toBeVisible();
-      await expect(page.getByTestId('admin-organizations-usage-campaigns')).toBeVisible();
+      await expect(adminOrganizationsPage.pageContainer).toBeVisible();
+      await expect(adminOrganizationsPage.searchInput).toBeVisible();
+      await expect(adminOrganizationsPage.filterAll).toBeVisible();
+      await expect(adminOrganizationsPage.getOrgRow('org-1')).toBeVisible();
+      await expect(adminOrganizationsPage.planPanel).toBeVisible();
+      await expect(adminOrganizationsPage.usageCampaigns).toBeVisible();
     });
 
-    test('TC-02: search and verified filters stay interactive', async ({ page }) => {
+    test('TC-02: search and verified filters stay interactive', async ({ page, adminOrganizationsPage }) => {
       await page.route('**/api/admin/organizations**', async (route) => {
         const url = new URL(route.request().url());
         const search = url.searchParams.get('search') ?? '';
@@ -119,15 +119,15 @@ for (const localeConfig of TEST_LOCALES) {
         page.goto('/admin/organizations'),
       ]);
 
-      await page.getByTestId('admin-organizations-search-input').fill('Alpha');
-      await expect(page.getByTestId('admin-organizations-row-org-filtered')).toBeVisible();
+      await adminOrganizationsPage.searchInput.fill('Alpha');
+      await expect(adminOrganizationsPage.getOrgRow('org-filtered')).toBeVisible();
 
-      await page.getByTestId('admin-organizations-filter-unverified').click();
-      await expect(page.getByTestId('admin-organizations-row-org-filtered')).toBeVisible();
-      await expect(page.getByTestId('admin-organizations-unverified-org-filtered')).toBeVisible();
+      await adminOrganizationsPage.filterUnverified.click();
+      await expect(adminOrganizationsPage.getOrgRow('org-filtered')).toBeVisible();
+      await expect(adminOrganizationsPage.getOrgUnverifiedBadge('org-filtered')).toBeVisible();
     });
 
-    test('TC-03: plan switch updates usage values', async ({ page }) => {
+    test('TC-03: plan switch updates usage values', async ({ page, adminOrganizationsPage }) => {
       let selectedPlan: OrganizationPlanType = 1;
 
       await page.route('**/api/admin/organizations**', async (route) => {
@@ -187,15 +187,15 @@ for (const localeConfig of TEST_LOCALES) {
         page.waitForResponse((response) => response.url().includes('/api/admin/organizations?') && response.request().method() === 'GET'),
         page.goto('/admin/organizations'),
       ]);
-      await page.getByTestId('admin-organizations-select-org-plan').click();
+      await adminOrganizationsPage.getSelectOrgButton('org-plan').click();
 
-      await expect(page.getByTestId('admin-organizations-usage-members-value')).toContainText('9 / 10', { timeout: 10000 });
+      await expect(adminOrganizationsPage.usageMembersValue).toContainText('9 / 10', { timeout: 10000 });
 
-      await page.getByTestId('admin-organizations-plan-paid-button').click();
-      await page.getByTestId('admin-organizations-plan-apply-button').click();
+      await adminOrganizationsPage.planPaidButton.click();
+      await adminOrganizationsPage.planApplyButton.click();
 
-      await expect(page.getByTestId('admin-organizations-usage-members-value')).toContainText('9 / 200');
-      await expect(page.getByTestId('admin-organizations-plan-org-plan')).toContainText('Paid');
+      await expect(adminOrganizationsPage.usageMembersValue).toContainText('9 / 200');
+      await expect(adminOrganizationsPage.getOrgPlanLabel('org-plan')).toContainText('Paid');
     });
   });
 }

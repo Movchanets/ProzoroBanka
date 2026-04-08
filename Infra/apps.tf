@@ -71,18 +71,23 @@ resource "azurerm_container_app" "api" {
   }
 
   secret {
+    name  = "email-resend-api-key"
+    value = var.email_resend_api_key
+  }
+
+  secret {
     name  = "seed-admin-password"
     value = var.seed_admin_password
   }
 
   secret {
-    name  = "ocr-azure-api-key"
-    value = local.ocr_azure_api_key
+    name  = "ocr-mistral-api-key"
+    value = var.ocr_mistral_api_key
   }
 
   secret {
-    name  = "ocr-mistral-api-key"
-    value = var.ocr_mistral_api_key
+    name  = "ocr-openrouter-api-key"
+    value = var.ocr_openrouter_api_key
   }
 
   secret {
@@ -152,23 +157,13 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name  = "Ocr__Provider"
-        value = var.ocr_provider
-      }
-
-      env {
-        name  = "Ocr__Azure__Endpoint"
-        value = local.ocr_azure_endpoint
-      }
-
-      env {
-        name        = "Ocr__Azure__ApiKey"
-        secret_name = "ocr-azure-api-key"
-      }
-
-      env {
         name        = "Ocr__Mistral__ApiKey"
         secret_name = "ocr-mistral-api-key"
+      }
+
+      env {
+        name        = "Ocr__OpenRouter__ApiKey"
+        secret_name = "ocr-openrouter-api-key"
       }
 
       env {
@@ -209,6 +204,21 @@ resource "azurerm_container_app" "api" {
       env {
         name  = "Email__FromName"
         value = trimspace(var.email_from_name)
+      }
+
+      env {
+        name  = "Email__Provider"
+        value = var.email_provider
+      }
+
+      env {
+        name  = "Email__Resend__BaseUrl"
+        value = var.email_resend_base_url
+      }
+
+      env {
+        name        = "Email__Resend__ApiKey"
+        secret_name = "email-resend-api-key"
       }
 
       env {

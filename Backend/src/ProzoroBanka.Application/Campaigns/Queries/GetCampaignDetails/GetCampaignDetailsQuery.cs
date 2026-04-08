@@ -44,7 +44,7 @@ public class GetCampaignDetailsHandler
 				c.CurrentAmount,
 				WithdrawnAmount = _db.CampaignTransactions
 					.Where(t => t.CampaignId == c.Id && t.Amount < 0)
-					.Sum(t => (decimal?)(-t.Amount)) ?? 0,
+					.Sum(t => (long?)(-t.Amount)) ?? 0,
 				c.Status,
 				c.StartDate,
 				c.Deadline,
@@ -66,12 +66,25 @@ public class GetCampaignDetailsHandler
 		if (!isMember)
 			return ServiceResponse<CampaignDetailDto>.Failure("Немає доступу до організації");
 
+		var documentedAmountRaw = await _db.Receipts
+			.AsNoTracking()
+			.Where(r => r.CampaignId == campaign.Id && r.Status == Domain.Enums.ReceiptStatus.StateVerified)
+			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
+		var documentedAmount = MoneyConversion.ToMinorUnits(documentedAmountRaw);
+		var receiptCount = await _db.Receipts
+			.AsNoTracking()
+			.CountAsync(r => r.CampaignId == campaign.Id, cancellationToken);
+		var documentationPercent = campaign.GoalAmount <= 0
+			? 0
+			: Math.Min(100, (double)documentedAmount / campaign.GoalAmount * 100);
+
 		return ServiceResponse<CampaignDetailDto>.Success(new CampaignDetailDto(
 			campaign.Id, campaign.Title, campaign.Description,
 			StorageUrlResolver.Resolve(_fileStorage, campaign.CoverImageStorageKey),
 			campaign.GoalAmount, campaign.CurrentAmount, campaign.WithdrawnAmount,
+			documentedAmount, documentationPercent,
 			campaign.Status, campaign.StartDate, campaign.Deadline,
-			campaign.MonobankAccountId, campaign.SendUrl, campaign.OrganizationId,
+			campaign.MonobankAccountId, campaign.SendUrl, receiptCount, campaign.OrganizationId,
 			campaign.OrganizationName, campaign.CreatedByName,
 			campaign.CreatedAt));
 	}

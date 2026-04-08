@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ProzoroBanka.Application.Contracts.Email;
 using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Infrastructure.Data;
 using Testcontainers.PostgreSql;
 
@@ -15,8 +16,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
 {
 	public RecordingEmailNotificationService EmailRecorder { get; } = new();
 
-	private readonly PostgreSqlContainer _postgresContainer = new PostgreSqlBuilder()
-		.WithImage("postgres:16-alpine")
+	private readonly PostgreSqlContainer _postgresContainer = new PostgreSqlBuilder("postgres:16-alpine")
 		.WithDatabase("prozoro_banka_test")
 		.WithUsername("postgres")
 		.WithPassword("postgres")
@@ -41,41 +41,59 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
 
 	protected override void ConfigureWebHost(IWebHostBuilder builder)
 	{
+		var configurationValues = CreateTestConfigurationValues();
+		var hostConfiguration = new ConfigurationBuilder()
+			.AddInMemoryCollection(configurationValues)
+			.Build();
+
 		builder.UseEnvironment("Testing");
+		builder.UseConfiguration(hostConfiguration);
 
 		builder.ConfigureAppConfiguration((_, configurationBuilder) =>
 		{
-			configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-			{
-				["ConnectionStrings:DefaultConnection"] = _postgresContainer.GetConnectionString(),
-				["Jwt:Key"] = "TestSecretKeyAtLeast32Characters!!123",
-				["Jwt:Issuer"] = "ProzoroBanka-Test",
-				["Jwt:Audience"] = "ProzoroBanka-Test",
-				["Jwt:AccessTokenExpirationMinutes"] = "60",
-				["Jwt:RefreshTokenExpirationDays"] = "7",
-				["Google:ClientId"] = "test-client-id",
-				["Google:ClientSecret"] = "test-client-secret",
-				["Seed:Admin:Email"] = "admin@example.com",
-				["Seed:Admin:Password"] = "Admin123!ChangeMe",
-				["Seed:Admin:FirstName"] = "System",
-				["Seed:Admin:LastName"] = "Administrator",
-				["Storage:Provider"] = "Local",
-				["Storage:Local:FolderName"] = "uploads-test",
-				["Turnstile:SecretKey"] = "test-secret",
-				["Redis:Enabled"] = "false",
-				["Redis:ConnectionString"] = ""
-			});
+			configurationBuilder.AddInMemoryCollection(configurationValues);
 		});
 
 		builder.ConfigureServices(services =>
 		{
 			services.RemoveAll<ITurnstileService>();
 			services.RemoveAll<IEmailNotificationService>();
+			services.RemoveAll<IStateReceiptValidator>();
 
 			services.AddSingleton<ITurnstileService, AlwaysValidTurnstileService>();
 			services.AddSingleton<RecordingEmailNotificationService>(EmailRecorder);
 			services.AddSingleton<IEmailNotificationService>(sp => sp.GetRequiredService<RecordingEmailNotificationService>());
+			services.AddSingleton<IStateReceiptValidator, AlwaysValidStateReceiptValidator>();
 		});
+	}
+
+	private Dictionary<string, string?> CreateTestConfigurationValues()
+	{
+		return new Dictionary<string, string?>
+		{
+			["ConnectionStrings:DefaultConnection"] = _postgresContainer.GetConnectionString(),
+			["Jwt:Key"] = "TestSecretKeyAtLeast32Characters!!123",
+			["Jwt:Issuer"] = "ProzoroBanka-Test",
+			["Jwt:Audience"] = "ProzoroBanka-Test",
+			["Jwt:AccessTokenExpirationMinutes"] = "60",
+			["Jwt:RefreshTokenExpirationDays"] = "7",
+			["Google:ClientId"] = "test-client-id",
+			["Google:ClientSecret"] = "test-client-secret",
+			["Seed:Admin:Email"] = "admin@example.com",
+			["Seed:Admin:Password"] = "Admin123!ChangeMe",
+			["Seed:Admin:FirstName"] = "System",
+			["Seed:Admin:LastName"] = "Administrator",
+			["Encryption:Key"] = "MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=",
+			["Storage:Provider"] = "Local",
+			["Storage:Local:FolderName"] = "uploads-test",
+			["Ocr:UseExtractionStub"] = "true",
+			["Ocr:Provider"] = "fallback",
+			["Turnstile:SecretKey"] = "test-secret",
+			["StateValidator:Enabled"] = "true",
+			["StateValidator:DailyLimitPerToken"] = "900",
+			["Redis:Enabled"] = "false",
+			["Redis:ConnectionString"] = ""
+		};
 	}
 
 	private sealed class AlwaysValidTurnstileService : ITurnstileService
@@ -84,6 +102,15 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
 		{
 			return Task.FromResult(true);
 		}
+	}
+
+	private sealed class AlwaysValidStateReceiptValidator : IStateReceiptValidator
+	{
+		public Task<RegistryValidationResult> ValidateFiscalAsync(string fiscalNumber, string apiToken, CancellationToken ct)
+			=> Task.FromResult(new RegistryValidationResult(true, fiscalNumber, null));
+
+		public Task<RegistryValidationResult> ValidateBankTransferAsync(string receiptCode, string apiToken, CancellationToken ct)
+			=> Task.FromResult(new RegistryValidationResult(true, receiptCode, null));
 	}
 
 	public sealed class RecordingEmailNotificationService : IEmailNotificationService

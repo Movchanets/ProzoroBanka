@@ -5,8 +5,8 @@ import { CampaignStatusLabel, type Campaign } from '@/types';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
 import { Megaphone, Plus, Calendar, Globe } from 'lucide-react';
 
 const statusColor: Record<number, string> = {
@@ -19,11 +19,6 @@ const statusColor: Record<number, string> = {
 function CampaignCard({ campaign }: { campaign: Campaign }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const progress = campaign.goalAmount > 0
-    ? Math.min(100, Math.round((campaign.currentAmount / campaign.goalAmount) * 100))
-    : 0;
-  const raised = new Intl.NumberFormat('uk-UA').format(campaign.currentAmount / 100);
-  const goal = new Intl.NumberFormat('uk-UA').format(campaign.goalAmount / 100);
   const withdrawn = new Intl.NumberFormat('uk-UA').format(campaign.withdrawnAmount / 100);
 
   return (
@@ -38,16 +33,16 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
           <Badge className={statusColor[campaign.status]} data-testid={`campaign-card-status-${campaign.id}`}>{t(CampaignStatusLabel[campaign.status])}</Badge>
         </div>
         {campaign.description && (<p className="line-clamp-2 text-sm text-muted-foreground">{campaign.description}</p>)}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{raised} ₴ <span className="text-muted-foreground/60">/ {goal} ₴</span></span>
-            <span className="font-semibold text-primary">{progress}%</span>
-          </div>
-          <p className="text-xs text-muted-foreground" data-testid={`campaign-card-withdrawn-${campaign.id}`}>
-            {t('campaigns.withdrawnPrefix')}: {withdrawn} ₴
-          </p>
-          <Progress value={progress} className="h-2" />
-        </div>
+        <CampaignProgressBar
+          currentAmount={campaign.currentAmount / 100}
+          goalAmount={campaign.goalAmount / 100}
+          documentedAmount={campaign.documentedAmount / 100}
+          documentationPercent={campaign.documentationPercent}
+          testId={`campaign-card-progress-${campaign.id}`}
+        />
+        <p className="text-xs text-muted-foreground" data-testid={`campaign-card-withdrawn-${campaign.id}`}>
+          {t('campaigns.withdrawnPrefix')}: {withdrawn} ₴
+        </p>
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
           {campaign.deadline && (
             <div className="flex items-center gap-1.5">

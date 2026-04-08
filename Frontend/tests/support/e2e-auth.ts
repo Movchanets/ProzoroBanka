@@ -11,6 +11,7 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
+  roles?: string[];
 }
 
 export interface AuthResponse {
@@ -73,6 +74,26 @@ export async function registerRandomUserViaApi(
     auth: (await registerResponse.json()) as AuthResponse,
     password,
   };
+}
+
+export async function loginViaApi(
+  request: APIRequestContext,
+  email: string,
+  password: string,
+): Promise<AuthResponse> {
+  const response = await request.post(`${E2E_API_BASE_URL}/api/auth/login`, {
+    data: {
+      email,
+      password,
+      turnstileToken: E2E_TURNSTILE_TEST_TOKEN,
+    },
+  });
+
+  if (!response.ok()) {
+    throw new Error(`Failed to login user ${email}: ${response.status()} ${await response.text()}`);
+  }
+
+  return (await response.json()) as AuthResponse;
 }
 
 export async function setAuthStorage(page: Page, auth: AuthResponse): Promise<void> {

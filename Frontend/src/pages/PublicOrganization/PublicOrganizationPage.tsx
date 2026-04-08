@@ -116,7 +116,7 @@ export default function PublicOrganizationPage() {
             {org.website ? (
               <a
                 data-testid="public-org-website-link"
-                className="mt-3 inline-flex rounded-xl bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground shadow-sm hover:bg-secondary/90"
+                className="mt-3 inline-flex rounded-xl bg-secondary px-3 py-2 text-sm font-semibold !text-white shadow-sm hover:bg-secondary/90"
                 href={org.website}
                 target="_blank"
                 rel="noreferrer"

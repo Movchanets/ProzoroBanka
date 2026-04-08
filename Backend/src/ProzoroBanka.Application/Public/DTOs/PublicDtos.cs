@@ -24,7 +24,7 @@ public record PublicOrganizationDto(
 	string? Website,
 	int MemberCount,
 	int ActiveCampaignCount,
-	decimal TotalRaised,
+	long TotalRaised,
 	IReadOnlyList<PublicTeamMemberDto> TeamMembers);
 
 public record PublicCampaignDto(
@@ -33,8 +33,10 @@ public record PublicCampaignDto(
 	string? Description,
 	string? CoverImageUrl,
 	string? SendUrl,
-	decimal GoalAmount,
-	decimal CurrentAmount,
+	long GoalAmount,
+	long CurrentAmount,
+	long DocumentedAmount,
+	double DocumentationPercent,
 	CampaignStatus Status,
 	DateTime? StartDate,
 	DateTime? Deadline,
@@ -49,8 +51,10 @@ public record PublicCampaignDetailDto(
 	string? Description,
 	string? CoverImageUrl,
 	string? SendUrl,
-	decimal GoalAmount,
-	decimal CurrentAmount,
+	long GoalAmount,
+	long CurrentAmount,
+	long DocumentedAmount,
+	double DocumentationPercent,
 	CampaignStatus Status,
 	DateTime? StartDate,
 	DateTime? Deadline,
@@ -75,11 +79,14 @@ public record PublicReceiptDetailDto(
 	DateTime? TransactionDate,
 	string Status,
 	string ImageUrl,
+	string? StructuredOutputJson,
 	string? AddedByName,
 	Guid? CampaignId,
 	string? CampaignTitle,
 	string? OrganizationName,
-	string? OrganizationSlug);
+	string? OrganizationSlug,
+	string? VerificationUrl,
+	bool IsConfirmed);
 
 public record TransparencyCategoryDto(
 	string Name,

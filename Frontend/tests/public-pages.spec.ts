@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { test, expect } from './support/fixtures';
 import { setupPublicPagesMocks } from './support/public-mocks';
 
 test.describe('Public pages', () => {
@@ -6,99 +6,111 @@ test.describe('Public pages', () => {
     await setupPublicPagesMocks(page);
   });
 
-  test('TC-01: home page loads and shows campaign grid', async ({ page }) => {
+  test('TC-01: home page loads and shows campaign grid', async ({ homePage }) => {
     test.info().annotations.push({ type: 'locale-check', description: 'Public pages load in bilingual-ready UI.' });
 
-    await page.goto('/');
+    await homePage.goto();
 
-    await expect(page.getByTestId('home-hero-section')).toBeVisible();
-    await expect(page.getByTestId('home-main-tabs')).toBeVisible();
-    await expect(page.getByTestId('home-search-form')).toBeVisible();
-    await expect(page.getByTestId('home-campaign-grid')).toBeVisible();
-    await expect(page.getByTestId('home-campaign-card-link').first()).toBeVisible();
-    await expect(page.getByTestId('home-campaign-org-link').first()).toBeVisible();
+    await expect(homePage.heroSection).toBeVisible();
+    await expect(homePage.mainTabs).toBeVisible();
+    await expect(homePage.searchForm).toBeVisible();
+    await expect(homePage.campaignGrid).toBeVisible();
+    await expect(homePage.campaignCardLink.first()).toBeVisible();
+    await expect(homePage.campaignOrgLink.first()).toBeVisible();
   });
 
-  test('TC-02: home search and filters are interactive', async ({ page }) => {
-    await page.goto('/');
+  test('TC-02: home search and filters are interactive', async ({ page, homePage }) => {
+    await homePage.goto();
 
-    await page.getByTestId('home-search-input').fill('тепловізори');
-    await page.getByTestId('home-campaign-verified-org-toggle').uncheck();
-    await page.getByTestId('home-campaign-status-select').click();
-    await expect(page.getByRole('listbox')).toBeVisible();
-    await page.getByRole('option', { name: /Активні|Active/i }).click();
-    await Promise.all([
-      page.waitForResponse((response) =>
-        response.url().includes('/api/public/campaigns/search') && response.ok(),
-      ),
-      page.getByTestId('home-search-submit-button').click(),
-    ]);
+    await homePage.fillSearch('тепловізори');
+    await homePage.toggleVerifiedOrg(false);
+    await homePage.selectStatus(/Активні|Active/i);
+    await homePage.submitSearchAndWait();
 
-    await expect(page.getByTestId('home-campaign-verified-org-toggle')).not.toBeChecked();
-    await expect(page.getByTestId('home-campaign-grid')).toBeVisible();
-    await expect(page.getByTestId('home-campaign-card-link').first()).toBeVisible();
+    await expect(homePage.verifiedOrgToggle).not.toBeChecked();
+    await expect(homePage.campaignGrid).toBeVisible();
+    await expect(homePage.campaignCardLink.first()).toBeVisible();
     await expect(page.getByText(/тепловізори/i).first()).toBeVisible();
 
-    await page.getByTestId('home-main-tab-organizations').click();
-    await expect(page.getByTestId('home-org-grid')).toBeVisible();
+    await homePage.clickOrganizationsTab();
+    await expect(homePage.orgGrid).toBeVisible();
 
-    await page.getByTestId('home-verified-filter-toggle').check();
-    await page.getByTestId('home-active-filter-toggle').check();
-    await expect(page.getByTestId('home-verified-filter-toggle')).toBeChecked();
-    await expect(page.getByTestId('home-active-filter-toggle')).toBeChecked();
+    await homePage.verifiedFilterToggle.check();
+    await homePage.activeFilterToggle.check();
+    await expect(homePage.verifiedFilterToggle).toBeChecked();
+    await expect(homePage.activeFilterToggle).toBeChecked();
   });
 
-  test('TC-03: organization page loads and tab switch works', async ({ page }) => {
-    await page.goto('/o/promin');
+  test('TC-03: organization page loads and tab switch works', async ({ orgPublicPage }) => {
+    await orgPublicPage.goto('promin');
 
-    await expect(page.getByTestId('public-org-header')).toBeVisible();
-    await expect(page.getByTestId('public-org-transparency-panel')).toBeVisible();
-    await expect(page.getByTestId('public-org-campaign-tabs')).toBeVisible();
+    await expect(orgPublicPage.header).toBeVisible();
+    await expect(orgPublicPage.transparencyPanel).toBeVisible();
+    await expect(orgPublicPage.transparencyCategoryElectronics).toBeVisible();
+    await expect(orgPublicPage.transparencyCategoryLogistics).toBeVisible();
+    await expect(orgPublicPage.monthlyList).toBeVisible();
+    await expect(orgPublicPage.month2026_02).toBeVisible();
+    await expect(orgPublicPage.month2026_03).toBeVisible();
+    await expect(orgPublicPage.campaignTabs).toBeVisible();
 
-    await page.getByTestId('public-org-campaign-tab-active').click();
-    await expect(page.getByTestId('public-org-campaign-list')).toBeVisible();
+    await orgPublicPage.clickActiveTab();
+    await expect(orgPublicPage.campaignList).toBeVisible();
   });
 
-  test('TC-04: campaign page loads and receipt link is visible', async ({ page }) => {
-    await page.goto('/c/camp-1');
+  test('TC-04: campaign page loads and receipt link is visible', async ({ campaignPublicPage }) => {
+    await campaignPublicPage.goto('camp-1');
 
-    await expect(page.getByTestId('public-campaign-header')).toBeVisible();
-    await expect(page.getByTestId('public-campaign-progress-panel')).toBeVisible();
-    await expect(page.getByTestId('public-campaign-description')).toBeVisible();
-    await expect(page.getByTestId('public-campaign-receipts-list')).toBeVisible();
-    await expect(page.getByTestId('public-campaign-receipt-link')).toBeVisible();
+    await expect(campaignPublicPage.header).toBeVisible();
+    await expect(campaignPublicPage.progressPanel).toBeVisible();
+    await expect(campaignPublicPage.description).toBeVisible();
+    await expect(campaignPublicPage.receiptsList).toBeVisible();
+    await expect(campaignPublicPage.receiptLink).toBeVisible();
   });
 
-  test('TC-05: public toolbar is visible across public routes', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.getByTestId('public-page-toolbar')).toBeVisible();
-    await expect(page.getByTestId('public-page-toolbar-entry-link')).toBeVisible();
-    await expect(page.getByTestId('language-switcher-trigger')).toBeVisible();
-    await expect(page.getByTestId('theme-toggle-trigger')).toBeVisible();
+  test('TC-04A: navigation from campaign receipt to receipt page works', async ({ page, campaignPublicPage, receiptPublicPage }) => {
+    await campaignPublicPage.goto('camp-1');
 
-    await page.goto('/o/promin');
-    await expect(page.getByTestId('public-page-toolbar')).toBeVisible();
+    await expect(campaignPublicPage.receiptLink).toBeVisible();
+    await campaignPublicPage.clickFirstReceipt();
 
-    await page.goto('/c/camp-1');
-    await expect(page.getByTestId('public-page-toolbar')).toBeVisible();
-
-    await page.goto('/receipt/r1');
-    await expect(page.getByTestId('public-page-toolbar')).toBeVisible();
-    await expect(page.getByTestId('public-receipt-placeholder-page')).toBeVisible();
+    await expect(page).toHaveURL(/\/receipt\//);
+    await expect(receiptPublicPage.receiptPage).toBeVisible();
+    await expect(receiptPublicPage.image).toBeVisible();
+    await expect(receiptPublicPage.structuredOutput).toBeVisible();
   });
 
-  test('TC-06: login page contains link to public pages', async ({ page }) => {
-    await page.goto('/login');
-    const publicPagesLink = page.getByTestId('login-public-pages-link');
-    await expect(publicPagesLink).toBeVisible();
+  test('TC-05: public toolbar is visible across public routes', async ({ homePage, orgPublicPage, campaignPublicPage, receiptPublicPage, publicLayout }) => {
+    await homePage.goto();
+    await expect(publicLayout.toolbar).toBeVisible();
+    await expect(publicLayout.toolbarEntryLink).toBeVisible();
+    await expect(publicLayout.languageSwitcher).toBeVisible();
+    await expect(publicLayout.themeToggle).toBeVisible();
 
-    const href = await publicPagesLink.getAttribute('href');
-    await publicPagesLink.click({ force: true });
+    await orgPublicPage.goto('promin');
+    await expect(publicLayout.toolbar).toBeVisible();
+
+    await campaignPublicPage.goto('camp-1');
+    await expect(publicLayout.toolbar).toBeVisible();
+
+    await receiptPublicPage.goto('r1');
+    await expect(publicLayout.toolbar).toBeVisible();
+    await expect(receiptPublicPage.receiptPage).toBeVisible();
+    await expect(receiptPublicPage.image).toBeVisible();
+    await expect(receiptPublicPage.structuredOutput).toBeVisible();
+    await expect(receiptPublicPage.validationFields).toBeVisible();
+  });
+
+  test('TC-06: login page contains link to public pages', async ({ page, loginPage, homePage }) => {
+    await loginPage.goto();
+    await expect(loginPage.publicPagesLink).toBeVisible();
+
+    const href = await loginPage.publicPagesLink.getAttribute('href');
+    await loginPage.publicPagesLink.click({ force: true });
     if (href) {
       await page.goto(href);
     }
 
     await expect(page).toHaveURL('/');
-    await expect(page.getByTestId('home-hero-section')).toBeVisible();
+    await expect(homePage.heroSection).toBeVisible();
   });
 });

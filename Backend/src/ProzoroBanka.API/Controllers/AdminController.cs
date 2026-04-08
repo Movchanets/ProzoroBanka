@@ -20,6 +20,7 @@ using ProzoroBanka.Application.Admin.Queries.GetUserDetails;
 using ProzoroBanka.Application.Admin.Queries.GetUserLimitsSettings;
 using ProzoroBanka.Application.Admin.Queries.GetUsers;
 using ProzoroBanka.Application.Admin.Queries.GetRoles;
+using ProzoroBanka.Application.OcrModels.DTOs;
 using ProzoroBanka.Application.Users.Commands.DeleteUser;
 using ProzoroBanka.Application.Users.Commands.AssignRoles;
 using ProzoroBanka.Application.Users.Commands.LockUser;
@@ -340,6 +341,53 @@ public class AdminController : ControllerBase
 
 		if (!result.IsSuccess)
 			return BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	// ── Ocr Models ─────────────────────────────────────────────────────────
+
+	[HttpGet("settings/ocr-models")]
+	[HasPermission(Permissions.SystemSettings)]
+	[ProducesResponseType(typeof(List<OcrModelConfigDto>), StatusCodes.Status200OK)]
+	public async Task<IActionResult> GetOcrModels(CancellationToken ct = default)
+	{
+		var result = await _sender.Send(new ProzoroBanka.Application.Admin.Queries.GetOcrModels.GetOcrModelsQuery(), ct);
+		return Ok(result.Payload);
+	}
+
+	[HttpPost("settings/ocr-models")]
+	[HasPermission(Permissions.SystemSettings)]
+	[ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
+	public async Task<IActionResult> AddOcrModel(
+		[FromBody] ProzoroBanka.Application.Admin.Commands.AddOcrModel.AddOcrModelCommand command,
+		CancellationToken ct = default)
+	{
+		var result = await _sender.Send(command, ct);
+
+		if (!result.IsSuccess)
+			return BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpPut("settings/ocr-models/{id:guid}")]
+	[HasPermission(Permissions.SystemSettings)]
+	[ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> ToggleOcrModel(
+		Guid id,
+		[FromBody] ProzoroBanka.Application.Admin.Commands.ToggleOcrModel.ToggleOcrModelCommand command,
+		CancellationToken ct = default)
+	{
+		if (id != command.Id)
+			return BadRequest(new { Error = "ID mismatch" });
+
+		var result = await _sender.Send(command, ct);
+
+		if (!result.IsSuccess)
+			return NotFound(new { Error = result.Message });
 
 		return Ok(result.Payload);
 	}

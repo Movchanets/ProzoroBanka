@@ -129,15 +129,15 @@ try
     builder.Services.AddOpenApi();
 
     // ── CORS ──
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+        ?? ["http://localhost:5173"];
+
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("Frontend", policy =>
         {
-            var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                ?? ["http://localhost:5173"];
-
             policy
-                .WithOrigins(origins)
+                .WithOrigins(allowedOrigins)
                 .AllowAnyMethod()
                 .AllowAnyHeader()
                 .AllowCredentials();
@@ -179,7 +179,18 @@ try
         app.UseStaticFiles(new StaticFileOptions
         {
             FileProvider = new PhysicalFileProvider(uploadsPath),
-            RequestPath = "/uploads" // Порожній шлях мапить файли в корінь URL
+            RequestPath = "/uploads", // Порожній шлях мапить файли в корінь URL
+            OnPrepareResponse = ctx =>
+            {
+                var origin = ctx.Context.Request.Headers.Origin.ToString();
+                if (!string.IsNullOrWhiteSpace(origin)
+                    && allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+                {
+                    ctx.Context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+                    ctx.Context.Response.Headers["Access-Control-Allow-Credentials"] = "true";
+                    ctx.Context.Response.Headers["Vary"] = "Origin";
+                }
+            }
         });
     }
 
@@ -200,7 +211,7 @@ try
 
     app.Run();
 }
-catch (Exception ex)
+catch (Exception ex) when (ex is not HostAbortedException && ex.GetType().Name != "StopTheHostException")
 {
     Log.Fatal(ex, "Application terminated unexpectedly");
 }

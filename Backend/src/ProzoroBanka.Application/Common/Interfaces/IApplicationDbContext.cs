@@ -12,11 +12,15 @@ public interface IApplicationDbContext
     DbSet<SystemSetting> SystemSettings { get; }
     DbSet<Organization> Organizations { get; }
     DbSet<OrganizationMember> OrganizationMembers { get; }
+    DbSet<OrganizationStateRegistryCredential> OrganizationStateRegistryCredentials { get; }
     DbSet<Invitation> Invitations { get; }
     DbSet<Receipt> Receipts { get; }
+    DbSet<ReceiptItemPhoto> ReceiptItemPhotos { get; }
     DbSet<MonobankTransaction> MonobankTransactions { get; }
     DbSet<MatchResult> MatchResults { get; }
     DbSet<Campaign> Campaigns { get; }
     DbSet<CampaignTransaction> CampaignTransactions { get; }
+    DbSet<OcrModelConfig> OcrModelConfigs { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
+

@@ -27,21 +27,46 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 	{
 		var receipt = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => r.Id == request.ReceiptId && r.Status == ReceiptStatus.Verified)
+			.Where(r => r.Id == request.ReceiptId
+				&& r.Status == ReceiptStatus.StateVerified
+				&& r.PublicationStatus == ReceiptPublicationStatus.Active)
 			.Select(r => new
 			{
 				r.Id,
 				r.MerchantName,
 				r.TotalAmount,
 				r.TransactionDate,
+				r.PurchaseDateUtc,
 				r.Status,
 				r.StorageKey,
-				AddedByName = r.User.FirstName + " " + r.User.LastName
+				r.OcrStructuredPayloadJson,
+				r.FiscalNumber,
+				r.ReceiptCode,
+				r.StateVerificationReference,
+				AddedByName = r.User.FirstName + " " + r.User.LastName,
+				r.CampaignId,
+				CampaignTitle = r.Campaign != null ? r.Campaign.Title : null,
+				OrganizationName = r.Campaign != null ? r.Campaign.Organization.Name : null,
+				OrganizationSlug = r.Campaign != null ? r.Campaign.Organization.Slug : null
 			})
 			.FirstOrDefaultAsync(cancellationToken);
 
 		if (receipt is null)
 			return ServiceResponse<PublicReceiptDetailDto>.Failure("Чек не знайдено");
+
+		var verificationUrl = ReceiptVerificationLinkBuilder.TryBuildTaxCabinetLink(new Domain.Entities.Receipt
+		{
+			PurchaseDateUtc = receipt.PurchaseDateUtc,
+			TransactionDate = receipt.TransactionDate,
+			FiscalNumber = receipt.FiscalNumber,
+			ReceiptCode = receipt.ReceiptCode,
+			TotalAmount = receipt.TotalAmount,
+			StateVerificationReference = receipt.StateVerificationReference
+		}, out var generatedVerificationUrl, out _)
+			? generatedVerificationUrl
+			: receipt.StateVerificationReference;
+
+		var isConfirmed = receipt.Status == ReceiptStatus.StateVerified && !string.IsNullOrWhiteSpace(verificationUrl);
 
 		return ServiceResponse<PublicReceiptDetailDto>.Success(new PublicReceiptDetailDto(
 			receipt.Id,
@@ -50,10 +75,13 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 			receipt.TransactionDate,
 			receipt.Status.ToString(),
 			StorageUrlResolver.Resolve(_fileStorage, receipt.StorageKey) ?? string.Empty,
+			receipt.OcrStructuredPayloadJson,
 			receipt.AddedByName,
-			null,
-			null,
-			null,
-			null));
+			receipt.CampaignId,
+			receipt.CampaignTitle,
+			receipt.OrganizationName,
+			receipt.OrganizationSlug,
+			verificationUrl,
+			isConfirmed));
 	}
 }

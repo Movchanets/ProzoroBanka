@@ -20,7 +20,7 @@ public class ProcessMonobankWebhookHandlerTests
 	}
 
 	private async Task<(Guid CampaignId, string AccountId)> SeedCampaignAsync(
-		ApplicationDbContext db, decimal initialAmount = 0m)
+		ApplicationDbContext db, long initialAmount = 0)
 	{
 		var userId = Guid.NewGuid();
 		var orgId = Guid.NewGuid();
@@ -46,7 +46,7 @@ public class ProcessMonobankWebhookHandlerTests
 			OrganizationId = orgId,
 			CreatedByUserId = userId,
 			Title = "Test Campaign",
-			GoalAmount = 50000m,
+			GoalAmount = 50000,
 			CurrentAmount = initialAmount,
 			Status = CampaignStatus.Active,
 			MonobankAccountId = accountId
@@ -87,7 +87,7 @@ public class ProcessMonobankWebhookHandlerTests
 	public async Task Handle_UpdatesBalance_AndCreatesTransaction()
 	{
 		await using var db = _fixture.CreateContext();
-		var (campaignId, accountId) = await SeedCampaignAsync(db, 1000m);
+		var (campaignId, accountId) = await SeedCampaignAsync(db, 1000);
 
 		var unitOfWork = new Mock<IUnitOfWork>();
 		unitOfWork.Setup(x => x.ExecuteInTransactionAsync(It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()))
@@ -105,11 +105,11 @@ public class ProcessMonobankWebhookHandlerTests
 		Assert.True(result.IsSuccess);
 
 		var updated = await db.Campaigns.FindAsync(campaignId);
-		Assert.Equal(51000m, updated!.CurrentAmount); // 1000 + 50000 (minor units)
+		Assert.Equal(51000, updated!.CurrentAmount); // 1000 + 50000 (minor units)
 
 		var tx = db.CampaignTransactions.FirstOrDefault(t => t.ExternalTransactionId == "event-001");
 		Assert.NotNull(tx);
-		Assert.Equal(50000m, tx.Amount);
+		Assert.Equal(50000, tx.Amount);
 		Assert.Equal(BalanceUpdateSource.MonobankWebhook, tx.Source);
 	}
 
@@ -117,14 +117,14 @@ public class ProcessMonobankWebhookHandlerTests
 	public async Task Handle_DuplicateEvent_IsNoOp()
 	{
 		await using var db = _fixture.CreateContext();
-		var (campaignId, accountId) = await SeedCampaignAsync(db, 1000m);
+		var (campaignId, accountId) = await SeedCampaignAsync(db, 1000);
 
 		// Pre-seed a transaction with the same external ID
 		db.CampaignTransactions.Add(new CampaignTransaction
 		{
 			CampaignId = campaignId,
 			ExternalTransactionId = "event-duplicate",
-			Amount = 500m,
+			Amount = 500,
 			TransactionTimeUtc = DateTime.UtcNow,
 			Source = BalanceUpdateSource.MonobankWebhook
 		});
@@ -145,7 +145,7 @@ public class ProcessMonobankWebhookHandlerTests
 
 		// Balance should NOT change
 		var campaign = await db.Campaigns.FindAsync(campaignId);
-		Assert.Equal(1000m, campaign!.CurrentAmount);
+		Assert.Equal(1000, campaign!.CurrentAmount);
 	}
 
 	[Fact]
@@ -172,7 +172,7 @@ public class ProcessMonobankWebhookHandlerTests
 	public async Task Handle_NegativeAmount_DoesNotIncreaseBalance()
 	{
 		await using var db = _fixture.CreateContext();
-		var (campaignId, accountId) = await SeedCampaignAsync(db, 5000m);
+		var (campaignId, accountId) = await SeedCampaignAsync(db, 5000);
 
 		var unitOfWork = new Mock<IUnitOfWork>();
 		unitOfWork.Setup(x => x.ExecuteInTransactionAsync(It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()))
@@ -191,11 +191,11 @@ public class ProcessMonobankWebhookHandlerTests
 
 		// Balance should NOT change for negative (outgoing) transactions
 		var campaign = await db.Campaigns.FindAsync(campaignId);
-		Assert.Equal(5000m, campaign!.CurrentAmount);
+		Assert.Equal(5000, campaign!.CurrentAmount);
 
 		// But transaction should still be recorded for audit
 		var tx = db.CampaignTransactions.FirstOrDefault(t => t.ExternalTransactionId == "event-neg");
 		Assert.NotNull(tx);
-		Assert.Equal(-10000m, tx.Amount);
+		Assert.Equal(-10000, tx.Amount);
 	}
 }

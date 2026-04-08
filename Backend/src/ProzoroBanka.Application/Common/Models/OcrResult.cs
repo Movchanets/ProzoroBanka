@@ -5,6 +5,9 @@ public record OcrResult(
     string? MerchantName,
     decimal? TotalAmount,
     DateTime? TransactionDate,
+    string? FiscalRegisterNumber,
+    string? FiscalReceiptNumber,
+    string? TransactionTime,
     string? RawJson,
     string? ErrorMessage
 );

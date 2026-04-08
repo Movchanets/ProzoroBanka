@@ -1,18 +1,28 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useCampaign, useCampaignTransactions, useUpdateCampaignBalance } from '@/hooks/queries/useCampaigns';
-import { CampaignStatusLabel } from '@/types';
+import {
+  useAttachReceiptToCampaign,
+  useCampaign,
+  useCampaignReceipts,
+  useCampaignTransactions,
+  useUpdateCampaignBalance,
+} from '@/hooks/queries/useCampaigns';
+import {
+  CampaignStatusLabel,
+  ReceiptPublicationStatus,
+  ReceiptStatus,
+} from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Calendar, Edit2, Megaphone, ReceiptText, Globe, HandCoins, Clock3, Handshake, Loader2 } from 'lucide-react';
+import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
+import { ArrowLeft, Calendar, Edit2, Megaphone, ReceiptText, HandCoins, Clock3, Handshake, Loader2, Plus } from 'lucide-react';
 import { SelectReceiptDialog } from './SelectReceiptDialog';
 import { toast } from 'sonner';
 
@@ -28,6 +38,12 @@ export default function CampaignDetailPage() {
   const { orgId, campaignId } = useParams<{ orgId: string; campaignId: string }>();
   const navigate = useNavigate();
   const { data: campaign, isLoading } = useCampaign(campaignId);
+  const {
+    data: attachedReceipts = [],
+    isLoading: isReceiptsLoading,
+    isError: isReceiptsError,
+  } = useCampaignReceipts(campaignId);
+  const attachReceiptToCampaign = useAttachReceiptToCampaign(orgId!);
   const updateCampaignBalance = useUpdateCampaignBalance(orgId!);
   const [transactionsPage, setTransactionsPage] = useState(1);
   const transactionsPageSize = 10;
@@ -38,15 +54,6 @@ export default function CampaignDetailPage() {
     refetch: refetchTransactions,
   } = useCampaignTransactions(campaignId, transactionsPage, transactionsPageSize);
 
-  // Mock state for receipts since backend is not there yet (Phase 3 requirements)
-  interface MockAttachedReceipt {
-    id: string;
-    isPublished: boolean;
-    merchantName: string;
-    totalAmount: number;
-    date: string;
-  }
-  const [attachedReceipts, setAttachedReceipts] = useState<MockAttachedReceipt[]>([]);
   const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false);
   const [manualAmountUah, setManualAmountUah] = useState<string>('');
   const [manualReason, setManualReason] = useState('');
@@ -75,23 +82,26 @@ export default function CampaignDetailPage() {
     );
   }
 
-  const progress = campaign.goalAmount > 0
-    ? Math.min(100, Math.round((campaign.currentAmount / campaign.goalAmount) * 100))
-    : 0;
-  const raised = new Intl.NumberFormat('uk-UA').format(campaign.currentAmount / 100);
-  const goal = new Intl.NumberFormat('uk-UA').format(campaign.goalAmount / 100);
   const withdrawn = new Intl.NumberFormat('uk-UA').format(campaign.withdrawnAmount / 100);
 
-  const handleAttachReceipt = (receiptId: string) => {
-    // Add mock receipt to attached list
-    setAttachedReceipts(prev => [...prev, { id: receiptId, isPublished: false, merchantName: 'Attached Receipt', totalAmount: 125000, date: new Date().toISOString() }]);
-    setIsReceiptDialogOpen(false);
-    toast.success(t('campaigns.detail.receiptAttachedDraft', 'Чек прикріплено (чернетка)'));
+  const handleAttachReceipt = async (receiptId: string) => {
+    if (!campaignId) {
+      return;
+    }
+
+    try {
+      await attachReceiptToCampaign.mutateAsync({ campaignId, receiptId });
+      setIsReceiptDialogOpen(false);
+      toast.success(t('campaigns.detail.receiptAttachedDraft', 'Чек прикріплено до збору'));
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : t('campaigns.detail.receiptAttachError', 'Не вдалося прикріпити чек');
+      toast.error(message);
+    }
   };
 
-  const currentCount = typeof campaign.receiptCount === 'number' 
-    ? campaign.receiptCount + attachedReceipts.length 
-    : attachedReceipts.length;
+  const currentCount = attachedReceipts.length || campaign.receiptCount || 0;
   const hasNextTransactionsPage = (transactions?.length ?? 0) === transactionsPageSize;
 
   const handleManualProgressUpdate = async () => {
@@ -158,14 +168,16 @@ export default function CampaignDetailPage() {
               </div>
               
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground" data-testid="campaign-detail-amounts">{raised} ₴ <span className="text-muted-foreground/60">/ {goal} ₴</span></span>
-                  <span className="font-semibold text-primary" data-testid="campaign-detail-progress-text">{progress}%</span>
-                </div>
+                <CampaignProgressBar
+                  currentAmount={campaign.currentAmount / 100}
+                  goalAmount={campaign.goalAmount / 100}
+                  documentedAmount={campaign.documentedAmount / 100}
+                  documentationPercent={campaign.documentationPercent}
+                  testId="campaign-detail-progress"
+                />
                 <p className="text-xs text-muted-foreground" data-testid="campaign-detail-withdrawn-amount">
                   {t('campaigns.withdrawnPrefix')}: {withdrawn} ₴
                 </p>
-                <Progress value={progress} className="h-3" data-testid="campaign-detail-progress-bar" />
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -206,7 +218,18 @@ export default function CampaignDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {attachedReceipts.length === 0 ? (
+              {isReceiptsLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-18 w-full rounded-xl" />
+                  <Skeleton className="h-18 w-full rounded-xl" />
+                </div>
+              ) : isReceiptsError ? (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    {t('campaigns.detail.receiptsLoadError', 'Не вдалося завантажити прикріплені чеки')}
+                  </AlertDescription>
+                </Alert>
+              ) : attachedReceipts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-6 text-center">
                   <div className="rounded-full bg-muted p-3 mb-3">
                     <ReceiptText className="h-6 w-6 text-muted-foreground" />
@@ -217,27 +240,55 @@ export default function CampaignDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {attachedReceipts.map((r, i) => (
-                    <div key={i} className="flex justify-between items-center bg-muted/30 p-3 rounded-lg border text-sm">
-                      <div>
-                        <p className="font-medium truncate max-w-30">{r.merchantName}</p>
-                        <p className="text-xs text-muted-foreground">{new Intl.NumberFormat('uk-UA').format(r.totalAmount/100)} ₴</p>
+                  {attachedReceipts.map((receipt) => (
+                    <div key={receipt.id} className="rounded-lg border bg-muted/20 p-3 text-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-1">
+                          <p className="truncate font-medium">
+                            {receipt.alias || receipt.merchantName || receipt.originalFileName}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {receipt.merchantName || receipt.originalFileName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Intl.NumberFormat('uk-UA', {
+                              style: 'currency',
+                              currency: 'UAH',
+                              maximumFractionDigits: 2,
+                            }).format(receipt.totalAmount ?? 0)}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <Badge variant={receipt.publicationStatus === ReceiptPublicationStatus.Active ? 'default' : 'outline'}>
+                            {receipt.publicationStatus === ReceiptPublicationStatus.Active ? 'Публічний' : 'Draft'}
+                          </Badge>
+                          <Badge variant={receipt.status === ReceiptStatus.StateVerified ? 'secondary' : 'outline'}>
+                            {receipt.status === ReceiptStatus.StateVerified ? 'Verified' : `Status ${receipt.status}`}
+                          </Badge>
+                        </div>
                       </div>
-                      {r.isPublished ? (
-                        <Globe className="h-4 w-4 text-success" />
-                      ) : (
-                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => {
-                          setAttachedReceipts(prev => prev.map(pr => pr.id === r.id ? { ...pr, isPublished: true } : pr));
-                          toast.success(t('campaigns.detail.receiptPublished', 'Чек опубліковано!'));
-                        }}>{t('campaigns.detail.publishReceipt', 'Публікувати')}</Button>
-                      )}
+                      <div className="mt-3 flex justify-end">
+                        <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-xs">
+                          <Link to={`/dashboard/${orgId}/receipts/${receipt.id}`}>
+                            Відкрити чек
+                          </Link>
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
-              <Button size="sm" className="w-full" onClick={() => setIsReceiptDialogOpen(true)} data-testid="campaign-detail-attach-receipt-button">
-                + {t('campaigns.detail.attachReceipt', 'Прикріпити чек')}
-              </Button>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button size="sm" className="w-full" onClick={() => setIsReceiptDialogOpen(true)} data-testid="campaign-detail-attach-receipt-button">
+                  + {t('campaigns.detail.attachReceipt', 'Прикріпити чек')}
+                </Button>
+                <Button asChild size="sm" variant="outline" className="w-full">
+                  <Link to={`/dashboard/${orgId}/receipts/new`}>
+                    <Plus className="h-4 w-4" />
+                    Новий чек
+                  </Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -395,7 +446,9 @@ export default function CampaignDetailPage() {
         open={isReceiptDialogOpen}
         onOpenChange={setIsReceiptDialogOpen}
         organizationId={orgId!}
+        campaignId={campaignId!}
         onAttach={handleAttachReceipt}
+        isAttaching={attachReceiptToCampaign.isPending}
       />
     </div>
   );

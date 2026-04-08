@@ -16,7 +16,7 @@ export function TransparencyChart({ data }: TransparencyChartProps) {
         {data.categories.map((category) => {
           const widthPercent = Math.max(8, Math.round((category.amount / maxAmount) * 100));
           return (
-            <div key={category.name} className="space-y-1">
+            <div key={category.name} className="space-y-1" data-testid={`public-org-transparency-category-${category.name.toLowerCase().replace(/\s+/g, '-')}`}>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-foreground">{category.name}</span>
                 <span className="text-muted-foreground">{new Intl.NumberFormat('uk-UA').format(category.amount)} грн · {Math.round(category.percentage)}%</span>
@@ -27,6 +27,26 @@ export function TransparencyChart({ data }: TransparencyChartProps) {
             </div>
           );
         })}
+
+        {data.categories.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground" data-testid="public-org-transparency-empty">
+            Ще немає даних для відображення категорій витрат.
+          </p>
+        ) : null}
+      </div>
+
+      <div className="mt-5 space-y-2" data-testid="public-org-transparency-monthly-list">
+        <h4 className="text-sm font-semibold text-foreground">Динаміка по місяцях</h4>
+        {data.monthlySpendings.map((monthly) => (
+          <div
+            key={monthly.month}
+            className="flex items-center justify-between rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-sm"
+            data-testid={`public-org-transparency-month-${monthly.month}`}
+          >
+            <span className="text-foreground">{monthly.month}</span>
+            <span className="font-medium text-foreground">{new Intl.NumberFormat('uk-UA').format(monthly.amount)} грн</span>
+          </div>
+        ))}
       </div>
     </section>
   );

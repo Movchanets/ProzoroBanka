@@ -12,7 +12,7 @@ public record UpdateCampaignCommand(
 	Guid CampaignId,
 	string? Title,
 	string? Description,
-	decimal? GoalAmount,
+	long? GoalAmount,
 	DateTime? Deadline,
 	string? SendUrl) : IRequest<ServiceResponse<CampaignDto>>, ICacheInvalidatingCommand
 {

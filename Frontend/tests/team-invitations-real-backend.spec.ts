@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/fixtures';
 
 import { setTestLanguage } from './support/i18n';
 import {
@@ -16,7 +16,7 @@ test.describe('Team Invitations — Real Backend', () => {
     await setTestLanguage(page, 'uk');
   });
 
-  test('TC-01: Owner sends email invite, invitee accepts in profile, owner changes role in Team actions', async ({ page }) => {
+  test('TC-01: Owner sends email invite, invitee accepts in profile, owner changes role in Team actions', async ({ page, teamPage, profilePage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Real backend flow: create owner/invitee users, create org, send email invite, onboarding->profile transition, accept in profile, back to onboarding/dashboard, verify and change role in Team actions.',
@@ -38,11 +38,11 @@ test.describe('Team Invitations — Real Backend', () => {
     await page.goto(`/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
 
-    await page.getByTestId('team-open-invite-dialog-button').click();
-    await expect(page.getByTestId('team-invite-dialog')).toBeVisible();
+    await teamPage.openInviteDialogButton.click();
+    await expect(teamPage.inviteDialog).toBeVisible();
 
-    await page.getByTestId('team-invite-email-tab').click();
-    await page.getByTestId('team-invite-email-input').fill(invitee.auth.user.email);
+    await teamPage.inviteEmailTab.click();
+    await teamPage.inviteEmailInput.fill(invitee.auth.user.email);
 
     const inviteResponsePromise = page.waitForResponse(
       (response) =>
@@ -50,22 +50,23 @@ test.describe('Team Invitations — Real Backend', () => {
         response.request().method() === 'POST',
     );
 
-    await page.getByTestId('team-invite-send-email-button').click();
+    await teamPage.sendEmailButton.click();
     const inviteResponse = await inviteResponsePromise;
     expect(inviteResponse.ok()).toBeTruthy();
 
-    await page.getByTestId('team-invite-close-button').click();
+    await teamPage.closeInviteDialogButton.click();
 
     await setAuthStorage(page, invitee.auth);
+    // onboardingPage goto is not using url logic so use normal goto
     await page.goto('/onboarding');
     await expect(page.getByTestId('onboarding-go-profile-button')).toBeVisible();
     await page.getByTestId('onboarding-go-profile-button').click();
     await expect(page).toHaveURL(/\/profile$/);
 
-    await page.getByTestId('profile-tab-invitations').click();
-    await expect(page.getByTestId('profile-tab-content-invitations')).toBeVisible();
+    await profilePage.tabInvitations.click();
+    await expect(profilePage.tabContentInvitations).toBeVisible();
 
-    const incomingInvitationRow = page.getByTestId(/profile-incoming-invitation-row-/).first();
+    const incomingInvitationRow = profilePage.getIncomingInvitationRow(/./).first();
     await expect(incomingInvitationRow).toBeVisible({ timeout: 10_000 });
 
     const acceptResponsePromise = page.waitForResponse(
@@ -75,18 +76,18 @@ test.describe('Team Invitations — Real Backend', () => {
         response.request().method() === 'POST',
     );
 
-    await incomingInvitationRow.locator('[data-testid^="profile-incoming-invitation-accept-"]').click();
+    await profilePage.getIncomingInvitationAcceptButton(/./).first().click();
     const acceptResponse = await acceptResponsePromise;
     expect(acceptResponse.ok()).toBeTruthy();
 
-    await page.getByTestId('profile-go-onboarding-button').click();
+    await profilePage.goOnboardingButton.click();
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}`));
 
     await setAuthStorage(page, owner.auth);
     await page.goto(`/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
 
-    const inviteeRow = page.getByRole('row').filter({ hasText: invitee.auth.user.email });
+    const inviteeRow = teamPage.getMemberRow(invitee.auth.user.email);
     await expect(inviteeRow).toBeVisible({ timeout: 10_000 });
 
     const roleSelectTrigger = inviteeRow.locator('[data-testid^="team-member-role-select-"]');
@@ -107,7 +108,7 @@ test.describe('Team Invitations — Real Backend', () => {
     await expect(inviteeRow).toContainText(/Адмін|Admin/i);
   });
 
-  test('TC-02: Invite link tab generates a valid link on real backend', async ({ page }) => {
+  test('TC-02: Invite link tab generates a valid link on real backend', async ({ page, teamPage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Real backend flow: owner opens invite dialog, generates link invite, verifies API success and generated invite URL visibility.',
@@ -123,9 +124,9 @@ test.describe('Team Invitations — Real Backend', () => {
     await page.goto(`/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
 
-    await page.getByTestId('team-open-invite-dialog-button').click();
-    await expect(page.getByTestId('team-invite-dialog')).toBeVisible();
-    await page.getByTestId('team-invite-link-tab').click();
+    await teamPage.openInviteDialogButton.click();
+    await expect(teamPage.inviteDialog).toBeVisible();
+    await teamPage.inviteLinkTab.click();
 
     const createLinkResponsePromise = page.waitForResponse(
       (response) =>
@@ -133,16 +134,15 @@ test.describe('Team Invitations — Real Backend', () => {
         response.request().method() === 'POST',
     );
 
-    await page.getByTestId('team-invite-generate-link-button').click();
+    await teamPage.generateLinkButton.click();
     const createLinkResponse = await createLinkResponsePromise;
     expect(createLinkResponse.ok()).toBeTruthy();
 
-    const linkInput = page.getByTestId('team-invite-link-input');
-    await expect(linkInput).toBeVisible();
-    await expect(linkInput).toHaveValue(new RegExp('/invite/.+'));
+    await expect(teamPage.linkInput).toBeVisible();
+    await expect(teamPage.linkInput).toHaveValue(new RegExp('/invite/.+'));
   });
 
-  test('TC-03: Invitee declines incoming invitation in profile tab on real backend', async ({ page }) => {
+  test('TC-03: Invitee declines incoming invitation in profile tab on real backend', async ({ page, profilePage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Real backend flow: owner creates email invite, invitee opens profile invitations tab, declines invite and verifies it no longer appears as incoming pending.',
@@ -165,9 +165,9 @@ test.describe('Team Invitations — Real Backend', () => {
     await setAuthStorage(page, invitee.auth);
     await page.goto('/profile');
     await expect(page).toHaveURL(/\/profile$/);
-    await page.getByTestId('profile-tab-invitations').click();
+    await profilePage.tabInvitations.click();
 
-    const incomingInvitationRow = page.getByTestId(/profile-incoming-invitation-row-/).first();
+    const incomingInvitationRow = profilePage.getIncomingInvitationRow(/./).first();
     await expect(incomingInvitationRow).toBeVisible({ timeout: 10_000 });
 
     const declineResponsePromise = page.waitForResponse(
@@ -177,14 +177,14 @@ test.describe('Team Invitations — Real Backend', () => {
         response.request().method() === 'POST',
     );
 
-    await incomingInvitationRow.locator('[data-testid^="profile-incoming-invitation-decline-"]').click();
+    await profilePage.getIncomingInvitationDeclineButton(/./).first().click();
     const declineResponse = await declineResponsePromise;
     expect(declineResponse.ok()).toBeTruthy();
 
     await expect(page.getByTestId(/profile-incoming-invitation-row-/)).toHaveCount(0, { timeout: 10_000 });
   });
 
-  test('TC-04: Owner cancels sent invitation from profile invitations tab on real backend', async ({ page }) => {
+  test('TC-04: Owner cancels sent invitation from profile invitations tab on real backend', async ({ page, teamPage, profilePage }) => {
     test.info().annotations.push({
       type: 'description',
       description: 'Real backend flow: owner sends invitation, opens profile invitations tab and cancels sent invitation from there.',
@@ -206,10 +206,10 @@ test.describe('Team Invitations — Real Backend', () => {
     await page.goto(`/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
 
-    await page.getByTestId('team-open-invite-dialog-button').click();
-    await expect(page.getByTestId('team-invite-dialog')).toBeVisible();
-    await page.getByTestId('team-invite-email-tab').click();
-    await page.getByTestId('team-invite-email-input').fill(invitee.auth.user.email);
+    await teamPage.openInviteDialogButton.click();
+    await expect(teamPage.inviteDialog).toBeVisible();
+    await teamPage.inviteEmailTab.click();
+    await teamPage.inviteEmailInput.fill(invitee.auth.user.email);
 
     const inviteResponsePromise = page.waitForResponse(
       (response) =>
@@ -217,16 +217,16 @@ test.describe('Team Invitations — Real Backend', () => {
         response.request().method() === 'POST',
     );
 
-    await page.getByTestId('team-invite-send-email-button').click();
+    await teamPage.sendEmailButton.click();
     const inviteResponse = await inviteResponsePromise;
     expect(inviteResponse.ok()).toBeTruthy();
 
     await page.goto('/profile');
     await expect(page).toHaveURL(/\/profile$/);
-    await page.getByTestId('profile-tab-invitations').click();
-    await expect(page.getByTestId('profile-tab-content-invitations')).toBeVisible();
+    await profilePage.tabInvitations.click();
+    await expect(profilePage.tabContentInvitations).toBeVisible();
 
-    const sentInvitationRow = page.getByTestId(/profile-sent-invitation-row-/).first();
+    const sentInvitationRow = profilePage.getSentInvitationRow(/./).first();
     await expect(sentInvitationRow).toBeVisible({ timeout: 10_000 });
 
     const cancelResponsePromise = page.waitForResponse(
@@ -235,7 +235,7 @@ test.describe('Team Invitations — Real Backend', () => {
         response.request().method() === 'DELETE',
     );
 
-    await sentInvitationRow.locator('[data-testid^="profile-sent-invitation-cancel-"]').click();
+    await profilePage.getSentInvitationCancelButton(/./).first().click();
     const cancelResponse = await cancelResponsePromise;
     expect(cancelResponse.ok()).toBeTruthy();
 

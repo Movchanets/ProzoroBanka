@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   useAdminGeneralSettings,
   useAdminPlansSettings,
@@ -12,6 +13,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { AdminGeneralSettingsDto, AdminPlansSettingsDto } from '@/types/admin';
+import { adminOcrService } from '@/services/adminOcrService';
+import type { OcrModelConfig } from '@/types';
+
+const adminOcrQueryKey = ['admin', 'settings', 'ocr-models'] as const;
 
 export default function AdminSettingsPage() {
   const { t } = useTranslation();
@@ -92,6 +97,190 @@ export default function AdminSettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Card data-testid="admin-settings-section-ocr-models">
+        <CardHeader>
+          <CardTitle>OCR Models</CardTitle>
+          <CardDescription>
+            Керуйте активними OCR-моделями для MistralNative та OpenRouter. Модель за замовчуванням буде підставлена у формі extract.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <OcrModelsSettings />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function OcrModelsSettings() {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState('');
+  const [modelIdentifier, setModelIdentifier] = useState('');
+  const [provider, setProvider] = useState('OpenRouter');
+  const [isActive, setIsActive] = useState(true);
+  const [isDefault, setIsDefault] = useState(false);
+
+  const {
+    data: models,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: adminOcrQueryKey,
+    queryFn: () => adminOcrService.list(),
+  });
+
+  const addModelMutation = useMutation({
+    mutationFn: adminOcrService.add,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminOcrQueryKey });
+      setName('');
+      setModelIdentifier('');
+      setProvider('OpenRouter');
+      setIsActive(true);
+      setIsDefault(false);
+    },
+  });
+
+  const updateModelMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: { isActive?: boolean; isDefault?: boolean } }) =>
+      adminOcrService.update(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminOcrQueryKey });
+    },
+  });
+
+  const onAddModel = async () => {
+    const normalizedName = name.trim();
+    const normalizedIdentifier = modelIdentifier.trim();
+    if (!normalizedName || !normalizedIdentifier) {
+      return;
+    }
+
+    await addModelMutation.mutateAsync({
+      name: normalizedName,
+      modelIdentifier: normalizedIdentifier,
+      provider,
+      isActive,
+      isDefault,
+    });
+  };
+
+  return (
+    <div className="space-y-6" data-testid="admin-settings-ocr-models-panel">
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="admin-ocr-model-name">Display Name</Label>
+          <Input
+            id="admin-ocr-model-name"
+            data-testid="admin-ocr-model-name-input"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Qwen VL Plus"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="admin-ocr-model-identifier">Model Identifier</Label>
+          <Input
+            id="admin-ocr-model-identifier"
+            data-testid="admin-ocr-model-identifier-input"
+            value={modelIdentifier}
+            onChange={(event) => setModelIdentifier(event.target.value)}
+            placeholder="qwen/qwen-vl-plus:free"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="admin-ocr-model-provider">Provider</Label>
+          <Input
+            id="admin-ocr-model-provider"
+            data-testid="admin-ocr-model-provider-input"
+            value={provider}
+            onChange={(event) => setProvider(event.target.value)}
+            placeholder="OpenRouter"
+          />
+        </div>
+        <div className="flex items-center gap-6 pt-6">
+          <label className="flex items-center gap-2 text-sm" data-testid="admin-ocr-model-is-active-toggle">
+            <input
+              type="checkbox"
+              data-testid="admin-ocr-model-is-active-checkbox"
+              checked={isActive}
+              onChange={(event) => setIsActive(event.target.checked)}
+            />
+            Active
+          </label>
+          <label className="flex items-center gap-2 text-sm" data-testid="admin-ocr-model-is-default-toggle">
+            <input
+              type="checkbox"
+              data-testid="admin-ocr-model-is-default-checkbox"
+              checked={isDefault}
+              onChange={(event) => setIsDefault(event.target.checked)}
+            />
+            Default
+          </label>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button
+          data-testid="admin-ocr-model-add-button"
+          onClick={() => void onAddModel()}
+          disabled={addModelMutation.isPending}
+        >
+          {addModelMutation.isPending ? 'Adding...' : 'Add OCR model'}
+        </Button>
+      </div>
+
+      {isError ? (
+        <Alert variant="destructive" data-testid="admin-ocr-models-error-alert">
+          <AlertTitle>Помилка</AlertTitle>
+          <AlertDescription>{error instanceof Error ? error.message : 'Не вдалося завантажити OCR моделі'}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {isLoading ? (
+        <div className="text-sm text-muted-foreground" data-testid="admin-ocr-models-loading">Завантаження OCR моделей...</div>
+      ) : (
+        <div className="space-y-2" data-testid="admin-ocr-models-list">
+          {(models ?? []).map((model: OcrModelConfig) => (
+            <div
+              key={model.id}
+              className="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 p-3 md:flex-row md:items-center md:justify-between"
+              data-testid={`admin-ocr-model-row-${model.id}`}
+            >
+              <div>
+                <p className="font-medium">{model.name}</p>
+                <p className="text-xs text-muted-foreground">{model.modelIdentifier}</p>
+                <p className="text-xs text-muted-foreground">{model.provider}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid={`admin-ocr-model-toggle-active-${model.id}`}
+                  onClick={() => updateModelMutation.mutate({ id: model.id, payload: { isActive: !model.isActive } })}
+                  disabled={updateModelMutation.isPending}
+                >
+                  {model.isActive ? 'Deactivate' : 'Activate'}
+                </Button>
+                <Button
+                  variant={model.isDefault ? 'secondary' : 'outline'}
+                  size="sm"
+                  data-testid={`admin-ocr-model-toggle-default-${model.id}`}
+                  onClick={() => updateModelMutation.mutate({ id: model.id, payload: { isDefault: true } })}
+                  disabled={updateModelMutation.isPending || !model.isActive}
+                >
+                  {model.isDefault ? 'Default' : 'Set default'}
+                </Button>
+              </div>
+            </div>
+          ))}
+          {(models ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground" data-testid="admin-ocr-models-empty">Наразі OCR моделі не додані.</p>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

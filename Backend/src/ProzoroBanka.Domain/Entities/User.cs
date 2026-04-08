@@ -35,6 +35,7 @@ public class User : BaseEntity
     // ── Navigation properties ──
 
     public ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
+    public ICollection<OrganizationStateRegistryCredential> CreatedStateRegistryCredentials { get; set; } = new List<OrganizationStateRegistryCredential>();
     public ICollection<MonobankTransaction> MonobankTransactions { get; set; } = new List<MonobankTransaction>();
     public ICollection<Organization> OwnedOrganizations { get; set; } = new List<Organization>();
     public ICollection<OrganizationMember> OrganizationMemberships { get; set; } = new List<OrganizationMember>();

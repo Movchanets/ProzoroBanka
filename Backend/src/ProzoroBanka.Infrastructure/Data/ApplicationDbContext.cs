@@ -27,21 +27,30 @@ public class ApplicationDbContext
 	public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 	public DbSet<Organization> Organizations => Set<Organization>();
 	public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
+	public DbSet<OrganizationStateRegistryCredential> OrganizationStateRegistryCredentials => Set<OrganizationStateRegistryCredential>();
 	public DbSet<Invitation> Invitations => Set<Invitation>();
 	public DbSet<Receipt> Receipts => Set<Receipt>();
+	public DbSet<ReceiptItemPhoto> ReceiptItemPhotos => Set<ReceiptItemPhoto>();
 	public DbSet<MonobankTransaction> MonobankTransactions => Set<MonobankTransaction>();
 	public DbSet<MatchResult> MatchResults => Set<MatchResult>();
 	public DbSet<Campaign> Campaigns => Set<Campaign>();
 	public DbSet<CampaignTransaction> CampaignTransactions => Set<CampaignTransaction>();
+	public DbSet<OcrModelConfig> OcrModelConfigs => Set<OcrModelConfig>();
 
 	// ── IApplicationDbContext explicit implementation ──
 	DbSet<User> IApplicationDbContext.Users => DomainUsers;
 	DbSet<SystemSetting> IApplicationDbContext.SystemSettings => SystemSettings;
 	DbSet<Organization> IApplicationDbContext.Organizations => Organizations;
 	DbSet<OrganizationMember> IApplicationDbContext.OrganizationMembers => OrganizationMembers;
+	DbSet<OrganizationStateRegistryCredential> IApplicationDbContext.OrganizationStateRegistryCredentials => OrganizationStateRegistryCredentials;
 	DbSet<Invitation> IApplicationDbContext.Invitations => Invitations;
+	DbSet<Receipt> IApplicationDbContext.Receipts => Receipts;
+	DbSet<ReceiptItemPhoto> IApplicationDbContext.ReceiptItemPhotos => ReceiptItemPhotos;
+	DbSet<MonobankTransaction> IApplicationDbContext.MonobankTransactions => MonobankTransactions;
+	DbSet<MatchResult> IApplicationDbContext.MatchResults => MatchResults;
 	DbSet<Campaign> IApplicationDbContext.Campaigns => Campaigns;
 	DbSet<CampaignTransaction> IApplicationDbContext.CampaignTransactions => CampaignTransactions;
+	DbSet<OcrModelConfig> IApplicationDbContext.OcrModelConfigs => OcrModelConfigs;
 
 	protected override void OnModelCreating(ModelBuilder builder)
 	{
@@ -136,6 +145,17 @@ public class ApplicationDbContext
 			b.HasQueryFilter(e => !e.IsDeleted);
 		});
 
+		builder.Entity<OcrModelConfig>(b =>
+		{
+			b.ToTable("OcrModelConfigs");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.Name).HasMaxLength(200).IsRequired();
+			b.Property(e => e.ModelIdentifier).HasMaxLength(200).IsRequired();
+			b.Property(e => e.Provider).HasMaxLength(64).IsRequired();
+			b.HasIndex(e => e.ModelIdentifier).IsUnique();
+			b.HasQueryFilter(e => !e.IsDeleted);
+		});
+
 		builder.Entity<Organization>(b =>
 		{
 			b.ToTable("Organizations");
@@ -191,11 +211,65 @@ public class ApplicationDbContext
 		{
 			b.ToTable("Receipts");
 			b.HasKey(e => e.Id);
+			b.HasIndex(e => e.CampaignId);
+			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
+			b.Property(e => e.ReceiptImageStorageKey).HasMaxLength(512);
+			b.Property(e => e.OriginalFileName).HasMaxLength(256).IsRequired();
+			b.Property(e => e.Alias).HasMaxLength(160);
+			b.Property(e => e.MerchantName).HasMaxLength(256);
+			b.Property(e => e.RegistryType).HasConversion<int?>();
+			b.Property(e => e.FiscalNumber).HasMaxLength(128);
+			b.Property(e => e.ReceiptCode).HasMaxLength(128);
+			b.Property(e => e.TotalAmount).HasPrecision(18, 2);
+			b.Property(e => e.Currency).HasMaxLength(16);
+			b.Property(e => e.PurchasedItemName).HasMaxLength(256);
+			b.Property(e => e.PublicationStatus).HasConversion<int>();
+			b.Property(e => e.ParsedByModel).HasMaxLength(128);
+			b.Property(e => e.StateVerificationReference).HasMaxLength(256);
+			b.Property(e => e.VerificationFailureReason).HasMaxLength(1024);
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.Campaign)
+				.WithMany(c => c.Receipts)
+				.HasForeignKey(e => e.CampaignId)
+				.OnDelete(DeleteBehavior.SetNull);
+
+			b.HasMany(e => e.ItemPhotos)
+				.WithOne(p => p.Receipt)
+				.HasForeignKey(p => p.ReceiptId)
+				.OnDelete(DeleteBehavior.Cascade);
+		});
+
+		builder.Entity<ReceiptItemPhoto>(b =>
+		{
+			b.ToTable("ReceiptItemPhotos");
+			b.HasKey(e => e.Id);
 			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
 			b.Property(e => e.OriginalFileName).HasMaxLength(256).IsRequired();
-			b.Property(e => e.MerchantName).HasMaxLength(256);
-			b.Property(e => e.TotalAmount).HasPrecision(18, 2);
+			b.HasIndex(e => e.ReceiptId);
+			b.HasIndex(e => new { e.ReceiptId, e.SortOrder });
 			b.HasQueryFilter(e => !e.IsDeleted);
+		});
+
+		builder.Entity<OrganizationStateRegistryCredential>(b =>
+		{
+			b.ToTable("OrganizationStateRegistryCredentials");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.Provider).HasConversion<int>();
+			b.Property(e => e.EncryptedApiKey).HasMaxLength(2048).IsRequired();
+			b.Property(e => e.KeyFingerprint).HasMaxLength(64).IsRequired();
+			b.HasIndex(e => new { e.OrganizationId, e.Provider }).IsUnique();
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.Organization)
+				.WithMany(o => o.StateRegistryCredentials)
+				.HasForeignKey(e => e.OrganizationId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasOne(e => e.CreatedByUser)
+				.WithMany(u => u.CreatedStateRegistryCredentials)
+				.HasForeignKey(e => e.CreatedByUserId)
+				.OnDelete(DeleteBehavior.Restrict);
 		});
 
 		builder.Entity<MonobankTransaction>(b =>
@@ -234,8 +308,6 @@ public class ApplicationDbContext
 			b.Property(e => e.Title).HasMaxLength(300).IsRequired();
 			b.Property(e => e.Description).HasMaxLength(5000);
 			b.Property(e => e.CoverImageStorageKey).HasMaxLength(512);
-			b.Property(e => e.GoalAmount).HasPrecision(18, 2);
-			b.Property(e => e.CurrentAmount).HasPrecision(18, 2);
 			b.Property(e => e.Status).HasConversion<int>();
 			b.Property(e => e.MonobankAccountId).HasMaxLength(128);
 			b.Property(e => e.SendUrl).HasMaxLength(512);
@@ -265,7 +337,6 @@ public class ApplicationDbContext
 			b.Property(e => e.ExternalTransactionId).HasMaxLength(128).IsRequired();
 			b.HasIndex(e => new { e.CampaignId, e.ExternalTransactionId }).IsUnique();
 			b.HasIndex(e => new { e.CampaignId, e.TransactionTimeUtc });
-			b.Property(e => e.Amount).HasPrecision(18, 2);
 			b.Property(e => e.Description).HasMaxLength(512);
 			b.Property(e => e.Source).HasConversion<int>();
 			b.Property(e => e.ProviderPayloadHash).HasMaxLength(128);

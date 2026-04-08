@@ -36,6 +36,8 @@ export interface PublicCampaign {
   sendUrl?: string;
   goalAmount: number;
   currentAmount: number;
+  documentedAmount: number;
+  documentationPercent: number;
   status: CampaignStatus;
   startDate?: string;
   deadline?: string;
@@ -53,6 +55,23 @@ export interface PublicReceipt {
   addedByName?: string;
 }
 
+export interface PublicReceiptDetail {
+  id: string;
+  merchantName?: string;
+  totalAmount?: number;
+  transactionDate?: string;
+  status: string;
+  imageUrl: string;
+  structuredOutputJson?: string;
+  addedByName?: string;
+  campaignId?: string;
+  campaignTitle?: string;
+  organizationName?: string;
+  organizationSlug?: string;
+  verificationUrl?: string;
+  isConfirmed: boolean;
+}
+
 export interface PublicCampaignDetail {
   id: string;
   title: string;
@@ -61,6 +80,8 @@ export interface PublicCampaignDetail {
   sendUrl?: string;
   goalAmount: number;
   currentAmount: number;
+  documentedAmount: number;
+  documentationPercent: number;
   status: CampaignStatus;
   startDate?: string;
   deadline?: string;

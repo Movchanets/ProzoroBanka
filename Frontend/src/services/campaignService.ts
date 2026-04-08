@@ -2,6 +2,8 @@ import { apiFetch } from './api';
 import type {
   Campaign,
   CampaignDetail,
+  ReceiptListItem,
+  ReceiptPipeline,
   CampaignTransaction,
   CampaignStats,
   CampaignStatus,
@@ -73,6 +75,14 @@ export const campaignService = {
     apiFetch<CampaignTransaction[]>(
       `/api/campaigns/${id}/transactions?page=${page}&pageSize=${pageSize}`,
     ),
+
+  getReceipts: (id: string) =>
+    apiFetch<ReceiptListItem[]>(`/api/campaigns/${id}/receipts`),
+
+  attachReceipt: (id: string, receiptId: string) =>
+    apiFetch<ReceiptPipeline>(`/api/campaigns/${id}/receipts/${receiptId}`, {
+      method: 'POST',
+    }),
 
   updateBalanceManual: (id: string, payload: UpdateCampaignBalancePayload) =>
     apiFetch<{ message: string }>(`/api/campaigns/${id}/balance/manual`, {

@@ -62,9 +62,13 @@ public class GetOrganizationCampaignsHandler
 				c.CoverImageStorageKey,
 				c.GoalAmount,
 				c.CurrentAmount,
+				DocumentedAmount = _db.Receipts
+					.Where(r => r.CampaignId == c.Id && r.Status == ReceiptStatus.StateVerified)
+					.Sum(r => (decimal?)(r.TotalAmount ?? 0)) ?? 0,
+				ReceiptCount = _db.Receipts.Count(r => r.CampaignId == c.Id),
 				WithdrawnAmount = _db.CampaignTransactions
 					.Where(t => t.CampaignId == c.Id && t.Amount < 0)
-					.Sum(t => (decimal?)(-t.Amount)) ?? 0,
+					.Sum(t => (long?)(-t.Amount)) ?? 0,
 				c.Status,
 				c.StartDate,
 				c.Deadline,
@@ -77,9 +81,15 @@ public class GetOrganizationCampaignsHandler
 		var result = campaigns.Select(c => new CampaignDto(
 			c.Id, c.Title, c.Description,
 			StorageUrlResolver.Resolve(_fileStorage, c.CoverImageStorageKey),
-			c.GoalAmount, c.CurrentAmount, c.WithdrawnAmount,
+			c.GoalAmount,
+			c.CurrentAmount,
+			c.WithdrawnAmount,
+			Math.Min(c.CurrentAmount, MoneyConversion.ToMinorUnits(c.DocumentedAmount)),
+			c.GoalAmount <= 0
+				? 0
+				: Math.Min(100, (double)Math.Min(c.CurrentAmount, MoneyConversion.ToMinorUnits(c.DocumentedAmount)) / c.GoalAmount * 100),
 			c.Status, c.StartDate, c.Deadline,
-			c.MonobankAccountId, c.SendUrl, c.CreatedAt))
+			c.MonobankAccountId, c.SendUrl, c.ReceiptCount, c.CreatedAt))
 			.ToList();
 
 		return ServiceResponse<IReadOnlyList<CampaignDto>>.Success(result);

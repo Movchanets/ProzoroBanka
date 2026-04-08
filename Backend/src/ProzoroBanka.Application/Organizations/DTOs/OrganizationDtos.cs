@@ -28,6 +28,21 @@ public record OrganizationPlanUsageDto(
 	int CurrentOcrExtractionsPerMonth
 );
 
+public record StateRegistryCredentialSummaryDto(
+	RegistryProvider Provider,
+	bool IsConfigured,
+	string? MaskedKey,
+	DateTime? LastValidatedAtUtc,
+	DateTime? LastUsedAtUtc);
+
+public record OrganizationStateRegistrySettingsDto(
+	StateRegistryCredentialSummaryDto TaxService,
+	StateRegistryCredentialSummaryDto CheckGovUa,
+	int StateVerificationConfiguredKeys,
+	int StateVerificationMaxKeys,
+	int CurrentOcrExtractionsPerMonth,
+	int MaxOcrExtractionsPerMonth);
+
 public record OrganizationMemberDto(
 	Guid UserId,
 	string FirstName,

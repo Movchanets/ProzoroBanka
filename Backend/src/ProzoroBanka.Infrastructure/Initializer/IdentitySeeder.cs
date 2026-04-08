@@ -46,6 +46,65 @@ public static class IdentitySeeder
 		}
 
 		await EnsureAdminUserAsync(dbContext, userManager, roleManager, configuration, environment, logger, cancellationToken);
+		await EnsureDefaultOcrModelAsync(dbContext, logger, cancellationToken);
+	}
+
+	private static async Task EnsureDefaultOcrModelAsync(
+		ApplicationDbContext dbContext,
+		ILogger logger,
+		CancellationToken cancellationToken)
+	{
+		const string defaultModelIdentifier = "mistral-ocr-latest";
+		const string defaultModelName = "Mistral OCR Latest";
+		const string defaultProvider = "MistralNative";
+
+		var hasDefault = await dbContext.OcrModelConfigs
+			.AnyAsync(m => m.IsActive && m.IsDefault, cancellationToken);
+
+		var model = await dbContext.OcrModelConfigs
+			.FirstOrDefaultAsync(m => m.ModelIdentifier == defaultModelIdentifier, cancellationToken);
+
+		if (model is null)
+		{
+			model = new OcrModelConfig
+			{
+				Name = defaultModelName,
+				ModelIdentifier = defaultModelIdentifier,
+				Provider = defaultProvider,
+				IsActive = true,
+				IsDefault = !hasDefault
+			};
+
+			dbContext.OcrModelConfigs.Add(model);
+			await dbContext.SaveChangesAsync(cancellationToken);
+			logger.LogInformation("Default OCR model {ModelIdentifier} seeded.", defaultModelIdentifier);
+			return;
+		}
+
+		var changed = false;
+		if (!string.Equals(model.Provider, defaultProvider, StringComparison.Ordinal))
+		{
+			model.Provider = defaultProvider;
+			changed = true;
+		}
+
+		if (!model.IsActive)
+		{
+			model.IsActive = true;
+			changed = true;
+		}
+
+		if (!hasDefault && !model.IsDefault)
+		{
+			model.IsDefault = true;
+			changed = true;
+		}
+
+		if (changed)
+		{
+			await dbContext.SaveChangesAsync(cancellationToken);
+			logger.LogInformation("Default OCR model {ModelIdentifier} updated during seed.", defaultModelIdentifier);
+		}
 	}
 
 	private static async Task EnsureRoleAsync(

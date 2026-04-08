@@ -56,18 +56,22 @@ public class CreateCampaignHandlerTests
 		var fileStorage = new Mock<IFileStorage>();
 		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>()))
 			.Returns<string>(key => $"https://storage.test/{key}");
+		var planLimitService = new Mock<IOrganizationPlanLimitService>();
+		planLimitService
+			.Setup(x => x.CanCreateCampaignAsync(orgId, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new global::ProzoroBanka.Application.Common.Models.CampaignCreationAllowance(true, 0, 3));
 
-		var handler = new CreateCampaignHandler(db, orgAuth.Object, fileStorage.Object);
+		var handler = new CreateCampaignHandler(db, orgAuth.Object, planLimitService.Object, fileStorage.Object);
 		var result = await handler.Handle(
-			new CreateCampaignCommand(userId, orgId, "Збір на допомогу", "Опис збору", 10000m, null, "https://send.monobank.ua/jar/test"),
+			new CreateCampaignCommand(userId, orgId, "Збір на допомогу", "Опис збору", 10000, null, "https://send.monobank.ua/jar/test"),
 			CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
 		Assert.NotNull(result.Payload);
 		Assert.Equal("Збір на допомогу", result.Payload.Title);
 		Assert.Equal(CampaignStatus.Draft, result.Payload.Status);
-		Assert.Equal(10000m, result.Payload.GoalAmount);
-		Assert.Equal(0m, result.Payload.CurrentAmount);
+		Assert.Equal(10000, result.Payload.GoalAmount);
+		Assert.Equal(0, result.Payload.CurrentAmount);
 		Assert.Equal("https://send.monobank.ua/jar/test", result.Payload.SendUrl);
 	}
 
@@ -80,10 +84,11 @@ public class CreateCampaignHandlerTests
 
 		var orgAuth = new Mock<IOrganizationAuthorizationService>();
 		var fileStorage = new Mock<IFileStorage>();
+		var planLimitService = new Mock<IOrganizationPlanLimitService>();
 
-		var handler = new CreateCampaignHandler(db, orgAuth.Object, fileStorage.Object);
+		var handler = new CreateCampaignHandler(db, orgAuth.Object, planLimitService.Object, fileStorage.Object);
 		var result = await handler.Handle(
-			new CreateCampaignCommand(userId, fakeOrgId, "Test", null, 5000m, null, null),
+			new CreateCampaignCommand(userId, fakeOrgId, "Test", null, 5000, null, null),
 			CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
@@ -101,13 +106,39 @@ public class CreateCampaignHandlerTests
 			.ReturnsAsync(false);
 
 		var fileStorage = new Mock<IFileStorage>();
+		var planLimitService = new Mock<IOrganizationPlanLimitService>();
 
-		var handler = new CreateCampaignHandler(db, orgAuth.Object, fileStorage.Object);
+		var handler = new CreateCampaignHandler(db, orgAuth.Object, planLimitService.Object, fileStorage.Object);
 		var result = await handler.Handle(
-			new CreateCampaignCommand(userId, orgId, "Test", null, 5000m, null, null),
+			new CreateCampaignCommand(userId, orgId, "Test", null, 5000, null, null),
 			CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
 		Assert.Contains("Недостатньо прав", result.Message);
+	}
+
+	[Fact]
+	public async Task Handle_ReturnsFailure_WhenCampaignLimitReached()
+	{
+		await using var db = _fixture.CreateContext();
+		var (userId, orgId) = await SeedUserAndOrgAsync(db);
+
+		var orgAuth = new Mock<IOrganizationAuthorizationService>();
+		orgAuth.Setup(x => x.HasPermission(orgId, userId, OrganizationPermissions.ManageCampaigns, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(true);
+
+		var fileStorage = new Mock<IFileStorage>();
+		var planLimitService = new Mock<IOrganizationPlanLimitService>();
+		planLimitService
+			.Setup(x => x.CanCreateCampaignAsync(orgId, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new global::ProzoroBanka.Application.Common.Models.CampaignCreationAllowance(false, 3, 3));
+
+		var handler = new CreateCampaignHandler(db, orgAuth.Object, planLimitService.Object, fileStorage.Object);
+		var result = await handler.Handle(
+			new CreateCampaignCommand(userId, orgId, "Test", null, 5000, null, null),
+			CancellationToken.None);
+
+		Assert.False(result.IsSuccess);
+		Assert.Contains("ліміт зборів", result.Message);
 	}
 }

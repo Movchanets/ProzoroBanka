@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using ProzoroBanka.Application.Contracts.Email;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Domain.Interfaces;
@@ -16,6 +17,7 @@ using ProzoroBanka.Infrastructure.Services.Encryption;
 using ProzoroBanka.Infrastructure.Services.FileStorage;
 using ProzoroBanka.Infrastructure.Services.Image;
 using ProzoroBanka.Infrastructure.Services.Ocr;
+using ProzoroBanka.Infrastructure.Services.Receipts;
 using ProzoroBanka.Infrastructure.Services.Turnstile;
 using ProzoroBanka.Infrastructure.Services.Cache;
 
@@ -58,8 +60,70 @@ public static class DependencyInjection
         services.AddScoped<ITokenEncryptionService, AesTokenEncryptionService>();
         services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
         services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IEmailNotificationService, SmtpEmailNotificationService>();
+        var emailProvider = (configuration["Email:Provider"] ?? "smtp").Trim().ToLowerInvariant();
+        services.AddHttpClient<ResendEmailNotificationService>((sp, httpClient) =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var baseUrl = config["Email:Resend:BaseUrl"];
+            httpClient.BaseAddress = ResendEmailNotificationService.BuildBaseUri(baseUrl);
+        });
+
+        if (emailProvider == "resend")
+        {
+            services.AddScoped<IEmailNotificationService>(sp => sp.GetRequiredService<ResendEmailNotificationService>());
+        }
+        else
+        {
+            services.AddScoped<IEmailNotificationService, SmtpEmailNotificationService>();
+        }
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
+        services.AddScoped<IOrganizationPlanLimitService, OrganizationPlanLimitService>();
+        var useOcrExtractionStub = configuration.GetValue<bool?>("Ocr:UseExtractionStub") ?? true; // consistent with OcrOptions binding
+        if (useOcrExtractionStub)
+        {
+            services.AddScoped<IReceiptStructuredExtractionService, StubReceiptStructuredExtractionService>();
+        }
+        else
+        {
+            services.AddScoped<IReceiptStructuredExtractionService, ReceiptStructuredExtractionService>();
+        }
+
+        services.AddOptions<StateValidatorOptions>()
+            .Bind(configuration.GetSection(StateValidatorOptions.SectionName))
+            .Validate(options =>
+            {
+                if (!options.Enabled)
+                    return true;
+
+                if (!Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out _))
+                    return false;
+
+                if (options.TimeoutSeconds is < 1 or > 120)
+                    return false;
+
+                if (string.IsNullOrWhiteSpace(options.Fiscal.EndpointPath))
+                    return false;
+
+                if (string.IsNullOrWhiteSpace(options.BankTransfer.EndpointPath))
+                    return false;
+
+                return true;
+            }, "StateValidator configuration is invalid")
+            .ValidateOnStart();
+
+        services.AddHttpClient<IStateReceiptValidator, TaxCabinetStateReceiptValidator>((sp, http) =>
+        {
+            var options = sp.GetRequiredService<IOptions<StateValidatorOptions>>().Value;
+            var baseUrl = string.IsNullOrWhiteSpace(options.BaseUrl)
+                ? "https://cabinet.tax.gov.ua"
+                : options.BaseUrl;
+
+            http.BaseAddress = new Uri(baseUrl);
+            http.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        });
+        services.AddScoped<IOcrMonthlyQuotaService, OrganizationPlanOcrMonthlyQuotaService>();
+        services.AddScoped<IApiKeyDailyQuotaService, RedisApiKeyDailyQuotaService>();
+        services.AddScoped<IRegistryCredentialService, RegistryCredentialService>();
 
         // ── Repositories ──
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();

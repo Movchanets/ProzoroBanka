@@ -19,7 +19,7 @@ public class ChangeCampaignStatusHandlerTests
 	}
 
 	private async Task<(Guid UserId, Guid OrgId, Guid CampaignId)> SeedCampaignAsync(
-		ApplicationDbContext db, CampaignStatus status = CampaignStatus.Draft, decimal goalAmount = 10000m)
+		ApplicationDbContext db, CampaignStatus status = CampaignStatus.Draft, long goalAmount = 10000)
 	{
 		var userId = Guid.NewGuid();
 		var orgId = Guid.NewGuid();
@@ -65,7 +65,7 @@ public class ChangeCampaignStatusHandlerTests
 	public async Task Handle_DraftToActive_Success()
 	{
 		await using var db = _fixture.CreateContext();
-		var (userId, orgId, campaignId) = await SeedCampaignAsync(db, CampaignStatus.Draft, 10000m);
+		var (userId, orgId, campaignId) = await SeedCampaignAsync(db, CampaignStatus.Draft, 10000);
 		var orgAuth = SetupAuth(orgId, userId);
 
 		var handler = new ChangeCampaignStatusHandler(db, orgAuth.Object);
@@ -84,7 +84,7 @@ public class ChangeCampaignStatusHandlerTests
 	public async Task Handle_DraftToActive_FailsWhenGoalAmountZero()
 	{
 		await using var db = _fixture.CreateContext();
-		var (userId, orgId, campaignId) = await SeedCampaignAsync(db, CampaignStatus.Draft, 0m);
+		var (userId, orgId, campaignId) = await SeedCampaignAsync(db, CampaignStatus.Draft, 0);
 		var orgAuth = SetupAuth(orgId, userId);
 
 		var handler = new ChangeCampaignStatusHandler(db, orgAuth.Object);

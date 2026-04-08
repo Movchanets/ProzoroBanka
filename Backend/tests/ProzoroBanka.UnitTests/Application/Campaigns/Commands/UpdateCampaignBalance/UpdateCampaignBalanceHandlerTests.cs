@@ -20,7 +20,7 @@ public class UpdateCampaignBalanceHandlerTests
 	}
 
 	private async Task<(Guid UserId, Guid OrgId, Guid CampaignId)> SeedAsync(
-		ApplicationDbContext db, decimal initialAmount = 0m)
+		ApplicationDbContext db, long initialAmount = 0)
 	{
 		var userId = Guid.NewGuid();
 		var orgId = Guid.NewGuid();
@@ -45,7 +45,7 @@ public class UpdateCampaignBalanceHandlerTests
 			OrganizationId = orgId,
 			CreatedByUserId = userId,
 			Title = "Test Campaign",
-			GoalAmount = 50000m,
+			GoalAmount = 50000,
 			CurrentAmount = initialAmount,
 			Status = CampaignStatus.Active
 		};
@@ -59,7 +59,7 @@ public class UpdateCampaignBalanceHandlerTests
 	public async Task Handle_UpdatesBalance_AndCreatesTransaction()
 	{
 		await using var db = _fixture.CreateContext();
-		var (userId, orgId, campaignId) = await SeedAsync(db, 1000m);
+		var (userId, orgId, campaignId) = await SeedAsync(db, 1000);
 
 		var orgAuth = new Mock<IOrganizationAuthorizationService>();
 		orgAuth.Setup(x => x.HasPermission(orgId, userId, OrganizationPermissions.ManageCampaigns, It.IsAny<CancellationToken>()))
@@ -69,17 +69,17 @@ public class UpdateCampaignBalanceHandlerTests
 
 		var handler = new UpdateCampaignBalanceHandler(db, orgAuth.Object, logger.Object);
 		var result = await handler.Handle(
-			new UpdateCampaignBalanceCommand(userId, campaignId, 5000m, "Тестове оновлення"),
+			new UpdateCampaignBalanceCommand(userId, campaignId, 5000, "Тестове оновлення"),
 			CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
 
 		var updated = await db.Campaigns.FindAsync(campaignId);
-		Assert.Equal(5000m, updated!.CurrentAmount);
+		Assert.Equal(5000, updated!.CurrentAmount);
 
 		var tx = db.CampaignTransactions.FirstOrDefault(t => t.CampaignId == campaignId);
 		Assert.NotNull(tx);
-		Assert.Equal(4000m, tx.Amount); // delta: 5000 - 1000
+		Assert.Equal(4000, tx.Amount); // delta: 5000 - 1000
 		Assert.Equal(BalanceUpdateSource.Manual, tx.Source);
 	}
 
@@ -93,7 +93,7 @@ public class UpdateCampaignBalanceHandlerTests
 
 		var handler = new UpdateCampaignBalanceHandler(db, orgAuth.Object, logger.Object);
 		var result = await handler.Handle(
-			new UpdateCampaignBalanceCommand(Guid.NewGuid(), Guid.NewGuid(), 100m, null),
+			new UpdateCampaignBalanceCommand(Guid.NewGuid(), Guid.NewGuid(), 100, null),
 			CancellationToken.None);
 
 		Assert.False(result.IsSuccess);
@@ -114,7 +114,7 @@ public class UpdateCampaignBalanceHandlerTests
 
 		var handler = new UpdateCampaignBalanceHandler(db, orgAuth.Object, logger.Object);
 		var result = await handler.Handle(
-			new UpdateCampaignBalanceCommand(userId, campaignId, 100m, null),
+			new UpdateCampaignBalanceCommand(userId, campaignId, 100, null),
 			CancellationToken.None);
 
 		Assert.False(result.IsSuccess);

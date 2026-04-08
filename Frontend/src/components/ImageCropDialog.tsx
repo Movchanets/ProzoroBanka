@@ -16,6 +16,17 @@ function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: numbe
   return centerCrop(makeAspectCrop({ unit: '%', width: 80 }, aspect, mediaWidth, mediaHeight), mediaWidth, mediaHeight);
 }
 
+function defaultCrop(mediaWidth: number, mediaHeight: number): Crop {
+  const isPortrait = mediaHeight > mediaWidth;
+  return {
+    unit: '%',
+    x: 5,
+    y: isPortrait ? 2 : 5,
+    width: 90,
+    height: isPortrait ? 96 : 90,
+  };
+}
+
 async function getCroppedBlob(image: HTMLImageElement, crop: PixelCrop, mimeType = 'image/webp'): Promise<Blob> {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -33,7 +44,7 @@ async function getCroppedBlob(image: HTMLImageElement, crop: PixelCrop, mimeType
   });
 }
 
-export function ImageCropDialog({ open, onOpenChange, imageSrc, onCropComplete, isPending = false, aspectRatio = 1, title, description }: ImageCropDialogProps) {
+export function ImageCropDialog({ open, onOpenChange, imageSrc, onCropComplete, isPending = false, aspectRatio, title, description }: ImageCropDialogProps) {
   const { t } = useTranslation();
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [crop, setCrop] = useState<Crop>();
@@ -41,7 +52,7 @@ export function ImageCropDialog({ open, onOpenChange, imageSrc, onCropComplete, 
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
-    setCrop(centerAspectCrop(width, height, aspectRatio));
+    setCrop(aspectRatio ? centerAspectCrop(width, height, aspectRatio) : defaultCrop(width, height));
   }, [aspectRatio]);
 
   const handleConfirm = async () => {

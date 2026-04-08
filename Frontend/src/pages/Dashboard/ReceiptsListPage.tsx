@@ -1,0 +1,318 @@
+import { useDeferredValue, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import {
+  ArrowRight,
+  CheckCircle2,
+  FileSearch,
+  Plus,
+  Receipt,
+  RefreshCw,
+  Search,
+} from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useMyReceipts } from '@/hooks/queries/useReceipts';
+import { ReceiptPublicationStatus, ReceiptStatus, type ReceiptListItem } from '@/types';
+
+const statusOptions = [
+  { value: 'all', label: 'Усі статуси' },
+  { value: String(ReceiptStatus.Draft), label: 'Чернетки' },
+  { value: String(ReceiptStatus.PendingOcr), label: 'Очікують OCR' },
+  { value: String(ReceiptStatus.OcrExtracted), label: 'OCR заповнено' },
+  { value: String(ReceiptStatus.StateVerified), label: 'Верифіковані' },
+  { value: String(ReceiptStatus.InvalidData), label: 'Потребують правок' },
+  { value: String(ReceiptStatus.FailedVerification), label: 'Помилка перевірки' },
+] as const;
+
+const statusLabels: Record<number, string> = {
+  [ReceiptStatus.PendingOcr]: 'OCR',
+  [ReceiptStatus.PendingStateValidation]: 'Очікує перевірки',
+  [ReceiptStatus.OcrExtracted]: 'OCR готово',
+  [ReceiptStatus.FailedVerification]: 'Помилка',
+  [ReceiptStatus.ValidationDeferredRateLimit]: 'Відкладено',
+  [ReceiptStatus.Draft]: 'Чернетка',
+  [ReceiptStatus.StateVerified]: 'Перевірено',
+  [ReceiptStatus.InvalidData]: 'Невалідний',
+  [ReceiptStatus.OcrDeferredMonthlyQuota]: 'Квота OCR',
+};
+
+function formatAmount(value?: number) {
+  if (typeof value !== 'number') {
+    return '—';
+  }
+
+  const hryvnias = value / 100;
+
+  return new Intl.NumberFormat('uk-UA', {
+    style: 'currency',
+    currency: 'UAH',
+    maximumFractionDigits: 2,
+  }).format(hryvnias);
+}
+
+function formatDate(value?: string) {
+  if (!value) {
+    return '—';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return '—';
+  }
+
+  return parsed.toLocaleDateString('uk-UA');
+}
+
+function ReceiptStatusBadge({ receipt }: { receipt: ReceiptListItem }) {
+  const variant = receipt.status === ReceiptStatus.StateVerified
+    ? 'default'
+    : receipt.status === ReceiptStatus.InvalidData || receipt.status === ReceiptStatus.FailedVerification
+      ? 'destructive'
+      : 'outline';
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Badge variant={variant}>
+        {statusLabels[receipt.status] ?? `Status ${receipt.status}`}
+      </Badge>
+      <Badge variant="outline">
+        {receipt.publicationStatus === ReceiptPublicationStatus.Active ? 'Публічний' : 'Не опублікований'}
+      </Badge>
+    </div>
+  );
+}
+
+export default function ReceiptsListPage() {
+  const { orgId } = useParams<{ orgId: string }>();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const deferredSearch = useDeferredValue(search.trim());
+
+  const status = statusFilter === 'all' ? undefined : Number(statusFilter) as ReceiptStatus;
+  const {
+    data: receipts = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useMyReceipts(deferredSearch, status, false, !!orgId);
+
+  const stats = useMemo(() => {
+    const attachedCount = receipts.filter((receipt) => receipt.campaignId).length;
+    const verifiedCount = receipts.filter((receipt) => receipt.status === ReceiptStatus.StateVerified).length;
+
+    return {
+      total: receipts.length,
+      verified: verifiedCount,
+      attached: attachedCount,
+    };
+  }, [receipts]);
+
+  return (
+    <div className="space-y-6" data-testid="dashboard-receipts-list-page">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-2">
+          <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            <Receipt className="h-6 w-6 text-primary" />
+            Реєстр чеків
+          </h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Тут зібрані всі ваші чеки. Шукайте їх по `alias`, магазину або файлу, відкривайте картку чека і привʼязуйте перевірені чеки до зборів.
+          </p>
+        </div>
+
+        {orgId ? (
+          <Button asChild size="pill" data-testid="dashboard-receipts-list-create-button">
+            <Link to={`/dashboard/${orgId}/receipts/new`}>
+              <Plus className="h-4 w-4" />
+              Створити чек
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+
+      {!orgId ? (
+        <Alert variant="destructive">
+          <AlertTitle>Некоректний маршрут</AlertTitle>
+          <AlertDescription>Реєстр чеків потребує `orgId` в URL.</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border border-border bg-card/60 backdrop-blur-sm">
+          <CardHeader className="pb-2">
+            <CardDescription>Всього чеків</CardDescription>
+            <CardTitle className="text-3xl">{isLoading ? '…' : stats.total}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border bg-card/60 backdrop-blur-sm">
+          <CardHeader className="pb-2">
+            <CardDescription>Готові до attach</CardDescription>
+            <CardTitle className="text-3xl">{isLoading ? '…' : stats.verified}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border bg-card/60 backdrop-blur-sm">
+          <CardHeader className="pb-2">
+            <CardDescription>Уже прикріплені</CardDescription>
+            <CardTitle className="text-3xl">{isLoading ? '…' : stats.attached}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <Card className="border border-border bg-card/60 backdrop-blur-sm">
+        <CardHeader className="gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-1">
+            <CardTitle>Пошук і фільтрація</CardTitle>
+            <CardDescription>
+              Alias допомагає швидко знайти чек у selector для campaigns attach receipt.
+            </CardDescription>
+          </div>
+
+          <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+            <div className="relative min-w-64 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Пошук по alias, магазину або файлу"
+                className="pl-9"
+                data-testid="dashboard-receipts-list-search-input"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-56" data-testid="dashboard-receipts-list-status-filter">
+                <SelectValue placeholder="Фільтр статусу" />
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button type="button" variant="outline" onClick={() => void refetch()} disabled={isLoading} data-testid="dashboard-receipts-list-refresh-button">
+              <RefreshCw className="h-4 w-4" />
+              Оновити
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Не вдалося завантажити чеки</AlertTitle>
+              <AlertDescription>Спробуйте оновити список ще раз.</AlertDescription>
+            </Alert>
+          ) : receipts.length === 0 ? (
+            <div className="flex min-h-72 flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-border/70 bg-muted/10 px-6 text-center">
+              <FileSearch className="h-10 w-10 text-primary/70" />
+              <div className="space-y-1">
+                <p className="text-base font-semibold">Поки що тут порожньо</p>
+                <p className="max-w-md text-sm text-muted-foreground">
+                  Створіть перший чек, задайте йому alias і після верифікації він стане доступним у campaigns attach receipt.
+                </p>
+              </div>
+              {orgId ? (
+                <Button asChild>
+                  <Link to={`/dashboard/${orgId}/receipts/new`}>
+                    <Plus className="h-4 w-4" />
+                    Створити чек
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Чек</TableHead>
+                  <TableHead>Статус</TableHead>
+                  <TableHead>Збір</TableHead>
+                  <TableHead>Сума</TableHead>
+                  <TableHead>Дата покупки</TableHead>
+                  <TableHead className="text-right">Дія</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {receipts.map((receipt) => (
+                  <TableRow key={receipt.id} data-testid={`dashboard-receipts-list-row-${receipt.id}`}>
+                    <TableCell className="min-w-[270px] whitespace-normal">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold" data-testid={`dashboard-receipts-list-alias-${receipt.id}`}>
+                            {receipt.alias?.trim() || 'Без alias'}
+                          </span>
+                          {receipt.status === ReceiptStatus.StateVerified ? (
+                            <CheckCircle2 className="h-4 w-4 text-success" />
+                          ) : null}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {receipt.merchantName || 'Магазин не визначено'}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground" title={receipt.originalFileName}>
+                          {receipt.originalFileName}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <ReceiptStatusBadge receipt={receipt} />
+                    </TableCell>
+                    <TableCell className="min-w-[180px] whitespace-normal">
+                      {receipt.campaignId && orgId ? (
+                        <Link
+                          to={`/dashboard/${orgId}/campaigns/${receipt.campaignId}`}
+                          className="text-sm font-medium text-primary hover:underline"
+                        >
+                          {receipt.campaignTitle || 'Відкрити збір'}
+                        </Link>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Не прикріплено</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{formatAmount(receipt.totalAmount)}</TableCell>
+                    <TableCell>{formatDate(receipt.purchaseDateUtc)}</TableCell>
+                    <TableCell className="text-right">
+                      {orgId ? (
+                        <Button asChild size="sm" variant="outline" data-testid={`dashboard-receipts-list-open-${receipt.id}`}>
+                          <Link to={`/dashboard/${orgId}/receipts/${receipt.id}`}>
+                            Відкрити
+                            <ArrowRight className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
