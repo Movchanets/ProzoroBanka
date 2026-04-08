@@ -141,6 +141,8 @@ jobs:
       - name: Backup current Terraform state
         id: tfstate-backup
         shell: bash
+        env:
+          TFSTATE_RESOURCE_GROUP: ${{ secrets.TFSTATE_RESOURCE_GROUP }}
         run: |
           set -euo pipefail
 
@@ -148,9 +150,24 @@ jobs:
           BACKUP_DIR="tfstate-backups"
           mkdir -p "$BACKUP_DIR"
 
-          EXISTS=$(az storage blob exists \
-            --auth-mode login \
+          STATE_ACCOUNT_KEY=$(az storage account keys list \
             --account-name "${{ secrets.TFSTATE_STORAGE_ACCOUNT }}" \
+            --resource-group "$TFSTATE_RESOURCE_GROUP" \
+            --query '[0].value' -o tsv) || {
+            echo "Unable to resolve a storage account key for tfstate backup; skipping backup."
+            echo "backup_created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          if [[ -z "$STATE_ACCOUNT_KEY" ]]; then
+            echo "No storage account key was returned for tfstate backup; skipping backup."
+            echo "backup_created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          EXISTS=$(az storage blob exists \
+            --account-name "${{ secrets.TFSTATE_STORAGE_ACCOUNT }}" \
+            --account-key "$STATE_ACCOUNT_KEY" \
             --container-name "${{ secrets.TFSTATE_CONTAINER }}" \
             --name "$STATE_KEY" \
             --query exists -o tsv)
@@ -165,8 +182,8 @@ jobs:
           BACKUP_FILE="$BACKUP_DIR/${STATE_KEY}.${TIMESTAMP}.backup"
 
           az storage blob download \
-            --auth-mode login \
             --account-name "${{ secrets.TFSTATE_STORAGE_ACCOUNT }}" \
+            --account-key "$STATE_ACCOUNT_KEY" \
             --container-name "${{ secrets.TFSTATE_CONTAINER }}" \
             --name "$STATE_KEY" \
             --file "$BACKUP_FILE" \
