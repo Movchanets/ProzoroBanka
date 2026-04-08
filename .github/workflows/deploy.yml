@@ -145,8 +145,6 @@ jobs:
           set -euo pipefail
 
           STATE_KEY="${{ steps.tfstate-key.outputs.key }}"
-          BACKUP_DIR="$GITHUB_WORKSPACE/tfstate-backups"
-          mkdir -p "$BACKUP_DIR"
 
           if ! EXISTS=$(az storage blob exists \
             --auth-mode login \
@@ -166,31 +164,24 @@ jobs:
           fi
 
           TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
-          BACKUP_FILE="$BACKUP_DIR/${STATE_KEY}.${TIMESTAMP}.backup"
+          BACKUP_BLOB="tfstate/backups/${STATE_KEY}.${TIMESTAMP}.backup"
 
-          if ! az storage blob download \
+          if ! az storage blob copy start \
             --auth-mode login \
             --account-name "${{ secrets.TFSTATE_STORAGE_ACCOUNT }}" \
+            --destination-container "${{ secrets.TFSTATE_CONTAINER }}" \
+            --destination-blob "$BACKUP_BLOB" \
+            --source-account-name "${{ secrets.TFSTATE_STORAGE_ACCOUNT }}" \
             --container-name "${{ secrets.TFSTATE_CONTAINER }}" \
-            --name "$STATE_KEY" \
-            --file "$BACKUP_FILE" \
-            --overwrite true; then
-            echo "Unable to download remote tfstate with login auth; skipping backup."
+            --source-blob "$STATE_KEY"; then
+            echo "Unable to copy remote tfstate with login auth; skipping backup."
             echo "backup_created=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          echo "Backed up tfstate to $BACKUP_FILE"
+          echo "Backed up tfstate to blob $BACKUP_BLOB"
           echo "backup_created=true" >> "$GITHUB_OUTPUT"
-          echo "backup_file=$BACKUP_FILE" >> "$GITHUB_OUTPUT"
-
-      - name: Upload tfstate backup artifact
-        if: ${{ steps.tfstate-backup.outputs.backup_created == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfstate-backup-${{ needs.determine-environment.outputs.deploy_environment }}-${{ github.run_id }}
-          path: ${{ steps.tfstate-backup.outputs.backup_file }}
-          if-no-files-found: error
+          echo "backup_blob=$BACKUP_BLOB" >> "$GITHUB_OUTPUT"
 
       - name: Terraform init
         run: |
