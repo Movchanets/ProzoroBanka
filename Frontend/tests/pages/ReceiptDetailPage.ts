@@ -10,6 +10,12 @@ export class ReceiptDetailPage {
   readonly itemsTab: Locator;
   readonly itemPhotosInput: Locator;
   readonly itemPhotosList: Locator;
+  readonly addItemNameInput: Locator;
+  readonly addItemQuantityInput: Locator;
+  readonly addItemUnitPriceInput: Locator;
+  readonly addItemTotalPriceInput: Locator;
+  readonly addItemBarcodeInput: Locator;
+  readonly addItemButton: Locator;
   readonly aliasInput: Locator;
   readonly saveOcrButton: Locator;
   readonly stateId: Locator;
@@ -27,6 +33,12 @@ export class ReceiptDetailPage {
     this.itemsTab = page.getByTestId('dashboard-receipts-upload-tab-items');
     this.itemPhotosInput = page.getByTestId('dashboard-receipts-items-files-input');
     this.itemPhotosList = page.getByTestId('dashboard-receipts-items-files-list');
+    this.addItemNameInput = page.getByTestId('dashboard-receipts-add-item-name-input');
+    this.addItemQuantityInput = page.getByTestId('dashboard-receipts-add-item-quantity-input');
+    this.addItemUnitPriceInput = page.getByTestId('dashboard-receipts-add-item-unit-price-input');
+    this.addItemTotalPriceInput = page.getByTestId('dashboard-receipts-add-item-total-price-input');
+    this.addItemBarcodeInput = page.getByTestId('dashboard-receipts-add-item-barcode-input');
+    this.addItemButton = page.getByTestId('dashboard-receipts-add-item-button');
     this.aliasInput = page.getByTestId('dashboard-receipts-alias-input');
     this.saveOcrButton = page.getByTestId('dashboard-receipts-save-ocr-button');
     this.stateId = page.getByTestId('dashboard-receipts-state-id');
@@ -64,6 +76,62 @@ export class ReceiptDetailPage {
     await this.confirmCrop();
     await this.itemPhotosList.waitFor({ state: 'visible', timeout: 10_000 });
     await this.itemPhoto(0).waitFor({ state: 'visible', timeout: 10_000 });
+  }
+
+  async addItem(name: string, quantity: string, unitPrice: string, totalPrice: string, barcode: string) {
+    const responsePromise = this.page.waitForResponse(
+      (response) => response.url().includes('/api/receipts/') && response.url().includes('/items') && response.request().method() === 'POST',
+    );
+
+    await this.addItemNameInput.fill(name);
+    await this.addItemQuantityInput.fill(quantity);
+    await this.addItemUnitPriceInput.fill(unitPrice);
+    await this.addItemTotalPriceInput.fill(totalPrice);
+    await this.addItemBarcodeInput.fill(barcode);
+    await this.addItemButton.click();
+
+    const response = await responsePromise;
+    if (!response.ok()) {
+      throw new Error(`Failed to add receipt item: ${response.status()} ${await response.text()}`);
+    }
+
+    await this.itemName(0).waitFor({ state: 'visible', timeout: 10_000 });
+  }
+
+  itemEditButton(index: number) {
+    return this.page.getByTestId(`dashboard-receipts-items-edit-button-${index}`);
+  }
+
+  itemEditNameInput(index: number) {
+    return this.page.getByTestId(`dashboard-receipts-items-edit-name-${index}`);
+  }
+
+  itemEditQuantityInput(index: number) {
+    return this.page.getByTestId(`dashboard-receipts-items-edit-quantity-${index}`);
+  }
+
+  itemEditUnitPriceInput(index: number) {
+    return this.page.getByTestId(`dashboard-receipts-items-edit-unit-price-${index}`);
+  }
+
+  itemEditTotalPriceInput(index: number) {
+    return this.page.getByTestId(`dashboard-receipts-items-edit-total-price-${index}`);
+  }
+
+  itemSaveButton(index: number) {
+    return this.page.getByTestId(`dashboard-receipts-items-save-button-${index}`);
+  }
+
+  itemUnitPrice(index: number) {
+    return this.page.getByTestId(`dashboard-receipts-items-item-unit-price-${index}`);
+  }
+
+  itemTotalPrice(index: number) {
+    return this.page.getByTestId(`dashboard-receipts-items-item-total-price-${index}`);
+  }
+
+  itemName(index: number) {
+    return this.page.getByTestId(`dashboard-receipts-items-item-name-${index}`);
   }
 
   itemPhoto(index: number) {

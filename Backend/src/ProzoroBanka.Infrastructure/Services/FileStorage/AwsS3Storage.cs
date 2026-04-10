@@ -48,6 +48,15 @@ public class AwsS3Storage : IFileStorage
 		return StoragePublicUrlBuilder.BuildUploadsUrl(baseUrl, storageKey);
 	}
 
+	public async Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken = default)
+	{
+		using var response = await _s3Client.GetObjectAsync(_bucketName, storageKey, cancellationToken);
+		var memoryStream = new MemoryStream();
+		await response.ResponseStream.CopyToAsync(memoryStream, cancellationToken);
+		memoryStream.Position = 0;
+		return memoryStream;
+	}
+
 	public async Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default)
 	{
 		await _s3Client.DeleteObjectAsync(_bucketName, storageKey, cancellationToken);

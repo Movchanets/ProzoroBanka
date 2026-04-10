@@ -5,16 +5,25 @@ using ProzoroBanka.API.Authorization;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Receipts.Commands.AddReceiptItemPhotos;
 using ProzoroBanka.Application.Receipts.Commands.ActivateReceipt;
+using ProzoroBanka.Application.Receipts.Commands.AddReceiptItem;
+using ProzoroBanka.Application.Receipts.Commands.DeleteReceipt;
+using ProzoroBanka.Application.Receipts.Commands.DeleteReceiptItem;
 using ProzoroBanka.Application.Receipts.Commands.DeleteReceiptItemPhoto;
 using ProzoroBanka.Application.Receipts.Commands.ExtractReceiptData;
+using ProzoroBanka.Application.Receipts.Commands.ImportReceiptTaxXml;
+using ProzoroBanka.Application.Receipts.Commands.LinkReceiptItemPhoto;
 using ProzoroBanka.Application.Receipts.Commands.ReorderReceiptItemPhotos;
 using ProzoroBanka.Application.Receipts.Commands.ReplaceReceiptItemPhoto;
 using ProzoroBanka.Application.Receipts.Commands.RetryReceiptProcessing;
+using ProzoroBanka.Application.Receipts.Commands.UpdateReceiptItem;
 using ProzoroBanka.Application.Receipts.Commands.UpdateReceiptDraftFile;
 using ProzoroBanka.Application.Receipts.Commands.UpdateReceiptOcrDraft;
 using ProzoroBanka.Application.Receipts.Commands.UploadReceiptDraft;
+using ProzoroBanka.Application.Receipts.Commands.UploadOrganizationReceiptDraft;
 using ProzoroBanka.Application.Receipts.Commands.VerifyReceipt;
 using ProzoroBanka.Application.Receipts.DTOs;
+using ProzoroBanka.Application.Receipts.Queries.GetOrganizationReceipt;
+using ProzoroBanka.Application.Receipts.Queries.GetOrganizationReceipts;
 using ProzoroBanka.Application.Receipts.Queries.GetMyReceipts;
 using ProzoroBanka.Application.Receipts.Queries.GetMyReceipt;
 using ProzoroBanka.Domain.Enums;
@@ -55,6 +64,27 @@ public class ReceiptsController : ApiControllerBase
 		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
 	}
 
+	[HttpPost("/api/organizations/{organizationId:guid}/receipts/draft")]
+	[Consumes("multipart/form-data")]
+	[HasPermission(Permissions.ReceiptsCreate)]
+	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> UploadOrganizationDraft(Guid organizationId, [FromForm] IFormFile? file, CancellationToken ct)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+		if (file is null || file.Length == 0)
+			return BadRequest(new { Error = "Файл чека обов'язковий" });
+
+		await using var stream = file.OpenReadStream();
+		var result = await _sender.Send(
+			new UploadOrganizationReceiptDraftCommand(userId.Value, organizationId, stream, file.FileName, file.ContentType, file.Length),
+			ct);
+
+		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
+	}
+
 	[HttpPut("{id:guid}/draft")]
 	[Consumes("multipart/form-data")]
 	[HasPermission(Permissions.ReceiptsUpdate)]
@@ -86,12 +116,10 @@ public class ReceiptsController : ApiControllerBase
 		var userId = _currentUser.DomainUserId;
 		if (userId is null)
 			return Unauthorized();
-		if (file is null || file.Length == 0)
-			return BadRequest(new { Error = "Для OCR потрібен файл чека" });
 
-		await using var stream = file.OpenReadStream();
+		await using var stream = file?.OpenReadStream();
 		var result = await _sender.Send(
-			new ExtractReceiptDataCommand(userId.Value, id, stream, file.FileName, organizationId, modelIdentifier),
+			new ExtractReceiptDataCommand(userId.Value, id, stream, file?.FileName, organizationId, modelIdentifier),
 			ct);
 
 		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
@@ -131,6 +159,28 @@ public class ReceiptsController : ApiControllerBase
 		return Ok(result.Payload);
 	}
 
+	[HttpGet("/api/organizations/{organizationId:guid}/receipts")]
+	[HasPermission(Permissions.ReceiptsRead)]
+	[ProducesResponseType(typeof(IReadOnlyList<ReceiptListItemDto>), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> ListByOrganization(
+		Guid organizationId,
+		[FromQuery] string? search,
+		[FromQuery] ReceiptStatus? status,
+		[FromQuery] bool onlyUnattached = false,
+		CancellationToken ct = default)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(
+			new GetOrganizationReceiptsQuery(userId.Value, organizationId, search, status, onlyUnattached),
+			ct);
+
+		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
+	}
+
 	[HttpPatch("{id:guid}/ocr-draft")]
 	[HasPermission(Permissions.ReceiptsUpdate)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
@@ -154,6 +204,116 @@ public class ReceiptsController : ApiControllerBase
 			request.PurchasedItemName,
 			request.OcrStructuredPayloadJson), ct);
 
+		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
+	}
+
+	[HttpPost("{id:guid}/import-tax-xml")]
+	[Consumes("multipart/form-data")]
+	[HasPermission(Permissions.ReceiptsUpdate)]
+	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> ImportTaxXml(Guid id, [FromForm] IFormFile? file, CancellationToken ct)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+		if (file is null || file.Length == 0)
+			return BadRequest(new { Error = "XML-файл чека обов'язковий" });
+
+		await using var stream = file.OpenReadStream();
+		var result = await _sender.Send(new ImportReceiptTaxXmlCommand(userId.Value, id, stream), ct);
+		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
+	}
+
+	[HttpPost("{id:guid}/items")]
+	[HasPermission(Permissions.ReceiptsUpdate)]
+	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> AddItem(Guid id, [FromBody] AddReceiptItemRequest request, CancellationToken ct)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new AddReceiptItemCommand(
+			userId.Value,
+			id,
+			request.Name,
+			request.Quantity,
+			request.UnitPrice,
+			request.TotalPrice,
+			request.Barcode,
+			request.VatRate,
+			request.VatAmount,
+			request.PhotoIds), ct);
+
+		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
+	}
+
+	[HttpPut("{id:guid}/items/{itemId:guid}")]
+	[HasPermission(Permissions.ReceiptsUpdate)]
+	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> UpdateItem(Guid id, Guid itemId, [FromBody] UpdateReceiptItemRequest request, CancellationToken ct)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new UpdateReceiptItemCommand(
+			userId.Value,
+			id,
+			itemId,
+			request.Name,
+			request.Quantity,
+			request.UnitPrice,
+			request.TotalPrice,
+			request.Barcode,
+			request.VatRate,
+			request.VatAmount), ct);
+
+		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
+	}
+
+	[HttpDelete("{id:guid}/items/{itemId:guid}")]
+	[HasPermission(Permissions.ReceiptsUpdate)]
+	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> DeleteItem(Guid id, Guid itemId, CancellationToken ct)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new DeleteReceiptItemCommand(userId.Value, id, itemId), ct);
+		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
+	}
+
+	[HttpDelete("{id:guid}")]
+	[HasPermission(Permissions.ReceiptsDelete)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new DeleteReceiptCommand(userId.Value, id), ct);
+		return result.IsSuccess ? Ok(new { Message = result.Message }) : BadRequest(new { Error = result.Message });
+	}
+
+	[HttpPut("{id:guid}/item-photos/{photoId:guid}/link")]
+	[HasPermission(Permissions.ReceiptsUpdate)]
+	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> LinkItemPhoto(Guid id, Guid photoId, [FromBody] LinkReceiptItemPhotoRequest request, CancellationToken ct)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new LinkReceiptItemPhotoCommand(userId.Value, id, photoId, request.ReceiptItemId), ct);
 		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
 	}
 
@@ -288,5 +448,26 @@ public class ReceiptsController : ApiControllerBase
 
 		var result = await _sender.Send(new GetMyReceiptQuery(userId.Value, id), ct);
 		return result.IsSuccess ? Ok(result.Payload) : NotFound(new { Error = result.Message });
+	}
+
+	[HttpGet("/api/organizations/{organizationId:guid}/receipts/{id:guid}")]
+	[HasPermission(Permissions.ReceiptsRead)]
+	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> GetByIdInOrganization(Guid organizationId, Guid id, CancellationToken ct)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new GetOrganizationReceiptQuery(userId.Value, organizationId, id), ct);
+		if (result.IsSuccess)
+			return Ok(result.Payload);
+
+		if (string.Equals(result.Message, "Чек не знайдено", StringComparison.Ordinal))
+			return NotFound(new { Error = result.Message });
+
+		return BadRequest(new { Error = result.Message });
 	}
 }

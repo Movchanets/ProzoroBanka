@@ -65,6 +65,7 @@ export interface ReceiptPipeline {
   receiptCode?: string;
   currency?: string;
   purchasedItemName?: string;
+  items?: ReceiptItem[];
   itemPhotos?: ReceiptItemPhoto[];
   ocrStructuredPayloadJson?: string;
   rawOcrJson?: string;
@@ -72,11 +73,25 @@ export interface ReceiptPipeline {
   isConfirmed?: boolean;
 }
 
+export interface ReceiptItem {
+  id: string;
+  name: string;
+  quantity?: number;
+  unitPrice?: number;
+  totalPrice?: number;
+  barcode?: string;
+  vatRate?: number;
+  vatAmount?: number;
+  sortOrder: number;
+}
+
 export interface ReceiptListItem {
   id: string;
   originalFileName: string;
   alias?: string;
   merchantName?: string;
+  authorFullName?: string;
+  authorEmail?: string;
   totalAmount?: number;
   purchaseDateUtc?: string;
   status: ReceiptStatus;
@@ -91,6 +106,32 @@ export interface ReceiptItemPhoto {
   originalFileName: string;
   photoUrl: string;
   sortOrder: number;
+  receiptItemId?: string;
+}
+
+export interface AddReceiptItemRequest {
+  name: string;
+  quantity?: number;
+  unitPrice?: number;
+  totalPrice?: number;
+  barcode?: string;
+  vatRate?: number;
+  vatAmount?: number;
+  photoIds?: string[];
+}
+
+export interface UpdateReceiptItemRequest {
+  name: string;
+  quantity?: number;
+  unitPrice?: number;
+  totalPrice?: number;
+  barcode?: string;
+  vatRate?: number;
+  vatAmount?: number;
+}
+
+export interface LinkReceiptItemPhotoRequest {
+  receiptItemId?: string;
 }
 
 export interface UpdateReceiptOcrDraftRequest {

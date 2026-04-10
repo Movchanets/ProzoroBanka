@@ -25,6 +25,20 @@ public static class ReceiptDtoMapper
 			receipt.ReceiptCode,
 			receipt.Currency,
 			receipt.PurchasedItemName,
+			receipt.Items
+				.Where(item => !item.IsDeleted)
+				.OrderBy(item => item.SortOrder)
+				.Select(item => new ReceiptItemDto(
+					item.Id,
+					item.Name,
+					item.Quantity,
+					item.UnitPrice,
+					item.TotalPrice,
+					item.Barcode,
+					item.VatRate,
+					item.VatAmount,
+					item.SortOrder))
+				.ToList(),
 			receipt.ItemPhotos
 				.Where(photo => !photo.IsDeleted)
 				.OrderBy(photo => photo.SortOrder)
@@ -32,7 +46,8 @@ public static class ReceiptDtoMapper
 					photo.Id,
 					photo.OriginalFileName,
 					StorageUrlResolver.Resolve(fileStorage, photo.StorageKey) ?? string.Empty,
-					photo.SortOrder))
+					photo.SortOrder,
+					photo.ReceiptItemId))
 				.ToList(),
 			receipt.OcrStructuredPayloadJson,
 			receipt.RawOcrJson,

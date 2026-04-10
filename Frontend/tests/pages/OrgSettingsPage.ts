@@ -12,11 +12,9 @@ export class OrgSettingsPage {
   readonly planPlaceholderDescription: Locator;
   readonly successAlert: Locator;
   readonly stateApiKeysCard: Locator;
-  readonly taxServiceKeyInput: Locator;
-  readonly checkGovKeyInput: Locator;
+  readonly stateRegistryKeyInput: Locator;
   readonly saveStateKeysButton: Locator;
-  readonly taxServiceMaskedValue: Locator;
-  readonly checkGovMaskedValue: Locator;
+  readonly stateRegistryMaskedValue: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -31,20 +29,17 @@ export class OrgSettingsPage {
     this.planPlaceholderDescription = page.getByTestId('org-settings-plan-placeholder-description');
     this.successAlert = page.getByTestId('org-settings-success-alert');
     this.stateApiKeysCard = page.getByTestId('org-settings-state-api-keys-card');
-    this.taxServiceKeyInput = page.getByTestId('org-settings-tax-service-key-input');
-    this.checkGovKeyInput = page.getByTestId('org-settings-check-gov-key-input');
+    this.stateRegistryKeyInput = page.getByTestId('org-settings-state-registry-key-input');
     this.saveStateKeysButton = page.getByTestId('org-settings-state-keys-save-button');
-    this.taxServiceMaskedValue = page.getByTestId('org-settings-tax-service-key-masked-value');
-    this.checkGovMaskedValue = page.getByTestId('org-settings-check-gov-key-masked-value');
+    this.stateRegistryMaskedValue = page.getByTestId('org-settings-state-registry-key-masked-value');
   }
 
   async goto(orgId: string) {
     await this.page.goto(`/dashboard/${orgId}/settings`);
   }
 
-  async saveRegistryKeys(taxServiceKey: string, checkGovKey: string) {
-    await this.taxServiceKeyInput.fill(taxServiceKey);
-    await this.checkGovKeyInput.fill(checkGovKey);
+  async saveRegistryKeys(key: string) {
+    await this.stateRegistryKeyInput.fill(key);
     await this.saveStateKeysButton.click();
   }
 }

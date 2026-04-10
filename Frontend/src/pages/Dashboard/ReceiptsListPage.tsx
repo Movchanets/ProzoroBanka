@@ -8,6 +8,8 @@ import {
   Receipt,
   RefreshCw,
   Search,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +24,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -30,8 +33,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useMyReceipts } from '@/hooks/queries/useReceipts';
-import { ReceiptPublicationStatus, ReceiptStatus, type ReceiptListItem } from '@/types';
+import { useMyReceipts, useDeleteReceipt } from '@/hooks/queries/useReceipts';
+import { useOrganizationMembers } from '@/hooks/queries/useOrganizations';
+import { useAuthStore } from '@/stores/authStore';
+import { OrganizationRole, ReceiptPublicationStatus, ReceiptStatus, type ReceiptListItem } from '@/types';
 
 const statusOptions = [
   { value: 'all', label: 'Усі статуси' },
@@ -105,7 +110,12 @@ export default function ReceiptsListPage() {
   const { orgId } = useParams<{ orgId: string }>();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [deleteTarget, setDeleteTarget] = useState<ReceiptListItem | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search.trim());
+  const currentUser = useAuthStore((s) => s.user);
+  const { data: members } = useOrganizationMembers(orgId);
+  const deleteReceipt = useDeleteReceipt();
 
   const status = statusFilter === 'all' ? undefined : Number(statusFilter) as ReceiptStatus;
   const {
@@ -113,7 +123,7 @@ export default function ReceiptsListPage() {
     isLoading,
     isError,
     refetch,
-  } = useMyReceipts(deferredSearch, status, false, !!orgId);
+  } = useMyReceipts(orgId ?? '', deferredSearch, status, false, !!orgId);
 
   const stats = useMemo(() => {
     const attachedCount = receipts.filter((receipt) => receipt.campaignId).length;
@@ -125,6 +135,23 @@ export default function ReceiptsListPage() {
       attached: attachedCount,
     };
   }, [receipts]);
+
+  const currentMember = members?.find((member) => member.userId === currentUser?.id);
+  const canDeleteReceipt = currentMember?.role === OrganizationRole.Owner || currentMember?.role === OrganizationRole.Admin;
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    setDeleteError(null);
+    try {
+      await deleteReceipt.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Не вдалося видалити чек');
+    }
+  };
 
   return (
     <div className="space-y-6" data-testid="dashboard-receipts-list-page">
@@ -153,6 +180,12 @@ export default function ReceiptsListPage() {
         <Alert variant="destructive">
           <AlertTitle>Некоректний маршрут</AlertTitle>
           <AlertDescription>Реєстр чеків потребує `orgId` в URL.</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {deleteError ? (
+        <Alert variant="destructive" data-testid="dashboard-receipts-list-delete-error-alert">
+          <AlertDescription>{deleteError}</AlertDescription>
         </Alert>
       ) : null}
 
@@ -251,6 +284,7 @@ export default function ReceiptsListPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Чек</TableHead>
+                  <TableHead>Автор</TableHead>
                   <TableHead>Статус</TableHead>
                   <TableHead>Збір</TableHead>
                   <TableHead>Сума</TableHead>
@@ -279,6 +313,16 @@ export default function ReceiptsListPage() {
                         </p>
                       </div>
                     </TableCell>
+                    <TableCell className="min-w-[210px] whitespace-normal">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium" data-testid={`dashboard-receipts-list-author-name-${receipt.id}`}>
+                          {receipt.authorFullName || '—'}
+                        </p>
+                        <p className="text-xs text-muted-foreground" data-testid={`dashboard-receipts-list-author-email-${receipt.id}`}>
+                          {receipt.authorEmail || '—'}
+                        </p>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <ReceiptStatusBadge receipt={receipt} />
                     </TableCell>
@@ -297,14 +341,30 @@ export default function ReceiptsListPage() {
                     <TableCell>{formatAmount(receipt.totalAmount)}</TableCell>
                     <TableCell>{formatDate(receipt.purchaseDateUtc)}</TableCell>
                     <TableCell className="text-right">
-                      {orgId ? (
-                        <Button asChild size="sm" variant="outline" data-testid={`dashboard-receipts-list-open-${receipt.id}`}>
-                          <Link to={`/dashboard/${orgId}/receipts/${receipt.id}`}>
-                            Відкрити
-                            <ArrowRight className="h-4 w-4" />
-                          </Link>
+                      <div className="flex justify-end gap-2">
+                        {orgId ? (
+                          <Button asChild size="sm" variant="outline" data-testid={`dashboard-receipts-list-open-${receipt.id}`}>
+                            <Link to={`/dashboard/${orgId}/receipts/${receipt.id}`}>
+                              Відкрити
+                              <ArrowRight className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        ) : null}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive hover:text-destructive"
+                          disabled={!canDeleteReceipt || deleteReceipt.isPending}
+                          data-testid={`dashboard-receipts-list-delete-${receipt.id}`}
+                          onClick={() => setDeleteTarget(receipt)}
+                        >
+                          {deleteReceipt.isPending && deleteTarget?.id === receipt.id
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Trash2 className="h-4 w-4" />}
+                          Видалити
                         </Button>
-                      ) : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -313,6 +373,38 @@ export default function ReceiptsListPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent data-testid="dashboard-receipts-list-delete-dialog">
+          <DialogHeader>
+            <DialogTitle>Видалити чек?</DialogTitle>
+            <DialogDescription>
+              Після видалення чек зникне з реєстру.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              data-testid="dashboard-receipts-list-delete-cancel"
+            >
+              Скасувати
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleConfirmDelete()}
+              disabled={deleteReceipt.isPending}
+              data-testid="dashboard-receipts-list-delete-confirm"
+            >
+              {deleteReceipt.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Видалити
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

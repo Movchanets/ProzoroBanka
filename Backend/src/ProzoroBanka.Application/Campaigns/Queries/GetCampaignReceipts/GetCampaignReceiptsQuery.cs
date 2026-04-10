@@ -45,6 +45,8 @@ public class GetCampaignReceiptsHandler
 				r.OriginalFileName,
 				r.Alias,
 				r.MerchantName,
+				($"{r.User.FirstName} {r.User.LastName}").Trim(),
+				r.User.Email,
 				r.TotalAmount,
 				r.PurchaseDateUtc,
 				r.Status,

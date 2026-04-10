@@ -1,4 +1,8 @@
+import { useState } from 'react';
+import { PencilLine, Save, Trash2, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -7,6 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import type { ReceiptItem } from '@/types';
+import type { UpdateReceiptItemRequest } from '@/types';
 
 type ReceiptItemValue = {
   name?: string;
@@ -24,8 +30,18 @@ type ReceiptItemValue = {
 
 interface ReceiptItemsTableProps {
   structuredOutputJson?: string | null;
+  items?: ReceiptItem[];
   testIdPrefix: string;
+  onUpdateItem?: (itemId: string, payload: UpdateReceiptItemRequest) => Promise<void> | void;
+  onDeleteItem?: (itemId: string) => Promise<void> | void;
 }
+
+type ReceiptTableItem = ReceiptItemValue & {
+  index: number;
+  id?: string;
+  sortOrder?: number;
+  isPersisted?: boolean;
+};
 
 function parseNumber(value: unknown) {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -58,8 +74,74 @@ function parseItemValue(raw: unknown): ReceiptItemValue | null {
   };
 }
 
-function parseReceiptItems(structuredOutputJson?: string | null) {
-  if (!structuredOutputJson?.trim()) return [] as Array<ReceiptItemValue & { index: number }>;
+function parseMoneyInput(value: string) {
+  if (!value.trim()) return undefined;
+
+  const normalized = value.replace(/\s+/g, '').replace(',', '.');
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) return undefined;
+
+  return Math.round(parsed * 100);
+}
+
+function parsePlainNumber(value: string) {
+  if (!value.trim()) return undefined;
+
+  const normalized = value.replace(/\s+/g, '').replace(',', '.');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function formatMoneyInputValue(value?: number) {
+  if (typeof value !== 'number') return '';
+  return (value / 100).toString();
+}
+
+function buildItemDraft(item: {
+  name?: string;
+  quantity?: number | string;
+  unitPrice?: number | string;
+  totalPrice?: number | string;
+  barcode?: string;
+  vatRate?: number | string;
+  vatAmount?: number | string;
+}) {
+  return {
+    name: item.name ?? '',
+    quantity: item.quantity?.toString() ?? '',
+    unitPrice: typeof item.unitPrice === 'number' ? formatMoneyInputValue(item.unitPrice) : item.unitPrice?.toString() ?? '',
+    totalPrice: typeof item.totalPrice === 'number' ? formatMoneyInputValue(item.totalPrice) : item.totalPrice?.toString() ?? '',
+    barcode: item.barcode ?? '',
+    vatRate: item.vatRate?.toString() ?? '',
+    vatAmount: typeof item.vatAmount === 'number' ? formatMoneyInputValue(item.vatAmount) : item.vatAmount?.toString() ?? '',
+  };
+}
+
+function parseReceiptItems(structuredOutputJson?: string | null, persistedItems?: ReceiptItem[]): ReceiptTableItem[] {
+  if (persistedItems && persistedItems.length > 0) {
+    return persistedItems
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((item, index) => ({
+        id: item.id,
+        sortOrder: item.sortOrder,
+        name: item.name,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        total_price: item.totalPrice,
+        barcode: item.barcode,
+        vat_rate: item.vatRate,
+        vat_amount: item.vatAmount,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        vatRate: item.vatRate,
+        vatAmount: item.vatAmount,
+        index,
+        isPersisted: true,
+      }));
+  }
+
+  if (!structuredOutputJson?.trim()) return [];
 
   try {
     const parsed = JSON.parse(structuredOutputJson) as Record<string, unknown>;
@@ -68,16 +150,17 @@ function parseReceiptItems(structuredOutputJson?: string | null) {
     return items
       .map(parseItemValue)
       .filter((item): item is ReceiptItemValue => Boolean(item?.name))
-      .map((item, index) => ({ ...item, index }));
+      .map((item, index) => ({ ...item, index, isPersisted: false }));
   } catch {
-    return [] as Array<ReceiptItemValue & { index: number }>;
+    return [];
   }
 }
 
-function formatMoney(value?: number | string) {
+function formatMoney(value?: number | string, isPersisted = false) {
   const amount = parseNumber(value);
   if (amount === undefined) return '—';
-  return new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+  const displayAmount = isPersisted ? amount / 100 : amount;
+  return new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayAmount);
 }
 
 function formatText(value?: number | string) {
@@ -85,8 +168,60 @@ function formatText(value?: number | string) {
   return String(value);
 }
 
-export function ReceiptItemsTable({ structuredOutputJson, testIdPrefix }: ReceiptItemsTableProps) {
-  const items = parseReceiptItems(structuredOutputJson);
+export function ReceiptItemsTable({
+  structuredOutputJson,
+  items: persistedItems,
+  testIdPrefix,
+  onUpdateItem,
+  onDeleteItem,
+}: ReceiptItemsTableProps) {
+  const items = parseReceiptItems(structuredOutputJson, persistedItems);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [savingItemId, setSavingItemId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{
+    name: string;
+    quantity: string;
+    unitPrice: string;
+    totalPrice: string;
+    barcode: string;
+    vatRate: string;
+    vatAmount: string;
+  } | null>(null);
+
+  const startEditing = (item: ReceiptTableItem) => {
+    if (!item.id) return;
+
+    setEditingItemId(item.id);
+    setDraft(buildItemDraft(item));
+  };
+
+  const cancelEditing = () => {
+    setEditingItemId(null);
+    setDraft(null);
+  };
+
+  const saveEditing = async (item: ReceiptTableItem) => {
+    if (!draft || !onUpdateItem || !item.id) return;
+
+    const name = draft.name.trim();
+    if (!name) return;
+
+    setSavingItemId(item.id);
+    try {
+      await onUpdateItem(item.id, {
+        name,
+        quantity: parsePlainNumber(draft.quantity),
+        unitPrice: parseMoneyInput(draft.unitPrice),
+        totalPrice: parseMoneyInput(draft.totalPrice),
+        barcode: draft.barcode.trim() || undefined,
+        vatRate: parsePlainNumber(draft.vatRate),
+        vatAmount: parseMoneyInput(draft.vatAmount),
+      });
+      cancelEditing();
+    } finally {
+      setSavingItemId(null);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -108,7 +243,7 @@ export function ReceiptItemsTable({ structuredOutputJson, testIdPrefix }: Receip
           {items.length} позицій
         </Badge>
         <Badge variant="secondary" data-testid={`${testIdPrefix}-qty-badge`}>
-          {totalItems > 0 ? `${totalItems} шт.` : 'Кількість не вказано'}
+          {totalItems > 0 ? `Сумарна кількість: ${totalItems}` : 'Кількість не вказано'}
         </Badge>
       </div>
 
@@ -123,6 +258,7 @@ export function ReceiptItemsTable({ structuredOutputJson, testIdPrefix }: Receip
               <TableHead className="w-[12%]">Штрихкод</TableHead>
               <TableHead className="w-[8%] text-right">ПДВ</TableHead>
               <TableHead className="w-[8%] text-right">ПДВ сума</TableHead>
+              {onUpdateItem || onDeleteItem ? <TableHead className="w-[8%] text-right">Дії</TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -132,31 +268,151 @@ export function ReceiptItemsTable({ structuredOutputJson, testIdPrefix }: Receip
               const totalPrice = parseNumber(item.total_price ?? item.totalPrice);
               const vatRate = parseNumber(item.vat_rate ?? item.vatRate);
               const vatAmount = parseNumber(item.vat_amount ?? item.vatAmount);
+              const isEditable = Boolean(item.id && (onUpdateItem || onDeleteItem));
+              const isEditing = editingItemId === item.id;
+              const itemId = item.id;
+              const isPersisted = Boolean(item.isPersisted);
 
               return (
                 <TableRow key={`${item.name}-${index}`} data-testid={`${testIdPrefix}-row-${index}`}>
                   <TableCell className="align-top font-medium text-foreground">
-                    <div className="space-y-1">
-                      <div data-testid={`${testIdPrefix}-item-name-${index}`}>{item.name}</div>
-                    </div>
+                    {isEditing && draft ? (
+                      <Input
+                        value={draft.name}
+                        onChange={(event) => setDraft((current) => (current ? { ...current, name: event.target.value } : current))}
+                        data-testid={`${testIdPrefix}-edit-name-${index}`}
+                      />
+                    ) : (
+                      <div className="space-y-1">
+                        <div data-testid={`${testIdPrefix}-item-name-${index}`}>{item.name}</div>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="align-top text-right tabular-nums" data-testid={`${testIdPrefix}-item-quantity-${index}`}>
-                    {formatText(quantity ?? item.quantity)}
+                    {isEditing && draft ? (
+                      <Input
+                        value={draft.quantity}
+                        onChange={(event) => setDraft((current) => (current ? { ...current, quantity: event.target.value } : current))}
+                        className="text-right"
+                        data-testid={`${testIdPrefix}-edit-quantity-${index}`}
+                      />
+                    ) : (
+                      formatText(quantity ?? item.quantity)
+                    )}
                   </TableCell>
                   <TableCell className="align-top text-right tabular-nums" data-testid={`${testIdPrefix}-item-unit-price-${index}`}>
-                    {formatMoney(unitPrice ?? item.unit_price)}
+                    {isEditing && draft ? (
+                      <Input
+                        value={draft.unitPrice}
+                        onChange={(event) => setDraft((current) => (current ? { ...current, unitPrice: event.target.value } : current))}
+                        className="text-right"
+                        data-testid={`${testIdPrefix}-edit-unit-price-${index}`}
+                      />
+                    ) : (
+                      formatMoney(unitPrice ?? item.unit_price, isPersisted)
+                    )}
                   </TableCell>
                   <TableCell className="align-top text-right tabular-nums font-medium" data-testid={`${testIdPrefix}-item-total-price-${index}`}>
-                    {formatMoney(totalPrice ?? item.total_price)}
+                    {isEditing && draft ? (
+                      <Input
+                        value={draft.totalPrice}
+                        onChange={(event) => setDraft((current) => (current ? { ...current, totalPrice: event.target.value } : current))}
+                        className="text-right"
+                        data-testid={`${testIdPrefix}-edit-total-price-${index}`}
+                      />
+                    ) : (
+                      formatMoney(totalPrice ?? item.total_price, isPersisted)
+                    )}
                   </TableCell>
                   <TableCell className="align-top text-sm text-muted-foreground" data-testid={`${testIdPrefix}-item-barcode-${index}`}>
-                    {item.barcode || '—'}
+                    {isEditing && draft ? (
+                      <Input
+                        value={draft.barcode}
+                        onChange={(event) => setDraft((current) => (current ? { ...current, barcode: event.target.value } : current))}
+                        data-testid={`${testIdPrefix}-edit-barcode-${index}`}
+                      />
+                    ) : (
+                      item.barcode || '—'
+                    )}
                   </TableCell>
                   <TableCell className="align-top text-right tabular-nums" data-testid={`${testIdPrefix}-item-vat-rate-${index}`}>
-                    {vatRate === undefined ? '—' : `${new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 2 }).format(vatRate)}%`}
+                    {isEditing && draft ? (
+                      <Input
+                        value={draft.vatRate}
+                        onChange={(event) => setDraft((current) => (current ? { ...current, vatRate: event.target.value } : current))}
+                        className="text-right"
+                        data-testid={`${testIdPrefix}-edit-vat-rate-${index}`}
+                      />
+                    ) : (
+                      vatRate === undefined ? '—' : `${new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 2 }).format(vatRate)}%`
+                    )}
                   </TableCell>
                   <TableCell className="align-top text-right tabular-nums" data-testid={`${testIdPrefix}-item-vat-amount-${index}`}>
-                    {formatMoney(vatAmount ?? item.vat_amount)}
+                    {isEditing && draft ? (
+                      <Input
+                        value={draft.vatAmount}
+                        onChange={(event) => setDraft((current) => (current ? { ...current, vatAmount: event.target.value } : current))}
+                        className="text-right"
+                        data-testid={`${testIdPrefix}-edit-vat-amount-${index}`}
+                      />
+                    ) : (
+                      formatMoney(vatAmount ?? item.vat_amount, isPersisted)
+                    )}
+                  </TableCell>
+                  <TableCell className="align-top text-right">
+                    {isEditable ? (
+                      <div className="flex justify-end gap-2">
+                        {isEditing ? (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void saveEditing(item)}
+                              disabled={savingItemId === item.id}
+                              data-testid={`${testIdPrefix}-save-button-${index}`}
+                            >
+                              {savingItemId === item.id ? <Save className="h-4 w-4 animate-pulse" /> : <Save className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={cancelEditing}
+                              disabled={savingItemId === item.id}
+                              data-testid={`${testIdPrefix}-cancel-button-${index}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            {onUpdateItem ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => startEditing(item)}
+                                data-testid={`${testIdPrefix}-edit-button-${index}`}
+                              >
+                                <PencilLine className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                            {onDeleteItem && itemId ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => void onDeleteItem(itemId)}
+                                data-testid={`${testIdPrefix}-delete-button-${index}`}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            ) : null}
+                          </>
+                        )}
+                      </div>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               );

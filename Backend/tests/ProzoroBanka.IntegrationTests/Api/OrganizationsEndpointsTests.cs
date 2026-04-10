@@ -118,6 +118,39 @@ public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFacto
 		Assert.Equal(HttpStatusCode.BadRequest, createOverflow.StatusCode);
 	}
 
+	[Fact]
+	public async Task StateRegistryCredentials_UnifiedKey_IsVisibleForBothProviders_AndCanBeDeletedFromEither()
+	{
+		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync($"State Registry Org {Guid.NewGuid():N}");
+
+		var upsertResponse = await _client.PutAsJsonAsync(
+			$"/api/organizations/{orgId}/state-registry-credentials/TaxService",
+			new { apiKey = "unified-test-key-123456" });
+
+		Assert.Equal(HttpStatusCode.OK, upsertResponse.StatusCode);
+
+		var settingsResponse = await _client.GetAsync($"/api/organizations/{orgId}/state-registry-settings");
+		settingsResponse.EnsureSuccessStatusCode();
+		var settingsJson = await settingsResponse.Content.ReadFromJsonAsync<JsonElement>();
+
+		Assert.True(settingsJson.GetProperty("taxService").GetProperty("isConfigured").GetBoolean());
+		Assert.True(settingsJson.GetProperty("checkGovUa").GetProperty("isConfigured").GetBoolean());
+		Assert.Equal(1, settingsJson.GetProperty("stateVerificationConfiguredKeys").GetInt32());
+		Assert.Equal(1, settingsJson.GetProperty("stateVerificationMaxKeys").GetInt32());
+
+		var deleteResponse = await _client.DeleteAsync($"/api/organizations/{orgId}/state-registry-credentials/CheckGovUa");
+		Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+
+		var afterDeleteSettingsResponse = await _client.GetAsync($"/api/organizations/{orgId}/state-registry-settings");
+		afterDeleteSettingsResponse.EnsureSuccessStatusCode();
+		var afterDeleteJson = await afterDeleteSettingsResponse.Content.ReadFromJsonAsync<JsonElement>();
+
+		Assert.False(afterDeleteJson.GetProperty("taxService").GetProperty("isConfigured").GetBoolean());
+		Assert.False(afterDeleteJson.GetProperty("checkGovUa").GetProperty("isConfigured").GetBoolean());
+		Assert.Equal(0, afterDeleteJson.GetProperty("stateVerificationConfiguredKeys").GetInt32());
+	}
+
 	private async Task<Guid> CreateOrganizationAsync(string name)
 	{
 		var response = await _client.PostAsJsonAsync("/api/organizations", new

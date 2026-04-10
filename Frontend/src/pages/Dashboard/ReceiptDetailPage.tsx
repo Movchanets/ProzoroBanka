@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowDown,
   ArrowUp,
+  ExternalLink,
   CheckCircle2,
   Crop,
   FileDigit,
@@ -31,15 +32,18 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
 import { ReceiptItemsTable } from '@/components/receipt/ReceiptItemsTable';
 import {
   useActivateReceipt,
+  useAddReceiptItem,
   useAddReceiptItemPhotos,
+  useDeleteReceiptItem,
   useDeleteReceiptItemPhoto,
   useExtractReceiptData,
   useGetMyReceipt,
+  useImportReceiptTaxXml,
+  useLinkReceiptItemPhoto,
+  useUpdateReceiptItem,
   useReorderReceiptItemPhotos,
   useReplaceReceiptItemPhoto,
   useRetryReceiptProcessing,
@@ -49,10 +53,10 @@ import {
   useVerifyReceipt,
 } from '@/hooks/queries/useReceipts';
 import { useOcrModels } from '@/hooks/queries/useOcrModels';
-import { cn } from '@/lib/utils';
 import {
   type OcrModelConfig,
   ReceiptPublicationStatus,
+  type ReceiptItem as PersistedReceiptItem,
   type ReceiptItemPhoto as PersistedReceiptItemPhoto,
   type ReceiptPipeline,
   ReceiptStatus,
@@ -82,7 +86,6 @@ const emptyOcrDraft = {
   fiscalNumber: '',
   receiptCode: '',
   currency: '',
-  purchasedItemName: '',
 };
 
 const ocrFieldLabels: Record<keyof typeof emptyOcrDraft, string> = {
@@ -92,7 +95,6 @@ const ocrFieldLabels: Record<keyof typeof emptyOcrDraft, string> = {
   fiscalNumber: 'Fiscal number',
   receiptCode: 'Receipt code',
   currency: 'Валюта',
-  purchasedItemName: 'Назва товару',
 };
 
 type OcrDraft = typeof emptyOcrDraft;
@@ -103,6 +105,7 @@ interface ItemPhotoAsset {
   originalFileName: string;
   cropped: boolean;
   source: 'local' | 'server';
+  receiptItemId?: string;
   file?: File;
 }
 
@@ -112,6 +115,14 @@ interface CropSession {
   file: File;
   itemId?: string;
   fallbackToOriginal: boolean;
+}
+
+interface ItemDraft {
+  name: string;
+  quantity: string;
+  unitPrice: string;
+  totalPrice: string;
+  barcode: string;
 }
 
 function formatAmount(value?: number) {
@@ -131,14 +142,35 @@ function formatAmountInputValue(value?: number) {
 
 function formatDate(value?: string) {
   if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
+  const date = parseReceiptLocalDate(value);
+  if (!date) return '—';
+
   return date.toLocaleString('uk-UA');
+}
+
+function parseReceiptLocalDate(value: string) {
+  const isoLikeMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (isoLikeMatch) {
+    const [, year, month, day, hours, minutes, seconds] = isoLikeMatch;
+    return new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hours),
+      Number(minutes),
+      Number(seconds ?? '0'),
+    );
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
 }
 
 function formatDateTimeLocalValue(value?: string) {
   if (!value) return '';
-  const date = new Date(value);
+  const date = parseReceiptLocalDate(value);
+  if (!date) return '';
   if (Number.isNaN(date.getTime())) return '';
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
@@ -158,6 +190,11 @@ function parseAmount(value: string) {
   if (!normalized) return null;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseOptionalNumber(value: string) {
+  const parsed = parseAmount(value);
+  return parsed === null ? undefined : parsed;
 }
 
 function parseStructuredJson(value: string) {
@@ -183,11 +220,10 @@ function buildJsonFromDraft(draft: OcrDraft) {
   return JSON.stringify({
     merchantName: normalizeText(draft.merchantName) ?? null,
     totalAmount: parseAmount(draft.totalAmount),
-    purchaseDateUtc: draft.purchaseDateUtc ? new Date(draft.purchaseDateUtc).toISOString() : null,
+    purchaseDateUtc: draft.purchaseDateUtc ? `${draft.purchaseDateUtc}:00` : null,
     fiscalNumber: normalizeText(draft.fiscalNumber) ?? null,
     receiptCode: normalizeText(draft.receiptCode) ?? null,
     currency: normalizeText(draft.currency) ?? null,
-    purchasedItemName: normalizeText(draft.purchasedItemName) ?? null,
   }, null, 2);
 }
 
@@ -210,12 +246,11 @@ function buildOcrDraft(receipt: ReceiptPipeline | null): OcrDraft {
     fiscalNumber: getStringValue(structuredPayload.fiscalNumber) ?? receipt.fiscalNumber ?? '',
     receiptCode: getStringValue(structuredPayload.receiptCode) ?? receipt.receiptCode ?? '',
     currency: getStringValue(structuredPayload.currency) ?? receipt.currency ?? '',
-    purchasedItemName: getStringValue(structuredPayload.purchasedItemName) ?? receipt.purchasedItemName ?? '',
   };
 }
 
 function getReceiptItemsPayload(receipt: ReceiptPipeline | null) {
-  return receipt?.ocrStructuredPayloadJson ?? receipt?.rawOcrJson ?? null;
+  return receipt?.ocrStructuredPayloadJson ?? null;
 }
 
 function isImageFile(file: File) {
@@ -284,6 +319,7 @@ function createPersistedItemPhotoAsset(photo: PersistedReceiptItemPhoto): ItemPh
     originalFileName: photo.originalFileName,
     cropped: true,
     source: 'server',
+    receiptItemId: photo.receiptItemId,
   };
 }
 
@@ -294,8 +330,8 @@ function buildItemPhotoAssets(receipt: ReceiptPipeline | null) {
 export default function ReceiptDetailPage() {
   const navigate = useNavigate();
   const { orgId, receiptId } = useParams<{ orgId: string; receiptId?: string }>();
-  const [uploadTab, setUploadTab] = useState<'receipt' | 'items'>('receipt');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedTaxXmlFileName, setSelectedTaxXmlFileName] = useState<string>('');
   const [selectedFilePreview, setSelectedFilePreview] = useState<string | null>(null);
   const [selectedFileWasCropped, setSelectedFileWasCropped] = useState(false);
   const [itemPhotos, setItemPhotos] = useState<ItemPhotoAsset[]>([]);
@@ -304,17 +340,28 @@ export default function ReceiptDetailPage() {
   const [receipt, setReceipt] = useState<ReceiptPipeline | null>(null);
   const [aliasInput, setAliasInput] = useState('');
   const [ocrDraft, setOcrDraft] = useState<OcrDraft>(emptyOcrDraft);
-  const [ocrJsonInput, setOcrJsonInput] = useState(buildJsonFromDraft(emptyOcrDraft));
-  const [ocrJsonError, setOcrJsonError] = useState<string | null>(null);
   const [hasOcrChanges, setHasOcrChanges] = useState(false);
+  const [itemDraft, setItemDraft] = useState<ItemDraft>({
+    name: '',
+    quantity: '',
+    unitPrice: '',
+    totalPrice: '',
+    barcode: '',
+  });
   const [selectedModelIdentifier, setSelectedModelIdentifier] = useState<string>('');
   const selectedFilePreviewRef = useRef<string | null>(null);
   const itemPhotosRef = useRef<ItemPhotoAsset[]>([]);
   const cropSessionRef = useRef<CropSession | null>(null);
+  const skippedItemCropIdsRef = useRef<Set<string>>(new Set());
 
   const uploadDraftMutation = useUploadReceiptDraft();
   const updateDraftMutation = useUpdateReceiptDraft();
   const addItemPhotosMutation = useAddReceiptItemPhotos();
+  const addReceiptItemMutation = useAddReceiptItem();
+  const deleteReceiptItemMutation = useDeleteReceiptItem();
+  const updateReceiptItemMutation = useUpdateReceiptItem();
+  const linkItemPhotoMutation = useLinkReceiptItemPhoto();
+  const importTaxXmlMutation = useImportReceiptTaxXml();
   const extractMutation = useExtractReceiptData();
   const updateOcrDraftMutation = useUpdateReceiptOcrDraft();
   const verifyMutation = useVerifyReceipt();
@@ -334,6 +381,10 @@ export default function ReceiptDetailPage() {
   const isBusy = uploadDraftMutation.isPending
     || updateDraftMutation.isPending
     || addItemPhotosMutation.isPending
+    || addReceiptItemMutation.isPending
+    || deleteReceiptItemMutation.isPending
+    || linkItemPhotoMutation.isPending
+    || importTaxXmlMutation.isPending
     || extractMutation.isPending
     || updateOcrDraftMutation.isPending
     || verifyMutation.isPending
@@ -402,9 +453,8 @@ export default function ReceiptDetailPage() {
       setReceiptIdInput('');
       setAliasInput('');
       setOcrDraft(emptyOcrDraft);
-      setOcrJsonInput(buildJsonFromDraft(emptyOcrDraft));
-      setOcrJsonError(null);
       setHasOcrChanges(false);
+      setItemDraft({ name: '', quantity: '', unitPrice: '', totalPrice: '', barcode: '' });
       setSelectedFile(null);
       setSelectedFileWasCropped(false);
       replaceSelectedFilePreview(null);
@@ -419,7 +469,12 @@ export default function ReceiptDetailPage() {
 
     setReceiptIdInput(receiptId);
 
-    void getReceiptMutation.mutateAsync(receiptId)
+    if (!orgId) {
+      toast.error('Некоректний маршрут: відсутня організація');
+      return;
+    }
+
+    void getReceiptMutation.mutateAsync({ organizationId: orgId, receiptId })
       .then((result) => {
         applyReceipt(result);
       })
@@ -427,7 +482,7 @@ export default function ReceiptDetailPage() {
         toast.error((error as Error).message);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [receiptId]);
+  }, [orgId, receiptId]);
 
   useEffect(() => () => {
     revokePreviewUrl(selectedFilePreviewRef.current);
@@ -439,9 +494,8 @@ export default function ReceiptDetailPage() {
     const nextDraft = buildOcrDraft(nextReceipt);
     setAliasInput(nextReceipt?.alias ?? '');
     setOcrDraft(nextDraft);
-    setOcrJsonInput(nextReceipt?.ocrStructuredPayloadJson?.trim() || buildJsonFromDraft(nextDraft));
-    setOcrJsonError(null);
     setHasOcrChanges(false);
+    setItemDraft({ name: '', quantity: '', unitPrice: '', totalPrice: '', barcode: '' });
   };
 
   const applyReceipt = (next: ReceiptPipeline) => {
@@ -472,6 +526,16 @@ export default function ReceiptDetailPage() {
       return nextAssets;
     });
   };
+
+  const getNextItemCropCandidate = (
+    assets: ItemPhotoAsset[],
+    excludeItemId?: string,
+  ) => assets.find((item) =>
+    item.source === 'local'
+    && !item.cropped
+    && !!item.file
+    && item.id !== excludeItemId
+    && !skippedItemCropIdsRef.current.has(item.id));
 
   const applyReceiptFile = (file: File, previewUrl: string | null, cropped: boolean) => {
     setSelectedFile(file);
@@ -533,8 +597,9 @@ export default function ReceiptDetailPage() {
     }
     if (imageFiles.length > 0) {
       const nextAssets = imageFiles.map((file) => createLocalItemPhotoAsset(file, false));
+      nextAssets.forEach((asset) => skippedItemCropIdsRef.current.delete(asset.id));
       replaceItemPhotoAssets([...itemPhotosRef.current, ...nextAssets]);
-      const [firstAsset] = nextAssets;
+      const firstAsset = getNextItemCropCandidate(nextAssets);
       if (firstAsset) {
         setCropSession({
           kind: 'item',
@@ -552,6 +617,8 @@ export default function ReceiptDetailPage() {
   };
 
   const onRemoveItemPhoto = async (itemId: string) => {
+    skippedItemCropIdsRef.current.delete(itemId);
+
     const existing = itemPhotosRef.current.find((item) => item.id === itemId);
     if (!existing) {
       return;
@@ -618,6 +685,8 @@ export default function ReceiptDetailPage() {
   };
 
   const onRecropItemPhoto = async (item: ItemPhotoAsset) => {
+    skippedItemCropIdsRef.current.delete(item.id);
+
     try {
       const file = item.file ?? await (async () => {
         const response = await fetch(toProxySafeUploadUrl(item.previewUrl), { credentials: 'include' });
@@ -658,11 +727,27 @@ export default function ReceiptDetailPage() {
     }
 
     revokePreviewUrl(currentCropSession.src);
+    if (currentCropSession.kind === 'item' && currentCropSession.itemId) {
+      skippedItemCropIdsRef.current.add(currentCropSession.itemId);
+      const nextItem = getNextItemCropCandidate(itemPhotosRef.current, currentCropSession.itemId);
+      if (nextItem) {
+        setCropSession({
+          kind: 'item',
+          src: URL.createObjectURL(nextItem.file as File),
+          file: nextItem.file as File,
+          itemId: nextItem.id,
+          fallbackToOriginal: false,
+        });
+        return;
+      }
+    }
+
     setCropSession(null);
 
     if (currentCropSession.kind === 'item' && activeReceiptId) {
       try {
         await persistPendingItemPhotos(activeReceiptId);
+        skippedItemCropIdsRef.current.clear();
       } catch (error) {
         toast.error((error as Error).message);
       }
@@ -691,10 +776,14 @@ export default function ReceiptDetailPage() {
       ? itemPhotosRef.current.find((item) => item.id === croppedItemId)
       : null;
 
+    if (croppedItemId) {
+      skippedItemCropIdsRef.current.delete(croppedItemId);
+    }
+
     revokePreviewUrl(currentCropSession.src);
-    setCropSession(null);
 
     if (!croppedItemId || !existingItem) {
+      setCropSession(null);
       return;
     }
 
@@ -710,6 +799,7 @@ export default function ReceiptDetailPage() {
       } catch (error) {
         toast.error((error as Error).message);
       }
+      setCropSession(null);
       return;
     }
 
@@ -724,9 +814,24 @@ export default function ReceiptDetailPage() {
 
     replaceItemPhotoAssets(nextAssets);
 
+    const nextItem = getNextItemCropCandidate(nextAssets, croppedItemId);
+    if (nextItem) {
+      setCropSession({
+        kind: 'item',
+        src: URL.createObjectURL(nextItem.file as File),
+        file: nextItem.file as File,
+        itemId: nextItem.id,
+        fallbackToOriginal: false,
+      });
+      return;
+    }
+
+    setCropSession(null);
+
     if (activeReceiptId) {
       try {
         await persistPendingItemPhotos(activeReceiptId, nextAssets);
+        skippedItemCropIdsRef.current.clear();
       } catch (error) {
         toast.error((error as Error).message);
       }
@@ -736,33 +841,7 @@ export default function ReceiptDetailPage() {
   const onChangeOcrField = (field: keyof OcrDraft, value: string) => {
     const nextDraft = { ...ocrDraft, [field]: value };
     setOcrDraft(nextDraft);
-    setOcrJsonInput(buildJsonFromDraft(nextDraft));
-    setOcrJsonError(null);
     setHasOcrChanges(true);
-  };
-
-  const onApplyJsonDraft = () => {
-    try {
-      const parsed = parseStructuredJson(ocrJsonInput);
-      const nextDraft: OcrDraft = {
-        merchantName: getStringValue(parsed.merchantName) ?? '',
-        totalAmount: getAmountString(parsed.totalAmount),
-        purchaseDateUtc: formatDateTimeLocalValue(getStringValue(parsed.purchaseDateUtc)),
-        fiscalNumber: getStringValue(parsed.fiscalNumber) ?? '',
-        receiptCode: getStringValue(parsed.receiptCode) ?? '',
-        currency: getStringValue(parsed.currency) ?? '',
-        purchasedItemName: getStringValue(parsed.purchasedItemName) ?? '',
-      };
-      setOcrDraft(nextDraft);
-      setOcrJsonInput(JSON.stringify(parsed, null, 2));
-      setOcrJsonError(null);
-      setHasOcrChanges(true);
-      toast.success('JSON застосовано до форми');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не вдалося прочитати JSON';
-      setOcrJsonError(message);
-      toast.error(message);
-    }
   };
 
   const onResetOcrDraft = () => {
@@ -771,6 +850,11 @@ export default function ReceiptDetailPage() {
   };
 
   const onUploadDraft = async () => {
+    if (!orgId) {
+      toast.error('Некоректний маршрут: відсутня організація');
+      return;
+    }
+
     if (!selectedFile) {
       toast.error('Оберіть файл чека для завантаження');
       return;
@@ -779,7 +863,7 @@ export default function ReceiptDetailPage() {
     try {
       const baseReceipt = isUpdateDraftMode && receipt?.id
         ? await updateDraftMutation.mutateAsync({ receiptId: receipt.id, file: selectedFile })
-        : await uploadDraftMutation.mutateAsync(selectedFile);
+        : await uploadDraftMutation.mutateAsync({ organizationId: orgId, file: selectedFile });
 
       const finalReceipt = await persistPendingItemPhotos(
         baseReceipt.id,
@@ -802,30 +886,172 @@ export default function ReceiptDetailPage() {
     }
   };
 
+  const onTaxXmlSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const xmlFile = event.target.files?.[0];
+    if (!xmlFile) {
+      return;
+    }
+
+    await importTaxXmlFile(xmlFile);
+    event.target.value = '';
+  };
+
+  const importTaxXmlFile = async (xmlFile: File) => {
+    setSelectedTaxXmlFileName(xmlFile.name);
+
+    if (!activeReceiptId) {
+      toast.error('Спочатку створіть або відкрийте чек');
+      return;
+    }
+
+    try {
+      const result = await importTaxXmlMutation.mutateAsync({
+        receiptId: activeReceiptId,
+        file: xmlFile,
+      });
+      applyReceipt(result);
+      toast.success('XML чека імпортовано');
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
+  const onTaxXmlDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const xmlFile = Array.from(event.dataTransfer.files).find((file) => file.name.toLowerCase().endsWith('.xml'));
+    if (!xmlFile) {
+      toast.error('Перетягніть XML-файл чека');
+      return;
+    }
+
+    await importTaxXmlFile(xmlFile);
+  };
+
+  const onAddReceiptItem = async () => {
+    if (!activeReceiptId) {
+      toast.error('Спочатку створіть або відкрийте чек');
+      return;
+    }
+
+    const name = itemDraft.name.trim();
+    if (!name) {
+      toast.error('Вкажіть назву позиції');
+      return;
+    }
+
+    try {
+      const parsedUnitPrice = parseOptionalNumber(itemDraft.unitPrice);
+      const parsedTotalPrice = parseOptionalNumber(itemDraft.totalPrice);
+
+      const result = await addReceiptItemMutation.mutateAsync({
+        receiptId: activeReceiptId,
+        payload: {
+          name,
+          quantity: parseOptionalNumber(itemDraft.quantity),
+          unitPrice: parsedUnitPrice === undefined ? undefined : Math.round(parsedUnitPrice * 100),
+          totalPrice: parsedTotalPrice === undefined ? undefined : Math.round(parsedTotalPrice * 100),
+          barcode: itemDraft.barcode.trim() || undefined,
+        },
+      });
+
+      applyReceipt(result);
+      setItemDraft({
+        name: '',
+        quantity: '',
+        unitPrice: '',
+        totalPrice: '',
+        barcode: '',
+      });
+      toast.success('Позицію додано');
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
+  const onUpdateReceiptItem = async (itemId: string, payload: {
+    name: string;
+    quantity?: number;
+    unitPrice?: number;
+    totalPrice?: number;
+    barcode?: string;
+    vatRate?: number;
+    vatAmount?: number;
+  }) => {
+    if (!activeReceiptId) {
+      return;
+    }
+
+    const result = await updateReceiptItemMutation.mutateAsync({
+      receiptId: activeReceiptId,
+      itemId,
+      payload: {
+        name: payload.name,
+        quantity: payload.quantity,
+        unitPrice: payload.unitPrice,
+        totalPrice: payload.totalPrice,
+        barcode: payload.barcode,
+        vatRate: payload.vatRate,
+        vatAmount: payload.vatAmount,
+      },
+    });
+
+    applyReceipt(result);
+  };
+
+  const onDeleteReceiptItem = async (itemId: string) => {
+    if (!activeReceiptId) {
+      return;
+    }
+
+    const confirmed = window.confirm('Видалити позицію товару?');
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const result = await deleteReceiptItemMutation.mutateAsync({
+        receiptId: activeReceiptId,
+        itemId,
+      });
+      applyReceipt(result);
+      toast.success('Позицію видалено');
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
+  const onOpenVerificationLink = () => {
+    if (!receipt?.verificationUrl) {
+      toast.error('Посилання перевірки ДПС недоступне');
+      return;
+    }
+
+    window.open(receipt.verificationUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const onLinkPhotoToItem = async (photoId: string, receiptItemId?: string) => {
+    if (!activeReceiptId) {
+      return;
+    }
+
+    try {
+      const result = await linkItemPhotoMutation.mutateAsync({
+        receiptId: activeReceiptId,
+        photoId,
+        payload: { receiptItemId },
+      });
+      applyReceipt(result);
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
   const resolveExtractFile = async () => {
     if (selectedFile) {
       return selectedFile;
     }
 
-    const previewUrl = receipt?.receiptImageUrl;
-    if (!previewUrl || !activeReceiptId) {
-      return null;
-    }
-
-    const response = await fetch(toProxySafeUploadUrl(previewUrl), { credentials: 'include' });
-    if (!response.ok) {
-      throw new Error('Не вдалося завантажити файл чека з backend для OCR');
-    }
-
-    const blob = await response.blob();
-    const fileName = receipt?.originalFileName || `receipt-${activeReceiptId}.webp`;
-    const nextFile = new File([blob], fileName, {
-      type: blob.type || 'image/webp',
-    });
-
-    setSelectedFile(nextFile);
-    setSelectedFileWasCropped(true);
-    return nextFile;
+    return undefined;
   };
 
   const onExtract = async () => {
@@ -841,7 +1067,7 @@ export default function ReceiptDetailPage() {
 
     try {
       const fileForExtract = await resolveExtractFile();
-      if (!fileForExtract) {
+      if (!fileForExtract && !receipt?.receiptImageUrl) {
         toast.error('Додайте або завантажте файл чека перед OCR етапом');
         return;
       }
@@ -865,19 +1091,7 @@ export default function ReceiptDetailPage() {
       return;
     }
 
-    let normalizedJson = buildJsonFromDraft(ocrDraft);
-
-    try {
-      const parsed = parseStructuredJson(ocrJsonInput);
-      normalizedJson = JSON.stringify(parsed, null, 2);
-      setOcrJsonInput(normalizedJson);
-      setOcrJsonError(null);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не вдалося зберегти OCR JSON';
-      setOcrJsonError(message);
-      toast.error(message);
-      return;
-    }
+    const normalizedJson = buildJsonFromDraft(ocrDraft);
 
     try {
       const draftTotalAmount = parseAmount(ocrDraft.totalAmount);
@@ -888,11 +1102,10 @@ export default function ReceiptDetailPage() {
           alias: normalizeText(aliasInput),
           merchantName: normalizeText(ocrDraft.merchantName),
           totalAmount: draftTotalAmount === null ? null : Math.round(draftTotalAmount * 100),
-          purchaseDateUtc: ocrDraft.purchaseDateUtc ? new Date(ocrDraft.purchaseDateUtc).toISOString() : null,
+          purchaseDateUtc: ocrDraft.purchaseDateUtc ? `${ocrDraft.purchaseDateUtc}:00` : null,
           fiscalNumber: normalizeText(ocrDraft.fiscalNumber),
           receiptCode: normalizeText(ocrDraft.receiptCode),
           currency: normalizeText(ocrDraft.currency),
-          purchasedItemName: normalizeText(ocrDraft.purchasedItemName),
           ocrStructuredPayloadJson: normalizedJson,
         },
       });
@@ -962,8 +1175,13 @@ export default function ReceiptDetailPage() {
       return;
     }
 
+    if (!orgId) {
+      toast.error('Некоректний маршрут: відсутня організація');
+      return;
+    }
+
     try {
-      const result = await getReceiptMutation.mutateAsync(activeReceiptId);
+      const result = await getReceiptMutation.mutateAsync({ organizationId: orgId, receiptId: activeReceiptId });
       applyReceipt(result);
       toast.success('Стан чека оновлено');
     } catch (error) {
@@ -1017,145 +1235,175 @@ export default function ReceiptDetailPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <FileDigit className="h-5 w-5 text-primary" />
-            Файл чека та фото товарів
+            Файл чека
           </CardTitle>
-          <CardDescription>Завантажте чек, застосуйте crop і за потреби додайте фото придбаних товарів у правильному порядку.</CardDescription>
+          <CardDescription>Завантажте чек та застосуйте crop перед OCR.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Tabs value={uploadTab} onValueChange={(value) => setUploadTab(value as 'receipt' | 'items')} data-testid="dashboard-receipts-upload-tabs">
-            <TabsList className="grid w-full grid-cols-2" data-testid="dashboard-receipts-upload-tabs-list">
-              <TabsTrigger value="receipt" data-testid="dashboard-receipts-upload-tab-receipt">Receipt</TabsTrigger>
-              <TabsTrigger value="items" data-testid="dashboard-receipts-upload-tab-items">Purchased items</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="receipt" className="space-y-3" data-testid="dashboard-receipts-upload-tab-content-receipt">
-              <div className="space-y-2">
-                <Label htmlFor="receipt-file">Файл чека</Label>
-                <Input
-                  id="receipt-file"
-                  type="file"
-                  accept="image/*,application/pdf"
-                  data-testid="dashboard-receipts-upload-file-input"
-                  onChange={onReceiptFileSelected}
-                />
-              </div>
-              {selectedFile ? (
-                <div className="rounded-2xl border border-border/70 bg-muted/10 p-3">
-                  {displayedReceiptPreview ? (
-                    <div className="space-y-3">
-                      <div className="overflow-hidden rounded-xl border border-border/60 bg-background" data-testid="dashboard-receipts-upload-preview">
-                        <img src={displayedReceiptPreview} alt="Попередній перегляд чека" className="max-h-80 w-full object-contain" />
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="font-medium">{displayedReceiptFileName}</span>
-                        <Badge variant="outline">{selectedFileWasCropped ? 'Обрізано' : 'Оригінал'}</Badge>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 text-sm">
-                      <FileImage className="h-5 w-5 text-primary" />
-                      <span>{displayedReceiptFileName}</span>
-                    </div>
-                  )}
-                </div>
-              ) : displayedReceiptPreview ? (
-                <div className="rounded-2xl border border-border/70 bg-muted/10 p-3">
-                  <div className="space-y-3">
-                    <div className="overflow-hidden rounded-xl border border-border/60 bg-background" data-testid="dashboard-receipts-upload-preview">
-                      <img src={displayedReceiptPreview} alt="Серверний preview чека" className="max-h-80 w-full object-contain" />
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="font-medium">{displayedReceiptFileName}</span>
-                      <Badge variant="outline">З backend</Badge>
-                    </div>
+          <div className="space-y-2">
+            <Label htmlFor="receipt-file">Файл чека</Label>
+            <Input
+              id="receipt-file"
+              type="file"
+              accept="image/*,application/pdf"
+              data-testid="dashboard-receipts-upload-file-input"
+              onChange={onReceiptFileSelected}
+            />
+          </div>
+          {selectedFile ? (
+            <div className="rounded-2xl border border-border/70 bg-muted/10 p-3">
+              {displayedReceiptPreview ? (
+                <div className="space-y-3">
+                  <div className="overflow-hidden rounded-xl border border-border/60 bg-background" data-testid="dashboard-receipts-upload-preview">
+                    <img src={displayedReceiptPreview} alt="Попередній перегляд чека" className="max-h-80 w-full object-contain" />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-medium">{displayedReceiptFileName}</span>
+                    <Badge variant="outline">{selectedFileWasCropped ? 'Обрізано' : 'Оригінал'}</Badge>
                   </div>
                 </div>
-              ) : null}
-              <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={onUploadDraft}
-                disabled={!selectedFile || isBusy}
-                data-testid="dashboard-receipts-upload-button"
-              >
-                {uploadDraftMutation.isPending || updateDraftMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {isUpdateDraftMode ? 'Оновити чернетку' : 'Завантажити чернетку'}
-              </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!selectedFile || !selectedFilePreview || isBusy}
-                  onClick={onRecropReceipt}
-                  data-testid="dashboard-receipts-recrop-button"
-                >
-                  <Crop className="h-4 w-4" />
-                  Перекропити
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="items" className="space-y-3" data-testid="dashboard-receipts-upload-tab-content-items">
-              <div className="space-y-2">
-                <Label htmlFor="item-photos">Фото придбаних товарів</Label>
-                <Input
-                  id="item-photos"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  data-testid="dashboard-receipts-items-files-input"
-                  onChange={onItemPhotosSelected}
-                />
-              </div>
-
-              {itemPhotos.length > 0 ? (
-                <ul className="space-y-2" data-testid="dashboard-receipts-items-files-list">
-                  {itemPhotos.map((photo, index) => (
-                    <li key={photo.id} className="rounded-2xl border border-border/70 p-3" data-testid={`dashboard-receipts-items-file-${index}`}>
-                      <div className="flex items-start gap-3">
-                        <div className="relative h-20 w-20 overflow-hidden rounded-xl border border-border/60 bg-muted/10">
-                          <img src={photo.previewUrl} alt={photo.originalFileName} className="h-full w-full object-cover" />
-                          <span className="absolute left-1.5 top-1.5 rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] font-semibold">#{index + 1}</span>
-                        </div>
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div>
-                            <p className="truncate text-sm font-medium" title={photo.originalFileName}>{photo.originalFileName}</p>
-                            <p className="text-xs text-muted-foreground" data-testid={`dashboard-receipts-items-source-${index}`}>
-                              {photo.source === 'server'
-                                ? 'Збережено на backend'
-                                : photo.cropped
-                                  ? 'Кроп застосовано'
-                                  : 'Очікує завантаження'}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button type="button" size="sm" variant="outline" disabled={index === 0} onClick={() => void onMoveItemPhoto(index, -1)}>
-                              <ArrowUp className="h-4 w-4" />
-                              Вище
-                            </Button>
-                            <Button type="button" size="sm" variant="outline" disabled={index === itemPhotos.length - 1} onClick={() => void onMoveItemPhoto(index, 1)}>
-                              <ArrowDown className="h-4 w-4" />
-                              Нижче
-                            </Button>
-                            <Button type="button" size="sm" variant="outline" onClick={() => void onRecropItemPhoto(photo)}>
-                              <Crop className="h-4 w-4" />
-                              {photo.source === 'server' ? 'Перекропити' : 'Кроп'}
-                            </Button>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => void onRemoveItemPhoto(photo.id)} data-testid={`dashboard-receipts-items-remove-${index}`}>
-                              <X className="h-4 w-4" />
-                              Видалити
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
               ) : (
-                <p className="text-sm text-muted-foreground" data-testid="dashboard-receipts-items-empty">
-                  Додайте фото товарів, за потреби обріжте їх і виставте коректний порядок.
-                </p>
+                <div className="flex items-center gap-3 text-sm">
+                  <FileImage className="h-5 w-5 text-primary" />
+                  <span>{displayedReceiptFileName}</span>
+                </div>
               )}
-            </TabsContent>
-          </Tabs>
+            </div>
+          ) : displayedReceiptPreview ? (
+            <div className="rounded-2xl border border-border/70 bg-muted/10 p-3">
+              <div className="space-y-3">
+                <div className="overflow-hidden rounded-xl border border-border/60 bg-background" data-testid="dashboard-receipts-upload-preview">
+                  <img src={displayedReceiptPreview} alt="Серверний preview чека" className="max-h-80 w-full object-contain" />
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-medium">{displayedReceiptFileName}</span>
+                  <Badge variant="outline">З backend</Badge>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={onUploadDraft}
+              disabled={!selectedFile || isBusy}
+              data-testid="dashboard-receipts-upload-button"
+            >
+              {uploadDraftMutation.isPending || updateDraftMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isUpdateDraftMode ? 'Оновити чернетку' : 'Завантажити чернетку'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!selectedFile || !selectedFilePreview || isBusy}
+              onClick={onRecropReceipt}
+              data-testid="dashboard-receipts-recrop-button"
+            >
+              <Crop className="h-4 w-4" />
+              Перекропити
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="dashboard-receipts-items-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FileImage className="h-5 w-5 text-primary" />
+            Purchased items
+          </CardTitle>
+          <CardDescription>Окрема секція для фото товарів і прив'язки до позицій чека.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="item-photos">Фото придбаних товарів</Label>
+            <Input
+              id="item-photos"
+              type="file"
+              accept="image/*"
+              multiple
+              data-testid="dashboard-receipts-items-files-input"
+              onChange={onItemPhotosSelected}
+            />
+          </div>
+
+          {itemPhotos.length > 0 ? (
+            <ul className="space-y-2" data-testid="dashboard-receipts-items-files-list">
+              {itemPhotos.map((photo, index) => (
+                <li key={photo.id} className="rounded-2xl border border-border/70 p-3" data-testid={`dashboard-receipts-items-file-${index}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="relative h-20 w-20 overflow-hidden rounded-xl border border-border/60 bg-muted/10">
+                      <img src={photo.previewUrl} alt={photo.originalFileName} className="h-full w-full object-cover" />
+                      <span className="absolute left-1.5 top-1.5 rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] font-semibold">#{index + 1}</span>
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div>
+                        <p className="truncate text-sm font-medium" title={photo.originalFileName}>{photo.originalFileName}</p>
+                        <p className="text-xs text-muted-foreground" data-testid={`dashboard-receipts-items-source-${index}`}>
+                          {photo.source === 'server'
+                            ? 'Збережено на backend'
+                            : photo.cropped
+                              ? 'Кроп застосовано'
+                              : 'Очікує завантаження'}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" size="sm" variant="outline" disabled={index === 0} onClick={() => void onMoveItemPhoto(index, -1)}>
+                          <ArrowUp className="h-4 w-4" />
+                          Вище
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" disabled={index === itemPhotos.length - 1} onClick={() => void onMoveItemPhoto(index, 1)}>
+                          <ArrowDown className="h-4 w-4" />
+                          Нижче
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => void onRecropItemPhoto(photo)}>
+                          <Crop className="h-4 w-4" />
+                          {photo.source === 'server' ? 'Перекропити' : 'Кроп'}
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => void onRemoveItemPhoto(photo.id)} data-testid={`dashboard-receipts-items-remove-${index}`}>
+                          <X className="h-4 w-4" />
+                          Видалити
+                        </Button>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor={`dashboard-receipts-photo-item-link-${index}`}>Пов'язати з позицією</Label>
+                        <Select
+                          value={photo.receiptItemId ?? 'none'}
+                          onValueChange={(value) => {
+                            if (photo.source !== 'server') {
+                              return;
+                            }
+
+                            void onLinkPhotoToItem(photo.id, value === 'none' ? undefined : value);
+                          }}
+                          disabled={photo.source !== 'server' || !(receipt?.items?.length)}
+                        >
+                          <SelectTrigger id={`dashboard-receipts-photo-item-link-${index}`} data-testid={`dashboard-receipts-photo-item-link-${index}`}>
+                            <SelectValue placeholder="Не прив'язано" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Не прив'язано</SelectItem>
+                            {(receipt?.items ?? []).map((item: PersistedReceiptItem) => (
+                              <SelectItem
+                                key={item.id}
+                                value={item.id}
+                                data-testid={`dashboard-receipts-photo-item-option-${item.id}`}
+                              >
+                                {item.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground" data-testid="dashboard-receipts-items-empty">
+              Додайте фото товарів, за потреби обріжте їх і виставте коректний порядок.
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -1175,7 +1423,30 @@ export default function ReceiptDetailPage() {
               data-testid="dashboard-receipts-id-input"
             />
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="space-y-2">
+            <Label htmlFor="tax-xml-file">XML з податкового кабінету</Label>
+            <Input
+              id="tax-xml-file"
+              type="file"
+              accept=".xml,text/xml,application/xml"
+              data-testid="dashboard-receipts-tax-xml-input"
+              onChange={onTaxXmlSelected}
+            />
+            <div
+              className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-3 py-4 text-sm text-muted-foreground"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => void onTaxXmlDrop(event)}
+              data-testid="dashboard-receipts-tax-xml-dropzone"
+            >
+              Перетягніть XML-файл сюди для імпорту.
+              {selectedTaxXmlFileName ? (
+                <div className="mt-1 text-foreground" data-testid="dashboard-receipts-tax-xml-selected-name">
+                  Обрано: {selectedTaxXmlFileName}
+                </div>
+              ) : null}
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
             <div className="sm:col-span-2 xl:col-span-2 space-y-1">
               <Label htmlFor="dashboard-receipts-ocr-model-select">OCR модель</Label>
               <Select value={selectedModelIdentifier} onValueChange={setSelectedModelIdentifier}>
@@ -1202,12 +1473,27 @@ export default function ReceiptDetailPage() {
             >
               Extract
             </Button>
+            <div className="space-y-1">
+              <p className="text-xs text-amber-500" data-testid="dashboard-receipts-verify-warning">
+                Увага: під час воєнного стану публічне API ДПС може бути недоступним.
+              </p>
+              <Button
+                onClick={onVerify}
+                disabled={!orgId || !activeReceiptId || isBusy}
+                data-testid="dashboard-receipts-verify-button"
+              >
+                Verify
+              </Button>
+            </div>
             <Button
-              onClick={onVerify}
-              disabled={!orgId || !activeReceiptId || isBusy}
-              data-testid="dashboard-receipts-verify-button"
+              type="button"
+              variant="outline"
+              onClick={onOpenVerificationLink}
+              disabled={!receipt?.verificationUrl || isBusy}
+              data-testid="dashboard-receipts-open-verification-link-button"
             >
-              Verify
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Перевірити посилання
             </Button>
             <Button
               onClick={onActivate}
@@ -1305,10 +1591,6 @@ export default function ReceiptDetailPage() {
                     <Label htmlFor="ocr-receipt-code">Receipt code</Label>
                     <Input id="ocr-receipt-code" value={ocrDraft.receiptCode} onChange={(event) => onChangeOcrField('receiptCode', event.target.value)} placeholder="10870061" />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="ocr-item-name">Назва товару</Label>
-                    <Input id="ocr-item-name" value={ocrDraft.purchasedItemName} onChange={(event) => onChangeOcrField('purchasedItemName', event.target.value)} placeholder="Напій Coca-Cola 0.75" />
-                  </div>
                   <div className="flex flex-wrap gap-2 md:col-span-2">
                     <Button onClick={onSaveOcrDraft} disabled={!activeReceiptId || isBusy || !hasOcrChanges} data-testid="dashboard-receipts-save-ocr-button">
                       {updateOcrDraftMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -1322,46 +1604,56 @@ export default function ReceiptDetailPage() {
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <Label htmlFor="ocr-json">Structured OCR JSON</Label>
-                      <Button type="button" size="sm" variant="outline" onClick={onApplyJsonDraft} disabled={isBusy}>
-                        Застосувати JSON
-                      </Button>
-                    </div>
-                    <Textarea
-                      id="ocr-json"
-                      value={ocrJsonInput}
-                      onChange={(event) => {
-                        setOcrJsonInput(event.target.value);
-                        setOcrJsonError(null);
-                        setHasOcrChanges(true);
-                      }}
-                      className={cn('min-h-72 font-mono text-xs', ocrJsonError ? 'border-destructive/70' : undefined)}
-                    />
-                    {ocrJsonError ? (
-                      <p className="text-sm text-destructive">{ocrJsonError}</p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">JSON можна редагувати напряму або через форму ліворуч.</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
                     <Label>Позиції товарів</Label>
+                    <div className="grid gap-2 md:grid-cols-5" data-testid="dashboard-receipts-add-item-form">
+                      <Input
+                        value={itemDraft.name}
+                        onChange={(event) => setItemDraft((prev) => ({ ...prev, name: event.target.value }))}
+                        placeholder="Назва"
+                        data-testid="dashboard-receipts-add-item-name-input"
+                      />
+                      <Input
+                        value={itemDraft.quantity}
+                        onChange={(event) => setItemDraft((prev) => ({ ...prev, quantity: event.target.value }))}
+                        placeholder="К-ть"
+                        data-testid="dashboard-receipts-add-item-quantity-input"
+                      />
+                      <Input
+                        value={itemDraft.unitPrice}
+                        onChange={(event) => setItemDraft((prev) => ({ ...prev, unitPrice: event.target.value }))}
+                        placeholder="Ціна"
+                        data-testid="dashboard-receipts-add-item-unit-price-input"
+                      />
+                      <Input
+                        value={itemDraft.totalPrice}
+                        onChange={(event) => setItemDraft((prev) => ({ ...prev, totalPrice: event.target.value }))}
+                        placeholder="Сума"
+                        data-testid="dashboard-receipts-add-item-total-price-input"
+                      />
+                      <Input
+                        value={itemDraft.barcode}
+                        onChange={(event) => setItemDraft((prev) => ({ ...prev, barcode: event.target.value }))}
+                        placeholder="Штрихкод"
+                        data-testid="dashboard-receipts-add-item-barcode-input"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void onAddReceiptItem()}
+                      disabled={!activeReceiptId || isBusy}
+                      data-testid="dashboard-receipts-add-item-button"
+                    >
+                      Додати позицію
+                    </Button>
                     <ReceiptItemsTable
+                      items={receipt.items}
                       structuredOutputJson={getReceiptItemsPayload(receipt)}
                       testIdPrefix="dashboard-receipts-items"
+                      onUpdateItem={(itemId, payload) => onUpdateReceiptItem(itemId, payload)}
+                      onDeleteItem={(itemId) => onDeleteReceiptItem(itemId)}
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="ocr-raw-json">Raw OCR payload</Label>
-                    {receipt.rawOcrJson ? (
-                      <Textarea id="ocr-raw-json" value={receipt.rawOcrJson} readOnly className="min-h-48 font-mono text-xs" />
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-4 py-6 text-sm text-muted-foreground">
-                        Raw OCR payload ще недоступний для цього чека.
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>

@@ -128,4 +128,52 @@ public class ExtractReceiptDataHandlerTests
 		Assert.NotNull(reloaded);
 		Assert.Equal(ReceiptStatus.OcrDeferredMonthlyQuota, reloaded!.Status);
 	}
+
+	[Fact]
+	public async Task Handle_WhenFileMissing_UsesStoredReceiptImage()
+	{
+		await using var db = _fixture.CreateContext();
+		var (userId, receiptId) = await SeedDraftReceiptAsync(db);
+		var orgId = Guid.NewGuid();
+
+		var quota = new Mock<IOcrMonthlyQuotaService>();
+		quota.Setup(q => q.TryConsumeAsync(orgId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new QuotaDecision(true, null));
+
+		var orgAuth = new Mock<IOrganizationAuthorizationService>();
+		orgAuth.Setup(x => x.IsMember(orgId, userId, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(true);
+
+		var extraction = new Mock<IReceiptStructuredExtractionService>();
+		extraction
+			.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "receipt.png", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new ReceiptStructuredExtractionResult(
+				true,
+				"ATB",
+				199.50m,
+				DateTime.UtcNow.Date,
+				"FN-123",
+				null,
+				"FN-123",
+				"UAH",
+				"Хліб",
+				"{\"fiscalNumber\":\"FN-123\"}",
+				"{\"merchant\":\"ATB\"}",
+				null));
+
+		var fileStorage = new Mock<IFileStorage>();
+		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => key);
+		fileStorage.Setup(x => x.OpenReadAsync("uploads/receipt.png", It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new MemoryStream(new byte[] { 1, 2, 3 }));
+
+		var handler = new ExtractReceiptDataHandler(db, orgAuth.Object, extraction.Object, quota.Object, fileStorage.Object);
+
+		var result = await handler.Handle(
+			new ExtractReceiptDataCommand(userId, receiptId, null, null, orgId),
+			CancellationToken.None);
+
+		Assert.True(result.IsSuccess);
+		fileStorage.Verify(x => x.OpenReadAsync("uploads/receipt.png", It.IsAny<CancellationToken>()), Times.Once);
+		extraction.Verify(x => x.ExtractAsync(It.IsAny<Stream>(), "receipt.png", It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+	}
 }

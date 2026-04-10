@@ -31,6 +31,7 @@ export function SelectReceiptDialog({
   const deferredSearch = useDeferredValue(search.trim());
 
   const { data: receipts = [], isLoading } = useMyReceipts(
+    organizationId,
     deferredSearch,
     ReceiptStatus.StateVerified,
     true,

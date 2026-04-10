@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Application.Receipts.Common;
 using ProzoroBanka.Application.Receipts.DTOs;
 using ProzoroBanka.Domain.Entities;
 
@@ -51,11 +52,7 @@ public class AddReceiptItemPhotosHandler : IRequestHandler<AddReceiptItemPhotosC
 
         await _db.SaveChangesAsync(ct);
 
-        var receipt = await _db.Receipts
-            .AsNoTracking()
-            .Include(r => r.ItemPhotos)
-            .Include(r => r.Campaign)
-            .FirstAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
+        var receipt = await _db.GetOwnedWithPipelineGraphNoTrackingAsync(request.ReceiptId, request.CallerDomainUserId, ct);
 
         return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));
     }

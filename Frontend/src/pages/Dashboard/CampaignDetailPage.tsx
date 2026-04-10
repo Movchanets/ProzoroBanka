@@ -255,7 +255,7 @@ export default function CampaignDetailPage() {
                               style: 'currency',
                               currency: 'UAH',
                               maximumFractionDigits: 2,
-                            }).format(receipt.totalAmount ?? 0)}
+                            }).format((receipt.totalAmount ?? 0) / 100)}
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-2">

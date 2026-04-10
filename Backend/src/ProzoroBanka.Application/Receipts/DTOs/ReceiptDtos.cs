@@ -20,23 +20,38 @@ public record ReceiptPipelineDto(
 	string? ReceiptCode = null,
 	string? Currency = null,
 	string? PurchasedItemName = null,
+	IReadOnlyList<ReceiptItemDto>? Items = null,
 	IReadOnlyList<ReceiptItemPhotoDto>? ItemPhotos = null,
 	string? OcrStructuredPayloadJson = null,
 	string? RawOcrJson = null,
 	string? VerificationUrl = null,
 	bool IsConfirmed = false);
 
+public record ReceiptItemDto(
+	Guid Id,
+	string Name,
+	decimal? Quantity,
+	decimal? UnitPrice,
+	decimal? TotalPrice,
+	string? Barcode,
+	decimal? VatRate,
+	decimal? VatAmount,
+	int SortOrder);
+
 public record ReceiptItemPhotoDto(
 	Guid Id,
 	string OriginalFileName,
 	string PhotoUrl,
-	int SortOrder);
+	int SortOrder,
+	Guid? ReceiptItemId);
 
 public record ReceiptListItemDto(
 	Guid Id,
 	string OriginalFileName,
 	string? Alias,
 	string? MerchantName,
+	string? AuthorFullName,
+	string? AuthorEmail,
 	decimal? TotalAmount,
 	DateTime? PurchaseDateUtc,
 	ReceiptStatus Status,
@@ -57,5 +72,26 @@ public record UpdateReceiptOcrDraftRequest(
 	string? Currency,
 	string? PurchasedItemName,
 	string? OcrStructuredPayloadJson);
+
+public record AddReceiptItemRequest(
+	string Name,
+	decimal? Quantity,
+	decimal? UnitPrice,
+	decimal? TotalPrice,
+	string? Barcode,
+	decimal? VatRate,
+	decimal? VatAmount,
+	IReadOnlyList<Guid>? PhotoIds = null);
+
+public record UpdateReceiptItemRequest(
+	string Name,
+	decimal? Quantity,
+	decimal? UnitPrice,
+	decimal? TotalPrice,
+	string? Barcode,
+	decimal? VatRate,
+	decimal? VatAmount);
+
+public record LinkReceiptItemPhotoRequest(Guid? ReceiptItemId);
 
 public record ReorderReceiptItemPhotosRequest(IReadOnlyList<Guid> PhotoIds);

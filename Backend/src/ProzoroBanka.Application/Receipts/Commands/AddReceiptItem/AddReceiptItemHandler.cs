@@ -1,0 +1,64 @@
+using MediatR;
+using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Application.Receipts.Common;
+using ProzoroBanka.Application.Receipts.DTOs;
+using ProzoroBanka.Domain.Entities;
+
+namespace ProzoroBanka.Application.Receipts.Commands.AddReceiptItem;
+
+public class AddReceiptItemHandler : IRequestHandler<AddReceiptItemCommand, ServiceResponse<ReceiptPipelineDto>>
+{
+    private readonly IApplicationDbContext _db;
+    private readonly IFileStorage _fileStorage;
+
+    public AddReceiptItemHandler(IApplicationDbContext db, IFileStorage fileStorage)
+    {
+        _db = db;
+        _fileStorage = fileStorage;
+    }
+
+    public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(AddReceiptItemCommand request, CancellationToken ct)
+    {
+        var receipt = await _db.FindOwnedWithPipelineGraphAsync(request.ReceiptId, request.CallerDomainUserId, ct);
+
+        if (receipt is null)
+            return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
+
+        var nextSortOrder = receipt.Items
+            .Where(item => !item.IsDeleted)
+            .Select(item => (int?)item.SortOrder)
+            .Max() is int maxSortOrder
+            ? maxSortOrder + 1
+            : 0;
+
+        var item = new ReceiptItem
+        {
+            ReceiptId = receipt.Id,
+            Name = request.Name.Trim(),
+            Quantity = request.Quantity,
+            UnitPrice = request.UnitPrice,
+            TotalPrice = request.TotalPrice,
+            Barcode = string.IsNullOrWhiteSpace(request.Barcode) ? null : request.Barcode.Trim(),
+            VatRate = request.VatRate,
+            VatAmount = request.VatAmount,
+            SortOrder = nextSortOrder,
+        };
+
+        _db.ReceiptItems.Add(item);
+
+        if (request.PhotoIds is not null && request.PhotoIds.Count > 0)
+        {
+            var photos = receipt.ItemPhotos
+                .Where(photo => !photo.IsDeleted && request.PhotoIds.Contains(photo.Id))
+                .ToList();
+
+            foreach (var photo in photos)
+                photo.ReceiptItemId = item.Id;
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));
+    }
+}

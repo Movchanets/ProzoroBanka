@@ -2,39 +2,46 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { receiptService } from '@/services/receiptService';
 import { queryClient } from '@/services/queryClient';
 import type {
+  AddReceiptItemRequest,
+  LinkReceiptItemPhotoRequest,
   ReceiptStatus,
   ReorderReceiptItemPhotosRequest,
+  UpdateReceiptItemRequest,
   UpdateReceiptOcrDraftRequest,
 } from '@/types';
 
 export const receiptKeys = {
   all: ['receipts'] as const,
   lists: () => [...receiptKeys.all, 'list'] as const,
-  list: (search?: string, status?: ReceiptStatus, onlyUnattached = false) => [
+  details: () => [...receiptKeys.all, 'detail'] as const,
+  list: (organizationId: string, search?: string, status?: ReceiptStatus, onlyUnattached = false) => [
     ...receiptKeys.lists(),
+    organizationId,
     search ?? '',
     status ?? 'all',
     onlyUnattached ? 'unattached' : 'all',
   ] as const,
-  detail: (receiptId: string) => [...receiptKeys.all, 'detail', receiptId] as const,
+  detail: (organizationId: string, receiptId: string) => [...receiptKeys.details(), organizationId, receiptId] as const,
 };
 
 export function useMyReceipts(
+  organizationId: string,
   search?: string,
   status?: ReceiptStatus,
   onlyUnattached = false,
   enabled = true,
 ) {
   return useQuery({
-    queryKey: receiptKeys.list(search, status, onlyUnattached),
-    queryFn: () => receiptService.list({ search, status, onlyUnattached }),
-    enabled,
+    queryKey: receiptKeys.list(organizationId, search, status, onlyUnattached),
+    queryFn: () => receiptService.listByOrganization(organizationId, { search, status, onlyUnattached }),
+    enabled: enabled && Boolean(organizationId),
   });
 }
 
 export function useUploadReceiptDraft() {
   return useMutation({
-    mutationFn: (file: File) => receiptService.uploadDraft(file),
+    mutationFn: ({ organizationId, file }: { organizationId: string; file: File }) =>
+      receiptService.uploadOrganizationDraft(organizationId, file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
     },
@@ -45,9 +52,9 @@ export function useUpdateReceiptDraft() {
   return useMutation({
     mutationFn: ({ receiptId, file }: { receiptId: string; file: File }) =>
       receiptService.updateDraft(receiptId, file),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
-      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.receiptId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
     },
   });
 }
@@ -62,12 +69,12 @@ export function useExtractReceiptData() {
     }: {
       receiptId: string;
       organizationId: string;
-      file: File;
+      file?: File;
       modelIdentifier?: string;
     }) => receiptService.extract(receiptId, organizationId, file, modelIdentifier),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
-      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.receiptId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
     },
   });
 }
@@ -81,9 +88,9 @@ export function useVerifyReceipt() {
       receiptId: string;
       organizationId: string;
     }) => receiptService.verify(receiptId, organizationId),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
-      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.receiptId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
     },
   });
 }
@@ -97,9 +104,9 @@ export function useUpdateReceiptOcrDraft() {
       receiptId: string;
       payload: UpdateReceiptOcrDraftRequest;
     }) => receiptService.updateOcrDraft(receiptId, payload),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
-      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.receiptId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
     },
   });
 }
@@ -107,9 +114,9 @@ export function useUpdateReceiptOcrDraft() {
 export function useActivateReceipt() {
   return useMutation({
     mutationFn: (receiptId: string) => receiptService.activate(receiptId),
-    onSuccess: (_, receiptId) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
-      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(receiptId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
     },
   });
 }
@@ -117,18 +124,29 @@ export function useActivateReceipt() {
 export function useRetryReceiptProcessing() {
   return useMutation({
     mutationFn: (receiptId: string) => receiptService.retry(receiptId),
-    onSuccess: (_, receiptId) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
-      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(receiptId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
+    },
+  });
+}
+
+export function useDeleteReceipt() {
+  return useMutation({
+    mutationFn: (receiptId: string) => receiptService.delete(receiptId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
     },
   });
 }
 
 export function useGetMyReceipt() {
   return useMutation({
-    mutationFn: (receiptId: string) => receiptService.getById(receiptId),
-    onSuccess: (_, receiptId) => {
-      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(receiptId) });
+    mutationFn: ({ organizationId, receiptId }: { organizationId: string; receiptId: string }) =>
+      receiptService.getByIdInOrganization(organizationId, receiptId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.organizationId, variables.receiptId) });
     },
   });
 }
@@ -137,9 +155,9 @@ export function useAddReceiptItemPhotos() {
   return useMutation({
     mutationFn: ({ receiptId, files }: { receiptId: string; files: File[] }) =>
       receiptService.addItemPhotos(receiptId, files),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
-      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.receiptId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
     },
   });
 }
@@ -148,9 +166,9 @@ export function useReplaceReceiptItemPhoto() {
   return useMutation({
     mutationFn: ({ receiptId, photoId, file }: { receiptId: string; photoId: string; file: File }) =>
       receiptService.replaceItemPhoto(receiptId, photoId, file),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
-      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.receiptId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
     },
   });
 }
@@ -164,9 +182,9 @@ export function useReorderReceiptItemPhotos() {
       receiptId: string;
       payload: ReorderReceiptItemPhotosRequest;
     }) => receiptService.reorderItemPhotos(receiptId, payload),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
-      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.receiptId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
     },
   });
 }
@@ -175,9 +193,83 @@ export function useDeleteReceiptItemPhoto() {
   return useMutation({
     mutationFn: ({ receiptId, photoId }: { receiptId: string; photoId: string }) =>
       receiptService.deleteItemPhoto(receiptId, photoId),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: receiptKeys.all });
-      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.receiptId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
+    },
+  });
+}
+
+export function useLinkReceiptItemPhoto() {
+  return useMutation({
+    mutationFn: ({
+      receiptId,
+      photoId,
+      payload,
+    }: {
+      receiptId: string;
+      photoId: string;
+      payload: LinkReceiptItemPhotoRequest;
+    }) => receiptService.linkItemPhoto(receiptId, photoId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
+    },
+  });
+}
+
+export function useAddReceiptItem() {
+  return useMutation({
+    mutationFn: ({
+      receiptId,
+      payload,
+    }: {
+      receiptId: string;
+      payload: AddReceiptItemRequest;
+    }) => receiptService.addItem(receiptId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
+    },
+  });
+}
+
+export function useUpdateReceiptItem() {
+  return useMutation({
+    mutationFn: ({
+      receiptId,
+      itemId,
+      payload,
+    }: {
+      receiptId: string;
+      itemId: string;
+      payload: UpdateReceiptItemRequest;
+    }) => receiptService.updateItem(receiptId, itemId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
+    },
+  });
+}
+
+export function useDeleteReceiptItem() {
+  return useMutation({
+    mutationFn: ({ receiptId, itemId }: { receiptId: string; itemId: string }) =>
+      receiptService.deleteItem(receiptId, itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
+    },
+  });
+}
+
+export function useImportReceiptTaxXml() {
+  return useMutation({
+    mutationFn: ({ receiptId, file }: { receiptId: string; file: File }) =>
+      receiptService.importTaxXml(receiptId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.details() });
     },
   });
 }

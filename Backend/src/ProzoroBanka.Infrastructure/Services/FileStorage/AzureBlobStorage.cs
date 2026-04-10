@@ -37,6 +37,13 @@ public class AzureBlobStorage : IFileStorage
 		return StoragePublicUrlBuilder.BuildUploadsUrl(_publicBaseUrl, storageKey);
 	}
 
+	public async Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken = default)
+	{
+		var blobClient = _containerClient.GetBlobClient(storageKey);
+		var download = await blobClient.DownloadStreamingAsync(cancellationToken: cancellationToken);
+		return download.Value.Content;
+	}
+
 	public async Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default)
 	{
 		var blobClient = _containerClient.GetBlobClient(storageKey);

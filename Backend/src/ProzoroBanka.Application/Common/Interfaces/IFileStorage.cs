@@ -23,6 +23,11 @@ public interface IFileStorage
     string GetPublicUrl(string storageKey);
 
     /// <summary>
+    /// Відкриває файл зі сховища для читання.
+    /// </summary>
+    Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Видаляє файл зі сховища.
     /// </summary>
     Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default);
