@@ -36,6 +36,7 @@ public class ApplicationDbContext
 	public DbSet<MatchResult> MatchResults => Set<MatchResult>();
 	public DbSet<Campaign> Campaigns => Set<Campaign>();
 	public DbSet<CampaignTransaction> CampaignTransactions => Set<CampaignTransaction>();
+	public DbSet<CampaignPhoto> CampaignPhotos => Set<CampaignPhoto>();
 	public DbSet<OcrModelConfig> OcrModelConfigs => Set<OcrModelConfig>();
 
 	// ── IApplicationDbContext explicit implementation ──
@@ -52,6 +53,7 @@ public class ApplicationDbContext
 	DbSet<MatchResult> IApplicationDbContext.MatchResults => MatchResults;
 	DbSet<Campaign> IApplicationDbContext.Campaigns => Campaigns;
 	DbSet<CampaignTransaction> IApplicationDbContext.CampaignTransactions => CampaignTransactions;
+	DbSet<CampaignPhoto> IApplicationDbContext.CampaignPhotos => CampaignPhotos;
 	DbSet<OcrModelConfig> IApplicationDbContext.OcrModelConfigs => OcrModelConfigs;
 
 	protected override void OnModelCreating(ModelBuilder builder)
@@ -375,6 +377,27 @@ public class ApplicationDbContext
 			b.Property(e => e.Source).HasConversion<int>();
 			b.Property(e => e.ProviderPayloadHash).HasMaxLength(128);
 			b.HasQueryFilter(e => !e.IsDeleted);
+		});
+
+		builder.Entity<CampaignPhoto>(b =>
+		{
+			b.ToTable("CampaignPhotos");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
+			b.Property(e => e.OriginalFileName).HasMaxLength(256).IsRequired();
+			b.Property(e => e.Description).HasMaxLength(2000);
+			b.HasIndex(e => new { e.CampaignId, e.SortOrder });
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.Campaign)
+				.WithMany(c => c.Photos)
+				.HasForeignKey(e => e.CampaignId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasOne(e => e.CreatedBy)
+				.WithMany()
+				.HasForeignKey(e => e.CreatedByUserId)
+				.OnDelete(DeleteBehavior.Restrict);
 		});
 	}
 

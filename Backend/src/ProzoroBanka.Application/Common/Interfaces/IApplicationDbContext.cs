@@ -21,6 +21,7 @@ public interface IApplicationDbContext
     DbSet<MatchResult> MatchResults { get; }
     DbSet<Campaign> Campaigns { get; }
     DbSet<CampaignTransaction> CampaignTransactions { get; }
+    DbSet<CampaignPhoto> CampaignPhotos { get; }
     DbSet<OcrModelConfig> OcrModelConfigs { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

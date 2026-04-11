@@ -1,12 +1,12 @@
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useOrganization } from '@/hooks/queries/useOrganizations';
+import { useOrganization, useOrganizationStateRegistrySettings } from '@/hooks/queries/useOrganizations';
 import { useCampaigns } from '@/hooks/queries/useCampaigns';
 import { CampaignStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, Globe, Megaphone, ReceiptText, Users, Zap } from 'lucide-react';
+import { BarChart3, Globe, Megaphone, ReceiptText, Users, Zap, ShieldCheck, ScanSearch } from 'lucide-react';
 
 const PLAN_LABELS: Record<number, string> = {
   1: 'Free',
@@ -22,6 +22,7 @@ export default function DashboardHomePage() {
   const { t } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
   const { data: org, isLoading: orgLoading } = useOrganization(orgId);
+  const { data: usageSettings, isLoading: usageLoading, isError: isUsageError } = useOrganizationStateRegistrySettings(orgId);
   const { data: campaigns, isLoading: campLoading } = useCampaigns(orgId);
 
   const isLoading = orgLoading || campLoading;
@@ -98,6 +99,40 @@ export default function DashboardHomePage() {
           <p className="text-sm text-muted-foreground" data-testid="dashboard-home-plan-description">
             {PLAN_DESCRIPTIONS[org?.planType ?? 1]}
           </p>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="dashboard-home-usage-card">
+        <CardHeader>
+          <CardTitle className="text-lg" data-testid="dashboard-home-usage-title">Ліміти та використання</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-border/70 bg-muted/20 p-4" data-testid="dashboard-home-usage-state-block">
+            <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <ShieldCheck className="h-4 w-4" />
+              State verification usage
+            </p>
+            <p className="mt-1 text-base font-semibold" data-testid="dashboard-home-usage-state-value">
+              {usageLoading
+                ? 'Завантаження...'
+                : isUsageError
+                  ? 'Недоступно'
+                  : `${usageSettings?.stateVerificationConfiguredKeys ?? 0} / ${usageSettings?.stateVerificationMaxKeys ?? 0}`}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/70 bg-muted/20 p-4" data-testid="dashboard-home-usage-ocr-block">
+            <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <ScanSearch className="h-4 w-4" />
+              OCR usage
+            </p>
+            <p className="mt-1 text-base font-semibold" data-testid="dashboard-home-usage-ocr-value">
+              {usageLoading
+                ? 'Завантаження...'
+                : isUsageError
+                  ? 'Недоступно'
+                  : `${usageSettings?.currentOcrExtractionsPerMonth ?? 0} / ${usageSettings?.maxOcrExtractionsPerMonth ?? 0}`}
+            </p>
+          </div>
         </CardContent>
       </Card>
 

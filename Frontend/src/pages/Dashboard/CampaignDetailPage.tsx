@@ -22,8 +22,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
-import { ArrowLeft, Calendar, Edit2, Megaphone, ReceiptText, HandCoins, Clock3, Handshake, Loader2, Plus, ImageIcon, Eye, Newspaper } from 'lucide-react';
+import { ArrowLeft, Calendar, Edit2, Megaphone, ReceiptText, HandCoins, Clock3, Handshake, Loader2, Plus, ImageIcon, Eye } from 'lucide-react';
 import { SelectReceiptDialog } from './SelectReceiptDialog';
+import { CampaignPhotoGallery } from './CampaignPhotoGallery';
 import { toast } from 'sonner';
 
 const statusColor: Record<number, string> = {
@@ -33,7 +34,6 @@ const statusColor: Record<number, string> = {
   3: 'bg-secondary/15 text-secondary',
 };
 
-const campaignPostsPlaceholderIds = ['post-1', 'post-2'] as const;
 
 function formatCampaignMoney(value: number, locale: string) {
   return new Intl.NumberFormat(locale, {
@@ -231,37 +231,7 @@ export default function CampaignDetailPage() {
             </CardContent>
           </Card>
 
-          <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="campaign-detail-posts-placeholder-card">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2" data-testid="campaign-detail-posts-placeholder-title">
-                <Newspaper className="h-5 w-5 text-primary" />
-                {t('campaigns.detail.postsPlaceholderTitle')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {campaignPostsPlaceholderIds.map((postId) => (
-                <article
-                  key={postId}
-                  className="overflow-hidden rounded-2xl border border-border/70 bg-muted/15"
-                  data-testid={`campaign-detail-post-placeholder-${postId}`}
-                >
-                  <div className="grid gap-4 p-4 sm:grid-cols-[1fr,220px] sm:items-stretch">
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground" data-testid={`campaign-detail-post-time-${postId}`}>{t(`campaigns.detail.postsPlaceholder.${postId}.publishedAt`)}</p>
-                      <h3 className="text-base font-semibold" data-testid={`campaign-detail-post-title-${postId}`}>{t(`campaigns.detail.postsPlaceholder.${postId}.title`)}</h3>
-                      <p className="text-sm text-muted-foreground" data-testid={`campaign-detail-post-text-${postId}`}>{t(`campaigns.detail.postsPlaceholder.${postId}.text`)}</p>
-                    </div>
-                    <div className="rounded-xl border border-dashed border-border/80 bg-background/70 p-3" data-testid={`campaign-detail-post-image-placeholder-${postId}`}>
-                      <div className="flex h-full min-h-28 flex-col items-center justify-center gap-2 text-center">
-                        <ImageIcon className="h-6 w-6 text-primary/80" />
-                        <p className="text-xs font-medium text-muted-foreground">{t(`campaigns.detail.postsPlaceholder.${postId}.imageHint`)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </CardContent>
-          </Card>
+          <CampaignPhotoGallery campaignId={campaignId!} />
         </div>
 
         {/* Sidebar / Receipts */}

@@ -29,7 +29,11 @@ export default function OrgSettingsPage() {
   const { t } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
   const { data: org, isLoading } = useOrganization(orgId);
-  const { data: stateRegistrySettings, isLoading: isLoadingStateRegistry } = useOrganizationStateRegistrySettings(orgId);
+  const {
+    data: stateRegistrySettings,
+    isLoading: isLoadingStateRegistry,
+    isError: isStateRegistryError,
+  } = useOrganizationStateRegistrySettings(orgId);
   const updateOrg = useUpdateOrganization(orgId!);
   const uploadLogo = useUploadOrgLogo(orgId!);
   const upsertRegistryKey = useUpsertStateRegistryCredential(orgId!);
@@ -242,7 +246,9 @@ export default function OrgSettingsPage() {
               <p className="text-sm font-medium" data-testid="org-settings-usage-state-value">
                 {isLoadingStateRegistry
                   ? 'Завантаження...'
-                  : `${stateRegistrySettings?.stateVerificationConfiguredKeys ?? 0} / ${stateRegistrySettings?.stateVerificationMaxKeys ?? 0}`}
+                  : isStateRegistryError
+                    ? 'Недоступно'
+                    : `${stateRegistrySettings?.stateVerificationConfiguredKeys ?? 0} / ${stateRegistrySettings?.stateVerificationMaxKeys ?? 0}`}
               </p>
             </div>
             <div>
@@ -250,7 +256,9 @@ export default function OrgSettingsPage() {
               <p className="text-sm font-medium" data-testid="org-settings-usage-ocr-value">
                 {isLoadingStateRegistry
                   ? 'Завантаження...'
-                  : `${stateRegistrySettings?.currentOcrExtractionsPerMonth ?? 0} / ${stateRegistrySettings?.maxOcrExtractionsPerMonth ?? 0}`}
+                  : isStateRegistryError
+                    ? 'Недоступно'
+                    : `${stateRegistrySettings?.currentOcrExtractionsPerMonth ?? 0} / ${stateRegistrySettings?.maxOcrExtractionsPerMonth ?? 0}`}
               </p>
             </div>
           </div>

@@ -33,14 +33,19 @@ public class GetOrganizationStateRegistrySettingsHandler
 		GetOrganizationStateRegistrySettingsQuery request,
 		CancellationToken cancellationToken)
 	{
+		var isMember = await _organizationAuthorizationService.IsMember(
+			request.OrganizationId,
+			request.CallerDomainUserId,
+			cancellationToken);
+
+		if (!isMember)
+			return ServiceResponse<OrganizationStateRegistrySettingsDto>.Failure("Користувач не є учасником організації");
+
 		var canManage = await _organizationAuthorizationService.HasPermission(
 			request.OrganizationId,
 			request.CallerDomainUserId,
 			OrganizationPermissions.ManageOrganization,
 			cancellationToken);
-
-		if (!canManage)
-			return ServiceResponse<OrganizationStateRegistrySettingsDto>.Failure("Недостатньо прав для керування ключами організації");
 
 		var credentials = await _db.OrganizationStateRegistryCredentials
 			.AsNoTracking()
@@ -51,9 +56,13 @@ public class GetOrganizationStateRegistrySettingsHandler
 		if (!usageResult.IsSuccess || usageResult.Payload is null)
 			return ServiceResponse<OrganizationStateRegistrySettingsDto>.Failure(usageResult.Message);
 
-		var tax = BuildCredentialSummary(credentials, RegistryProvider.TaxService, RegistryProvider.CheckGovUa);
-		var checkGov = BuildCredentialSummary(credentials, RegistryProvider.CheckGovUa, RegistryProvider.TaxService);
-		var stateConfiguredKeys = tax.IsConfigured || checkGov.IsConfigured ? 1 : 0;
+		var tax = canManage
+			? BuildCredentialSummary(credentials, RegistryProvider.TaxService, RegistryProvider.CheckGovUa)
+			: BuildRestrictedSummary(RegistryProvider.TaxService);
+		var checkGov = canManage
+			? BuildCredentialSummary(credentials, RegistryProvider.CheckGovUa, RegistryProvider.TaxService)
+			: BuildRestrictedSummary(RegistryProvider.CheckGovUa);
+		var stateConfiguredKeys = credentials.Any(x => x.IsActive) ? 1 : 0;
 
 		return ServiceResponse<OrganizationStateRegistrySettingsDto>.Success(new OrganizationStateRegistrySettingsDto(
 			tax,
@@ -63,6 +72,14 @@ public class GetOrganizationStateRegistrySettingsHandler
 			usageResult.Payload.CurrentOcrExtractionsPerMonth,
 			usageResult.Payload.MaxOcrExtractionsPerMonth));
 	}
+
+	private static StateRegistryCredentialSummaryDto BuildRestrictedSummary(RegistryProvider provider)
+		=> new(
+			provider,
+			false,
+			null,
+			null,
+			null);
 
 	private static StateRegistryCredentialSummaryDto BuildCredentialSummary(
 		IReadOnlyCollection<ProzoroBanka.Domain.Entities.OrganizationStateRegistryCredential> credentials,

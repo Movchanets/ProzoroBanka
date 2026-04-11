@@ -29,6 +29,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -341,6 +349,8 @@ export default function ReceiptDetailPage() {
   const [aliasInput, setAliasInput] = useState('');
   const [ocrDraft, setOcrDraft] = useState<OcrDraft>(emptyOcrDraft);
   const [hasOcrChanges, setHasOcrChanges] = useState(false);
+  const [isReextractDialogOpen, setIsReextractDialogOpen] = useState(false);
+  const [hasPendingExtractRequest, setHasPendingExtractRequest] = useState(false);
   const [itemDraft, setItemDraft] = useState<ItemDraft>({
     name: '',
     quantity: '',
@@ -378,7 +388,7 @@ export default function ReceiptDetailPage() {
     [receipt?.id, receiptIdInput],
   );
 
-  const isBusy = uploadDraftMutation.isPending
+  const isActionBusy = uploadDraftMutation.isPending
     || updateDraftMutation.isPending
     || addItemPhotosMutation.isPending
     || addReceiptItemMutation.isPending
@@ -392,8 +402,9 @@ export default function ReceiptDetailPage() {
     || retryMutation.isPending
     || replaceItemPhotoMutation.isPending
     || reorderItemPhotosMutation.isPending
-    || deleteItemPhotoMutation.isPending
-    || getReceiptMutation.isPending;
+    || deleteItemPhotoMutation.isPending;
+
+  const isPendingOcr = receipt?.status === ReceiptStatus.PendingOcr;
 
   const missingOcrFields = useMemo(() => {
     const missing = Object.entries(ocrDraft)
@@ -420,6 +431,18 @@ export default function ReceiptDetailPage() {
   const canExtract = useMemo(() => {
     return !!orgId && !!activeReceiptId && (!!selectedFile || !!receipt?.receiptImageUrl);
   }, [orgId, activeReceiptId, selectedFile, receipt?.receiptImageUrl]);
+
+  const isExtractTemporarilyLocked = isPendingOcr && hasPendingExtractRequest;
+
+  const requiresExtractConfirmation = useMemo(() => {
+    if (!receipt) return false;
+
+    return receipt.status === ReceiptStatus.OcrExtracted
+      || receipt.status === ReceiptStatus.InvalidData
+      || receipt.status === ReceiptStatus.FailedVerification
+      || receipt.status === ReceiptStatus.ValidationDeferredRateLimit
+      || receipt.status === ReceiptStatus.StateVerified;
+  }, [receipt]);
 
   useEffect(() => {
     if (!ocrModels || ocrModels.length === 0) {
@@ -454,6 +477,7 @@ export default function ReceiptDetailPage() {
       setAliasInput('');
       setOcrDraft(emptyOcrDraft);
       setHasOcrChanges(false);
+      setHasPendingExtractRequest(false);
       setItemDraft({ name: '', quantity: '', unitPrice: '', totalPrice: '', barcode: '' });
       setSelectedFile(null);
       setSelectedFileWasCropped(false);
@@ -489,6 +513,35 @@ export default function ReceiptDetailPage() {
     itemPhotosRef.current.forEach((item) => revokePreviewUrl(item.previewUrl));
     revokePreviewUrl(cropSessionRef.current?.src);
   }, []);
+
+  useEffect(() => {
+    if (receipt?.status !== ReceiptStatus.PendingOcr && hasPendingExtractRequest) {
+      setHasPendingExtractRequest(false);
+    }
+  }, [receipt?.status, hasPendingExtractRequest]);
+
+  useEffect(() => {
+    if (!orgId || !receiptId || receipt?.status !== ReceiptStatus.PendingOcr) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      void getReceiptMutation.mutateAsync({ organizationId: orgId, receiptId })
+        .then((result) => {
+          applyReceipt(result);
+          if (result.status !== ReceiptStatus.PendingOcr) {
+            const isSuccess = result.status === ReceiptStatus.OcrExtracted;
+            toast[isSuccess ? 'success' : 'info'](isSuccess ? 'Автоматичне розпізнавання чека (OCR) завершено' : 'OCR статус оновлено');
+          }
+        })
+        .catch(() => {
+          // ignore polling errors
+        });
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, receiptId, receipt?.status]);
 
   const hydrateOcrState = (nextReceipt: ReceiptPipeline | null) => {
     const nextDraft = buildOcrDraft(nextReceipt);
@@ -1054,7 +1107,7 @@ export default function ReceiptDetailPage() {
     return undefined;
   };
 
-  const onExtract = async () => {
+  const onExtract = async (force = false) => {
     if (!orgId) {
       toast.error('Не визначено організацію в URL');
       return;
@@ -1072,17 +1125,28 @@ export default function ReceiptDetailPage() {
         return;
       }
 
+      if (requiresExtractConfirmation && !force) {
+        setIsReextractDialogOpen(true);
+        return;
+      }
+
       const result = await extractMutation.mutateAsync({
         receiptId: activeReceiptId,
         organizationId: orgId,
         file: fileForExtract,
         modelIdentifier: selectedModelIdentifier || undefined,
       });
+      setHasPendingExtractRequest(true);
+      setIsReextractDialogOpen(false);
       applyReceipt(result);
-      toast.success('OCR етап виконано');
+      toast.info('OCR запущено. Очікуйте завершення розпізнавання.');
     } catch (error) {
       toast.error((error as Error).message);
     }
+  };
+
+  const onConfirmReextract = () => {
+    void onExtract(true);
   };
 
   const onSaveOcrDraft = async () => {
@@ -1285,7 +1349,7 @@ export default function ReceiptDetailPage() {
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={onUploadDraft}
-              disabled={!selectedFile || isBusy}
+              disabled={!selectedFile || isActionBusy}
               data-testid="dashboard-receipts-upload-button"
             >
               {uploadDraftMutation.isPending || updateDraftMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -1294,7 +1358,7 @@ export default function ReceiptDetailPage() {
             <Button
               type="button"
               variant="outline"
-              disabled={!selectedFile || !selectedFilePreview || isBusy}
+              disabled={!selectedFile || !selectedFilePreview || isActionBusy}
               onClick={onRecropReceipt}
               data-testid="dashboard-receipts-recrop-button"
             >
@@ -1467,19 +1531,24 @@ export default function ReceiptDetailPage() {
               </Select>
             </div>
             <Button
-              onClick={onExtract}
-              disabled={!canExtract || isBusy}
+              onClick={() => void onExtract()}
+              disabled={!canExtract || isActionBusy || isExtractTemporarilyLocked}
               data-testid="dashboard-receipts-extract-button"
             >
               Extract
             </Button>
+            {isExtractTemporarilyLocked ? (
+              <p className="text-xs text-muted-foreground" data-testid="dashboard-receipts-extract-lock-note">
+                OCR вже запущено для цього чека. Дочекайтеся оновлення статусу.
+              </p>
+            ) : null}
             <div className="space-y-1">
               <p className="text-xs text-amber-500" data-testid="dashboard-receipts-verify-warning">
                 Увага: під час воєнного стану публічне API ДПС може бути недоступним.
               </p>
               <Button
                 onClick={onVerify}
-                disabled={!orgId || !activeReceiptId || isBusy}
+                disabled={!orgId || !activeReceiptId || isActionBusy || isPendingOcr}
                 data-testid="dashboard-receipts-verify-button"
               >
                 Verify
@@ -1489,7 +1558,7 @@ export default function ReceiptDetailPage() {
               type="button"
               variant="outline"
               onClick={onOpenVerificationLink}
-              disabled={!receipt?.verificationUrl || isBusy}
+              disabled={!receipt?.verificationUrl || isActionBusy}
               data-testid="dashboard-receipts-open-verification-link-button"
             >
               <ExternalLink className="mr-2 h-4 w-4" />
@@ -1497,7 +1566,7 @@ export default function ReceiptDetailPage() {
             </Button>
             <Button
               onClick={onActivate}
-              disabled={!activeReceiptId || isBusy}
+              disabled={!activeReceiptId || isActionBusy || isPendingOcr}
               data-testid="dashboard-receipts-activate-button"
             >
               Activate
@@ -1505,7 +1574,7 @@ export default function ReceiptDetailPage() {
             <Button
               variant="outline"
               onClick={onRetry}
-              disabled={!activeReceiptId || !canRetry || isBusy}
+              disabled={!activeReceiptId || !canRetry || isActionBusy}
               title={!canRetry && activeReceiptId ? 'Доступно для статусів помилок та відкладених обробок' : undefined}
               data-testid="dashboard-receipts-retry-button"
             >
@@ -1514,7 +1583,7 @@ export default function ReceiptDetailPage() {
             <Button
               variant="outline"
               onClick={onRefresh}
-              disabled={!activeReceiptId || isBusy}
+              disabled={!activeReceiptId || isActionBusy}
               data-testid="dashboard-receipts-refresh-button"
             >
               <RefreshCw className="mr-2 h-4 w-4" />
@@ -1592,11 +1661,11 @@ export default function ReceiptDetailPage() {
                     <Input id="ocr-receipt-code" value={ocrDraft.receiptCode} onChange={(event) => onChangeOcrField('receiptCode', event.target.value)} placeholder="10870061" />
                   </div>
                   <div className="flex flex-wrap gap-2 md:col-span-2">
-                    <Button onClick={onSaveOcrDraft} disabled={!activeReceiptId || isBusy || !hasOcrChanges} data-testid="dashboard-receipts-save-ocr-button">
+                    <Button onClick={onSaveOcrDraft} disabled={!activeReceiptId || isActionBusy || !hasOcrChanges} data-testid="dashboard-receipts-save-ocr-button">
                       {updateOcrDraftMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       Зберегти OCR правки
                     </Button>
-                    <Button type="button" variant="outline" onClick={onResetOcrDraft} disabled={isBusy}>
+                    <Button type="button" variant="outline" onClick={onResetOcrDraft} disabled={isActionBusy}>
                       Скинути до серверного стану
                     </Button>
                   </div>
@@ -1642,7 +1711,7 @@ export default function ReceiptDetailPage() {
                       size="sm"
                       variant="outline"
                       onClick={() => void onAddReceiptItem()}
-                      disabled={!activeReceiptId || isBusy}
+                      disabled={!activeReceiptId || isActionBusy}
                       data-testid="dashboard-receipts-add-item-button"
                     >
                       Додати позицію
@@ -1681,9 +1750,19 @@ export default function ReceiptDetailPage() {
           {receipt ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge data-testid="dashboard-receipts-status-badge">
+                <Badge data-testid="dashboard-receipts-status-badge" className="flex items-center gap-1.5">
+                  {isPendingOcr ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                   {statusLabelMap[receipt.status] ?? `Status ${receipt.status}`}
                 </Badge>
+                {isPendingOcr ? (
+                  <span
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+                    data-testid="dashboard-receipts-pending-loader"
+                  >
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    OCR виконується, статус оновлюється автоматично
+                  </span>
+                ) : null}
                 {receipt.isConfirmed ? (
                   <Badge variant="secondary" data-testid="dashboard-receipts-confirmed-badge">Підтверджено</Badge>
                 ) : null}
@@ -1768,6 +1847,36 @@ export default function ReceiptDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={isReextractDialogOpen} onOpenChange={setIsReextractDialogOpen}>
+        <DialogContent data-testid="dashboard-receipts-reextract-dialog">
+          <DialogHeader>
+            <DialogTitle>Повторно запустити OCR?</DialogTitle>
+            <DialogDescription>
+              OCR для цього чека вже виконувався раніше. Повторний запуск буде зарахований у OCR usage.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsReextractDialogOpen(false)}
+              data-testid="dashboard-receipts-reextract-cancel-button"
+            >
+              Скасувати
+            </Button>
+            <Button
+              type="button"
+              onClick={onConfirmReextract}
+              disabled={extractMutation.isPending}
+              data-testid="dashboard-receipts-reextract-confirm-button"
+            >
+              {extractMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Запустити повторно
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {cropSession ? (
         <ImageCropDialog

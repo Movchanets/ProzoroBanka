@@ -42,7 +42,9 @@ const statusOptions = [
   { value: 'all', label: 'Усі статуси' },
   { value: String(ReceiptStatus.Draft), label: 'Чернетки' },
   { value: String(ReceiptStatus.PendingOcr), label: 'Очікують OCR' },
+  { value: String(ReceiptStatus.OcrDeferredMonthlyQuota), label: 'Ліміт OCR вичерпано' },
   { value: String(ReceiptStatus.OcrExtracted), label: 'OCR заповнено' },
+  { value: String(ReceiptStatus.PendingStateValidation), label: 'Очікує перевірки' },
   { value: String(ReceiptStatus.StateVerified), label: 'Верифіковані' },
   { value: String(ReceiptStatus.InvalidData), label: 'Потребують правок' },
   { value: String(ReceiptStatus.FailedVerification), label: 'Помилка перевірки' },
@@ -90,13 +92,16 @@ function formatDate(value?: string) {
 function ReceiptStatusBadge({ receipt }: { receipt: ReceiptListItem }) {
   const variant = receipt.status === ReceiptStatus.StateVerified
     ? 'default'
-    : receipt.status === ReceiptStatus.InvalidData || receipt.status === ReceiptStatus.FailedVerification
+    : receipt.status === ReceiptStatus.InvalidData || receipt.status === ReceiptStatus.FailedVerification || receipt.status === ReceiptStatus.OcrDeferredMonthlyQuota || receipt.status === ReceiptStatus.ValidationDeferredRateLimit
       ? 'destructive'
       : 'outline';
 
   return (
     <div className="flex flex-wrap gap-2">
-      <Badge variant={variant}>
+      <Badge variant={variant} className="flex items-center gap-1.5">
+        {receipt.status === ReceiptStatus.PendingOcr && (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        )}
         {statusLabels[receipt.status] ?? `Status ${receipt.status}`}
       </Badge>
       <Badge variant="outline">

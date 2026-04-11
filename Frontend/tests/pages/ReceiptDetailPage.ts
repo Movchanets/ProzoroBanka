@@ -20,6 +20,10 @@ export class ReceiptDetailPage {
   readonly addItemButton: Locator;
   readonly aliasInput: Locator;
   readonly saveOcrButton: Locator;
+  readonly extractButton: Locator;
+  readonly refreshButton: Locator;
+  readonly verifyButton: Locator;
+  readonly statusBadge: Locator;
   readonly stateId: Locator;
   readonly backToListButton: Locator;
   readonly cropDialog: Locator;
@@ -45,6 +49,10 @@ export class ReceiptDetailPage {
     this.addItemButton = page.getByTestId('dashboard-receipts-add-item-button');
     this.aliasInput = page.getByTestId('dashboard-receipts-alias-input');
     this.saveOcrButton = page.getByTestId('dashboard-receipts-save-ocr-button');
+    this.extractButton = page.getByTestId('dashboard-receipts-extract-button');
+    this.refreshButton = page.getByTestId('dashboard-receipts-refresh-button');
+    this.verifyButton = page.getByTestId('dashboard-receipts-verify-button');
+    this.statusBadge = page.getByTestId('dashboard-receipts-status-badge');
     this.stateId = page.getByTestId('dashboard-receipts-state-id');
     this.backToListButton = page.getByTestId('dashboard-receipts-back-to-list-button');
     this.cropDialog = page.getByRole('dialog');

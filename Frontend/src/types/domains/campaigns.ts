@@ -116,3 +116,20 @@ export interface CampaignTransaction {
   source: string;
   createdAt: string;
 }
+
+export interface CampaignPhoto {
+  id: string;
+  photoUrl: string;
+  originalFileName: string;
+  description?: string | null;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface ReorderCampaignPhotosPayload {
+  photoIds: string[];
+}
+
+export interface UpdateCampaignPhotoPayload {
+  description?: string;
+}

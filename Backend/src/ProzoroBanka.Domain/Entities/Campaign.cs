@@ -43,4 +43,5 @@ public class Campaign : BaseEntity
 	public User CreatedBy { get; set; } = null!;
 	public ICollection<CampaignTransaction> Transactions { get; set; } = new List<CampaignTransaction>();
 	public ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
+	public ICollection<CampaignPhoto> Photos { get; set; } = new List<CampaignPhoto>();
 }

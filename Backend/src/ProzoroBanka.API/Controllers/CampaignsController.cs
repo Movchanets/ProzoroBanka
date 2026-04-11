@@ -335,4 +335,122 @@ public class CampaignsController : ApiControllerBase
 
 		return Ok(result.Payload);
 	}
+
+	[HttpGet("{id:guid}/photos")]
+	[ProducesResponseType(typeof(IReadOnlyList<CampaignPhotoDto>), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> GetPhotos(Guid id, CancellationToken ct)
+	{
+		var result = await _sender.Send(new Application.Campaigns.Queries.GetCampaignPhotos.GetCampaignPhotosQuery(id), ct);
+
+		if (!result.IsSuccess)
+			return NotFound(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpPost("{id:guid}/photos")]
+	[Consumes("multipart/form-data")]
+	[ProducesResponseType(typeof(CampaignPhotoDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> AddPhoto(
+		Guid id, 
+		[FromForm] IFormFile? file,
+		[FromForm] string? description,
+		CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		if (file is null || file.Length == 0)
+			return BadRequest(new { Error = "Файл обов'язковий." });
+
+		await using var fileStream = file.OpenReadStream();
+		var command = new Application.Campaigns.Commands.AddCampaignPhotos.AddCampaignPhotosCommand(
+			domainUserId.Value, id, fileStream, file.FileName, file.ContentType, description);
+
+		var result = await _sender.Send(command, ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: result.Message.Contains("Недостатньо прав")
+					? StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message })
+					: BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpDelete("{id:guid}/photos/{photoId:guid}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> DeletePhoto(Guid id, Guid photoId, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new Application.Campaigns.Commands.DeleteCampaignPhoto.DeleteCampaignPhotoCommand(domainUserId.Value, id, photoId), ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: result.Message.Contains("Недостатньо прав")
+					? StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message })
+					: BadRequest(new { Error = result.Message });
+
+		return NoContent();
+	}
+
+	[HttpPut("{id:guid}/photos/reorder")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> ReorderPhotos(Guid id, [FromBody] ReorderCampaignPhotosRequest request, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new Application.Campaigns.Commands.ReorderCampaignPhotos.ReorderCampaignPhotosCommand(domainUserId.Value, id, request.PhotoIds), ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: result.Message.Contains("Недостатньо прав")
+					? StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message })
+					: BadRequest(new { Error = result.Message });
+
+		return NoContent();
+	}
+
+	[HttpPut("{id:guid}/photos/{photoId:guid}")]
+	[ProducesResponseType(typeof(CampaignPhotoDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> UpdatePhoto(Guid id, Guid photoId, [FromBody] UpdateCampaignPhotoRequest request, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new Application.Campaigns.Commands.UpdateCampaignPhoto.UpdateCampaignPhotoCommand(domainUserId.Value, id, photoId, request.Description), ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: result.Message.Contains("Недостатньо прав")
+					? StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message })
+					: BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
 }

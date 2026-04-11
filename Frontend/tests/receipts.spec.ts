@@ -139,4 +139,27 @@ test.describe('Dashboard — Receipts', () => {
 
     await expect(receiptsListPage.row(receiptId)).toHaveCount(0);
   });
+
+  test('TC-05: after draft upload, actions are not stuck disabled in pending OCR state', async ({
+    page,
+    receiptDetailPage,
+  }) => {
+    const user = await registerAndSetAuthStorage(page);
+    const orgId = await createOrganizationViaApi(
+      page.request,
+      user.auth.accessToken,
+      `Receipt Pending OCR ${Date.now()}`,
+    );
+
+    await receiptDetailPage.gotoNew(orgId);
+    await receiptDetailPage.waitForReady();
+    await receiptDetailPage.uploadDraft(receiptFixturePath);
+
+    await expect(receiptDetailPage.stateId).toHaveText(/[0-9a-f-]{36}/i);
+    await expect(receiptDetailPage.statusBadge).toContainText(/Pending OCR|OCR очікує|OCR/i);
+
+    await expect(receiptDetailPage.extractButton).toBeEnabled();
+    await expect(receiptDetailPage.refreshButton).toBeEnabled();
+    await expect(receiptDetailPage.verifyButton).toBeDisabled();
+  });
 });
