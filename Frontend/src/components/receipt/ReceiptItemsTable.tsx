@@ -32,6 +32,7 @@ interface ReceiptItemsTableProps {
   structuredOutputJson?: string | null;
   items?: ReceiptItem[];
   testIdPrefix: string;
+  emptyMessage?: string;
   onUpdateItem?: (itemId: string, payload: UpdateReceiptItemRequest) => Promise<void> | void;
   onDeleteItem?: (itemId: string) => Promise<void> | void;
 }
@@ -172,6 +173,7 @@ export function ReceiptItemsTable({
   structuredOutputJson,
   items: persistedItems,
   testIdPrefix,
+  emptyMessage,
   onUpdateItem,
   onDeleteItem,
 }: ReceiptItemsTableProps) {
@@ -226,7 +228,7 @@ export function ReceiptItemsTable({
   if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-4 py-6 text-sm text-muted-foreground" data-testid={`${testIdPrefix}-empty`}>
-        У структурованому OCR JSON ще немає позицій товарів.
+        {emptyMessage ?? 'У структурованому OCR JSON ще немає позицій товарів.'}
       </div>
     );
   }

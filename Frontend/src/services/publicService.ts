@@ -36,6 +36,13 @@ function mapPublicReceiptDetailAmount(receipt: PublicReceiptDetail): PublicRecei
   return {
     ...receipt,
     totalAmount: receipt.totalAmount === undefined ? undefined : toHryvnia(receipt.totalAmount),
+    items: (receipt.items ?? []).map((item) => ({
+      ...item,
+      unitPrice: item.unitPrice === undefined ? undefined : toHryvnia(item.unitPrice),
+      totalPrice: item.totalPrice === undefined ? undefined : toHryvnia(item.totalPrice),
+      vatAmount: item.vatAmount === undefined ? undefined : toHryvnia(item.vatAmount),
+    })),
+    itemPhotos: receipt.itemPhotos ?? [],
   };
 }
 

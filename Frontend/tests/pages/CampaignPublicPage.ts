@@ -18,9 +18,9 @@ export class CampaignPublicPage {
     this.raisedProgress = page.getByTestId('public-campaign-progress-panel-raised-progress');
     this.documentedProgress = page.getByTestId('public-campaign-progress-panel-documented-progress');
     this.documentedAmount = page.getByTestId('public-campaign-progress-panel-documented-amount');
-    this.description = page.getByTestId('public-campaign-description');
+    this.description = page.getByTestId('public-campaign-description-text');
     this.receiptsList = page.getByTestId('public-campaign-receipts-list');
-    this.receiptLink = page.getByTestId('public-campaign-receipt-link');
+    this.receiptLink = page.locator('[data-testid^="public-campaign-receipt-link-"]');
   }
 
   async goto(slug: string) {

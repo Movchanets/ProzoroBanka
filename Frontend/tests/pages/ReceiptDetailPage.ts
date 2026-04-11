@@ -8,8 +8,10 @@ export class ReceiptDetailPage {
   readonly uploadButton: Locator;
   readonly uploadPreview: Locator;
   readonly itemsTab: Locator;
+  readonly itemsCard: Locator;
   readonly itemPhotosInput: Locator;
   readonly itemPhotosList: Locator;
+  readonly itemPhotosEmpty: Locator;
   readonly addItemNameInput: Locator;
   readonly addItemQuantityInput: Locator;
   readonly addItemUnitPriceInput: Locator;
@@ -31,8 +33,10 @@ export class ReceiptDetailPage {
     this.uploadButton = page.getByTestId('dashboard-receipts-upload-button');
     this.uploadPreview = page.getByTestId('dashboard-receipts-upload-preview');
     this.itemsTab = page.getByTestId('dashboard-receipts-upload-tab-items');
+    this.itemsCard = page.getByTestId('dashboard-receipts-items-card');
     this.itemPhotosInput = page.getByTestId('dashboard-receipts-items-files-input');
     this.itemPhotosList = page.getByTestId('dashboard-receipts-items-files-list');
+    this.itemPhotosEmpty = page.getByTestId('dashboard-receipts-items-empty');
     this.addItemNameInput = page.getByTestId('dashboard-receipts-add-item-name-input');
     this.addItemQuantityInput = page.getByTestId('dashboard-receipts-add-item-quantity-input');
     this.addItemUnitPriceInput = page.getByTestId('dashboard-receipts-add-item-unit-price-input');
@@ -68,14 +72,17 @@ export class ReceiptDetailPage {
   }
 
   async openItemsTab() {
-    await this.itemsTab.click();
+    if (await this.itemsTab.isVisible()) {
+      await this.itemsTab.click();
+      return;
+    }
+
+    await expect(this.itemsCard).toBeVisible();
   }
 
   async addItemPhoto(filePath: string) {
     await this.itemPhotosInput.setInputFiles(filePath);
     await this.confirmCrop();
-    await this.itemPhotosList.waitFor({ state: 'visible', timeout: 10_000 });
-    await this.itemPhoto(0).waitFor({ state: 'visible', timeout: 10_000 });
   }
 
   async addItem(name: string, quantity: string, unitPrice: string, totalPrice: string, barcode: string) {

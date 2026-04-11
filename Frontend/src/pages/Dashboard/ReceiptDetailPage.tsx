@@ -1400,7 +1400,7 @@ export default function ReceiptDetailPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground" data-testid="dashboard-receipts-items-empty">
+            <p className="text-sm text-muted-foreground" data-testid="dashboard-receipts-items-photos-empty-hint">
               Додайте фото товарів, за потреби обріжте їх і виставте коректний порядок.
             </p>
           )}

@@ -63,6 +63,8 @@ export interface PublicReceiptDetail {
   status: string;
   imageUrl: string;
   structuredOutputJson?: string;
+  items: PublicReceiptItem[];
+  itemPhotos: PublicReceiptItemPhoto[];
   addedByName?: string;
   campaignId?: string;
   campaignTitle?: string;
@@ -70,6 +72,26 @@ export interface PublicReceiptDetail {
   organizationSlug?: string;
   verificationUrl?: string;
   isConfirmed: boolean;
+}
+
+export interface PublicReceiptItem {
+  id: string;
+  name: string;
+  quantity?: number;
+  unitPrice?: number;
+  totalPrice?: number;
+  barcode?: string;
+  vatRate?: number;
+  vatAmount?: number;
+  sortOrder: number;
+}
+
+export interface PublicReceiptItemPhoto {
+  id: string;
+  receiptItemId?: string;
+  originalFileName: string;
+  photoUrl: string;
+  sortOrder: number;
 }
 
 export interface PublicCampaignDetail {

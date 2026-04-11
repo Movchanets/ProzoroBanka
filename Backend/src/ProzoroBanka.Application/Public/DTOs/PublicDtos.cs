@@ -80,6 +80,8 @@ public record PublicReceiptDetailDto(
 	string Status,
 	string ImageUrl,
 	string? StructuredOutputJson,
+	IReadOnlyList<PublicReceiptItemDto> Items,
+	IReadOnlyList<PublicReceiptItemPhotoDto> ItemPhotos,
 	string? AddedByName,
 	Guid? CampaignId,
 	string? CampaignTitle,
@@ -87,6 +89,24 @@ public record PublicReceiptDetailDto(
 	string? OrganizationSlug,
 	string? VerificationUrl,
 	bool IsConfirmed);
+
+public record PublicReceiptItemDto(
+	Guid Id,
+	string Name,
+	decimal? Quantity,
+	decimal? UnitPrice,
+	decimal? TotalPrice,
+	string? Barcode,
+	decimal? VatRate,
+	decimal? VatAmount,
+	int SortOrder);
+
+public record PublicReceiptItemPhotoDto(
+	Guid Id,
+	Guid? ReceiptItemId,
+	string OriginalFileName,
+	string PhotoUrl,
+	int SortOrder);
 
 public record TransparencyCategoryDto(
 	string Name,

@@ -29,7 +29,6 @@ public class GetOrganizationPlanUsageHandler : IRequestHandler<GetOrganizationPl
 			.AsNoTracking()
 			.Include(o => o.Members)
 			.Include(o => o.Campaigns)
-			// we also would count OCR extractions per month if we had them connected to Campaigns directly. Right now OCR is per receipt in a campaign
 			.FirstOrDefaultAsync(o => o.Id == request.OrganizationId && !o.IsDeleted, cancellationToken);
 
 		if (org is null)
@@ -38,8 +37,18 @@ public class GetOrganizationPlanUsageHandler : IRequestHandler<GetOrganizationPl
 		var currentMembers = org.Members.Count(m => !m.IsDeleted);
 		var currentCampaigns = org.Campaigns.Count(c => !c.IsDeleted);
 
-		// OCR extraction simplified for now if we don't have receipt OCR usage stored at the Org level easily
-		var currentOcrExtractions = 0; // TODO in real implementation we could sum Receipts.Extractions based on Campaigns from this month
+		var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+		var nextMonthStart = monthStart.AddMonths(1);
+		var memberIds = org.Members.Where(m => !m.IsDeleted).Select(m => m.UserId).ToList();
+		var currentOcrExtractions = await _db.Receipts
+			.AsNoTracking()
+			.CountAsync(r =>
+				memberIds.Contains(r.UserId)
+				&& !r.IsDeleted
+				&& r.OcrExtractedAtUtc.HasValue
+				&& r.OcrExtractedAtUtc.Value >= monthStart
+				&& r.OcrExtractedAtUtc.Value < nextMonthStart,
+				cancellationToken);
 
 		var limits = await _systemSettings.GetPlanLimitsAsync(org.PlanType, cancellationToken);
 

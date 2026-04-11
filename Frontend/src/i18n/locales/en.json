@@ -33,7 +33,10 @@
     "roles": "Roles",
     "actions": "Actions",
     "confirmPassword": "Confirm password",
-    "leave": "Leave"
+    "leave": "Leave",
+    "open": "Open",
+    "na": "N/A",
+    "home": "Home"
   },
   "auth": {
     "login": {
@@ -380,7 +383,31 @@
       "attachReceipt": "Attach receipt",
       "publishReceipt": "Publish",
       "receiptAttachedDraft": "Receipt attached (draft)",
-      "receiptPublished": "Receipt published!"
+      "receiptPublished": "Receipt published!",
+      "coverPlaceholderTitle": "CampaignImage placeholder",
+      "coverPlaceholderDescription": "Campaign cover will appear here after backend/media storage integration.",
+      "postsPlaceholderTitle": "Campaign posts (placeholder)",
+      "postsPlaceholder": {
+        "post-1": {
+          "publishedAt": "Today, 12:30",
+          "title": "Campaign update: first batch delivered",
+          "text": "This will show a short report post: what was purchased, who received it, and campaign balance.",
+          "imageHint": "Delivered goods photo (placeholder)"
+        },
+        "post-2": {
+          "publishedAt": "Yesterday, 18:10",
+          "title": "Photo report for second delivery",
+          "text": "This will contain photos and logistics notes once update feed backend integration is ready.",
+          "imageHint": "Campaign post image (placeholder)"
+        }
+      },
+      "publicationActive": "Public",
+      "publicationDraft": "Draft",
+      "verifiedStatus": "Verified",
+      "statusFallback": "Status {{status}}",
+      "openFullReceipt": "Open full receipt",
+      "moreReceipts": "{{count}} more receipt(s) are available in the full registry.",
+      "newReceipt": "New receipt"
     },
     "manualProgress": {
       "title": "Manual progress update",
@@ -391,6 +418,43 @@
       "amountInvalid": "Enter a valid amount",
       "success": "Campaign progress updated",
       "error": "Failed to update campaign progress"
+    },
+    "public": {
+      "errorTitle": "Failed to load campaign",
+      "errorDescription": "Check the link or try again later.",
+      "seoTitleWithName": "{{title}}: progress, receipts, reports | ProzoroBanka",
+      "seoTitleFallback": "Campaign | ProzoroBanka",
+      "seoDescriptionWithName": "{{title}}. Campaign by {{organizationName}} with public progress and verified receipts.",
+      "seoDescriptionFallback": "Public fundraising page with progress and expense details.",
+      "topBadge": "Public transparent campaign",
+      "descriptionFallback": "Campaign description is not available yet.",
+      "supportCampaign": "Support campaign",
+      "kpiCollected": "Collected",
+      "kpiGoal": "Goal",
+      "kpiReceipts": "Receipts",
+      "coverPlaceholderTitle": "CampaignImage placeholder",
+      "coverPlaceholderDescription": "Campaign cover image will appear here after media integration.",
+      "updatesTitle": "Campaign updates",
+      "postImagePlaceholder": "Post photo report (placeholder)",
+      "posts": {
+        "public-post-1": {
+          "publishedAt": "Today, 10:45",
+          "title": "Campaign update: first aid batch delivered",
+          "text": "This section will be connected to campaign posts backend. Text updates and delivered item photos will appear here."
+        },
+        "public-post-2": {
+          "publishedAt": "Yesterday, 19:20",
+          "title": "Interim expense report",
+          "text": "After integration, this will display posts with expense checklists, photo reports, and team notes."
+        }
+      },
+      "receiptsPreviewTitle": "Receipts preview",
+      "receiptsEmpty": "No published receipts for this campaign yet.",
+      "receiptMerchantFallback": "Merchant name is unavailable",
+      "receiptDateFallback": "Date is unavailable",
+      "fullReceipt": "Full receipt",
+      "moreReceiptsNote": "{{count}} more receipt(s) are available via full receipt pages.",
+      "daysRemaining": "Days until campaign end: {{count}}."
     }
   },
   "team": {
@@ -459,7 +523,33 @@
   "receipts": {
     "title": "Receipts",
     "subtitle": "Upload receipts for automatic reporting",
-    "comingSoonDesc": "The receipts module will be available after campaign and team setup is complete."
+    "comingSoonDesc": "The receipts module will be available after campaign and team setup is complete.",
+    "public": {
+      "loading": "Loading receipt...",
+      "notFoundTitle": "Receipt not found",
+      "notFoundDescription": "Receipt was not found or is not public yet.",
+      "confirmedBadge": "Confirmed",
+      "titleFallback": "Public receipt preview",
+      "kpiAmount": "Amount",
+      "kpiDate": "Date",
+      "kpiAddedBy": "Added by",
+      "organizationLink": "Organization",
+      "goToCampaign": "Go to campaign",
+      "scanTitle": "Receipt scan",
+      "scanAlt": "Receipt scan",
+      "itemsTitle": "Receipt items",
+      "itemsEmpty": "No receipt items are available yet.",
+      "itemPhotosTitle": "Item photos from receipt",
+      "itemPhotosEmpty": "No item photos are available yet.",
+      "itemPhotoAlt": "Item photo {{index}}",
+      "itemPhotoBound": "Item: {{item}}",
+      "itemPhotoMissingBinding": "Item: linked position not found",
+      "itemPhotoNoBinding": "No linked position",
+      "detailsTitle": "Receipt details",
+      "receiptIdLabel": "Receipt ID",
+      "merchantLabel": "Merchant",
+      "taxVerificationLabel": "Tax verification"
+    }
   },
   "imageCrop": {
     "defaultTitle": "Crop image",

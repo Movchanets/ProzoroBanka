@@ -35,6 +35,14 @@ public class ReceiptsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 
 		var extractResponse = await ExtractAsync(receiptId, orgId);
 		Assert.Equal(HttpStatusCode.OK, extractResponse.StatusCode);
+		var extractJson = await extractResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var extractStatus = extractJson.GetProperty("status").GetInt32();
+		Assert.Equal((int)ReceiptStatus.PendingOcr, extractStatus);
+
+		// The background worker processes OCR asynchronously, so for this
+		// integration test we simulate OCR completion by directly advancing
+		// the receipt status — this tests the API endpoints, not the worker.
+		await AdvanceReceiptToOcrExtractedAsync(receiptId);
 
 		var verifyResponse = await _client.PostAsJsonAsync($"/api/receipts/{receiptId}/verify", new { organizationId = orgId });
 		Assert.Equal(HttpStatusCode.OK, verifyResponse.StatusCode);
@@ -333,6 +341,22 @@ public class ReceiptsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		var loginJson = await loginResponse.Content.ReadFromJsonAsync<JsonElement>();
 		var accessToken = loginJson.GetProperty("accessToken").GetString();
 		_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+	}
+
+	private async Task AdvanceReceiptToOcrExtractedAsync(Guid receiptId)
+	{
+		using var scope = _factory.Services.CreateScope();
+		var db = scope.ServiceProvider.GetRequiredService<ProzoroBanka.Infrastructure.Data.ApplicationDbContext>();
+		var receipt = await db.Receipts.FindAsync(receiptId);
+		Assert.NotNull(receipt);
+		receipt!.Status = ReceiptStatus.OcrExtracted;
+		receipt.MerchantName = "Test Merchant";
+		receipt.TotalAmount = 19950;
+		receipt.PurchaseDateUtc = DateTime.UtcNow;
+		receipt.FiscalNumber = "FN-TEST-001";
+		receipt.Currency = "UAH";
+		receipt.OcrExtractedAtUtc = DateTime.UtcNow;
+		await db.SaveChangesAsync();
 	}
 
 	private async Task AuthenticateAsync(string email, string password)

@@ -4,15 +4,17 @@ export class ReceiptPublicPage {
   readonly page: Page;
   readonly receiptPage: Locator;
   readonly image: Locator;
-  readonly structuredOutput: Locator;
-  readonly validationFields: Locator;
+  readonly itemsCard: Locator;
+  readonly photosGrid: Locator;
+  readonly photoItemDescription: Locator;
 
   constructor(page: Page) {
     this.page = page;
     this.receiptPage = page.getByTestId('public-receipt-page');
     this.image = page.getByTestId('public-receipt-image');
-    this.structuredOutput = page.getByTestId('public-receipt-structured-output');
-    this.validationFields = page.getByTestId('public-receipt-validation-fields');
+    this.itemsCard = page.getByTestId('public-receipt-items-card');
+    this.photosGrid = page.getByTestId('public-receipt-item-photos-grid');
+    this.photoItemDescription = page.getByTestId('public-receipt-item-photo-link-0');
   }
 
   async goto(id: string) {

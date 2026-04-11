@@ -48,7 +48,7 @@ public class ExtractReceiptDataHandlerTests
 	}
 
 	[Fact]
-	public async Task Handle_WhenExtractionSucceeds_UpdatesReceiptToOcrExtracted()
+	public async Task Handle_WhenQuotaAllowed_SetsStatusToPendingOcrAndEnqueues()
 	{
 		await using var db = _fixture.CreateContext();
 		var (userId, receiptId) = await SeedDraftReceiptAsync(db);
@@ -62,40 +62,22 @@ public class ExtractReceiptDataHandlerTests
 		orgAuth.Setup(x => x.IsMember(orgId, userId, It.IsAny<CancellationToken>()))
 			.ReturnsAsync(true);
 
-		var extraction = new Mock<IReceiptStructuredExtractionService>();
-		extraction
-			.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "receipt.png", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-			.ReturnsAsync(new ReceiptStructuredExtractionResult(
-				true,
-				"ATB",
-				199.50m,
-				DateTime.UtcNow.Date,
-				"FN-123",
-				null,
-				"FN-123",
-				"UAH",
-				"Хліб",
-				"{\"fiscalNumber\":\"FN-123\"}",
-				"{\"merchant\":\"ATB\"}",
-				null));
-
+		var ocrQueue = new Mock<IOcrProcessingQueue>();
 		var fileStorage = new Mock<IFileStorage>();
 		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => key);
 
-		var handler = new ExtractReceiptDataHandler(db, orgAuth.Object, extraction.Object, quota.Object, fileStorage.Object);
+		var handler = new ExtractReceiptDataHandler(db, orgAuth.Object, quota.Object, ocrQueue.Object, fileStorage.Object);
 		await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
 
 		var result = await handler.Handle(new ExtractReceiptDataCommand(userId, receiptId, stream, "receipt.png", orgId), CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
 		Assert.NotNull(result.Payload);
-		Assert.Equal(ReceiptStatus.OcrExtracted, result.Payload.Status);
+		Assert.Equal(ReceiptStatus.PendingOcr, result.Payload.Status);
 
-		var reloaded = await db.Receipts.FindAsync(receiptId);
-		Assert.NotNull(reloaded);
-		Assert.Equal("ATB", reloaded!.MerchantName);
-		Assert.Equal("FN-123", reloaded.FiscalNumber);
-		Assert.Equal(ReceiptStatus.OcrExtracted, reloaded.Status);
+		ocrQueue.Verify(q => q.EnqueueAsync(
+			It.Is<OcrWorkItem>(item => item.ReceiptId == receiptId && item.OrganizationId == orgId),
+			It.IsAny<CancellationToken>()), Times.Once);
 	}
 
 	[Fact]
@@ -113,10 +95,10 @@ public class ExtractReceiptDataHandlerTests
 		orgAuth.Setup(x => x.IsMember(orgId, userId, It.IsAny<CancellationToken>()))
 			.ReturnsAsync(true);
 
-		var extraction = new Mock<IReceiptStructuredExtractionService>();
+		var ocrQueue = new Mock<IOcrProcessingQueue>();
 		var fileStorage = new Mock<IFileStorage>();
 		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => key);
-		var handler = new ExtractReceiptDataHandler(db, orgAuth.Object, extraction.Object, quota.Object, fileStorage.Object);
+		var handler = new ExtractReceiptDataHandler(db, orgAuth.Object, quota.Object, ocrQueue.Object, fileStorage.Object);
 		await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
 
 		var result = await handler.Handle(new ExtractReceiptDataCommand(userId, receiptId, stream, "receipt.png", orgId), CancellationToken.None);
@@ -127,10 +109,12 @@ public class ExtractReceiptDataHandlerTests
 		var reloaded = await db.Receipts.FindAsync(receiptId);
 		Assert.NotNull(reloaded);
 		Assert.Equal(ReceiptStatus.OcrDeferredMonthlyQuota, reloaded!.Status);
+
+		ocrQueue.Verify(q => q.EnqueueAsync(It.IsAny<OcrWorkItem>(), It.IsAny<CancellationToken>()), Times.Never);
 	}
 
 	[Fact]
-	public async Task Handle_WhenFileMissing_UsesStoredReceiptImage()
+	public async Task Handle_WhenNoFileProvided_EnqueuesWithExistingStorageKey()
 	{
 		await using var db = _fixture.CreateContext();
 		var (userId, receiptId) = await SeedDraftReceiptAsync(db);
@@ -144,36 +128,25 @@ public class ExtractReceiptDataHandlerTests
 		orgAuth.Setup(x => x.IsMember(orgId, userId, It.IsAny<CancellationToken>()))
 			.ReturnsAsync(true);
 
-		var extraction = new Mock<IReceiptStructuredExtractionService>();
-		extraction
-			.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), "receipt.png", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-			.ReturnsAsync(new ReceiptStructuredExtractionResult(
-				true,
-				"ATB",
-				199.50m,
-				DateTime.UtcNow.Date,
-				"FN-123",
-				null,
-				"FN-123",
-				"UAH",
-				"Хліб",
-				"{\"fiscalNumber\":\"FN-123\"}",
-				"{\"merchant\":\"ATB\"}",
-				null));
-
+		var ocrQueue = new Mock<IOcrProcessingQueue>();
 		var fileStorage = new Mock<IFileStorage>();
 		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => key);
-		fileStorage.Setup(x => x.OpenReadAsync("uploads/receipt.png", It.IsAny<CancellationToken>()))
-			.ReturnsAsync(new MemoryStream(new byte[] { 1, 2, 3 }));
 
-		var handler = new ExtractReceiptDataHandler(db, orgAuth.Object, extraction.Object, quota.Object, fileStorage.Object);
+		var handler = new ExtractReceiptDataHandler(db, orgAuth.Object, quota.Object, ocrQueue.Object, fileStorage.Object);
 
 		var result = await handler.Handle(
 			new ExtractReceiptDataCommand(userId, receiptId, null, null, orgId),
 			CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
-		fileStorage.Verify(x => x.OpenReadAsync("uploads/receipt.png", It.IsAny<CancellationToken>()), Times.Once);
-		extraction.Verify(x => x.ExtractAsync(It.IsAny<Stream>(), "receipt.png", It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+		Assert.Equal(ReceiptStatus.PendingOcr, result.Payload!.Status);
+
+		// File upload should not be called when no file is provided
+		fileStorage.Verify(x => x.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+
+		// But OCR should still be enqueued since receipt has existing ReceiptImageStorageKey
+		ocrQueue.Verify(q => q.EnqueueAsync(
+			It.Is<OcrWorkItem>(item => item.ReceiptId == receiptId),
+			It.IsAny<CancellationToken>()), Times.Once);
 	}
 }

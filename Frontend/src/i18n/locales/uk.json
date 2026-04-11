@@ -33,7 +33,10 @@
     "roles": "Ролі",
     "actions": "Дії",
     "confirmPassword": "Підтвердження паролю",
-    "leave": "Покинути"
+    "leave": "Покинути",
+    "open": "Відкрити",
+    "na": "Н/д",
+    "home": "Головна"
   },
   "auth": {
     "login": {
@@ -380,7 +383,31 @@
       "attachReceipt": "Прикріпити чек",
       "publishReceipt": "Публікувати",
       "receiptAttachedDraft": "Чек прикріплено (чернетка)",
-      "receiptPublished": "Чек опубліковано!"
+      "receiptPublished": "Чек опубліковано!",
+      "coverPlaceholderTitle": "CampaignImage placeholder",
+      "coverPlaceholderDescription": "Тут з'явиться обкладинка збору після інтеграції з бекендом/медіа сховищем.",
+      "postsPlaceholderTitle": "Пости кампанії (заглушка)",
+      "postsPlaceholder": {
+        "post-1": {
+          "publishedAt": "Сьогодні, 12:30",
+          "title": "Оновлення збору: перша партія переданих товарів",
+          "text": "Тут буде пост із коротким звітом: що закупили, кому передали і який залишок по збору.",
+          "imageHint": "Фото переданого товару (заглушка)"
+        },
+        "post-2": {
+          "publishedAt": "Вчора, 18:10",
+          "title": "Фото-звіт по другій доставці",
+          "text": "Тут буде пост із фото та описом логістики. Блок підготовлений для бекенд-інтеграції стрічки оновлень.",
+          "imageHint": "Campaign post image (заглушка)"
+        }
+      },
+      "publicationActive": "Публічний",
+      "publicationDraft": "Чернетка",
+      "verifiedStatus": "Підтверджено",
+      "statusFallback": "Статус {{status}}",
+      "openFullReceipt": "Відкрити повний чек",
+      "moreReceipts": "Ще {{count}} чек(ів) доступно у повному реєстрі.",
+      "newReceipt": "Новий чек"
     },
     "manualProgress": {
       "title": "Ручне оновлення прогресу",
@@ -391,6 +418,43 @@
       "amountInvalid": "Введіть коректну суму",
       "success": "Прогрес збору оновлено",
       "error": "Не вдалося оновити прогрес збору"
+    },
+    "public": {
+      "errorTitle": "Не вдалося завантажити збір",
+      "errorDescription": "Перевірте посилання або спробуйте пізніше.",
+      "seoTitleWithName": "{{title}}: прогрес, чеки, звіти | ProzoroBanka",
+      "seoTitleFallback": "Збір | ProzoroBanka",
+      "seoDescriptionWithName": "{{title}}. Збір від {{organizationName}} з публічним прогресом та підтвердженими чеками.",
+      "seoDescriptionFallback": "Публічна сторінка благодійного збору з деталями прогресу та витрат.",
+      "topBadge": "Публічний прозорий збір",
+      "descriptionFallback": "Опис збору поки не додано.",
+      "supportCampaign": "Підтримати збір",
+      "kpiCollected": "Зібрано",
+      "kpiGoal": "Мета",
+      "kpiReceipts": "Чеків",
+      "coverPlaceholderTitle": "CampaignImage placeholder",
+      "coverPlaceholderDescription": "Після інтеграції медіа тут буде обкладинка збору.",
+      "updatesTitle": "Оновлення кампанії",
+      "postImagePlaceholder": "Фото-звіт поста (заглушка)",
+      "posts": {
+        "public-post-1": {
+          "publishedAt": "Сьогодні, 10:45",
+          "title": "Оновлення збору: передали першу партію допомоги",
+          "text": "Цей блок буде підключено до бекенду постів. Тут з'являтиметься текстовий апдейт + фото переданого товару."
+        },
+        "public-post-2": {
+          "publishedAt": "Вчора, 19:20",
+          "title": "Проміжний звіт по витратах",
+          "text": "Після інтеграції тут будуть пости з чек-листом витрат, фото-звітами та коментарями команди."
+        }
+      },
+      "receiptsPreviewTitle": "Короткий перегляд чеків",
+      "receiptsEmpty": "Для цього збору ще немає опублікованих чеків.",
+      "receiptMerchantFallback": "Без назви мерчанта",
+      "receiptDateFallback": "Дата не вказана",
+      "fullReceipt": "Повний чек",
+      "moreReceiptsNote": "Ще {{count}} чек(ів) доступно через повні сторінки чеків.",
+      "daysRemaining": "До завершення кампанії: {{count}} днів."
     }
   },
   "team": {
@@ -459,7 +523,33 @@
   "receipts": {
     "title": "Чеки",
     "subtitle": "Завантажуйте чеки для автоматичного звітування",
-    "comingSoonDesc": "Модуль чеків буде доступний після завершення налаштування зборів та команди."
+    "comingSoonDesc": "Модуль чеків буде доступний після завершення налаштування зборів та команди.",
+    "public": {
+      "loading": "Завантаження чека...",
+      "notFoundTitle": "Чек не знайдено",
+      "notFoundDescription": "Чек не знайдено або ще не доступний публічно.",
+      "confirmedBadge": "Підтверджено",
+      "titleFallback": "Публічний перегляд чека",
+      "kpiAmount": "Сума",
+      "kpiDate": "Дата",
+      "kpiAddedBy": "Додав",
+      "organizationLink": "Організація",
+      "goToCampaign": "Перейти до збору",
+      "scanTitle": "Скан чека",
+      "scanAlt": "Скан чека",
+      "itemsTitle": "Товари з чека",
+      "itemsEmpty": "Для цього чека ще немає позицій товарів.",
+      "itemPhotosTitle": "Фото товарів з чека",
+      "itemPhotosEmpty": "Для цього чека ще немає фото товарів.",
+      "itemPhotoAlt": "Фото товару {{index}}",
+      "itemPhotoBound": "Товар: {{item}}",
+      "itemPhotoMissingBinding": "Товар: позицію не знайдено",
+      "itemPhotoNoBinding": "Без прив'язки до позиції",
+      "detailsTitle": "Деталі чека",
+      "receiptIdLabel": "ID чека",
+      "merchantLabel": "Магазин",
+      "taxVerificationLabel": "Перевірка ДПС"
+    }
   },
   "imageCrop": {
     "defaultTitle": "Обрізати зображення",
