@@ -76,7 +76,9 @@ test.describe('Public pages', () => {
     await expect(page).toHaveURL(/\/receipt\//);
     await expect(receiptPublicPage.receiptPage).toBeVisible();
     await expect(receiptPublicPage.image).toBeVisible();
-    await expect(receiptPublicPage.structuredOutput).toBeVisible();
+    await expect(receiptPublicPage.itemsCard).toBeVisible();
+    await expect(receiptPublicPage.photosGrid).toBeVisible();
+    await expect(receiptPublicPage.photoItemDescription).toContainText(/Товар:|Item:/);
   });
 
   test('TC-05: public toolbar is visible across public routes', async ({ homePage, orgPublicPage, campaignPublicPage, receiptPublicPage, publicLayout }) => {
@@ -96,8 +98,8 @@ test.describe('Public pages', () => {
     await expect(publicLayout.toolbar).toBeVisible();
     await expect(receiptPublicPage.receiptPage).toBeVisible();
     await expect(receiptPublicPage.image).toBeVisible();
-    await expect(receiptPublicPage.structuredOutput).toBeVisible();
-    await expect(receiptPublicPage.validationFields).toBeVisible();
+    await expect(receiptPublicPage.itemsCard).toBeVisible();
+    await expect(receiptPublicPage.photosGrid).toBeVisible();
   });
 
   test('TC-06: login page contains link to public pages', async ({ page, loginPage, homePage }) => {

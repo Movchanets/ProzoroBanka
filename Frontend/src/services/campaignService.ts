@@ -13,6 +13,9 @@ import type {
   SetupMonobankWebhookPayload,
   UpdateCampaignBalancePayload,
   UpdateCampaignPayload,
+  CampaignPhoto,
+  ReorderCampaignPhotosPayload,
+  UpdateCampaignPhotoPayload,
 } from '../types';
 
 export const campaignService = {
@@ -87,6 +90,38 @@ export const campaignService = {
   updateBalanceManual: (id: string, payload: UpdateCampaignBalancePayload) =>
     apiFetch<{ message: string }>(`/api/campaigns/${id}/balance/manual`, {
       method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getPhotos: (id: string) =>
+    apiFetch<CampaignPhoto[]>(`/api/campaigns/${id}/photos`),
+
+  addPhoto: (id: string, file: File, description?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (description) {
+      formData.append('description', description);
+    }
+    return apiFetch<CampaignPhoto>(`/api/campaigns/${id}/photos`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  deletePhoto: (id: string, photoId: string) =>
+    apiFetch<void>(`/api/campaigns/${id}/photos/${photoId}`, {
+      method: 'DELETE',
+    }),
+
+  reorderPhotos: (id: string, payload: ReorderCampaignPhotosPayload) =>
+    apiFetch<void>(`/api/campaigns/${id}/photos/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
+  updatePhoto: (id: string, photoId: string, payload: UpdateCampaignPhotoPayload) =>
+    apiFetch<CampaignPhoto>(`/api/campaigns/${id}/photos/${photoId}`, {
+      method: 'PUT',
       body: JSON.stringify(payload),
     }),
 };

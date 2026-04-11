@@ -30,11 +30,13 @@ public class ApplicationDbContext
 	public DbSet<OrganizationStateRegistryCredential> OrganizationStateRegistryCredentials => Set<OrganizationStateRegistryCredential>();
 	public DbSet<Invitation> Invitations => Set<Invitation>();
 	public DbSet<Receipt> Receipts => Set<Receipt>();
+	public DbSet<ReceiptItem> ReceiptItems => Set<ReceiptItem>();
 	public DbSet<ReceiptItemPhoto> ReceiptItemPhotos => Set<ReceiptItemPhoto>();
 	public DbSet<MonobankTransaction> MonobankTransactions => Set<MonobankTransaction>();
 	public DbSet<MatchResult> MatchResults => Set<MatchResult>();
 	public DbSet<Campaign> Campaigns => Set<Campaign>();
 	public DbSet<CampaignTransaction> CampaignTransactions => Set<CampaignTransaction>();
+	public DbSet<CampaignPhoto> CampaignPhotos => Set<CampaignPhoto>();
 	public DbSet<OcrModelConfig> OcrModelConfigs => Set<OcrModelConfig>();
 
 	// ── IApplicationDbContext explicit implementation ──
@@ -45,11 +47,13 @@ public class ApplicationDbContext
 	DbSet<OrganizationStateRegistryCredential> IApplicationDbContext.OrganizationStateRegistryCredentials => OrganizationStateRegistryCredentials;
 	DbSet<Invitation> IApplicationDbContext.Invitations => Invitations;
 	DbSet<Receipt> IApplicationDbContext.Receipts => Receipts;
+	DbSet<ReceiptItem> IApplicationDbContext.ReceiptItems => ReceiptItems;
 	DbSet<ReceiptItemPhoto> IApplicationDbContext.ReceiptItemPhotos => ReceiptItemPhotos;
 	DbSet<MonobankTransaction> IApplicationDbContext.MonobankTransactions => MonobankTransactions;
 	DbSet<MatchResult> IApplicationDbContext.MatchResults => MatchResults;
 	DbSet<Campaign> IApplicationDbContext.Campaigns => Campaigns;
 	DbSet<CampaignTransaction> IApplicationDbContext.CampaignTransactions => CampaignTransactions;
+	DbSet<CampaignPhoto> IApplicationDbContext.CampaignPhotos => CampaignPhotos;
 	DbSet<OcrModelConfig> IApplicationDbContext.OcrModelConfigs => OcrModelConfigs;
 
 	protected override void OnModelCreating(ModelBuilder builder)
@@ -211,6 +215,7 @@ public class ApplicationDbContext
 		{
 			b.ToTable("Receipts");
 			b.HasKey(e => e.Id);
+			b.HasIndex(e => e.OrganizationId);
 			b.HasIndex(e => e.CampaignId);
 			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
 			b.Property(e => e.ReceiptImageStorageKey).HasMaxLength(512);
@@ -234,10 +239,36 @@ public class ApplicationDbContext
 				.HasForeignKey(e => e.CampaignId)
 				.OnDelete(DeleteBehavior.SetNull);
 
+			b.HasOne(e => e.Organization)
+				.WithMany(o => o.Receipts)
+				.HasForeignKey(e => e.OrganizationId)
+				.OnDelete(DeleteBehavior.SetNull);
+
 			b.HasMany(e => e.ItemPhotos)
 				.WithOne(p => p.Receipt)
 				.HasForeignKey(p => p.ReceiptId)
 				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasMany(e => e.Items)
+				.WithOne(i => i.Receipt)
+				.HasForeignKey(i => i.ReceiptId)
+				.OnDelete(DeleteBehavior.Cascade);
+		});
+
+		builder.Entity<ReceiptItem>(b =>
+		{
+			b.ToTable("ReceiptItems");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.Name).HasMaxLength(512).IsRequired();
+			b.Property(e => e.Quantity).HasPrecision(18, 3);
+			b.Property(e => e.UnitPrice).HasPrecision(18, 2);
+			b.Property(e => e.TotalPrice).HasPrecision(18, 2);
+			b.Property(e => e.Barcode).HasMaxLength(128);
+			b.Property(e => e.VatRate).HasPrecision(8, 3);
+			b.Property(e => e.VatAmount).HasPrecision(18, 2);
+			b.HasIndex(e => e.ReceiptId);
+			b.HasIndex(e => new { e.ReceiptId, e.SortOrder });
+			b.HasQueryFilter(e => !e.IsDeleted);
 		});
 
 		builder.Entity<ReceiptItemPhoto>(b =>
@@ -247,7 +278,12 @@ public class ApplicationDbContext
 			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
 			b.Property(e => e.OriginalFileName).HasMaxLength(256).IsRequired();
 			b.HasIndex(e => e.ReceiptId);
+			b.HasIndex(e => e.ReceiptItemId);
 			b.HasIndex(e => new { e.ReceiptId, e.SortOrder });
+			b.HasOne(e => e.ReceiptItem)
+				.WithMany(i => i.Photos)
+				.HasForeignKey(e => e.ReceiptItemId)
+				.OnDelete(DeleteBehavior.SetNull);
 			b.HasQueryFilter(e => !e.IsDeleted);
 		});
 
@@ -341,6 +377,27 @@ public class ApplicationDbContext
 			b.Property(e => e.Source).HasConversion<int>();
 			b.Property(e => e.ProviderPayloadHash).HasMaxLength(128);
 			b.HasQueryFilter(e => !e.IsDeleted);
+		});
+
+		builder.Entity<CampaignPhoto>(b =>
+		{
+			b.ToTable("CampaignPhotos");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
+			b.Property(e => e.OriginalFileName).HasMaxLength(256).IsRequired();
+			b.Property(e => e.Description).HasMaxLength(2000);
+			b.HasIndex(e => new { e.CampaignId, e.SortOrder });
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.Campaign)
+				.WithMany(c => c.Photos)
+				.HasForeignKey(e => e.CampaignId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasOne(e => e.CreatedBy)
+				.WithMany()
+				.HasForeignKey(e => e.CreatedByUserId)
+				.OnDelete(DeleteBehavior.Restrict);
 		});
 	}
 

@@ -9,6 +9,6 @@ public class ExtractReceiptDataValidator : AbstractValidator<ExtractReceiptDataC
 		RuleFor(x => x.CallerDomainUserId).NotEmpty();
 		RuleFor(x => x.ReceiptId).NotEmpty();
 		RuleFor(x => x.OrganizationId).NotEmpty();
-		RuleFor(x => x.FileName).NotEmpty().MaximumLength(256);
+		RuleFor(x => x.FileName).MaximumLength(256);
 	}
 }

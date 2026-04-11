@@ -8,6 +8,7 @@ namespace ProzoroBanka.Domain.Entities;
 public class Receipt : BaseEntity
 {
     public Guid UserId { get; set; }
+    public Guid? OrganizationId { get; set; }
     public Guid? CampaignId { get; set; }
 
     /// <summary>
@@ -52,6 +53,8 @@ public class Receipt : BaseEntity
 
     // ── Navigation ──
     public User User { get; set; } = null!;
+    public Organization? Organization { get; set; }
     public Campaign? Campaign { get; set; }
+    public ICollection<ReceiptItem> Items { get; set; } = new List<ReceiptItem>();
     public ICollection<ReceiptItemPhoto> ItemPhotos { get; set; } = new List<ReceiptItemPhoto>();
 }

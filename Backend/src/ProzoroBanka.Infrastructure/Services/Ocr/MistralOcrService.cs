@@ -12,6 +12,7 @@ namespace ProzoroBanka.Infrastructure.Services.Ocr;
 /// </summary>
 public class MistralOcrService : IOcrService
 {
+	private static readonly SemaphoreSlim _concurrencyLimiter = new(2, 2);
 	private readonly HttpClient _httpClient;
 	private readonly ILogger<MistralOcrService> _logger;
 
@@ -26,6 +27,8 @@ public class MistralOcrService : IOcrService
 	public async Task<OcrResult> ParseReceiptAsync(Stream imageStream, string fileName, string? modelIdentifier = null, CancellationToken ct = default)
 	{
 		var model = !string.IsNullOrWhiteSpace(modelIdentifier) ? modelIdentifier : "mistral-ocr-latest";
+
+		await _concurrencyLimiter.WaitAsync(ct);
 		try
 		{
 			_logger.LogInformation("Mistral OCR: parsing receipt {FileName} with model {Model}", fileName, model);
@@ -85,6 +88,10 @@ public class MistralOcrService : IOcrService
 		{
 			_logger.LogError(ex, "Mistral OCR failed for {FileName}", fileName);
 			return Failure(ex.Message);
+		}
+		finally
+		{
+			_concurrencyLimiter.Release();
 		}
 	}
 

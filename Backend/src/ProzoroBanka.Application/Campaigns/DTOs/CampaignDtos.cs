@@ -78,3 +78,20 @@ public record CampaignTransactionDto(
 	DateTime TransactionTimeUtc,
 	string Source,
 	DateTime CreatedAt);
+
+public record CampaignPhotoDto(
+	Guid Id,
+	string PhotoUrl,
+	string OriginalFileName,
+	string? Description,
+	int SortOrder,
+	DateTime CreatedAt);
+
+public record AddCampaignPhotosRequest(
+	List<string>? Descriptions);
+
+public record ReorderCampaignPhotosRequest(
+	List<Guid> PhotoIds);
+
+public record UpdateCampaignPhotoRequest(
+	string? Description);

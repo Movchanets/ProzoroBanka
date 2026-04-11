@@ -41,6 +41,20 @@ public class GetMyReceiptHandler : IRequestHandler<GetMyReceiptQuery, ServiceRes
 				r.ReceiptCode,
 				r.Currency,
 				r.PurchasedItemName,
+				r.Items
+					.Where(item => !item.IsDeleted)
+					.OrderBy(item => item.SortOrder)
+					.Select(item => new ReceiptItemDto(
+						item.Id,
+						item.Name,
+						item.Quantity,
+						item.UnitPrice,
+						item.TotalPrice,
+						item.Barcode,
+						item.VatRate,
+						item.VatAmount,
+						item.SortOrder))
+					.ToList(),
 				r.ItemPhotos
 					.Where(photo => !photo.IsDeleted)
 					.OrderBy(photo => photo.SortOrder)
@@ -48,11 +62,12 @@ public class GetMyReceiptHandler : IRequestHandler<GetMyReceiptQuery, ServiceRes
 						photo.Id,
 						photo.OriginalFileName,
 						StorageUrlResolver.Resolve(_fileStorage, photo.StorageKey) ?? string.Empty,
-						photo.SortOrder))
+						photo.SortOrder,
+						photo.ReceiptItemId))
 					.ToList(),
 				r.OcrStructuredPayloadJson,
 				r.RawOcrJson,
-				null,
+				r.StateVerificationReference,
 				false))
 			.FirstOrDefaultAsync(ct);
 

@@ -98,6 +98,81 @@ public class PublicEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		Assert.Equal(HttpStatusCode.NotFound, receiptResponse.StatusCode);
 	}
 
+	[Fact]
+	public async Task PublicReceipt_ReturnsItemsAndItemPhotos_ForVerifiedActiveReceipt()
+	{
+		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync($"Receipt DTO Org {Guid.NewGuid():N}");
+		var org = await GetOrganizationAsync(orgId);
+		var campaignId = await CreateCampaignAsync(orgId, $"Receipt DTO Campaign {Guid.NewGuid():N}");
+		await ActivateCampaignAsync(campaignId);
+
+		Guid receiptId;
+		Guid itemId;
+		using (var scope = _factory.Services.CreateScope())
+		{
+			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			var ownerUserId = org.GetProperty("ownerUserId").GetGuid();
+
+			var receipt = new Receipt
+			{
+				Id = Guid.NewGuid(),
+				UserId = ownerUserId,
+				OrganizationId = orgId,
+				CampaignId = campaignId,
+				StorageKey = "public-receipt.png",
+				OriginalFileName = "public-receipt.png",
+				MerchantName = "Фудком",
+				TotalAmount = 34040,
+				Status = ReceiptStatus.StateVerified,
+				PublicationStatus = ReceiptPublicationStatus.Active,
+			};
+
+			var item = new ReceiptItem
+			{
+				Id = Guid.NewGuid(),
+				ReceiptId = receipt.Id,
+				Name = "Сир",
+				Quantity = 1,
+				UnitPrice = 12000,
+				TotalPrice = 12000,
+				SortOrder = 0,
+			};
+
+			var itemPhoto = new ReceiptItemPhoto
+			{
+				Id = Guid.NewGuid(),
+				ReceiptId = receipt.Id,
+				ReceiptItemId = item.Id,
+				StorageKey = "public-item-photo.png",
+				OriginalFileName = "public-item-photo.png",
+				SortOrder = 0,
+			};
+
+			receiptId = receipt.Id;
+			itemId = item.Id;
+
+			db.Receipts.Add(receipt);
+			db.ReceiptItems.Add(item);
+			db.ReceiptItemPhotos.Add(itemPhoto);
+			await db.SaveChangesAsync();
+		}
+
+		_client.DefaultRequestHeaders.Authorization = null;
+
+		var response = await _client.GetAsync($"/api/public/receipts/{receiptId}");
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+		var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+		var items = payload.GetProperty("items");
+		var itemPhotos = payload.GetProperty("itemPhotos");
+
+		Assert.True(items.GetArrayLength() > 0);
+		Assert.True(itemPhotos.GetArrayLength() > 0);
+		Assert.Contains(items.EnumerateArray(), i => i.GetProperty("id").GetGuid() == itemId);
+		Assert.Contains(itemPhotos.EnumerateArray(), p => p.GetProperty("receiptItemId").GetGuid() == itemId);
+	}
+
 	private async Task AuthenticateAsAdminAsync()
 	{
 		var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new

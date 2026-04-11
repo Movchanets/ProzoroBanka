@@ -65,6 +65,14 @@ public class LocalFileStorage : IFileStorage
 		return $"{_settings.RequestPath}/{normalizedStorageKey}";
 	}
 
+	public Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken = default)
+	{
+		var normalizedStorageKey = StoragePublicUrlBuilder.NormalizeStorageKey(storageKey);
+		var fullPath = Path.Combine(_settings.BasePath, normalizedStorageKey.Replace('/', Path.DirectorySeparatorChar));
+		Stream stream = File.OpenRead(fullPath);
+		return Task.FromResult(stream);
+	}
+
 	public Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default)
 	{
 		var fullPath = Path.Combine(_settings.BasePath, storageKey.Replace('/', Path.DirectorySeparatorChar));

@@ -160,3 +160,50 @@ export function useAttachReceiptToCampaign(orgId: string) {
     },
   });
 }
+
+export function useCampaignPhotos(campaignId: string | null | undefined) {
+  return useQuery({
+    queryKey: [...campaignKeys.detail(campaignId!), 'photos'],
+    queryFn: () => campaignService.getPhotos(campaignId!),
+    enabled: !!campaignId,
+  });
+}
+
+export function useAddCampaignPhoto(campaignId: string) {
+  return useMutation({
+    mutationFn: ({ file, description }: { file: File; description?: string }) =>
+      campaignService.addPhoto(campaignId, file, description),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...campaignKeys.detail(campaignId), 'photos'] });
+    },
+  });
+}
+
+export function useDeleteCampaignPhoto(campaignId: string) {
+  return useMutation({
+    mutationFn: (photoId: string) => campaignService.deletePhoto(campaignId, photoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...campaignKeys.detail(campaignId), 'photos'] });
+    },
+  });
+}
+
+export function useReorderCampaignPhotos(campaignId: string) {
+  return useMutation({
+    mutationFn: (payload: { photoIds: string[] }) =>
+      campaignService.reorderPhotos(campaignId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...campaignKeys.detail(campaignId), 'photos'] });
+    },
+  });
+}
+
+export function useUpdateCampaignPhoto(campaignId: string) {
+  return useMutation({
+    mutationFn: ({ photoId, payload }: { photoId: string; payload: { description?: string } }) =>
+      campaignService.updatePhoto(campaignId, photoId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...campaignKeys.detail(campaignId), 'photos'] });
+    },
+  });
+}

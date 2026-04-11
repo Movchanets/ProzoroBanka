@@ -1,7 +1,7 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Application.Receipts.Common;
 using ProzoroBanka.Application.Receipts.DTOs;
 using ProzoroBanka.Domain.Enums;
 
@@ -11,29 +11,27 @@ public class ExtractReceiptDataHandler : IRequestHandler<ExtractReceiptDataComma
 {
 	private readonly IApplicationDbContext _db;
 	private readonly IOrganizationAuthorizationService _orgAuth;
-	private readonly IReceiptStructuredExtractionService _extractionService;
 	private readonly IOcrMonthlyQuotaService _ocrQuotaService;
+	private readonly IOcrProcessingQueue _ocrQueue;
 	private readonly IFileStorage _fileStorage;
 
 	public ExtractReceiptDataHandler(
 		IApplicationDbContext db,
 		IOrganizationAuthorizationService orgAuth,
-		IReceiptStructuredExtractionService extractionService,
 		IOcrMonthlyQuotaService ocrQuotaService,
+		IOcrProcessingQueue ocrQueue,
 		IFileStorage fileStorage)
 	{
 		_db = db;
 		_orgAuth = orgAuth;
-		_extractionService = extractionService;
 		_ocrQuotaService = ocrQuotaService;
+		_ocrQueue = ocrQueue;
 		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(ExtractReceiptDataCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.Receipts
-			.Include(r => r.ItemPhotos)
-			.FirstOrDefaultAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
+		var receipt = await _db.FindOwnedWithPipelineGraphAsync(request.ReceiptId, request.CallerDomainUserId, ct);
 		if (receipt is null)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
 
@@ -51,59 +49,41 @@ public class ExtractReceiptDataHandler : IRequestHandler<ExtractReceiptDataComma
 			return ServiceResponse<ReceiptPipelineDto>.Failure(receipt.VerificationFailureReason);
 		}
 
-		request.FileStream.Position = 0;
-		var extraction = await _extractionService.ExtractAsync(request.FileStream, request.FileName, request.ModelIdentifier, ct);
-		var normalizedPurchaseDateUtc = NormalizeToUtc(extraction.PurchaseDateUtc);
-		var normalizedTotalAmount = NormalizeToKopecks(extraction.TotalAmount);
-
-		receipt.MerchantName = extraction.MerchantName;
-		receipt.TotalAmount = normalizedTotalAmount;
-		receipt.PurchaseDateUtc = normalizedPurchaseDateUtc;
-		receipt.TransactionDate = normalizedPurchaseDateUtc;
-		receipt.FiscalNumber = extraction.FiscalRegisterNumber ?? extraction.FiscalNumber;
-		receipt.ReceiptCode = extraction.ReceiptCode;
-		receipt.Currency = extraction.Currency;
-		receipt.PurchasedItemName = extraction.PurchasedItemName;
-		receipt.OcrStructuredPayloadJson = extraction.StructuredPayloadJson;
-		receipt.RawOcrJson = extraction.RawPayloadJson;
-		receipt.OcrExtractedAtUtc = DateTime.UtcNow;
-		receipt.ParsedByModel = extraction.UsedModel;
-
-		if (extraction.Success)
+		// If a new file was provided in the request, upload it to storage first
+		if (request.FileStream is not null)
 		{
-			receipt.Status = ReceiptStatus.OcrExtracted;
-			receipt.VerificationFailureReason = null;
-		}
-		else
-		{
-			receipt.Status = ReceiptStatus.InvalidData;
-			receipt.VerificationFailureReason = extraction.ErrorMessage ?? "Не вдалося витягнути дані з чека";
+			var fileName = request.FileName ?? "receipt.webp";
+			var contentType = GetContentType(fileName);
+			var storageKey = await _fileStorage.UploadAsync(request.FileStream, fileName, contentType, ct);
+			receipt.ReceiptImageStorageKey = storageKey;
+			receipt.OriginalFileName ??= fileName;
 		}
 
+		// Validate that there's a file to process
+		if (string.IsNullOrWhiteSpace(receipt.ReceiptImageStorageKey) && string.IsNullOrWhiteSpace(receipt.StorageKey))
+			return ServiceResponse<ReceiptPipelineDto>.Failure("Для OCR потрібен файл чека");
+
+		// Set status to PendingOcr and enqueue for background processing
+		receipt.Status = ReceiptStatus.PendingOcr;
+		receipt.VerificationFailureReason = null;
 		await _db.SaveChangesAsync(ct);
+
+		await _ocrQueue.EnqueueAsync(new OcrWorkItem(
+			receipt.Id,
+			request.OrganizationId,
+			request.CallerDomainUserId,
+			request.ModelIdentifier), ct);
 
 		return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));
 	}
 
-	private static DateTime? NormalizeToUtc(DateTime? value)
-	{
-		if (!value.HasValue)
-			return null;
-
-		var dateTime = value.Value;
-		return dateTime.Kind switch
+	private static string GetContentType(string fileName) =>
+		Path.GetExtension(fileName).ToLowerInvariant() switch
 		{
-			DateTimeKind.Utc => dateTime,
-			DateTimeKind.Local => dateTime.ToUniversalTime(),
-			_ => DateTime.SpecifyKind(dateTime, DateTimeKind.Utc)
+			".jpg" or ".jpeg" => "image/jpeg",
+			".png" => "image/png",
+			".webp" => "image/webp",
+			".pdf" => "application/pdf",
+			_ => "application/octet-stream"
 		};
-	}
-
-	private static decimal? NormalizeToKopecks(decimal? value)
-	{
-		if (!value.HasValue)
-			return null;
-
-		return Math.Round(value.Value * 100m, 0, MidpointRounding.AwayFromZero);
-	}
 }

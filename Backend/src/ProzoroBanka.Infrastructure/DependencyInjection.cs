@@ -34,7 +34,11 @@ public static class DependencyInjection
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(
                 configuration.GetConnectionString("DefaultConnection"),
-                b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+                b =>
+                {
+                    b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
+                    b.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+                }));
 
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -87,6 +91,8 @@ public static class DependencyInjection
         {
             services.AddScoped<IReceiptStructuredExtractionService, ReceiptStructuredExtractionService>();
         }
+
+        services.AddScoped<IReceiptTaxXmlParser, ReceiptTaxXmlParser>();
 
         services.AddOptions<StateValidatorOptions>()
             .Bind(configuration.GetSection(StateValidatorOptions.SectionName))

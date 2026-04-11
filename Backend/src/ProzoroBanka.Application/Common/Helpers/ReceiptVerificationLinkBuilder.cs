@@ -33,22 +33,12 @@ public static class ReceiptVerificationLinkBuilder
 			return false;
 		}
 
-		var normalizedDate = NormalizeReceiptDate(txDate!.Value);
-		var date = normalizedDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
-		var time = normalizedDate.ToString("HHmmss", CultureInfo.InvariantCulture);
+		var date = txDate!.Value.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+		var time = txDate.Value.ToString("HHmmss", CultureInfo.InvariantCulture);
 		var totalAmount = (sum!.Value / 100m).ToString("0.00", CultureInfo.InvariantCulture);
 
 		url = $"{TaxCabinetBaseUrl}?date={Uri.EscapeDataString(date)}&time={Uri.EscapeDataString(time)}&id={Uri.EscapeDataString(receiptCode!)}&sm={Uri.EscapeDataString(totalAmount)}&fn={Uri.EscapeDataString(fn!)}";
 		return true;
 	}
 
-	private static DateTime NormalizeReceiptDate(DateTime dateTime)
-	{
-		return dateTime.Kind switch
-		{
-			DateTimeKind.Utc => dateTime,
-			DateTimeKind.Local => dateTime.ToUniversalTime(),
-			_ => DateTime.SpecifyKind(dateTime, DateTimeKind.Utc)
-		};
-	}
 }

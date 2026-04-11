@@ -155,4 +155,24 @@ test.describe('Dashboard — Campaigns Management', () => {
     await expect(campaignPublicPage.documentedProgress).toBeVisible();
     await expect(campaignPublicPage.documentedAmount).toBeVisible();
   });
+
+  test('TC-07: Owner can delete campaign from campaigns list', async ({ campaignsListPage, campaignApi, campaignSeed }) => {
+    test.info().annotations.push({
+      type: 'description',
+      description: 'Verifies delete action is enabled for owner and campaign can be removed from list via confirmation dialog.',
+    });
+
+    const campaign = await campaignApi.createCampaign(campaignSeed.orgId, {
+      title: `Delete Campaign ${Date.now()}`,
+      goalAmount: 30_000,
+    });
+
+    await campaignsListPage.goto(campaignSeed.orgId);
+    await expect(campaignsListPage.pageContainer).toBeVisible();
+    await expect(campaignsListPage.getDeleteButton(campaign.id)).toBeEnabled();
+
+    await campaignsListPage.deleteCampaignAndConfirm(campaign.id);
+
+    await expect(campaignsListPage.getCampaignCard(campaign.id)).toHaveCount(0);
+  });
 });

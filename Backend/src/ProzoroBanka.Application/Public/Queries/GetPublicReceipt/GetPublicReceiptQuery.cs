@@ -27,46 +27,53 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 	{
 		var receipt = await _db.Receipts
 			.AsNoTracking()
+			.Include(r => r.User)
+			.Include(r => r.Campaign)
+				.ThenInclude(c => c!.Organization)
+			.Include(r => r.Items)
+			.Include(r => r.ItemPhotos)
 			.Where(r => r.Id == request.ReceiptId
 				&& r.Status == ReceiptStatus.StateVerified
 				&& r.PublicationStatus == ReceiptPublicationStatus.Active)
-			.Select(r => new
-			{
-				r.Id,
-				r.MerchantName,
-				r.TotalAmount,
-				r.TransactionDate,
-				r.PurchaseDateUtc,
-				r.Status,
-				r.StorageKey,
-				r.OcrStructuredPayloadJson,
-				r.FiscalNumber,
-				r.ReceiptCode,
-				r.StateVerificationReference,
-				AddedByName = r.User.FirstName + " " + r.User.LastName,
-				r.CampaignId,
-				CampaignTitle = r.Campaign != null ? r.Campaign.Title : null,
-				OrganizationName = r.Campaign != null ? r.Campaign.Organization.Name : null,
-				OrganizationSlug = r.Campaign != null ? r.Campaign.Organization.Slug : null
-			})
 			.FirstOrDefaultAsync(cancellationToken);
 
 		if (receipt is null)
 			return ServiceResponse<PublicReceiptDetailDto>.Failure("Чек не знайдено");
 
-		var verificationUrl = ReceiptVerificationLinkBuilder.TryBuildTaxCabinetLink(new Domain.Entities.Receipt
-		{
-			PurchaseDateUtc = receipt.PurchaseDateUtc,
-			TransactionDate = receipt.TransactionDate,
-			FiscalNumber = receipt.FiscalNumber,
-			ReceiptCode = receipt.ReceiptCode,
-			TotalAmount = receipt.TotalAmount,
-			StateVerificationReference = receipt.StateVerificationReference
-		}, out var generatedVerificationUrl, out _)
+		var verificationUrl = ReceiptVerificationLinkBuilder.TryBuildTaxCabinetLink(receipt, out var generatedVerificationUrl, out _)
 			? generatedVerificationUrl
 			: receipt.StateVerificationReference;
 
 		var isConfirmed = receipt.Status == ReceiptStatus.StateVerified && !string.IsNullOrWhiteSpace(verificationUrl);
+
+		var addedByName = string.Join(" ", new[] { receipt.User.FirstName, receipt.User.LastName }
+			.Where(name => !string.IsNullOrWhiteSpace(name))).Trim();
+
+		var items = receipt.Items
+			.Where(item => !item.IsDeleted)
+			.OrderBy(item => item.SortOrder)
+			.Select(item => new PublicReceiptItemDto(
+				item.Id,
+				item.Name,
+				item.Quantity,
+				item.UnitPrice,
+				item.TotalPrice,
+				item.Barcode,
+				item.VatRate,
+				item.VatAmount,
+				item.SortOrder))
+			.ToList();
+
+		var itemPhotos = receipt.ItemPhotos
+			.Where(photo => !photo.IsDeleted)
+			.OrderBy(photo => photo.SortOrder)
+			.Select(photo => new PublicReceiptItemPhotoDto(
+				photo.Id,
+				photo.ReceiptItemId,
+				photo.OriginalFileName,
+				StorageUrlResolver.Resolve(_fileStorage, photo.StorageKey) ?? string.Empty,
+				photo.SortOrder))
+			.ToList();
 
 		return ServiceResponse<PublicReceiptDetailDto>.Success(new PublicReceiptDetailDto(
 			receipt.Id,
@@ -76,11 +83,13 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 			receipt.Status.ToString(),
 			StorageUrlResolver.Resolve(_fileStorage, receipt.StorageKey) ?? string.Empty,
 			receipt.OcrStructuredPayloadJson,
-			receipt.AddedByName,
+			items,
+			itemPhotos,
+			string.IsNullOrWhiteSpace(addedByName) ? null : addedByName,
 			receipt.CampaignId,
-			receipt.CampaignTitle,
-			receipt.OrganizationName,
-			receipt.OrganizationSlug,
+			receipt.Campaign?.Title,
+			receipt.Campaign?.Organization?.Name,
+			receipt.Campaign?.Organization?.Slug,
 			verificationUrl,
 			isConfirmed));
 	}

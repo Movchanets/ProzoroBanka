@@ -9,6 +9,8 @@ namespace ProzoroBanka.Infrastructure.Services.Receipts;
 
 public class RegistryCredentialService : IRegistryCredentialService
 {
+	private const RegistryProvider CanonicalProvider = RegistryProvider.TaxService;
+
 	private readonly ApplicationDbContext _db;
 	private readonly ITokenEncryptionService _encryption;
 
@@ -23,8 +25,14 @@ public class RegistryCredentialService : IRegistryCredentialService
 		if (string.IsNullOrWhiteSpace(rawApiKey))
 			return ServiceResponse.Failure("API ключ не може бути порожнім");
 
-		var credential = await _db.OrganizationStateRegistryCredentials
-			.FirstOrDefaultAsync(x => x.OrganizationId == organizationId && x.Provider == provider, ct);
+		var credentials = await _db.OrganizationStateRegistryCredentials
+			.Where(x => x.OrganizationId == organizationId
+				&& !x.IsDeleted
+				&& (x.Provider == CanonicalProvider || x.Provider == provider))
+			.ToListAsync(ct);
+
+		var credential = credentials.FirstOrDefault(x => x.Provider == CanonicalProvider)
+			?? credentials.FirstOrDefault(x => x.Provider == provider);
 
 		if (credential is null)
 		{
@@ -32,7 +40,7 @@ public class RegistryCredentialService : IRegistryCredentialService
 			{
 				OrganizationId = organizationId,
 				CreatedByUserId = actorUserId,
-				Provider = provider,
+				Provider = CanonicalProvider,
 				EncryptedApiKey = _encryption.Encrypt(rawApiKey.Trim()),
 				KeyFingerprint = BuildFingerprint(rawApiKey),
 				IsActive = true,
@@ -43,10 +51,17 @@ public class RegistryCredentialService : IRegistryCredentialService
 		}
 		else
 		{
+			credential.Provider = CanonicalProvider;
 			credential.EncryptedApiKey = _encryption.Encrypt(rawApiKey.Trim());
 			credential.KeyFingerprint = BuildFingerprint(rawApiKey);
 			credential.IsActive = true;
 			credential.BlockedUntilUtc = null;
+		}
+
+		foreach (var duplicate in credentials.Where(x => x.Id != credential.Id))
+		{
+			duplicate.IsDeleted = true;
+			duplicate.IsActive = false;
 		}
 
 		await _db.SaveChangesAsync(ct);
@@ -55,13 +70,21 @@ public class RegistryCredentialService : IRegistryCredentialService
 
 	public async Task<ServiceResponse> DeleteOrganizationKeyAsync(Guid organizationId, Guid actorUserId, RegistryProvider provider, CancellationToken ct)
 	{
-		var credential = await _db.OrganizationStateRegistryCredentials
-			.FirstOrDefaultAsync(x => x.OrganizationId == organizationId && x.Provider == provider, ct);
-		if (credential is null)
+		var credentials = await _db.OrganizationStateRegistryCredentials
+			.Where(x => x.OrganizationId == organizationId
+				&& !x.IsDeleted
+				&& (x.Provider == CanonicalProvider || x.Provider == provider))
+			.ToListAsync(ct);
+
+		if (credentials.Count == 0)
 			return ServiceResponse.Failure("Ключ не знайдено");
 
-		credential.IsDeleted = true;
-		credential.IsActive = false;
+		foreach (var credential in credentials)
+		{
+			credential.IsDeleted = true;
+			credential.IsActive = false;
+		}
+
 		await _db.SaveChangesAsync(ct);
 		return ServiceResponse.Success("Ключ видалено");
 	}
@@ -70,10 +93,20 @@ public class RegistryCredentialService : IRegistryCredentialService
 	{
 		var exists = await _db.OrganizationStateRegistryCredentials
 			.AnyAsync(x => x.OrganizationId == organizationId
-				&& x.Provider == provider
+				&& x.Provider == CanonicalProvider
 				&& x.IsActive
 				&& !x.IsDeleted,
 				ct);
+
+		if (!exists && provider != CanonicalProvider)
+		{
+			exists = await _db.OrganizationStateRegistryCredentials
+				.AnyAsync(x => x.OrganizationId == organizationId
+					&& x.Provider == provider
+					&& x.IsActive
+					&& !x.IsDeleted,
+					ct);
+		}
 
 		return ServiceResponse<bool>.Success(exists);
 	}
@@ -81,7 +114,21 @@ public class RegistryCredentialService : IRegistryCredentialService
 	public async Task<ServiceResponse<string>> DecryptApiKeyAsync(Guid organizationId, RegistryProvider provider, CancellationToken ct)
 	{
 		var credential = await _db.OrganizationStateRegistryCredentials
-			.FirstOrDefaultAsync(x => x.OrganizationId == organizationId && x.Provider == provider && x.IsActive, ct);
+			.FirstOrDefaultAsync(x => x.OrganizationId == organizationId
+				&& x.Provider == CanonicalProvider
+				&& x.IsActive
+				&& !x.IsDeleted,
+				ct);
+
+		if (credential is null && provider != CanonicalProvider)
+		{
+			credential = await _db.OrganizationStateRegistryCredentials
+				.FirstOrDefaultAsync(x => x.OrganizationId == organizationId
+					&& x.Provider == provider
+					&& x.IsActive
+					&& !x.IsDeleted,
+					ct);
+		}
 
 		if (credential is null)
 			return ServiceResponse<string>.Failure("Активний ключ не знайдено");

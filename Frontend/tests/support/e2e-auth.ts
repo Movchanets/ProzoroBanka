@@ -6,6 +6,16 @@ export const E2E_API_BASE_URL = process.env.E2E_API_URL ?? 'http://localhost:518
 export const E2E_TURNSTILE_TEST_TOKEN = process.env.E2E_TURNSTILE_TOKEN ?? 'XXXX.DUMMY.TOKEN.XXXX';
 export const E2E_DEFAULT_PASSWORD = 'Qwerty-1';
 
+const RETRYABLE_HTTP_STATUS = new Set([500, 502, 503, 504]);
+
+function isRetryableStatus(status: number) {
+  return RETRYABLE_HTTP_STATUS.has(status);
+}
+
+async function delay(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -81,19 +91,33 @@ export async function loginViaApi(
   email: string,
   password: string,
 ): Promise<AuthResponse> {
-  const response = await request.post(`${E2E_API_BASE_URL}/api/auth/login`, {
-    data: {
-      email,
-      password,
-      turnstileToken: E2E_TURNSTILE_TEST_TOKEN,
-    },
-  });
+  let lastError = '';
 
-  if (!response.ok()) {
-    throw new Error(`Failed to login user ${email}: ${response.status()} ${await response.text()}`);
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const response = await request.post(`${E2E_API_BASE_URL}/api/auth/login`, {
+      data: {
+        email,
+        password,
+        turnstileToken: E2E_TURNSTILE_TEST_TOKEN,
+      },
+    });
+
+    if (response.ok()) {
+      return (await response.json()) as AuthResponse;
+    }
+
+    const status = response.status();
+    const body = await response.text();
+    lastError = `Failed to login user ${email}: ${status} ${body}`;
+
+    if (!isRetryableStatus(status) || attempt === 3) {
+      break;
+    }
+
+    await delay(500 * attempt);
   }
 
-  return (await response.json()) as AuthResponse;
+  throw new Error(lastError);
 }
 
 export async function setAuthStorage(page: Page, auth: AuthResponse): Promise<void> {
@@ -129,23 +153,37 @@ export async function createOrganizationViaApi(
   accessToken: string,
   name: string,
 ): Promise<string> {
-  const response = await request.post(`${E2E_API_BASE_URL}/api/organizations`, {
-    data: {
-      name,
-      slug: name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-'),
-    },
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  let lastError = '';
 
-  if (!response.ok()) {
-    throw new Error(`Failed to create organization: ${response.status()} ${await response.text()}`);
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const response = await request.post(`${E2E_API_BASE_URL}/api/organizations`, {
+      data: {
+        name,
+        slug: name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-'),
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.ok()) {
+      const org = (await response.json()) as { id: string };
+      return org.id;
+    }
+
+    const status = response.status();
+    const body = await response.text();
+    lastError = `Failed to create organization: ${status} ${body}`;
+
+    if (!isRetryableStatus(status) || attempt === 3) {
+      break;
+    }
+
+    await delay(500 * attempt);
   }
 
-  const org = (await response.json()) as { id: string };
-  return org.id;
+  throw new Error(lastError);
 }
 
 export async function createInviteLinkViaApi(

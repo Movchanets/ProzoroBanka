@@ -82,6 +82,28 @@ const receiptDetailPayload = {
       { name: 'Тепловізійний модуль', quantity: 1, price: 54000 },
     ],
   }),
+  items: [
+    {
+      id: 'ri-1',
+      name: 'Тепловізійний модуль',
+      quantity: 1,
+      unitPrice: 54000,
+      totalPrice: 54000,
+      barcode: '482000000001',
+      vatRate: 20,
+      vatAmount: 9000,
+      sortOrder: 0,
+    },
+  ],
+  itemPhotos: [
+    {
+      id: 'rip-1',
+      receiptItemId: 'ri-1',
+      originalFileName: 'thermal-module.jpg',
+      photoUrl: 'https://cdn.example.com/item-photo-r1.jpg',
+      sortOrder: 0,
+    },
+  ],
   addedByName: 'Ірина Коваль',
   campaignId: 'camp-1',
   campaignTitle: 'Тепловізори для евакуаційної бригади',

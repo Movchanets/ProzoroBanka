@@ -6,9 +6,11 @@ namespace ProzoroBanka.Domain.Entities;
 public class ReceiptItemPhoto : BaseEntity
 {
     public Guid ReceiptId { get; set; }
+    public Guid? ReceiptItemId { get; set; }
     public string StorageKey { get; set; } = string.Empty;
     public string OriginalFileName { get; set; } = string.Empty;
     public int SortOrder { get; set; }
 
     public Receipt Receipt { get; set; } = null!;
+    public ReceiptItem? ReceiptItem { get; set; }
 }

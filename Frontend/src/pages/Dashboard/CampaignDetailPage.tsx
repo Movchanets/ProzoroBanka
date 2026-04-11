@@ -22,8 +22,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
-import { ArrowLeft, Calendar, Edit2, Megaphone, ReceiptText, HandCoins, Clock3, Handshake, Loader2, Plus } from 'lucide-react';
+import { ArrowLeft, Calendar, Edit2, Megaphone, ReceiptText, HandCoins, Clock3, Handshake, Loader2, Plus, ImageIcon, Eye } from 'lucide-react';
 import { SelectReceiptDialog } from './SelectReceiptDialog';
+import { CampaignPhotoGallery } from './CampaignPhotoGallery';
 import { toast } from 'sonner';
 
 const statusColor: Record<number, string> = {
@@ -33,8 +34,18 @@ const statusColor: Record<number, string> = {
   3: 'bg-secondary/15 text-secondary',
 };
 
+
+function formatCampaignMoney(value: number, locale: string) {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'UAH',
+    maximumFractionDigits: 2,
+  }).format(value / 100);
+}
+
 export default function CampaignDetailPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US';
   const { orgId, campaignId } = useParams<{ orgId: string; campaignId: string }>();
   const navigate = useNavigate();
   const { data: campaign, isLoading } = useCampaign(campaignId);
@@ -102,6 +113,8 @@ export default function CampaignDetailPage() {
   };
 
   const currentCount = attachedReceipts.length || campaign.receiptCount || 0;
+  const previewReceipts = attachedReceipts.slice(0, 3);
+  const hiddenReceiptsCount = Math.max(0, attachedReceipts.length - previewReceipts.length);
   const hasNextTransactionsPage = (transactions?.length ?? 0) === transactionsPageSize;
 
   const handleManualProgressUpdate = async () => {
@@ -161,6 +174,20 @@ export default function CampaignDetailPage() {
                 />
               </div>
             )}
+            {!campaign.coverImageUrl && (
+              <div className="relative h-64 w-full overflow-hidden bg-linear-to-br from-primary/15 via-accent/10 to-secondary/10" data-testid="campaign-detail-image-placeholder">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,hsl(var(--primary)/0.25),transparent_48%),radial-gradient(circle_at_80%_25%,hsl(var(--secondary)/0.2),transparent_42%)]" />
+                <div className="relative flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+                  <div className="rounded-full border border-border/70 bg-card/80 p-3">
+                    <ImageIcon className="h-8 w-8 text-primary" />
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">{t('campaigns.detail.coverPlaceholderTitle')}</p>
+                  <p className="max-w-md text-xs text-muted-foreground">
+                    {t('campaigns.detail.coverPlaceholderDescription')}
+                  </p>
+                </div>
+              </div>
+            )}
             <CardHeader className="space-y-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <CardTitle className="text-2xl font-bold break-all" data-testid="campaign-detail-title">{campaign.title}</CardTitle>
@@ -197,12 +224,14 @@ export default function CampaignDetailPage() {
                 {campaign.deadline && (
                   <div className="flex items-center gap-1.5">
                     <Calendar className="h-4 w-4" />
-                    {t('campaigns.deadlinePrefix')} {new Date(campaign.deadline).toLocaleDateString('uk-UA')}
+                    {t('campaigns.deadlinePrefix')} {new Date(campaign.deadline).toLocaleDateString(locale)}
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
+
+          <CampaignPhotoGallery campaignId={campaignId!} />
         </div>
 
         {/* Sidebar / Receipts */}
@@ -212,7 +241,7 @@ export default function CampaignDetailPage() {
               <CardTitle className="text-lg flex items-center justify-between" data-testid="campaign-detail-receipts-title">
                 <div className="flex items-center gap-2">
                   <ReceiptText className="h-5 w-5 text-primary" />
-                  {t('campaigns.detail.receiptsTitle', 'Чеки')}
+                  {t('campaigns.detail.receiptsTitle', 'Короткий перегляд чеків')}
                 </div>
                 <Badge variant="secondary" data-testid="campaign-detail-receipts-count">{currentCount}</Badge>
               </CardTitle>
@@ -240,7 +269,7 @@ export default function CampaignDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {attachedReceipts.map((receipt) => (
+                  {previewReceipts.map((receipt) => (
                     <div key={receipt.id} className="rounded-lg border bg-muted/20 p-3 text-sm">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 space-y-1">
@@ -251,31 +280,37 @@ export default function CampaignDetailPage() {
                             {receipt.merchantName || receipt.originalFileName}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {new Intl.NumberFormat('uk-UA', {
-                              style: 'currency',
-                              currency: 'UAH',
-                              maximumFractionDigits: 2,
-                            }).format(receipt.totalAmount ?? 0)}
+                            {formatCampaignMoney(receipt.totalAmount ?? 0, locale)}
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           <Badge variant={receipt.publicationStatus === ReceiptPublicationStatus.Active ? 'default' : 'outline'}>
-                            {receipt.publicationStatus === ReceiptPublicationStatus.Active ? 'Публічний' : 'Draft'}
+                            {receipt.publicationStatus === ReceiptPublicationStatus.Active
+                              ? t('campaigns.detail.publicationActive')
+                              : t('campaigns.detail.publicationDraft')}
                           </Badge>
                           <Badge variant={receipt.status === ReceiptStatus.StateVerified ? 'secondary' : 'outline'}>
-                            {receipt.status === ReceiptStatus.StateVerified ? 'Verified' : `Status ${receipt.status}`}
+                            {receipt.status === ReceiptStatus.StateVerified
+                              ? t('campaigns.detail.verifiedStatus')
+                              : t('campaigns.detail.statusFallback', { status: receipt.status })}
                           </Badge>
                         </div>
                       </div>
                       <div className="mt-3 flex justify-end">
                         <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-xs">
                           <Link to={`/dashboard/${orgId}/receipts/${receipt.id}`}>
-                            Відкрити чек
+                            <Eye className="h-3.5 w-3.5" />
+                            {t('campaigns.detail.openFullReceipt')}
                           </Link>
                         </Button>
                       </div>
                     </div>
                   ))}
+                  {hiddenReceiptsCount > 0 ? (
+                    <p className="text-xs text-muted-foreground" data-testid="campaign-detail-hidden-receipts-count">
+                      {t('campaigns.detail.moreReceipts', { count: hiddenReceiptsCount })}
+                    </p>
+                  ) : null}
                 </div>
               )}
               <div className="grid gap-2 sm:grid-cols-2">
@@ -285,7 +320,7 @@ export default function CampaignDetailPage() {
                 <Button asChild size="sm" variant="outline" className="w-full">
                   <Link to={`/dashboard/${orgId}/receipts/new`}>
                     <Plus className="h-4 w-4" />
-                    Новий чек
+                    {t('campaigns.detail.newReceipt')}
                   </Link>
                 </Button>
               </div>
@@ -339,12 +374,12 @@ export default function CampaignDetailPage() {
                           </p>
                           <p className="flex items-center gap-1 text-xs text-muted-foreground" data-testid={`campaign-detail-donation-feed-time-${transaction.id}`}>
                             <Clock3 className="h-3.5 w-3.5" />
-                            {new Date(transaction.transactionTimeUtc).toLocaleString('uk-UA')}
+                            {new Date(transaction.transactionTimeUtc).toLocaleString(locale)}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-semibold text-success" data-testid={`campaign-detail-donation-feed-amount-${transaction.id}`}>
-                            {new Intl.NumberFormat('uk-UA').format(transaction.amount / 100)} ₴
+                            {new Intl.NumberFormat(locale).format(transaction.amount / 100)} ₴
                           </p>
                           <p className="text-xs text-muted-foreground" data-testid={`campaign-detail-donation-feed-source-${transaction.id}`}>
                             {transaction.source}

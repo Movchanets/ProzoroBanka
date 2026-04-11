@@ -29,15 +29,18 @@ export default function OrgSettingsPage() {
   const { t } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
   const { data: org, isLoading } = useOrganization(orgId);
-  const { data: stateRegistrySettings, isLoading: isLoadingStateRegistry } = useOrganizationStateRegistrySettings(orgId);
+  const {
+    data: stateRegistrySettings,
+    isLoading: isLoadingStateRegistry,
+    isError: isStateRegistryError,
+  } = useOrganizationStateRegistrySettings(orgId);
   const updateOrg = useUpdateOrganization(orgId!);
   const uploadLogo = useUploadOrgLogo(orgId!);
   const upsertRegistryKey = useUpsertStateRegistryCredential(orgId!);
   const deleteRegistryKey = useDeleteStateRegistryCredential(orgId!);
   const [apiError, setApiError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [taxServiceKeyInput, setTaxServiceKeyInput] = useState('');
-  const [checkGovUaKeyInput, setCheckGovUaKeyInput] = useState('');
+  const [stateRegistryUnifiedKeyInput, setStateRegistryUnifiedKeyInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
@@ -95,44 +98,49 @@ export default function OrgSettingsPage() {
     setApiError(null);
     setSuccessMsg(null);
 
-    const tasks: Promise<unknown>[] = [];
-    if (taxServiceKeyInput.trim().length > 0) {
-      tasks.push(upsertRegistryKey.mutateAsync({ provider: StateRegistryProvider.TaxService, apiKey: taxServiceKeyInput.trim() }));
-    }
-    if (checkGovUaKeyInput.trim().length > 0) {
-      tasks.push(upsertRegistryKey.mutateAsync({ provider: StateRegistryProvider.CheckGovUa, apiKey: checkGovUaKeyInput.trim() }));
-    }
-
-    if (tasks.length === 0) {
-      setApiError('Вкажіть хоча б один API ключ для збереження.');
+    const normalizedKey = stateRegistryUnifiedKeyInput.trim();
+    if (!normalizedKey) {
+      setApiError('Вкажіть API ключ для збереження.');
       return;
     }
 
     try {
-      await Promise.all(tasks);
-      setTaxServiceKeyInput('');
-      setCheckGovUaKeyInput('');
-      setSuccessMsg('Ключі держреєстрів збережено.');
+      await Promise.all([
+        upsertRegistryKey.mutateAsync({ provider: StateRegistryProvider.TaxService, apiKey: normalizedKey }),
+        upsertRegistryKey.mutateAsync({ provider: StateRegistryProvider.CheckGovUa, apiKey: normalizedKey }),
+      ]);
+
+      setStateRegistryUnifiedKeyInput('');
+      setSuccessMsg('Ключ держреєстрів збережено.');
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Не вдалося зберегти ключі держреєстрів.');
+      setApiError(err instanceof Error ? err.message : 'Не вдалося зберегти ключ держреєстрів.');
     }
   };
 
   const clearRegistryInputs = () => {
-    setTaxServiceKeyInput('');
-    setCheckGovUaKeyInput('');
+    setStateRegistryUnifiedKeyInput('');
   };
 
-  const deleteRegistryProviderKey = async (provider: typeof StateRegistryProvider[keyof typeof StateRegistryProvider]) => {
+  const deleteUnifiedRegistryKey = async () => {
     setApiError(null);
     setSuccessMsg(null);
+
     try {
-      await deleteRegistryKey.mutateAsync(provider);
-      setSuccessMsg('Ключ держреєстру видалено.');
+      await Promise.all([
+        deleteRegistryKey.mutateAsync(StateRegistryProvider.TaxService),
+        deleteRegistryKey.mutateAsync(StateRegistryProvider.CheckGovUa),
+      ]);
+
+      setSuccessMsg('Ключ держреєстрів видалено.');
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Не вдалося видалити ключ держреєстру.');
+      setApiError(err instanceof Error ? err.message : 'Не вдалося видалити ключ держреєстрів.');
     }
   };
+
+  const unifiedMaskedKey = stateRegistrySettings?.taxService.maskedKey
+    ?? stateRegistrySettings?.checkGovUa.maskedKey
+    ?? null;
+  const hasUnifiedKeyConfigured = Boolean(stateRegistrySettings?.taxService.isConfigured || stateRegistrySettings?.checkGovUa.isConfigured);
 
   if (isLoading) return (<div className="space-y-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-64 w-full rounded-2xl" /></div>);
 
@@ -179,45 +187,26 @@ export default function OrgSettingsPage() {
         <CardHeader>
           <CardTitle className="text-lg" data-testid="org-settings-state-api-keys-title">Ключі держреєстрів</CardTitle>
           <CardDescription data-testid="org-settings-state-api-keys-description">
-            Перший інкремент: UI-скелет керування ключами Tax Service та check.gov.ua.
+            Єдиний ключ використовується для Tax Service та check.gov.ua.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="tax-service-key">Tax Service API key</Label>
-              <Input
-                id="tax-service-key"
-                data-testid="org-settings-tax-service-key-input"
-                placeholder="••••••••••••••••"
-                autoComplete="off"
-                value={taxServiceKeyInput}
-                onChange={(event) => setTaxServiceKeyInput(event.target.value)}
-                disabled={isRegistryMutationPending}
-              />
-              <p className="text-xs text-muted-foreground" data-testid="org-settings-tax-service-key-masked-value">
-                {stateRegistrySettings?.taxService.isConfigured
-                  ? `Збережений ключ: ${stateRegistrySettings.taxService.maskedKey ?? '********'}`
-                  : 'Ключ не налаштовано'}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="check-gov-key">check.gov.ua API key</Label>
-              <Input
-                id="check-gov-key"
-                data-testid="org-settings-check-gov-key-input"
-                placeholder="••••••••••••••••"
-                autoComplete="off"
-                value={checkGovUaKeyInput}
-                onChange={(event) => setCheckGovUaKeyInput(event.target.value)}
-                disabled={isRegistryMutationPending}
-              />
-              <p className="text-xs text-muted-foreground" data-testid="org-settings-check-gov-key-masked-value">
-                {stateRegistrySettings?.checkGovUa.isConfigured
-                  ? `Збережений ключ: ${stateRegistrySettings.checkGovUa.maskedKey ?? '********'}`
-                  : 'Ключ не налаштовано'}
-              </p>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="state-registry-key">API key</Label>
+            <Input
+              id="state-registry-key"
+              data-testid="org-settings-state-registry-key-input"
+              placeholder="••••••••••••••••"
+              autoComplete="off"
+              value={stateRegistryUnifiedKeyInput}
+              onChange={(event) => setStateRegistryUnifiedKeyInput(event.target.value)}
+              disabled={isRegistryMutationPending}
+            />
+            <p className="text-xs text-muted-foreground" data-testid="org-settings-state-registry-key-masked-value">
+              {hasUnifiedKeyConfigured
+                ? `Збережений ключ: ${unifiedMaskedKey ?? '********'}`
+                : 'Ключ не налаштовано'}
+            </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -229,7 +218,7 @@ export default function OrgSettingsPage() {
               disabled={isRegistryMutationPending}
             >
               {upsertRegistryKey.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Зберегти ключі
+              Зберегти ключ
             </Button>
             <Button
               type="button"
@@ -243,20 +232,11 @@ export default function OrgSettingsPage() {
             <Button
               type="button"
               variant="outline"
-              data-testid="org-settings-delete-tax-service-key-button"
-              onClick={() => deleteRegistryProviderKey(StateRegistryProvider.TaxService)}
-              disabled={isRegistryMutationPending || !stateRegistrySettings?.taxService.isConfigured}
+              data-testid="org-settings-delete-state-registry-key-button"
+              onClick={() => void deleteUnifiedRegistryKey()}
+              disabled={isRegistryMutationPending || !hasUnifiedKeyConfigured}
             >
-              Видалити Tax Service
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              data-testid="org-settings-delete-check-gov-key-button"
-              onClick={() => deleteRegistryProviderKey(StateRegistryProvider.CheckGovUa)}
-              disabled={isRegistryMutationPending || !stateRegistrySettings?.checkGovUa.isConfigured}
-            >
-              Видалити check.gov.ua
+              Видалити ключ
             </Button>
           </div>
 
@@ -266,7 +246,9 @@ export default function OrgSettingsPage() {
               <p className="text-sm font-medium" data-testid="org-settings-usage-state-value">
                 {isLoadingStateRegistry
                   ? 'Завантаження...'
-                  : `${stateRegistrySettings?.stateVerificationConfiguredKeys ?? 0} / ${stateRegistrySettings?.stateVerificationMaxKeys ?? 0}`}
+                  : isStateRegistryError
+                    ? 'Недоступно'
+                    : `${stateRegistrySettings?.stateVerificationConfiguredKeys ?? 0} / ${stateRegistrySettings?.stateVerificationMaxKeys ?? 0}`}
               </p>
             </div>
             <div>
@@ -274,7 +256,9 @@ export default function OrgSettingsPage() {
               <p className="text-sm font-medium" data-testid="org-settings-usage-ocr-value">
                 {isLoadingStateRegistry
                   ? 'Завантаження...'
-                  : `${stateRegistrySettings?.currentOcrExtractionsPerMonth ?? 0} / ${stateRegistrySettings?.maxOcrExtractionsPerMonth ?? 0}`}
+                  : isStateRegistryError
+                    ? 'Недоступно'
+                    : `${stateRegistrySettings?.currentOcrExtractionsPerMonth ?? 0} / ${stateRegistrySettings?.maxOcrExtractionsPerMonth ?? 0}`}
               </p>
             </div>
           </div>

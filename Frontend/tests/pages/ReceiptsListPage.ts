@@ -6,6 +6,8 @@ export class ReceiptsListPage {
   readonly createButton: Locator;
   readonly searchInput: Locator;
   readonly refreshButton: Locator;
+  readonly deleteDialog: Locator;
+  readonly deleteConfirmButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -13,6 +15,8 @@ export class ReceiptsListPage {
     this.createButton = page.getByTestId('dashboard-receipts-list-create-button');
     this.searchInput = page.getByTestId('dashboard-receipts-list-search-input');
     this.refreshButton = page.getByTestId('dashboard-receipts-list-refresh-button');
+    this.deleteDialog = page.getByTestId('dashboard-receipts-list-delete-dialog');
+    this.deleteConfirmButton = page.getByTestId('dashboard-receipts-list-delete-confirm');
   }
 
   async goto(orgId: string) {
@@ -35,7 +39,16 @@ export class ReceiptsListPage {
     return this.page.getByTestId(`dashboard-receipts-list-open-${receiptId}`);
   }
 
+  deleteButton(receiptId: string) {
+    return this.page.getByTestId(`dashboard-receipts-list-delete-${receiptId}`);
+  }
+
   async openReceipt(receiptId: string) {
     await this.openButton(receiptId).click();
+  }
+
+  async deleteReceipt(receiptId: string) {
+    await this.deleteButton(receiptId).click();
+    await this.deleteConfirmButton.click();
   }
 }

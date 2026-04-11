@@ -1,6 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
+using Polly;
+using Polly.Extensions.Http;
 using ProzoroBanka.Application.Common.Interfaces;
 
 namespace ProzoroBanka.Infrastructure.Services.Ocr;
@@ -34,7 +37,8 @@ public static class OcrRegistration
 
 			if (!string.IsNullOrEmpty(options.Mistral.ApiKey))
 				client.DefaultRequestHeaders.Authorization = new("Bearer", options.Mistral.ApiKey);
-		});
+		})
+		.AddPolicyHandler(GetRetryPolicy());
 
 		// ── OpenRouter HTTP client ──
 		services.AddHttpClient<OpenRouterOcrService>((sp, client) =>
@@ -45,11 +49,31 @@ public static class OcrRegistration
 
 			if (!string.IsNullOrEmpty(options.OpenRouter.ApiKey))
 				client.DefaultRequestHeaders.Authorization = new("Bearer", options.OpenRouter.ApiKey);
-		});
+		})
+		.AddPolicyHandler(GetRetryPolicy());
 
 		// ── Factory Registration ──
 		services.AddScoped<IOcrServiceFactory, OcrServiceFactory>();
 
+		// ── Background OCR Queue ──
+		services.AddSingleton<OcrProcessingQueue>();
+		services.AddSingleton<IOcrProcessingQueue>(sp => sp.GetRequiredService<OcrProcessingQueue>());
+		services.AddHostedService<OcrBackgroundWorker>();
+
 		return services;
+	}
+
+	/// <summary>
+	/// Polly retry policy: retries on transient HTTP errors (5xx, 408) and HTTP 429 (Too Many Requests).
+	/// Exponential backoff with jitter: ~2s, ~4s, ~8s.
+	/// </summary>
+	private static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
+	{
+		return HttpPolicyExtensions
+			.HandleTransientHttpError()
+			.OrResult(response => (int)response.StatusCode == 429)
+			.WaitAndRetryAsync(3, attempt =>
+				TimeSpan.FromSeconds(Math.Pow(2, attempt))
+				+ TimeSpan.FromMilliseconds(Random.Shared.Next(0, 500)));
 	}
 }

@@ -1,7 +1,7 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Application.Receipts.Common;
 using ProzoroBanka.Application.Receipts.DTOs;
 
 namespace ProzoroBanka.Application.Receipts.Commands.ReorderReceiptItemPhotos;
@@ -19,10 +19,7 @@ public class ReorderReceiptItemPhotosHandler : IRequestHandler<ReorderReceiptIte
 
     public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(ReorderReceiptItemPhotosCommand request, CancellationToken ct)
     {
-        var receipt = await _db.Receipts
-            .Include(r => r.ItemPhotos)
-            .Include(r => r.Campaign)
-            .FirstOrDefaultAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
+        var receipt = await _db.FindOwnedWithPipelineGraphAsync(request.ReceiptId, request.CallerDomainUserId, ct);
 
         if (receipt is null)
             return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");

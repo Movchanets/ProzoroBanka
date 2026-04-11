@@ -1,13 +1,18 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useCampaigns } from '@/hooks/queries/useCampaigns';
-import { CampaignStatusLabel, type Campaign } from '@/types';
+import { useCampaigns, useDeleteCampaign } from '@/hooks/queries/useCampaigns';
+import { useOrganizationMembers } from '@/hooks/queries/useOrganizations';
+import { useAuthStore } from '@/stores/authStore';
+import { CampaignStatusLabel, OrganizationRole, type Campaign } from '@/types';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
-import { Megaphone, Plus, Calendar, Globe } from 'lucide-react';
+import { Megaphone, Plus, Calendar, Globe, Loader2, Trash2 } from 'lucide-react';
 
 const statusColor: Record<number, string> = {
   0: 'bg-muted text-muted-foreground',
@@ -16,7 +21,17 @@ const statusColor: Record<number, string> = {
   3: 'bg-secondary/15 text-secondary',
 };
 
-function CampaignCard({ campaign }: { campaign: Campaign }) {
+function CampaignCard({
+  campaign,
+  canDelete,
+  isDeleting,
+  onDelete,
+}: {
+  campaign: Campaign;
+  canDelete: boolean;
+  isDeleting: boolean;
+  onDelete: (campaign: Campaign) => void;
+}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const withdrawn = new Intl.NumberFormat('uk-UA').format(campaign.withdrawnAmount / 100);
@@ -57,19 +72,35 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
           )}
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full gap-2"
-          data-testid={`campaign-card-public-link-${campaign.id}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            navigate(`/c/${campaign.id}`);
-          }}
-        >
-          <Globe className="h-4 w-4" />
-          {t('campaigns.openPublicCampaignPage')}
-        </Button>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2"
+            data-testid={`campaign-card-public-link-${campaign.id}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              navigate(`/c/${campaign.id}`);
+            }}
+          >
+            <Globe className="h-4 w-4" />
+            {t('campaigns.openPublicCampaignPage')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2 text-destructive hover:text-destructive"
+            data-testid={`campaign-card-delete-button-${campaign.id}`}
+            disabled={!canDelete || isDeleting}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete(campaign);
+            }}
+          >
+            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            {t('common.delete')}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -80,12 +111,40 @@ export default function CampaignsListPage() {
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
   const { data: campaigns, isLoading } = useCampaigns(orgId);
+  const { data: members } = useOrganizationMembers(orgId);
+  const currentUser = useAuthStore((s) => s.user);
+  const deleteCampaign = useDeleteCampaign(orgId!);
+  const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const currentMember = members?.find((member) => member.userId === currentUser?.id);
+  const canDeleteCampaign = currentMember?.role === OrganizationRole.Owner || currentMember?.role === OrganizationRole.Admin;
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    setDeleteError(null);
+    try {
+      await deleteCampaign.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : t('campaigns.deleteError', 'Не вдалося видалити збір'));
+    }
+  };
 
   return (
     <div className="space-y-6" data-testid="campaigns-list-page">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2" data-testid="campaigns-list-title">
+
+      {deleteError && (
+        <Alert variant="destructive" data-testid="campaigns-list-delete-error-alert">
+          <AlertDescription>{deleteError}</AlertDescription>
+        </Alert>
+      )}
             <Megaphone className="h-6 w-6 text-primary" />
             {t('campaigns.title')}
           </h2>
@@ -115,9 +174,49 @@ export default function CampaignsListPage() {
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="campaigns-list-grid">
-          {campaigns?.map((c) => (<CampaignCard key={c.id} campaign={c} />))}
+          {campaigns?.map((c) => (
+            <CampaignCard
+              key={c.id}
+              campaign={c}
+              canDelete={Boolean(canDeleteCampaign)}
+              isDeleting={deleteCampaign.isPending && deleteTarget?.id === c.id}
+              onDelete={setDeleteTarget}
+            />
+          ))}
         </div>
       )}
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent data-testid="campaign-delete-dialog">
+          <DialogHeader>
+            <DialogTitle>
+              {t('campaigns.deleteConfirmTitle', 'Видалити збір "{{title}}"?', { title: deleteTarget?.title ?? '' })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('campaigns.deleteConfirmDescription', 'Цю дію не можна скасувати.')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              data-testid="campaign-delete-cancel-button"
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="default"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmDelete}
+              disabled={deleteCampaign.isPending}
+              data-testid="campaign-delete-confirm-button"
+            >
+              {deleteCampaign.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t('common.delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

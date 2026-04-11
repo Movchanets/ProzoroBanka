@@ -39,14 +39,21 @@ public class AttachReceiptToCampaignHandler : IRequestHandler<AttachReceiptToCam
 		var receipt = await _db.Receipts
 			.Include(r => r.Campaign)
 			.Include(r => r.ItemPhotos)
-			.FirstOrDefaultAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
+			.FirstOrDefaultAsync(r => r.Id == request.ReceiptId, ct);
 
 		if (receipt is null)
+			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
+
+		if (receipt.OrganizationId.HasValue && receipt.OrganizationId.Value != campaign.OrganizationId)
+			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек належить іншій організації");
+
+		if (!receipt.OrganizationId.HasValue && receipt.UserId != request.CallerDomainUserId)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
 
 		if (receipt.Status != ReceiptStatus.StateVerified)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("До збору можна прикріпити лише верифікований чек");
 
+		receipt.OrganizationId ??= campaign.OrganizationId;
 		receipt.CampaignId = campaign.Id;
 		await _db.SaveChangesAsync(ct);
 		receipt.Campaign = campaign;
