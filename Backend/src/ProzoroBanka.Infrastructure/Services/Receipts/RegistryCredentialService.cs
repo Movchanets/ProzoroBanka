@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Domain.Entities;
@@ -10,6 +11,7 @@ namespace ProzoroBanka.Infrastructure.Services.Receipts;
 public class RegistryCredentialService : IRegistryCredentialService
 {
 	private const RegistryProvider CanonicalProvider = RegistryProvider.TaxService;
+	private const string ProviderUniqueConstraint = "IX_OrganizationStateRegistryCredentials_OrganizationId_Provider";
 
 	private readonly ApplicationDbContext _db;
 	private readonly ITokenEncryptionService _encryption;
@@ -25,9 +27,48 @@ public class RegistryCredentialService : IRegistryCredentialService
 		if (string.IsNullOrWhiteSpace(rawApiKey))
 			return ServiceResponse.Failure("API ключ не може бути порожнім");
 
+		var normalizedApiKey = rawApiKey.Trim();
+		var encryptedApiKey = _encryption.Encrypt(normalizedApiKey);
+		var keyFingerprint = BuildFingerprint(normalizedApiKey);
+
+		try
+		{
+			await ApplyCredentialUpsertAsync(
+				organizationId,
+				actorUserId,
+				provider,
+				encryptedApiKey,
+				keyFingerprint,
+				ct);
+		}
+		catch (DbUpdateException ex) when (IsProviderUniqueViolation(ex))
+		{
+			// Concurrent requests can race on insert; reloading and updating existing row resolves it deterministically.
+			_db.ChangeTracker.Clear();
+			await ApplyCredentialUpsertAsync(
+				organizationId,
+				actorUserId,
+				provider,
+				encryptedApiKey,
+				keyFingerprint,
+				ct);
+		}
+
+		return ServiceResponse.Success("Ключ державного реєстру збережено");
+	}
+
+	private async Task ApplyCredentialUpsertAsync(
+		Guid organizationId,
+		Guid actorUserId,
+		RegistryProvider provider,
+		string encryptedApiKey,
+		string keyFingerprint,
+		CancellationToken ct)
+	{
+
 		var credentials = await _db.OrganizationStateRegistryCredentials
+			.IgnoreQueryFilters()
 			.Where(x => x.OrganizationId == organizationId
-				&& !x.IsDeleted
 				&& (x.Provider == CanonicalProvider || x.Provider == provider))
 			.ToListAsync(ct);
 
@@ -41,9 +82,10 @@ public class RegistryCredentialService : IRegistryCredentialService
 				OrganizationId = organizationId,
 				CreatedByUserId = actorUserId,
 				Provider = CanonicalProvider,
-				EncryptedApiKey = _encryption.Encrypt(rawApiKey.Trim()),
-				KeyFingerprint = BuildFingerprint(rawApiKey),
+				EncryptedApiKey = encryptedApiKey,
+				KeyFingerprint = keyFingerprint,
 				IsActive = true,
+				IsDeleted = false,
 				LastValidatedAtUtc = null,
 				LastUsedAtUtc = null
 			};
@@ -52,9 +94,10 @@ public class RegistryCredentialService : IRegistryCredentialService
 		else
 		{
 			credential.Provider = CanonicalProvider;
-			credential.EncryptedApiKey = _encryption.Encrypt(rawApiKey.Trim());
-			credential.KeyFingerprint = BuildFingerprint(rawApiKey);
+			credential.EncryptedApiKey = encryptedApiKey;
+			credential.KeyFingerprint = keyFingerprint;
 			credential.IsActive = true;
+			credential.IsDeleted = false;
 			credential.BlockedUntilUtc = null;
 		}
 
@@ -65,7 +108,15 @@ public class RegistryCredentialService : IRegistryCredentialService
 		}
 
 		await _db.SaveChangesAsync(ct);
-		return ServiceResponse.Success("Ключ державного реєстру збережено");
+	}
+
+	private static bool IsProviderUniqueViolation(DbUpdateException ex)
+	{
+		if (ex.InnerException is not PostgresException pgException)
+			return false;
+
+		return pgException.SqlState == PostgresErrorCodes.UniqueViolation
+			&& string.Equals(pgException.ConstraintName, ProviderUniqueConstraint, StringComparison.Ordinal);
 	}
 
 	public async Task<ServiceResponse> DeleteOrganizationKeyAsync(Guid organizationId, Guid actorUserId, RegistryProvider provider, CancellationToken ct)

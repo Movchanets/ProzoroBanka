@@ -151,6 +151,34 @@ public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFacto
 		Assert.Equal(0, afterDeleteJson.GetProperty("stateVerificationConfiguredKeys").GetInt32());
 	}
 
+	[Fact]
+	public async Task StateRegistryCredentials_WhenRecreatedAfterDelete_ReturnsOkAndSingleConfiguredKey()
+	{
+		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync($"State Registry Recreate Org {Guid.NewGuid():N}");
+
+		var initialUpsert = await _client.PutAsJsonAsync(
+			$"/api/organizations/{orgId}/state-registry-credentials/TaxService",
+			new { apiKey = "initial-key-123456" });
+		Assert.Equal(HttpStatusCode.OK, initialUpsert.StatusCode);
+
+		var deleteResponse = await _client.DeleteAsync($"/api/organizations/{orgId}/state-registry-credentials/TaxService");
+		Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+
+		var recreateResponse = await _client.PutAsJsonAsync(
+			$"/api/organizations/{orgId}/state-registry-credentials/CheckGovUa",
+			new { apiKey = "recreated-key-654321" });
+		Assert.Equal(HttpStatusCode.OK, recreateResponse.StatusCode);
+
+		var settingsResponse = await _client.GetAsync($"/api/organizations/{orgId}/state-registry-settings");
+		settingsResponse.EnsureSuccessStatusCode();
+		var settingsJson = await settingsResponse.Content.ReadFromJsonAsync<JsonElement>();
+
+		Assert.True(settingsJson.GetProperty("taxService").GetProperty("isConfigured").GetBoolean());
+		Assert.True(settingsJson.GetProperty("checkGovUa").GetProperty("isConfigured").GetBoolean());
+		Assert.Equal(1, settingsJson.GetProperty("stateVerificationConfiguredKeys").GetInt32());
+	}
+
 	private async Task<Guid> CreateOrganizationAsync(string name)
 	{
 		var response = await _client.PostAsJsonAsync("/api/organizations", new
