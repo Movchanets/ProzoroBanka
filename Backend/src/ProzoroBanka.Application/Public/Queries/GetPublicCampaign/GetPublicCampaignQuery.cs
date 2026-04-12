@@ -71,15 +71,16 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 
 		var totalDocumented = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => r.CampaignId == campaign.Id
-				&& r.Status == ReceiptStatus.StateVerified
-				&& r.PublicationStatus == ReceiptPublicationStatus.Active)
+			.Where(r => r.CampaignId == campaign.Id)
+			.WhereActiveVerifiedForDocumentation()
 			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
-		var documentedAmount = MoneyConversion.ToMinorUnits(totalDocumented);
+		var documentedAmount = CampaignDocumentationMetrics.BoundToCollectedAmount(
+			CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(totalDocumented),
+			campaign.CurrentAmount);
 
-		var documentationPercent = campaign.GoalAmount <= 0
-			? 0
-			: Math.Min(100, (double)documentedAmount / campaign.GoalAmount * 100);
+		var documentationPercent = CampaignDocumentationMetrics.CalculateDocumentedSharePercent(
+			documentedAmount,
+			campaign.CurrentAmount);
 
 		int? daysRemaining = null;
 		if (campaign.Deadline.HasValue)

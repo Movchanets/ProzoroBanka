@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { CampaignStatus, type CampaignStatus as CampaignStatusType } from '@/types';
 import { publicService } from '@/services/publicService';
+import type { PublicListResponse, PublicReceipt } from '@/types';
 
 type HomeCampaignStatusFilter = 'all' | 'active' | 'completed';
 
@@ -109,7 +110,26 @@ export function usePublicCampaign(campaignId: string | null | undefined) {
 export function usePublicCampaignReceipts(campaignId: string | null | undefined, page = 1) {
   return useQuery({
     queryKey: publicKeys.campaignReceipts(campaignId ?? '', page),
-    queryFn: () => publicService.getCampaignReceipts(campaignId ?? '', page),
+    queryFn: async (): Promise<PublicListResponse<PublicReceipt>> => {
+      const firstPage = await publicService.getCampaignReceipts(campaignId ?? '', page, 50);
+      if (firstPage.items.length >= firstPage.totalCount) {
+        return firstPage;
+      }
+
+      const totalPages = Math.ceil(firstPage.totalCount / firstPage.pageSize);
+      const remainingPages = Array.from({ length: Math.max(0, totalPages - page) }, (_, index) => page + index + 1);
+      const nextPages = await Promise.all(
+        remainingPages.map((pageNumber) => publicService.getCampaignReceipts(campaignId ?? '', pageNumber, firstPage.pageSize)),
+      );
+
+      return {
+        ...firstPage,
+        items: [
+          ...firstPage.items,
+          ...nextPages.flatMap((response) => response.items),
+        ],
+      };
+    },
     enabled: Boolean(campaignId),
     ...publicQueryDefaults,
   });

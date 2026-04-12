@@ -67,9 +67,8 @@ public class GetPublicOrganizationCampaignsHandler
 				c.GoalAmount,
 				c.CurrentAmount,
 				DocumentedAmountRaw = _db.Receipts
-					.Where(r => r.CampaignId == c.Id
-						&& r.Status == ReceiptStatus.StateVerified
-						&& r.PublicationStatus == ReceiptPublicationStatus.Active)
+					.Where(r => r.CampaignId == c.Id)
+					.WhereActiveVerifiedForDocumentation()
 					.Sum(r => (decimal?)r.TotalAmount) ?? 0m,
 				c.Status,
 				c.StartDate,
@@ -80,25 +79,33 @@ public class GetPublicOrganizationCampaignsHandler
 			})
 			.ToListAsync(cancellationToken);
 
-		var campaigns = campaignRows.Select(c => new PublicCampaignDto(
-				c.Id,
-				c.Title,
-				c.Description,
-				_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
-				c.SendUrl,
-				c.GoalAmount,
-				c.CurrentAmount,
-				Math.Min(c.CurrentAmount, MoneyConversion.ToMinorUnits(c.DocumentedAmountRaw)),
-				c.GoalAmount <= 0
-					? 0
-					: Math.Min(100, (double)Math.Min(c.CurrentAmount, MoneyConversion.ToMinorUnits(c.DocumentedAmountRaw)) / c.GoalAmount * 100),
-				c.Status,
-				c.StartDate,
-				c.Deadline,
-				c.ReceiptCount,
-				org.Name,
-				org.Slug,
-				org.IsVerified))
+		var campaigns = campaignRows.Select(c =>
+			{
+				var documentedAmount = CampaignDocumentationMetrics.BoundToCollectedAmount(
+					CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(c.DocumentedAmountRaw),
+					c.CurrentAmount);
+				var documentationPercent = CampaignDocumentationMetrics.CalculateDocumentedSharePercent(
+					documentedAmount,
+					c.CurrentAmount);
+
+				return new PublicCampaignDto(
+					c.Id,
+					c.Title,
+					c.Description,
+					_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
+					c.SendUrl,
+					c.GoalAmount,
+					c.CurrentAmount,
+					documentedAmount,
+					documentationPercent,
+					c.Status,
+					c.StartDate,
+					c.Deadline,
+					c.ReceiptCount,
+					org.Name,
+					org.Slug,
+					org.IsVerified);
+			})
 			.ToList();
 
 		return ServiceResponse<PublicListResponse<PublicCampaignDto>>.Success(

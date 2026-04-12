@@ -69,15 +69,18 @@ public class GetCampaignDetailsHandler
 
 		var documentedAmountRaw = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => r.CampaignId == campaign.Id && r.Status == Domain.Enums.ReceiptStatus.StateVerified)
+			.Where(r => r.CampaignId == campaign.Id)
+			.WhereActiveVerifiedForDocumentation()
 			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
-		var documentedAmount = MoneyConversion.ToMinorUnits(documentedAmountRaw);
+		var documentedAmount = CampaignDocumentationMetrics.BoundToCollectedAmount(
+			CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(documentedAmountRaw),
+			campaign.CurrentAmount);
 		var receiptCount = await _db.Receipts
 			.AsNoTracking()
 			.CountAsync(r => r.CampaignId == campaign.Id, cancellationToken);
-		var documentationPercent = campaign.GoalAmount <= 0
-			? 0
-			: Math.Min(100, (double)documentedAmount / campaign.GoalAmount * 100);
+		var documentationPercent = CampaignDocumentationMetrics.CalculateDocumentedSharePercent(
+			documentedAmount,
+			campaign.CurrentAmount);
 
 		return ServiceResponse<CampaignDetailDto>.Success(new CampaignDetailDto(
 			campaign.Id, campaign.Title, campaign.Description,

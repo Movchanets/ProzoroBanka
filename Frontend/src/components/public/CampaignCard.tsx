@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Expand } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { PhotoGalleryDialog } from '@/components/ui/photo-gallery-dialog';
 import { Progress } from '@/components/ui/progress';
 import { CampaignStatus, type PublicCampaign } from '@/types';
 import { VerifiedBadge } from './VerifiedBadge';
@@ -17,19 +20,54 @@ function getStatusLabel(status: number) {
 }
 
 export function CampaignCard({ campaign }: CampaignCardProps) {
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
+
+  const galleryImages = campaign.coverImageUrl
+    ? [{
+      src: campaign.coverImageUrl,
+      alt: campaign.title,
+      caption: campaign.title,
+    }]
+    : [];
+
   const progress = campaign.goalAmount > 0
     ? Math.min(100, Math.round((campaign.currentAmount / campaign.goalAmount) * 100))
     : 0;
 
   return (
-    <Card className="h-full border-border/80 bg-card/95">
+    <Card className="h-full overflow-hidden border-border/80 bg-card/95 shadow-[0_16px_40px_var(--shadow-soft)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_var(--shadow-soft)]">
       <CardHeader className="space-y-3 pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" data-testid="home-campaign-status-badge">{getStatusLabel(campaign.status)}</Badge>
           <VerifiedBadge isVerified={campaign.organizationVerified} testId="home-campaign-org-verified-badge" />
         </div>
-        <CardTitle className="line-clamp-2 text-lg">{campaign.title}</CardTitle>
-        <p className="line-clamp-2 text-sm text-muted-foreground">
+
+        {campaign.coverImageUrl ? (
+          <button
+            type="button"
+            data-testid="home-campaign-cover-preview-button"
+            aria-label="Відкрити фото збору"
+            onClick={() => {
+              setPreviewIndex(0);
+              setIsPreviewOpen(true);
+            }}
+            className="group relative h-24 w-36 cursor-pointer overflow-hidden rounded-xl border border-border/80 bg-muted/20 shadow-[0_10px_24px_var(--shadow-soft)] transition-opacity duration-200 hover:opacity-95"
+          >
+            <img
+              src={campaign.coverImageUrl}
+              alt={campaign.title}
+              className="h-full w-full object-cover"
+              data-testid="home-campaign-cover-thumbnail-image"
+            />
+            <span className="pointer-events-none absolute inset-0 grid place-items-center bg-foreground/20 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              <Expand className="h-4 w-4 text-white" aria-hidden="true" />
+            </span>
+          </button>
+        ) : null}
+
+        <CardTitle className="line-clamp-2 text-lg leading-7">{campaign.title}</CardTitle>
+        <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">
           {campaign.description || 'Опис збору ще не додано.'}
         </p>
       </CardHeader>
@@ -46,18 +84,29 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         <Link
           data-testid="home-campaign-org-link"
           to={`/o/${campaign.organizationSlug}`}
-          className="inline-flex rounded-lg bg-secondary/15 px-2.5 py-1.5 text-sm font-semibold text-secondary hover:bg-secondary/25"
+          className="inline-flex rounded-lg bg-secondary/15 px-2.5 py-1.5 text-sm font-semibold text-secondary transition-colors duration-200 hover:bg-secondary/25"
         >
           {campaign.organizationName}
         </Link>
         <Link
           data-testid="home-campaign-card-link"
           to={`/c/${campaign.id}`}
-          className="inline-flex rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-[0_8px_20px_hsl(var(--primary)/0.36)] hover:opacity-95"
+          className="inline-flex rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-[0_8px_20px_hsl(var(--primary)/0.36)] transition-opacity duration-200 hover:opacity-95"
         >
           Переглянути збір
         </Link>
       </CardFooter>
+
+      <PhotoGalleryDialog
+        images={galleryImages}
+        open={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        currentIndex={previewIndex}
+        onIndexChange={setPreviewIndex}
+        title={campaign.title}
+        description="Попередній перегляд фото збору"
+        testIdPrefix="home-campaign-cover-preview"
+      />
     </Card>
   );
 }

@@ -47,7 +47,7 @@ export default function PublicOrganizationPage() {
   const organizationForSeo = organizationQuery.data;
 
   if (organizationQuery.isLoading) {
-    return <div className="mx-auto w-[min(1200px,calc(100%-24px))] py-6"><Skeleton className="h-72 rounded-4xl" /></div>;
+    return <div className="mx-auto w-[min(1200px,calc(100%-24px))] py-6 sm:w-[min(1200px,calc(100%-40px))]"><Skeleton className="h-72 rounded-4xl shadow-[0_16px_40px_var(--shadow-soft)]" /></div>;
   }
 
   if (organizationQuery.isError || !organizationQuery.data) {
@@ -108,15 +108,15 @@ export default function PublicOrganizationPage() {
       <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
         <PublicPageToolbar compact />
 
-      <section data-testid="public-org-header" className="rounded-4xl border border-border bg-card p-6 sm:p-8">
+      <section data-testid="public-org-header" className="rounded-4xl border border-border/80 bg-card/92 p-6 shadow-[0_24px_80px_var(--shadow-soft)] sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold text-foreground">{org.name}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{org.description || 'Опис організації поки відсутній.'}</p>
+            <h1 className="text-3xl font-extrabold leading-tight text-foreground">{org.name}</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">{org.description || 'Опис організації поки відсутній.'}</p>
             {org.website ? (
               <a
                 data-testid="public-org-website-link"
-                className="mt-3 inline-flex rounded-xl bg-secondary px-3 py-2 text-sm font-semibold !text-white shadow-sm hover:bg-secondary/90"
+                className="mt-3 inline-flex rounded-xl bg-secondary px-3 py-2 text-sm font-semibold !text-white shadow-[0_10px_24px_hsl(216_66%_28%_/_0.18)] transition-colors duration-200 hover:bg-secondary/90"
                 href={org.website}
                 target="_blank"
                 rel="noreferrer"
@@ -129,7 +129,7 @@ export default function PublicOrganizationPage() {
         </div>
       </section>
 
-      <Card>
+      <Card className="border-border/80 bg-card/92 shadow-[0_16px_40px_var(--shadow-soft)]">
         <CardHeader>
           <CardTitle>Команда</CardTitle>
         </CardHeader>
@@ -140,7 +140,7 @@ export default function PublicOrganizationPage() {
 
       {transparencyQuery.data ? <TransparencyChart data={transparencyQuery.data} /> : null}
 
-      <Card>
+      <Card className="border-border/80 bg-card/92 shadow-[0_16px_40px_var(--shadow-soft)]">
         <CardHeader className="gap-4">
           <CardTitle>Збори</CardTitle>
           <CampaignTabFilter value={tab} onChange={setTab} />
@@ -161,10 +161,10 @@ export default function PublicOrganizationPage() {
                   key={campaign.id}
                   to={`/c/${campaign.id}`}
                   data-testid="public-org-campaign-link"
-                  className="rounded-2xl border border-border bg-card p-4 hover:bg-muted/50"
+                  className="rounded-2xl border border-border/80 bg-card/90 p-4 shadow-[0_10px_24px_var(--shadow-soft)] transition-colors duration-200 hover:bg-muted/50"
                 >
                   <p className="font-semibold text-foreground">{campaign.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{campaign.description || 'Без опису'}</p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">{campaign.description || 'Без опису'}</p>
                 </Link>
               ))}
             </div>

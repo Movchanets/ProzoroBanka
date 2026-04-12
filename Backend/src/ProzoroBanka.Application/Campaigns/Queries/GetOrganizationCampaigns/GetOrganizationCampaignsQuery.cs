@@ -64,7 +64,8 @@ public class GetOrganizationCampaignsHandler
 				c.GoalAmount,
 				c.CurrentAmount,
 				DocumentedAmount = _db.Receipts
-					.Where(r => r.CampaignId == c.Id && r.Status == ReceiptStatus.StateVerified)
+					.Where(r => r.CampaignId == c.Id)
+					.WhereActiveVerifiedForDocumentation()
 					.Sum(r => (decimal?)(r.TotalAmount ?? 0)) ?? 0,
 				ReceiptCount = _db.Receipts.Count(r => r.CampaignId == c.Id),
 				WithdrawnAmount = _db.CampaignTransactions
@@ -79,18 +80,26 @@ public class GetOrganizationCampaignsHandler
 			})
 			.ToListAsync(cancellationToken);
 
-		var result = campaigns.Select(c => new CampaignDto(
-			c.Id, c.Title, c.Description,
-			_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
-			c.GoalAmount,
-			c.CurrentAmount,
-			c.WithdrawnAmount,
-			Math.Min(c.CurrentAmount, MoneyConversion.ToMinorUnits(c.DocumentedAmount)),
-			c.GoalAmount <= 0
-				? 0
-				: Math.Min(100, (double)Math.Min(c.CurrentAmount, MoneyConversion.ToMinorUnits(c.DocumentedAmount)) / c.GoalAmount * 100),
-			c.Status, c.StartDate, c.Deadline,
-			c.MonobankAccountId, c.SendUrl, c.ReceiptCount, c.CreatedAt))
+		var result = campaigns.Select(c =>
+		{
+			var documentedAmount = CampaignDocumentationMetrics.BoundToCollectedAmount(
+				CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(c.DocumentedAmount),
+				c.CurrentAmount);
+			var documentationPercent = CampaignDocumentationMetrics.CalculateDocumentedSharePercent(
+				documentedAmount,
+				c.CurrentAmount);
+
+			return new CampaignDto(
+				c.Id, c.Title, c.Description,
+				_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
+				c.GoalAmount,
+				c.CurrentAmount,
+				c.WithdrawnAmount,
+				documentedAmount,
+				documentationPercent,
+				c.Status, c.StartDate, c.Deadline,
+				c.MonobankAccountId, c.SendUrl, c.ReceiptCount, c.CreatedAt);
+		})
 			.ToList();
 
 		return ServiceResponse<IReadOnlyList<CampaignDto>>.Success(result);

@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PhotoGalleryDialog } from '@/components/ui/photo-gallery-dialog';
 import { CheckCircle2, Loader2, X } from 'lucide-react';
 
 export default function InvitePage() {
@@ -23,6 +24,8 @@ export default function InvitePage() {
   const declineInvite = useDeclineInvitation();
   const [result, setResult] = useState<'accepted' | 'declined' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   const inviterName = useMemo(
     () => info
@@ -72,8 +75,8 @@ export default function InvitePage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto flex min-h-screen w-[min(500px,calc(100%-32px))] items-center justify-center" data-testid="invite-page-loading-state">
-        <Card className="w-full">
+      <div className="mx-auto flex min-h-screen w-[min(560px,calc(100%-32px))] items-center justify-center px-4" data-testid="invite-page-loading-state">
+        <Card className="w-full rounded-[1.75rem] border border-border/80 bg-card/92 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl">
           <CardContent className="space-y-4 p-8 text-center">
             <Skeleton className="mx-auto h-14 w-14 rounded-2xl" />
             <Skeleton className="mx-auto h-6 w-48" />
@@ -86,8 +89,8 @@ export default function InvitePage() {
 
   if (fetchError || !info) {
     return (
-      <div className="mx-auto flex min-h-screen w-[min(500px,calc(100%-32px))] items-center justify-center" data-testid="invite-page-invalid-state">
-        <Card className="w-full">
+      <div className="mx-auto flex min-h-screen w-[min(560px,calc(100%-32px))] items-center justify-center px-4" data-testid="invite-page-invalid-state">
+        <Card className="w-full rounded-[1.75rem] border border-border/80 bg-card/92 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl">
           <CardContent className="space-y-4 p-8 text-center">
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-destructive/10 text-destructive">
               <X className="h-7 w-7" />
@@ -103,8 +106,8 @@ export default function InvitePage() {
 
   if (result) {
     return (
-      <div className="mx-auto flex min-h-screen w-[min(500px,calc(100%-32px))] items-center justify-center" data-testid={`invite-page-${result}-state`}>
-        <Card className="w-full">
+      <div className="mx-auto flex min-h-screen w-[min(560px,calc(100%-32px))] items-center justify-center px-4" data-testid={`invite-page-${result}-state`}>
+        <Card className="w-full rounded-[1.75rem] border border-border/80 bg-card/92 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl">
           <CardContent className="space-y-4 p-8 text-center">
             {result === 'accepted' ? (
               <>
@@ -132,11 +135,19 @@ export default function InvitePage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-[min(500px,calc(100%-32px))] items-center justify-center py-8" data-testid="invite-page-container">
-      <Card className="w-full border border-border bg-card/80 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl" data-testid="invite-page-card">
+    <div className="mx-auto flex min-h-screen w-[min(560px,calc(100%-32px))] items-center justify-center py-8 px-4" data-testid="invite-page-container">
+      <Card className="w-full rounded-[1.75rem] border border-border/80 bg-card/92 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl" data-testid="invite-page-card">
         <CardHeader className="items-center text-center pb-2">
           {info.organizationLogoUrl ? (
-            <img src={getImageUrl(info.organizationLogoUrl)} alt={info.organizationName} className="mb-2 h-14 w-14 rounded-2xl object-cover" data-testid="invite-page-org-logo" />
+            <button
+              type="button"
+              className="mb-2 h-14 w-14 cursor-pointer overflow-hidden rounded-2xl"
+              onClick={() => setIsGalleryOpen(true)}
+              data-testid="invite-page-org-logo-open-button"
+              aria-label="Відкрити логотип організації"
+            >
+              <img src={getImageUrl(info.organizationLogoUrl)} alt={info.organizationName} className="h-14 w-14 rounded-2xl object-cover" data-testid="invite-page-org-logo" />
+            </button>
           ) : (
             <div className="mb-2 grid h-14 w-14 place-items-center rounded-2xl bg-linear-to-br from-primary/80 to-primary text-xl font-extrabold text-primary-foreground" data-testid="invite-page-org-initial">
               {info.organizationName.charAt(0).toUpperCase()}
@@ -171,6 +182,17 @@ export default function InvitePage() {
           </div>
         </CardContent>
       </Card>
+
+      <PhotoGalleryDialog
+        images={info.organizationLogoUrl ? [{ src: getImageUrl(info.organizationLogoUrl), alt: info.organizationName, caption: info.organizationName }] : []}
+        open={isGalleryOpen}
+        onOpenChange={setIsGalleryOpen}
+        currentIndex={galleryIndex}
+        onIndexChange={setGalleryIndex}
+        title={info.organizationName}
+        description="Перегляд логотипу організації"
+        testIdPrefix="invite-page-logo-gallery"
+      />
     </div>
   );
 }

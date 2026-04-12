@@ -13,7 +13,7 @@ export default function NotFoundPage() {
         robots="noindex,nofollow"
       />
 
-      <Card className="w-full rounded-3xl border border-border bg-card">
+      <Card className="w-full rounded-[1.75rem] border border-border/80 bg-card/92 shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl">
         <CardHeader>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">404</p>
           <CardTitle className="text-2xl font-bold text-foreground">Сторінку не знайдено</CardTitle>
