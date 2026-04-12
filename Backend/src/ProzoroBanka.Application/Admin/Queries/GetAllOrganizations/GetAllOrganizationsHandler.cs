@@ -1,7 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Admin.DTOs;
-using ProzoroBanka.Application.Common.Helpers;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 
@@ -71,7 +71,7 @@ public class GetAllOrganizationsHandler
 			o.Name,
 			o.Slug,
 			o.Description,
-			StorageUrlResolver.Resolve(_fileStorage, o.LogoStorageKey),
+			_fileStorage.ResolvePublicUrl(o.LogoStorageKey),
 			o.IsVerified,
 			o.Website,
 			o.ContactEmail,

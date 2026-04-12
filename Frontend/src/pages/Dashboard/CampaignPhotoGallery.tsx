@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ImageIcon, Loader2, MoreVertical, Plus, Trash2, Edit, ArrowUp, ArrowDown } from 'lucide-react';
+import { ImageIcon, Loader2, MoreVertical, Plus, Trash2, Edit, ArrowUp, ArrowDown, Star } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAddCampaignPhoto, useCampaignPhotos, useDeleteCampaignPhoto, useUpdateCampaignPhoto, useReorderCampaignPhotos } from '@/hooks/queries/useCampaigns';
@@ -60,6 +60,22 @@ export function CampaignPhotoGallery({ campaignId }: CampaignPhotoGalleryProps) 
       setEditPhoto(null);
     } catch (error) {
       const msg = error instanceof Error ? error.message : t('campaigns.gallery.updateError', 'Не вдалося оновити фото');
+      toast.error(msg);
+    }
+  };
+
+  const handleSetAsCover = async (photo: CampaignPhoto) => {
+    try {
+      await updatePhotoMutation.mutateAsync({
+        photoId: photo.id,
+        payload: {
+          description: photo.description ?? undefined,
+          setAsCover: true,
+        },
+      });
+      toast.success(t('campaigns.gallery.coverUpdated', 'Основне зображення оновлено'));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : t('campaigns.gallery.coverUpdateError', 'Не вдалося оновити основне зображення');
       toast.error(msg);
     }
   };
@@ -162,6 +178,12 @@ export function CampaignPhotoGallery({ campaignId }: CampaignPhotoGalleryProps) 
                   alt={photo.description || photo.originalFileName}
                   className="object-cover w-full h-full transition-transform group-hover:scale-105"
                 />
+                {photo.isCover && (
+                  <div className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-[10px] font-semibold text-primary-foreground" data-testid={`campaign-gallery-photo-cover-badge-${photo.id}`}>
+                    <Star className="h-3 w-3 fill-current" />
+                    {t('campaigns.gallery.coverBadge', 'Обкладинка')}
+                  </div>
+                )}
                 
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
                   <div className="flex justify-end gap-1">
@@ -181,7 +203,11 @@ export function CampaignPhotoGallery({ campaignId }: CampaignPhotoGalleryProps) 
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" sideOffset={6} collisionPadding={12}>
+                        <DropdownMenuItem onClick={() => void handleSetAsCover(photo)} disabled={photo.isCover || updatePhotoMutation.isPending}>
+                          <Star className="mr-2 h-4 w-4" />
+                          {t('campaigns.gallery.setAsCover', 'Зробити основним')}
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openEditDialog(photo)}>
                           <Edit className="mr-2 h-4 w-4" />
                           {t('common.edit', 'Редагувати')}

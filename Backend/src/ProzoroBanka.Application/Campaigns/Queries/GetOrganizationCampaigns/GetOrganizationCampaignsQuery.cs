@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Campaigns.DTOs;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
@@ -80,7 +81,7 @@ public class GetOrganizationCampaignsHandler
 
 		var result = campaigns.Select(c => new CampaignDto(
 			c.Id, c.Title, c.Description,
-			StorageUrlResolver.Resolve(_fileStorage, c.CoverImageStorageKey),
+			_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
 			c.GoalAmount,
 			c.CurrentAmount,
 			c.WithdrawnAmount,

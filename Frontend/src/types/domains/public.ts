@@ -113,6 +113,14 @@ export interface PublicCampaignDetail {
   organizationName: string;
   organizationSlug: string;
   latestReceipts: PublicReceipt[];
+  posts: PublicCampaignPost[];
+}
+
+export interface PublicCampaignPost {
+  id: string;
+  description?: string;
+  imageUrl: string;
+  createdAt: string;
 }
 
 export interface TransparencyCategory {

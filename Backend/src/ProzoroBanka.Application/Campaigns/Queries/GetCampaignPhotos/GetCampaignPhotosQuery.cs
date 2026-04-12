@@ -23,8 +23,13 @@ public class GetCampaignPhotosHandler : IRequestHandler<GetCampaignPhotosQuery, 
 	public async Task<ServiceResponse<IReadOnlyList<CampaignPhotoDto>>> Handle(
 		GetCampaignPhotosQuery request, CancellationToken cancellationToken)
 	{
-		var campaignExists = await _db.Campaigns.AnyAsync(c => c.Id == request.CampaignId, cancellationToken);
-		if (!campaignExists)
+		var coverStorageKey = await _db.Campaigns
+			.AsNoTracking()
+			.Where(c => c.Id == request.CampaignId)
+			.Select(c => c.CoverImageStorageKey)
+			.FirstOrDefaultAsync(cancellationToken);
+
+		if (coverStorageKey is null && !await _db.Campaigns.AnyAsync(c => c.Id == request.CampaignId, cancellationToken))
 			return ServiceResponse<IReadOnlyList<CampaignPhotoDto>>.Failure("Збір не знайдено.");
 
 		var photos = await _db.CampaignPhotos
@@ -38,6 +43,7 @@ public class GetCampaignPhotosHandler : IRequestHandler<GetCampaignPhotosQuery, 
 			_fileStorage.GetPublicUrl(p.StorageKey),
 			p.OriginalFileName,
 			p.Description,
+			string.Equals(p.StorageKey, coverStorageKey, StringComparison.Ordinal),
 			p.SortOrder,
 			p.CreatedAt)).ToList();
 

@@ -122,6 +122,7 @@ export interface CampaignPhoto {
   photoUrl: string;
   originalFileName: string;
   description?: string | null;
+  isCover: boolean;
   sortOrder: number;
   createdAt: string;
 }
@@ -132,4 +133,5 @@ export interface ReorderCampaignPhotosPayload {
 
 export interface UpdateCampaignPhotoPayload {
   description?: string;
+  setAsCover?: boolean;
 }

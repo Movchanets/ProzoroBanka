@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using ProzoroBanka.Application.Campaigns.Commands.AttachReceiptToCampaign;
 using ProzoroBanka.Application.Campaigns.Commands.ChangeCampaignStatus;
 using ProzoroBanka.Application.Campaigns.Commands.CreateCampaign;
+using ProzoroBanka.Application.Campaigns.Commands.DetachReceiptFromCampaign;
 using ProzoroBanka.Application.Campaigns.Commands.DeleteCampaign;
 using ProzoroBanka.Application.Campaigns.Commands.UpdateCampaign;
 using ProzoroBanka.Application.Campaigns.Commands.UpdateCampaignBalance;
@@ -336,6 +337,29 @@ public class CampaignsController : ApiControllerBase
 		return Ok(result.Payload);
 	}
 
+	[HttpDelete("{id:guid}/receipts/{receiptId:guid}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> DetachReceipt(Guid id, Guid receiptId, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new DetachReceiptFromCampaignCommand(domainUserId.Value, id, receiptId), ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: result.Message.Contains("Немає доступу")
+					? StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message })
+					: BadRequest(new { Error = result.Message });
+
+		return NoContent();
+	}
+
 	[HttpGet("{id:guid}/photos")]
 	[ProducesResponseType(typeof(IReadOnlyList<CampaignPhotoDto>), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -442,7 +466,7 @@ public class CampaignsController : ApiControllerBase
 		if (domainUserId is null)
 			return Unauthorized();
 
-		var result = await _sender.Send(new Application.Campaigns.Commands.UpdateCampaignPhoto.UpdateCampaignPhotoCommand(domainUserId.Value, id, photoId, request.Description), ct);
+		var result = await _sender.Send(new Application.Campaigns.Commands.UpdateCampaignPhoto.UpdateCampaignPhotoCommand(domainUserId.Value, id, photoId, request.Description, request.SetAsCover), ct);
 
 		if (!result.IsSuccess)
 			return result.Message.Contains("не знайдено")

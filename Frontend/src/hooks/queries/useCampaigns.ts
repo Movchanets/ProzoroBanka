@@ -161,6 +161,20 @@ export function useAttachReceiptToCampaign(orgId: string) {
   });
 }
 
+export function useDetachReceiptFromCampaign(orgId: string) {
+  return useMutation({
+    mutationFn: ({ campaignId, receiptId }: { campaignId: string; receiptId: string }) =>
+      campaignService.detachReceipt(campaignId, receiptId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.all(orgId) });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.stats(orgId) });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.receipts(variables.campaignId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all });
+    },
+  });
+}
+
 export function useCampaignPhotos(campaignId: string | null | undefined) {
   return useQuery({
     queryKey: [...campaignKeys.detail(campaignId!), 'photos'],
@@ -175,6 +189,7 @@ export function useAddCampaignPhoto(campaignId: string) {
       campaignService.addPhoto(campaignId, file, description),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...campaignKeys.detail(campaignId), 'photos'] });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(campaignId) });
     },
   });
 }
@@ -184,6 +199,7 @@ export function useDeleteCampaignPhoto(campaignId: string) {
     mutationFn: (photoId: string) => campaignService.deletePhoto(campaignId, photoId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...campaignKeys.detail(campaignId), 'photos'] });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(campaignId) });
     },
   });
 }
@@ -200,10 +216,11 @@ export function useReorderCampaignPhotos(campaignId: string) {
 
 export function useUpdateCampaignPhoto(campaignId: string) {
   return useMutation({
-    mutationFn: ({ photoId, payload }: { photoId: string; payload: { description?: string } }) =>
+    mutationFn: ({ photoId, payload }: { photoId: string; payload: { description?: string; setAsCover?: boolean } }) =>
       campaignService.updatePhoto(campaignId, photoId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...campaignKeys.detail(campaignId), 'photos'] });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(campaignId) });
     },
   });
 }

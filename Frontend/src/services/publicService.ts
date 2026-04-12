@@ -134,6 +134,7 @@ export const publicService = {
         currentAmount: toHryvnia(campaign.currentAmount),
         documentedAmount: toHryvnia(campaign.documentedAmount),
         latestReceipts: campaign.latestReceipts.map(mapPublicReceiptAmount),
+        posts: campaign.posts ?? [],
       })),
 
   getCampaignReceipts: (campaignId: string, page = 1, pageSize = 20) => {

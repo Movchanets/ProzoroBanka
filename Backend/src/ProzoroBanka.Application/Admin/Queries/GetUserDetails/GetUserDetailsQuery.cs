@@ -1,7 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Admin.DTOs;
-using ProzoroBanka.Application.Common.Helpers;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 
@@ -70,7 +70,7 @@ public class GetUserDetailsQueryHandler : IRequestHandler<GetUserDetailsQuery, S
 			user.FirstName,
 			user.LastName,
 			user.PhoneNumber,
-			StorageUrlResolver.Resolve(_fileStorage, user.ProfilePhotoStorageKey),
+			_fileStorage.ResolvePublicUrl(user.ProfilePhotoStorageKey),
 			user.IsActive,
 			user.CreatedAt,
 			roles,

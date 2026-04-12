@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
@@ -84,11 +85,23 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 		if (campaign.Deadline.HasValue)
 			daysRemaining = Math.Max(0, (campaign.Deadline.Value.Date - DateTime.UtcNow.Date).Days);
 
+		var posts = await _db.CampaignPhotos
+			.AsNoTracking()
+			.Where(p => p.CampaignId == campaign.Id)
+			.OrderByDescending(p => p.CreatedAt)
+			.Take(12)
+			.Select(p => new PublicCampaignPostDto(
+				p.Id,
+				p.Description,
+				_fileStorage.ResolvePublicUrl(p.StorageKey) ?? string.Empty,
+				p.CreatedAt))
+			.ToListAsync(cancellationToken);
+
 		return ServiceResponse<PublicCampaignDetailDto>.Success(new PublicCampaignDetailDto(
 			campaign.Id,
 			campaign.Title,
 			campaign.Description,
-			StorageUrlResolver.Resolve(_fileStorage, campaign.CoverImageStorageKey),
+			_fileStorage.ResolvePublicUrl(campaign.CoverImageStorageKey),
 			campaign.SendUrl,
 			campaign.GoalAmount,
 			campaign.CurrentAmount,
@@ -102,6 +115,7 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 			campaign.OrganizationId,
 			campaign.OrganizationName,
 			campaign.OrganizationSlug,
-			latestReceipts));
+			latestReceipts,
+			posts));
 	}
 }

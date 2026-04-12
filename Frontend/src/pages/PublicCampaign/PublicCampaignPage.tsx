@@ -29,8 +29,6 @@ function buildSiteUrl(path: string): string {
 
 const SITE_BASE_URL = resolveSiteBaseUrl();
 
-const campaignPostPlaceholderIds = ['public-post-1', 'public-post-2'] as const;
-
 function formatPublicAmount(value: number | undefined, locale: string, emptyText: string) {
   if (typeof value !== 'number') {
     return emptyText;
@@ -70,6 +68,7 @@ export default function PublicCampaignPage() {
 
   const campaign = campaignQuery.data;
   const receipts = receiptsQuery.data?.items ?? [];
+  const posts = campaign.posts ?? [];
   const receiptPreview = receipts.slice(0, 3);
   const hiddenReceiptCount = Math.max(0, receipts.length - receiptPreview.length);
 
@@ -209,14 +208,26 @@ export default function PublicCampaignPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {campaignPostPlaceholderIds.map((postId) => (
-                <article key={postId} className="rounded-2xl border border-border/70 bg-muted/15 p-4" data-testid={`public-campaign-post-placeholder-${postId}`}>
-                  <p className="text-xs text-muted-foreground" data-testid={`public-campaign-post-time-${postId}`}>{t(`campaigns.public.posts.${postId}.publishedAt`)}</p>
-                  <h3 className="mt-1 text-base font-semibold" data-testid={`public-campaign-post-title-${postId}`}>{t(`campaigns.public.posts.${postId}.title`)}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground" data-testid={`public-campaign-post-text-${postId}`}>{t(`campaigns.public.posts.${postId}.text`)}</p>
-                  <div className="mt-3 flex min-h-24 items-center justify-center rounded-xl border border-dashed border-border bg-background/70 text-xs text-muted-foreground" data-testid={`public-campaign-post-image-placeholder-${postId}`}>
-                    <ImageIcon className="mr-2 h-4 w-4" />
-                    {t('campaigns.public.postImagePlaceholder')}
+              {posts.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground" data-testid="public-campaign-empty-posts">
+                  {t('campaigns.public.postsEmpty', 'Поки що немає публічних оновлень')}
+                </div>
+              ) : null}
+              {posts.map((post, index) => (
+                <article key={post.id} className="overflow-hidden rounded-2xl border border-border/70 bg-muted/15" data-testid={`public-campaign-post-${index}`}>
+                  <img
+                    src={post.imageUrl}
+                    alt={post.description || campaign.title}
+                    className="h-56 w-full object-cover"
+                    data-testid={`public-campaign-post-image-${index}`}
+                  />
+                  <div className="space-y-2 p-4">
+                    <p className="text-xs text-muted-foreground" data-testid={`public-campaign-post-time-${index}`}>
+                      {new Date(post.createdAt).toLocaleString(locale)}
+                    </p>
+                    <p className="text-sm" data-testid={`public-campaign-post-text-${index}`}>
+                      {post.description || t('campaigns.public.postTextFallback', 'Оновлення без опису')}
+                    </p>
                   </div>
                 </article>
               ))}

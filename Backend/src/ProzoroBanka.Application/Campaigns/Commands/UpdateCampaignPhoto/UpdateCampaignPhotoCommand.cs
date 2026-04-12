@@ -10,7 +10,8 @@ public record UpdateCampaignPhotoCommand(
 	Guid DomainUserId,
 	Guid CampaignId,
 	Guid PhotoId,
-	string? Description) : IRequest<ServiceResponse<CampaignPhotoDto>>;
+	string? Description,
+	bool SetAsCover) : IRequest<ServiceResponse<CampaignPhotoDto>>;
 
 public class UpdateCampaignPhotoHandler : IRequestHandler<UpdateCampaignPhotoCommand, ServiceResponse<CampaignPhotoDto>>
 {
@@ -45,6 +46,10 @@ public class UpdateCampaignPhotoHandler : IRequestHandler<UpdateCampaignPhotoCom
 			return ServiceResponse<CampaignPhotoDto>.Failure("Фото не знайдено.");
 
 		photo.Description = request.Description;
+		if (request.SetAsCover)
+		{
+			campaign.CoverImageStorageKey = photo.StorageKey;
+		}
 
 		await _db.SaveChangesAsync(cancellationToken);
 
@@ -53,6 +58,7 @@ public class UpdateCampaignPhotoHandler : IRequestHandler<UpdateCampaignPhotoCom
 			_fileStorage.GetPublicUrl(photo.StorageKey),
 			photo.OriginalFileName,
 			photo.Description,
+			string.Equals(campaign.CoverImageStorageKey, photo.StorageKey, StringComparison.Ordinal),
 			photo.SortOrder,
 			photo.CreatedAt);
 

@@ -1,6 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using ProzoroBanka.Application.Common.Helpers;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Public.DTOs;
@@ -55,7 +55,7 @@ public class GetPublicOrganizationHandler : IRequestHandler<GetPublicOrganizatio
 				m.UserId,
 				m.User.FirstName,
 				m.User.LastName,
-				StorageUrlResolver.Resolve(_fileStorage, m.User.ProfilePhotoStorageKey)))
+				_fileStorage.ResolvePublicUrl(m.User.ProfilePhotoStorageKey)))
 			.Take(12)
 			.ToListAsync(cancellationToken);
 
@@ -64,7 +64,7 @@ public class GetPublicOrganizationHandler : IRequestHandler<GetPublicOrganizatio
 			org.Name,
 			org.Slug,
 			org.Description,
-			StorageUrlResolver.Resolve(_fileStorage, org.LogoStorageKey),
+			_fileStorage.ResolvePublicUrl(org.LogoStorageKey),
 			org.IsVerified,
 			org.Website,
 			org.MemberCount,

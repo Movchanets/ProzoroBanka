@@ -1,7 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Campaigns.DTOs;
-using ProzoroBanka.Application.Common.Helpers;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Domain.Enums;
@@ -61,7 +61,7 @@ public class UpdateCampaignHandler : IRequestHandler<UpdateCampaignCommand, Serv
 
 		return ServiceResponse<CampaignDto>.Success(new CampaignDto(
 			campaign.Id, campaign.Title, campaign.Description,
-			StorageUrlResolver.Resolve(_fileStorage, campaign.CoverImageStorageKey),
+			_fileStorage.ResolvePublicUrl(campaign.CoverImageStorageKey),
 			campaign.GoalAmount, campaign.CurrentAmount, 0, 0, 0,
 			campaign.Status, campaign.StartDate, campaign.Deadline,
 			campaign.MonobankAccountId, campaign.SendUrl, 0, campaign.CreatedAt));

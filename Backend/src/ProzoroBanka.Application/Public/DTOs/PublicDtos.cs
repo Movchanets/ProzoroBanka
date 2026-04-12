@@ -63,7 +63,14 @@ public record PublicCampaignDetailDto(
 	Guid OrganizationId,
 	string OrganizationName,
 	string OrganizationSlug,
-	IReadOnlyList<PublicReceiptDto> LatestReceipts);
+	IReadOnlyList<PublicReceiptDto> LatestReceipts,
+	IReadOnlyList<PublicCampaignPostDto> Posts);
+
+public record PublicCampaignPostDto(
+	Guid Id,
+	string? Description,
+	string ImageUrl,
+	DateTime CreatedAt);
 
 public record PublicReceiptDto(
 	Guid Id,

@@ -1,3 +1,4 @@
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Domain.Entities;
@@ -10,7 +11,7 @@ public static class ReceiptDtoMapper
 		new(
 			receipt.Id,
 			receipt.OriginalFileName,
-			StorageUrlResolver.Resolve(fileStorage, receipt.ReceiptImageStorageKey ?? receipt.StorageKey),
+			fileStorage.ResolvePublicUrl(receipt.ReceiptImageStorageKey ?? receipt.StorageKey),
 			receipt.Alias,
 			receipt.MerchantName,
 			receipt.TotalAmount,
@@ -45,7 +46,7 @@ public static class ReceiptDtoMapper
 				.Select(photo => new ReceiptItemPhotoDto(
 					photo.Id,
 					photo.OriginalFileName,
-					StorageUrlResolver.Resolve(fileStorage, photo.StorageKey) ?? string.Empty,
+					fileStorage.ResolvePublicUrl(photo.StorageKey) ?? string.Empty,
 					photo.SortOrder,
 					photo.ReceiptItemId))
 				.ToList(),

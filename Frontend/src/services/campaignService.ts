@@ -87,6 +87,11 @@ export const campaignService = {
       method: 'POST',
     }),
 
+  detachReceipt: (id: string, receiptId: string) =>
+    apiFetch<void>(`/api/campaigns/${id}/receipts/${receiptId}`, {
+      method: 'DELETE',
+    }),
+
   updateBalanceManual: (id: string, payload: UpdateCampaignBalancePayload) =>
     apiFetch<{ message: string }>(`/api/campaigns/${id}/balance/manual`, {
       method: 'POST',

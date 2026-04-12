@@ -84,6 +84,7 @@ public record CampaignPhotoDto(
 	string PhotoUrl,
 	string OriginalFileName,
 	string? Description,
+	bool IsCover,
 	int SortOrder,
 	DateTime CreatedAt);
 
@@ -94,4 +95,5 @@ public record ReorderCampaignPhotosRequest(
 	List<Guid> PhotoIds);
 
 public record UpdateCampaignPhotoRequest(
-	string? Description);
+	string? Description,
+	bool SetAsCover = false);

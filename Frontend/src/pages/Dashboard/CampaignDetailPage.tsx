@@ -3,9 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   useAttachReceiptToCampaign,
+  useAddCampaignPhoto,
   useCampaign,
+  useCampaignPhotos,
   useCampaignReceipts,
   useCampaignTransactions,
+  useDetachReceiptFromCampaign,
   useUpdateCampaignBalance,
 } from '@/hooks/queries/useCampaigns';
 import {
@@ -22,10 +25,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
-import { ArrowLeft, Calendar, Edit2, Megaphone, ReceiptText, HandCoins, Clock3, Handshake, Loader2, Plus, ImageIcon, Eye } from 'lucide-react';
+import { ArrowLeft, Calendar, Edit2, Megaphone, ReceiptText, HandCoins, Clock3, Handshake, Loader2, Plus, ImageIcon, Eye, MoreVertical, Newspaper } from 'lucide-react';
 import { SelectReceiptDialog } from './SelectReceiptDialog';
 import { CampaignPhotoGallery } from './CampaignPhotoGallery';
 import { toast } from 'sonner';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const statusColor: Record<number, string> = {
   0: 'bg-muted text-muted-foreground',
@@ -55,7 +59,10 @@ export default function CampaignDetailPage() {
     isError: isReceiptsError,
   } = useCampaignReceipts(campaignId);
   const attachReceiptToCampaign = useAttachReceiptToCampaign(orgId!);
+  const detachReceiptFromCampaign = useDetachReceiptFromCampaign(orgId!);
   const updateCampaignBalance = useUpdateCampaignBalance(orgId!);
+  const { data: campaignPhotos = [] } = useCampaignPhotos(campaignId);
+  const addCampaignPhoto = useAddCampaignPhoto(campaignId!);
   const [transactionsPage, setTransactionsPage] = useState(1);
   const transactionsPageSize = 10;
   const {
@@ -69,6 +76,8 @@ export default function CampaignDetailPage() {
   const [manualAmountUah, setManualAmountUah] = useState<string>('');
   const [manualReason, setManualReason] = useState('');
   const [manualUpdateError, setManualUpdateError] = useState<string | null>(null);
+  const [postDescription, setPostDescription] = useState('');
+  const [postImageFile, setPostImageFile] = useState<File | null>(null);
 
   if (isLoading) {
     return (
@@ -108,6 +117,41 @@ export default function CampaignDetailPage() {
       const message = error instanceof Error
         ? error.message
         : t('campaigns.detail.receiptAttachError', 'Не вдалося прикріпити чек');
+      toast.error(message);
+    }
+  };
+
+  const handleDetachReceipt = async (receiptId: string) => {
+    if (!campaignId) return;
+    try {
+      await detachReceiptFromCampaign.mutateAsync({ campaignId, receiptId });
+      toast.success(t('campaigns.detail.receiptDetached', 'Чек відкріплено від збору'));
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : t('campaigns.detail.receiptDetachError', 'Не вдалося відкріпити чек');
+      toast.error(message);
+    }
+  };
+
+  const handleCreatePost = async () => {
+    if (!postImageFile) {
+      toast.error(t('campaigns.posts.imageRequired', 'Додайте зображення для поста'));
+      return;
+    }
+
+    try {
+      await addCampaignPhoto.mutateAsync({
+        file: postImageFile,
+        description: postDescription.trim() || undefined,
+      });
+      setPostDescription('');
+      setPostImageFile(null);
+      toast.success(t('campaigns.posts.createSuccess', 'Пост опубліковано'));
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : t('campaigns.posts.createError', 'Не вдалося створити пост');
       toast.error(message);
     }
   };
@@ -231,6 +275,64 @@ export default function CampaignDetailPage() {
             </CardContent>
           </Card>
 
+          <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="campaign-detail-posts-card">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2" data-testid="campaign-detail-posts-title">
+                <Newspaper className="h-5 w-5 text-primary" />
+                {t('campaigns.posts.title', 'Пости збору')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="campaign-post-description">{t('campaigns.posts.descriptionLabel', 'Текст поста')}</Label>
+                <Textarea
+                  id="campaign-post-description"
+                  value={postDescription}
+                  onChange={(event) => setPostDescription(event.target.value)}
+                  placeholder={t('campaigns.posts.descriptionPlaceholder', 'Опишіть оновлення по збору')}
+                  data-testid="campaign-detail-post-description-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="campaign-post-image">{t('campaigns.posts.imageLabel', 'Зображення')}</Label>
+                <Input
+                  id="campaign-post-image"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => setPostImageFile(event.target.files?.[0] ?? null)}
+                  data-testid="campaign-detail-post-image-input"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={() => void handleCreatePost()}
+                disabled={addCampaignPhoto.isPending}
+                data-testid="campaign-detail-post-submit-button"
+              >
+                {addCampaignPhoto.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t('campaigns.posts.submit', 'Опублікувати пост')}
+              </Button>
+
+              <div className="space-y-3 pt-2" data-testid="campaign-detail-posts-feed">
+                {campaignPhotos
+                  .slice()
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .slice(0, 6)
+                  .map((photo) => (
+                    <article key={photo.id} className="overflow-hidden rounded-xl border border-border/70 bg-muted/10" data-testid={`campaign-detail-post-${photo.id}`}>
+                      <img src={photo.photoUrl} alt={photo.description || campaign.title} className="h-44 w-full object-cover" />
+                      <div className="space-y-1 p-3 text-sm">
+                        <p className="text-xs text-muted-foreground" data-testid={`campaign-detail-post-date-${photo.id}`}>
+                          {new Date(photo.createdAt).toLocaleString(locale)}
+                        </p>
+                        <p data-testid={`campaign-detail-post-text-${photo.id}`}>{photo.description || t('campaigns.posts.emptyText', 'Оновлення без тексту')}</p>
+                      </div>
+                    </article>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+
           <CampaignPhotoGallery campaignId={campaignId!} />
         </div>
 
@@ -246,7 +348,7 @@ export default function CampaignDetailPage() {
                 <Badge variant="secondary" data-testid="campaign-detail-receipts-count">{currentCount}</Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 overflow-visible">
               {isReceiptsLoading ? (
                 <div className="space-y-3">
                   <Skeleton className="h-18 w-full rounded-xl" />
@@ -294,15 +396,30 @@ export default function CampaignDetailPage() {
                               ? t('campaigns.detail.verifiedStatus')
                               : t('campaigns.detail.statusFallback', { status: receipt.status })}
                           </Badge>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`campaign-detail-receipt-menu-trigger-${receipt.id}`}>
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" sideOffset={8} collisionPadding={12}>
+                              <DropdownMenuItem asChild>
+                                <Link to={`/dashboard/${orgId}/receipts/${receipt.id}`} data-testid={`campaign-detail-receipt-open-${receipt.id}`}>
+                                  <Eye className="h-3.5 w-3.5" />
+                                  {t('campaigns.detail.openFullReceipt')}
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive focus:bg-destructive/10"
+                                onClick={() => void handleDetachReceipt(receipt.id)}
+                                disabled={detachReceiptFromCampaign.isPending}
+                                data-testid={`campaign-detail-receipt-detach-${receipt.id}`}
+                              >
+                                {t('campaigns.detail.detachReceipt', 'Відкріпити чек')}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      </div>
-                      <div className="mt-3 flex justify-end">
-                        <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-xs">
-                          <Link to={`/dashboard/${orgId}/receipts/${receipt.id}`}>
-                            <Eye className="h-3.5 w-3.5" />
-                            {t('campaigns.detail.openFullReceipt')}
-                          </Link>
-                        </Button>
                       </div>
                     </div>
                   ))}
