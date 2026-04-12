@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
+using System.Net.Http.Headers;
 using Polly;
 using Polly.Extensions.Http;
 using ProzoroBanka.Application.Common.Interfaces;
@@ -46,6 +47,7 @@ public static class OcrRegistration
 			var options = sp.GetRequiredService<IOptions<OcrOptions>>().Value;
 			client.BaseAddress = new Uri(options.OpenRouter.BaseUrl);
 			client.Timeout = TimeSpan.FromSeconds(options.OpenRouter.TimeoutSeconds);
+			client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
 			if (!string.IsNullOrEmpty(options.OpenRouter.ApiKey))
 				client.DefaultRequestHeaders.Authorization = new("Bearer", options.OpenRouter.ApiKey);
