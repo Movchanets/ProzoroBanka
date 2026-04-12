@@ -35,6 +35,27 @@ public static class ReceiptPipelineQueryExtensions
 			.FirstOrDefaultAsync(r => r.Id == receiptId && r.UserId == callerDomainUserId, ct);
 	}
 
+	public static async Task<Receipt?> FindAccessibleWithPipelineGraphAsync(
+		this IApplicationDbContext db,
+		IOrganizationAuthorizationService orgAuth,
+		Guid receiptId,
+		Guid callerDomainUserId,
+		CancellationToken ct)
+	{
+		var receipt = await db.FindWithPipelineGraphByIdAsync(receiptId, ct);
+		if (receipt is null)
+			return null;
+
+		if (receipt.UserId == callerDomainUserId)
+			return receipt;
+
+		if (!receipt.OrganizationId.HasValue)
+			return null;
+
+		var isOrgMember = await orgAuth.IsMember(receipt.OrganizationId.Value, callerDomainUserId, ct);
+		return isOrgMember ? receipt : null;
+	}
+
 	public static Task<Receipt> GetOwnedWithPipelineGraphNoTrackingAsync(
 		this IApplicationDbContext db,
 		Guid receiptId,

@@ -36,7 +36,7 @@ public class VerifyReceiptHandler : IRequestHandler<VerifyReceiptCommand, Servic
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(VerifyReceiptCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.FindOwnedWithPipelineGraphAsync(request.ReceiptId, request.CallerDomainUserId, ct);
+		var receipt = await _db.FindAccessibleWithPipelineGraphAsync(_orgAuth, request.ReceiptId, request.CallerDomainUserId, ct);
 		if (receipt is null)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
 

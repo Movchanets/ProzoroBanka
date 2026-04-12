@@ -47,6 +47,59 @@ public class ExtractReceiptDataHandlerTests
 		return (userId, receiptId);
 	}
 
+	private static async Task<(Guid OwnerUserId, Guid MemberUserId, Guid ReceiptId, Guid OrganizationId)> SeedOrganizationDraftReceiptAsync(ApplicationDbContext db)
+	{
+		var ownerUserId = Guid.NewGuid();
+		var memberUserId = Guid.NewGuid();
+		var receiptId = Guid.NewGuid();
+		var organizationId = Guid.NewGuid();
+
+		db.DomainUsers.AddRange(
+			new User
+			{
+				Id = ownerUserId,
+				Email = $"owner-{ownerUserId:N}@test.com",
+				FirstName = "Receipt",
+				LastName = "Owner"
+			},
+			new User
+			{
+				Id = memberUserId,
+				Email = $"member-{memberUserId:N}@test.com",
+				FirstName = "Receipt",
+				LastName = "Member"
+			});
+
+		db.Organizations.Add(new Organization
+		{
+			Id = organizationId,
+			OwnerUserId = ownerUserId,
+			Name = "Test Organization"
+		});
+
+		db.OrganizationMembers.Add(new OrganizationMember
+		{
+			OrganizationId = organizationId,
+			UserId = memberUserId,
+			Role = OrganizationRole.Reporter
+		});
+
+		db.Receipts.Add(new Receipt
+		{
+			Id = receiptId,
+			UserId = ownerUserId,
+			OrganizationId = organizationId,
+			StorageKey = "uploads/org-receipt.png",
+			ReceiptImageStorageKey = "uploads/org-receipt.png",
+			OriginalFileName = "org-receipt.png",
+			Status = ReceiptStatus.PendingOcr,
+			PublicationStatus = ReceiptPublicationStatus.Draft
+		});
+
+		await db.SaveChangesAsync();
+		return (ownerUserId, memberUserId, receiptId, organizationId);
+	}
+
 	[Fact]
 	public async Task Handle_WhenQuotaAllowed_SetsStatusToPendingOcrAndEnqueues()
 	{
@@ -147,6 +200,40 @@ public class ExtractReceiptDataHandlerTests
 		// But OCR should still be enqueued since receipt has existing ReceiptImageStorageKey
 		ocrQueue.Verify(q => q.EnqueueAsync(
 			It.Is<OcrWorkItem>(item => item.ReceiptId == receiptId),
+			It.IsAny<CancellationToken>()), Times.Once);
+	}
+
+	[Fact]
+	public async Task Handle_WhenReceiptOwnedByAnotherUserInSameOrganization_AllowsExtraction()
+	{
+		await using var db = _fixture.CreateContext();
+		var (ownerUserId, memberUserId, receiptId, orgId) = await SeedOrganizationDraftReceiptAsync(db);
+
+		var quota = new Mock<IOcrMonthlyQuotaService>();
+		quota.Setup(q => q.TryConsumeAsync(orgId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new QuotaDecision(true, null));
+
+		var orgAuth = new Mock<IOrganizationAuthorizationService>();
+		orgAuth.Setup(x => x.IsMember(orgId, memberUserId, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(true);
+
+		var ocrQueue = new Mock<IOcrProcessingQueue>();
+		var fileStorage = new Mock<IFileStorage>();
+		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => key);
+
+		var handler = new ExtractReceiptDataHandler(db, orgAuth.Object, quota.Object, ocrQueue.Object, fileStorage.Object);
+
+		var result = await handler.Handle(
+			new ExtractReceiptDataCommand(memberUserId, receiptId, null, null, orgId),
+			CancellationToken.None);
+
+		Assert.True(result.IsSuccess);
+		Assert.Equal(ReceiptStatus.PendingOcr, result.Payload!.Status);
+
+		ocrQueue.Verify(q => q.EnqueueAsync(
+			It.Is<OcrWorkItem>(item => item.ReceiptId == receiptId
+				&& item.OrganizationId == orgId
+				&& item.CallerUserId == ownerUserId),
 			It.IsAny<CancellationToken>()), Times.Once);
 	}
 }

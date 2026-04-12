@@ -10,17 +10,19 @@ namespace ProzoroBanka.Application.Receipts.Commands.RetryReceiptProcessing;
 public class RetryReceiptProcessingHandler : IRequestHandler<RetryReceiptProcessingCommand, ServiceResponse<ReceiptPipelineDto>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IOrganizationAuthorizationService _orgAuth;
 	private readonly IFileStorage _fileStorage;
 
-	public RetryReceiptProcessingHandler(IApplicationDbContext db, IFileStorage fileStorage)
+	public RetryReceiptProcessingHandler(IApplicationDbContext db, IOrganizationAuthorizationService orgAuth, IFileStorage fileStorage)
 	{
 		_db = db;
+		_orgAuth = orgAuth;
 		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(RetryReceiptProcessingCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.FindOwnedWithPipelineGraphAsync(request.ReceiptId, request.CallerDomainUserId, ct);
+		var receipt = await _db.FindAccessibleWithPipelineGraphAsync(_orgAuth, request.ReceiptId, request.CallerDomainUserId, ct);
 		if (receipt is null)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
 

@@ -22,6 +22,7 @@ internal static class ApplicationRoleDefinitions
 			"receipts.create",
 			"receipts.update",
 			"receipts.delete",
+			"receipts.verify",
 			"monobank.read"
 		]);
 

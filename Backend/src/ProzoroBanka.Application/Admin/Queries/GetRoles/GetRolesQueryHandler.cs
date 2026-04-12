@@ -12,7 +12,7 @@ public class GetRolesQueryHandler : IRequestHandler<GetRolesQuery, ServiceRespon
 		{
 			new("Volunteer", "Волонтер", new[]
 			{
-				"receipts.read", "receipts.create", "receipts.update", "receipts.delete", "monobank.read"
+				"receipts.read", "receipts.create", "receipts.update", "receipts.delete", "receipts.verify", "monobank.read"
 			}),
 			new("Accountant", "Бухгалтер", new[]
 			{

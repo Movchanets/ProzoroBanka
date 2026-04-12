@@ -11,21 +11,25 @@ namespace ProzoroBanka.Application.Receipts.Commands.AddReceiptItemPhotos;
 public class AddReceiptItemPhotosHandler : IRequestHandler<AddReceiptItemPhotosCommand, ServiceResponse<ReceiptPipelineDto>>
 {
     private readonly IApplicationDbContext _db;
+    private readonly IOrganizationAuthorizationService _orgAuth;
     private readonly IFileStorage _fileStorage;
 
-    public AddReceiptItemPhotosHandler(IApplicationDbContext db, IFileStorage fileStorage)
+    public AddReceiptItemPhotosHandler(IApplicationDbContext db, IOrganizationAuthorizationService orgAuth, IFileStorage fileStorage)
     {
         _db = db;
+        _orgAuth = orgAuth;
         _fileStorage = fileStorage;
     }
 
     public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(AddReceiptItemPhotosCommand request, CancellationToken ct)
     {
-        var receiptExists = await _db.Receipts
-            .AsNoTracking()
-            .AnyAsync(r => r.Id == request.ReceiptId && r.UserId == request.CallerDomainUserId, ct);
+        var receipt = await _db.FindAccessibleWithPipelineGraphAsync(
+            _orgAuth,
+            request.ReceiptId,
+            request.CallerDomainUserId,
+            ct);
 
-        if (!receiptExists)
+        if (receipt is null)
             return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
 
         var maxSortOrder = await _db.ReceiptItemPhotos
@@ -52,8 +56,10 @@ public class AddReceiptItemPhotosHandler : IRequestHandler<AddReceiptItemPhotosC
 
         await _db.SaveChangesAsync(ct);
 
-        var receipt = await _db.GetOwnedWithPipelineGraphNoTrackingAsync(request.ReceiptId, request.CallerDomainUserId, ct);
+        var refreshedReceipt = await _db.FindWithPipelineGraphByIdAsync(request.ReceiptId, ct);
+        if (refreshedReceipt is null)
+            return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
 
-        return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));
+        return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, refreshedReceipt));
     }
 }

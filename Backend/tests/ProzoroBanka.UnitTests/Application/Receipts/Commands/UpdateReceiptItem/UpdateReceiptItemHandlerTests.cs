@@ -62,8 +62,9 @@ public class UpdateReceiptItemHandlerTests
 
 		var fileStorage = new Mock<IFileStorage>();
 		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => key);
+		var orgAuth = new Mock<IOrganizationAuthorizationService>();
 
-		var handler = new UpdateReceiptItemHandler(db, fileStorage.Object);
+		var handler = new UpdateReceiptItemHandler(db, orgAuth.Object, fileStorage.Object);
 
 		var result = await handler.Handle(
 			new UpdateReceiptItemCommand(

@@ -71,8 +71,9 @@ public class DeleteReceiptItemHandlerTests
 
 		var fileStorage = new Mock<IFileStorage>();
 		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => key);
+		var orgAuth = new Mock<IOrganizationAuthorizationService>();
 
-		var handler = new DeleteReceiptItemHandler(db, fileStorage.Object);
+		var handler = new DeleteReceiptItemHandler(db, orgAuth.Object, fileStorage.Object);
 
 		var result = await handler.Handle(
 			new DeleteReceiptItemCommand(userId, receiptId, itemId),
