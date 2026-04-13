@@ -68,7 +68,12 @@ export type UpdateOrganizationFormData = z.infer<ReturnType<typeof createUpdateO
 
 export function createCampaignSchema(t: TFunction) {
   return z.object({
-    title: z
+    titleUk: z
+      .string()
+      .trim()
+      .min(3, t('validation.orgNameMin'))
+      .max(200, t('validation.orgNameMax')),
+    titleEn: z
       .string()
       .trim()
       .min(3, t('validation.orgNameMin'))
@@ -92,6 +97,7 @@ export function createCampaignSchema(t: TFunction) {
       .max(512, t('validation.urlMax', { defaultValue: 'Посилання занадто довге' }))
       .optional()
       .or(z.literal('')),
+    categoryIds: z.array(z.string().uuid()).optional(),
   });
 }
 

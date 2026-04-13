@@ -11,8 +11,9 @@ import { CampaignCard } from '@/components/public/CampaignCard';
 import { ComingSoonStub } from '@/components/public/ComingSoonStub';
 import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
 import { SeoHelmet } from '@/components/seo/SeoHelmet';
-import { useHomeCampaignFeed, useSearchOrganizations } from '@/hooks/queries/usePublic';
+import { useHomeCampaignFeed, usePublicCampaignCategories, useSearchOrganizations } from '@/hooks/queries/usePublic';
 import { useTranslation } from 'react-i18next';
+import { resolveLocalizedText } from '@/lib/localizedText';
 
 type HomeTab = 'campaigns' | 'organizations';
 type CampaignFilterStatus = 'all' | 'active' | 'completed';
@@ -34,10 +35,13 @@ export default function HomePage() {
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<HomeTab>('campaigns');
   const [campaignStatus, setCampaignStatus] = useState<CampaignFilterStatus>('all');
+  const [campaignCategorySlug, setCampaignCategorySlug] = useState<string>('all');
   const [campaignVerifiedOnly, setCampaignVerifiedOnly] = useState(true);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [activeOnly, setActiveOnly] = useState(false);
   const deferredQuery = useDeferredValue(query);
+
+  const campaignCategoriesQuery = usePublicCampaignCategories(tab === 'campaigns');
 
   const organizationSearch = useSearchOrganizations(
     deferredQuery,
@@ -50,6 +54,7 @@ export default function HomePage() {
   );
   const campaignSearch = useHomeCampaignFeed(
     deferredQuery,
+    campaignCategorySlug === 'all' ? undefined : campaignCategorySlug,
     campaignStatus,
     campaignVerifiedOnly,
     24,
@@ -212,11 +217,22 @@ export default function HomePage() {
                 </label>
               </div>
 
-              <ComingSoonStub
-                testId="home-coming-soon-campaign-filters"
-                title={t('home.comingSoon.filtersTitle')}
-                description={t('home.comingSoon.filtersDescription')}
-              />
+              <div className="rounded-2xl border border-border/70 bg-background/60 p-3 shadow-[0_10px_24px_var(--shadow-soft)]">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('home.filters.categoryTitle')}</p>
+                <Select value={campaignCategorySlug} onValueChange={setCampaignCategorySlug}>
+                  <SelectTrigger data-testid="home-campaign-category-select" className="w-full">
+                    <SelectValue placeholder={t('home.filters.categoryPlaceholder')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('home.filters.categoryAll')}</SelectItem>
+                    {(campaignCategoriesQuery.data ?? []).map((category) => (
+                      <SelectItem value={category.slug} key={category.id}>
+                        {resolveLocalizedText(category.nameUk, category.nameEn, i18n.language)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           ) : (
             <div className="mt-4 flex flex-wrap gap-4 text-sm">

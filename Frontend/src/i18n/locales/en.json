@@ -198,6 +198,9 @@
     "filters": {
       "campaignsTitle": "Campaign filter",
       "statusPlaceholder": "Status",
+      "categoryTitle": "Category",
+      "categoryPlaceholder": "Choose category",
+      "categoryAll": "All categories",
       "selectedStatus": "Selected",
       "verifiedOrganizationsOnly": "Verified organizations only",
       "applyToCampaignTab": "Apply to campaign tab",
@@ -327,8 +330,12 @@
       "title": "New campaign",
       "titleLabel": "Title *",
       "titlePlaceholder": "Drone fundraiser for 72nd Brigade",
+      "titleLabelEn": "Title (English) *",
+      "titlePlaceholderUk": "Title in Ukrainian",
+      "titlePlaceholderEn": "Title in English",
       "descriptionLabel": "Description",
       "descriptionPlaceholder": "Detailed campaign description…",
+      "categoriesLabel": "Categories",
       "goalLabel": "Goal (₴) *",
       "deadlineLabel": "Deadline"
     },
@@ -647,10 +654,23 @@
       "roleAdmin": "Admin",
       "nav": {
         "organizations": "Organizations",
+        "campaignCategories": "Campaign categories",
         "users": "Users",
         "roles": "Roles",
         "settings": "Settings"
       }
+    },
+    "campaignCategories": {
+      "title": "Campaign categories",
+      "subtitle": "Create and manage categories used in the public campaign catalog.",
+      "createFormTitle": "New category",
+      "editFormTitle": "Edit category",
+      "listTitle": "Category list",
+      "nameUk": "Name (uk)",
+      "nameEn": "Name (en)",
+      "sortOrder": "Sort order",
+      "isActive": "Active category",
+      "empty": "No categories yet"
     },
     "settings": {
       "title": "General settings",

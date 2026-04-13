@@ -33,6 +33,7 @@ import { SelectReceiptDialog } from './SelectReceiptDialog';
 import { CampaignPhotoGallery } from './CampaignPhotoGallery';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { resolveLocalizedText } from '@/lib/localizedText';
 
 const statusColor: Record<number, string> = {
   0: 'bg-muted text-muted-foreground',
@@ -123,6 +124,8 @@ export default function CampaignDetailPage() {
       </div>
     );
   }
+
+  const campaignTitle = resolveLocalizedText(campaign.titleUk, campaign.titleEn, i18n.language);
 
   const withdrawn = new Intl.NumberFormat('uk-UA').format(campaign.withdrawnAmount / 100);
 
@@ -245,7 +248,7 @@ export default function CampaignDetailPage() {
               <div className="relative h-64 w-full bg-muted">
                 <img 
                   src={campaign.coverImageUrl} 
-                  alt={campaign.title} 
+                  alt={campaignTitle} 
                   className="h-full w-full object-cover" 
                 />
               </div>
@@ -266,7 +269,7 @@ export default function CampaignDetailPage() {
             )}
             <CardHeader className="space-y-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
-                <CardTitle className="text-2xl font-bold break-all" data-testid="campaign-detail-title">{campaign.title}</CardTitle>
+                <CardTitle className="text-2xl font-bold break-all" data-testid="campaign-detail-title">{campaignTitle}</CardTitle>
                 <Badge className={statusColor[campaign.status]} data-testid="campaign-detail-status-badge">{t(CampaignStatusLabel[campaign.status])}</Badge>
               </div>
               
@@ -352,7 +355,7 @@ export default function CampaignDetailPage() {
                   .slice(0, 6)
                   .map((photo) => (
                     <article key={photo.id} className="overflow-hidden rounded-xl border border-border/70 bg-muted/10" data-testid={`campaign-detail-post-${photo.id}`}>
-                      <img src={photo.photoUrl} alt={photo.description || campaign.title} className="h-44 w-full object-cover" />
+                      <img src={photo.photoUrl} alt={photo.description || campaignTitle} className="h-44 w-full object-cover" />
                       <div className="space-y-1 p-3 text-sm">
                         <p className="text-xs text-muted-foreground" data-testid={`campaign-detail-post-date-${photo.id}`}>
                           {new Date(photo.createdAt).toLocaleString(locale)}

@@ -37,7 +37,8 @@ export interface AdminOrganizationListResponse {
 
 export interface AdminCampaignDto {
   id: string;
-  title: string;
+  titleUk: string;
+  titleEn: string;
   description?: string;
   coverImageUrl?: string;
   goalAmount: number;
@@ -45,9 +46,27 @@ export interface AdminCampaignDto {
   status: CampaignStatus;
   startDate?: string;
   deadline?: string;
+  categories: AdminCampaignCategoryDto[];
   organizationName: string;
   createdByName: string;
   createdAt: string;
+}
+
+export interface AdminCampaignCategoryDto {
+  id: string;
+  nameUk: string;
+  nameEn: string;
+  slug: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface AdminCampaignCategoryPayload {
+  nameUk: string;
+  nameEn: string;
+  slug: string;
+  sortOrder: number;
+  isActive: boolean;
 }
 
 export interface AdminRoleDto {

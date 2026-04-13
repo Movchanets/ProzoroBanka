@@ -10,10 +10,12 @@ namespace ProzoroBanka.Application.Campaigns.Commands.CreateCampaign;
 public record CreateCampaignCommand(
 	Guid CallerDomainUserId,
 	Guid OrganizationId,
-	string Title,
+	string TitleUk,
+	string TitleEn,
 	string? Description,
 	long GoalAmount,
 	DateTime? Deadline,
+	IReadOnlyList<Guid>? CategoryIds,
 	string? SendUrl) : IRequest<ServiceResponse<CampaignDto>>, ICacheInvalidatingCommand
 {
 	public IEnumerable<string> CacheTags => [CacheTag.Campaigns, CacheTag.Organizations];
@@ -26,10 +28,19 @@ public class CreateCampaignCommandValidator : AbstractValidator<CreateCampaignCo
 		RuleFor(x => x.CallerDomainUserId).NotEmpty();
 		RuleFor(x => x.OrganizationId).NotEmpty();
 
-		RuleFor(x => x.Title)
-			.NotEmpty().WithMessage("Назва збору обов'язкова")
+		RuleFor(x => x.TitleUk)
+			.NotEmpty().WithMessage("Назва збору українською обов'язкова")
 			.MinimumLength(3).WithMessage("Назва збору мінімум 3 символи")
 			.MaximumLength(300).WithMessage("Назва збору максимум 300 символів");
+
+		RuleFor(x => x.TitleEn)
+			.NotEmpty().WithMessage("Назва збору англійською обов'язкова")
+			.MinimumLength(3).WithMessage("Назва збору мінімум 3 символи")
+			.MaximumLength(300).WithMessage("Назва збору максимум 300 символів");
+
+		RuleForEach(x => x.CategoryIds)
+			.NotEmpty().WithMessage("Id категорії не може бути порожнім")
+			.When(x => x.CategoryIds is not null);
 
 		RuleFor(x => x.Description)
 			.MaximumLength(5000).WithMessage("Опис максимум 5000 символів")

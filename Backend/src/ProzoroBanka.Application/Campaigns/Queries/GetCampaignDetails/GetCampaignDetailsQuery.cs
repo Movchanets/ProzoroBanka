@@ -38,7 +38,8 @@ public class GetCampaignDetailsHandler
 			.Select(c => new
 			{
 				c.Id,
-				c.Title,
+				c.TitleUk,
+				c.TitleEn,
 				c.Description,
 				c.CoverImageStorageKey,
 				c.GoalAmount,
@@ -53,6 +54,18 @@ public class GetCampaignDetailsHandler
 				c.SendUrl,
 				c.OrganizationId,
 				OrganizationName = c.Organization.Name,
+				Categories = c.CategoryMappings
+					.Where(m => m.Category.IsActive)
+					.OrderBy(m => m.Category.SortOrder)
+					.ThenBy(m => m.Category.NameUk)
+					.Select(m => new CampaignCategoryDto(
+						m.Category.Id,
+						m.Category.NameUk,
+						m.Category.NameEn,
+						m.Category.Slug,
+						m.Category.SortOrder,
+						m.Category.IsActive))
+					.ToList(),
 				CreatedByName = c.CreatedBy.FirstName + " " + c.CreatedBy.LastName,
 				c.CreatedAt
 			})
@@ -83,12 +96,12 @@ public class GetCampaignDetailsHandler
 			campaign.CurrentAmount);
 
 		return ServiceResponse<CampaignDetailDto>.Success(new CampaignDetailDto(
-			campaign.Id, campaign.Title, campaign.Description,
+			campaign.Id, campaign.TitleUk, campaign.TitleEn, campaign.Description,
 			_fileStorage.ResolvePublicUrl(campaign.CoverImageStorageKey),
 			campaign.GoalAmount, campaign.CurrentAmount, campaign.WithdrawnAmount,
 			documentedAmount, documentationPercent,
 			campaign.Status, campaign.StartDate, campaign.Deadline,
-			campaign.MonobankAccountId, campaign.SendUrl, receiptCount, campaign.OrganizationId,
+			campaign.MonobankAccountId, campaign.SendUrl, campaign.Categories, receiptCount, campaign.OrganizationId,
 			campaign.OrganizationName, campaign.CreatedByName,
 			campaign.CreatedAt));
 	}

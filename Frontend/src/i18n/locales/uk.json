@@ -198,6 +198,9 @@
     "filters": {
       "campaignsTitle": "Фільтр зборів",
       "statusPlaceholder": "Статус",
+      "categoryTitle": "Категорія",
+      "categoryPlaceholder": "Оберіть категорію",
+      "categoryAll": "Усі категорії",
       "selectedStatus": "Обрано",
       "verifiedOrganizationsOnly": "Лише перевірені організації",
       "applyToCampaignTab": "Застосувати до вкладки зборів",
@@ -327,8 +330,12 @@
       "title": "Новий збір",
       "titleLabel": "Назва *",
       "titlePlaceholder": "Збір на дрони для 72 бригади",
+      "titleLabelEn": "Назва (English) *",
+      "titlePlaceholderUk": "Назва українською",
+      "titlePlaceholderEn": "Назва англійською",
       "descriptionLabel": "Опис",
       "descriptionPlaceholder": "Детальний опис збору…",
+      "categoriesLabel": "Категорії",
       "goalLabel": "Ціль (₴) *",
       "deadlineLabel": "Дедлайн"
     },
@@ -647,10 +654,23 @@
       "roleAdmin": "Адмін",
       "nav": {
         "organizations": "Організації",
+        "campaignCategories": "Категорії зборів",
         "users": "Користувачі",
         "roles": "Ролі",
         "settings": "Налаштування"
       }
+    },
+    "campaignCategories": {
+      "title": "Категорії зборів",
+      "subtitle": "Створення та керування категоріями для публічного каталогу зборів.",
+      "createFormTitle": "Нова категорія",
+      "editFormTitle": "Редагування категорії",
+      "listTitle": "Список категорій",
+      "nameUk": "Назва (uk)",
+      "nameEn": "Назва (en)",
+      "sortOrder": "Порядок",
+      "isActive": "Активна категорія",
+      "empty": "Категорій ще немає"
     },
     "settings": {
       "title": "Загальні налаштування",

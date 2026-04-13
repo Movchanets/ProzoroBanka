@@ -25,9 +25,11 @@ test.describe('Public pages', () => {
     await homePage.fillSearch('тепловізори');
     await homePage.toggleVerifiedOrg(false);
     await homePage.selectStatus(/Активні|Active/i);
+    await homePage.selectCategory(/Тепловізори|Thermal/i);
     await homePage.submitSearchAndWait();
 
     await expect(homePage.verifiedOrgToggle).not.toBeChecked();
+    await expect(homePage.campaignCategorySelect).toBeVisible();
     await expect(homePage.campaignGrid).toBeVisible();
     await expect(homePage.campaignCardLink.first()).toBeVisible();
     await expect(page.getByText(/тепловізори/i).first()).toBeVisible();

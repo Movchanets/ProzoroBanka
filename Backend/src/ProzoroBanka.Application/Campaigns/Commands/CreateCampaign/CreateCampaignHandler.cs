@@ -48,11 +48,27 @@ public class CreateCampaignHandler : IRequestHandler<CreateCampaignCommand, Serv
 		if (!allowance.CanCreate)
 			return ServiceResponse<CampaignDto>.Failure("Досягнуто ліміт зборів для поточного тарифного плану");
 
+		var categoryIds = request.CategoryIds?
+			.Where(id => id != Guid.Empty)
+			.Distinct()
+			.ToList() ?? [];
+
+		if (categoryIds.Count > 0)
+		{
+			var activeCategoryCount = await _db.CampaignCategories
+				.AsNoTracking()
+				.CountAsync(c => categoryIds.Contains(c.Id) && c.IsActive, cancellationToken);
+
+			if (activeCategoryCount != categoryIds.Count)
+				return ServiceResponse<CampaignDto>.Failure("Одна або кілька категорій недоступні");
+		}
+
 		var campaign = new Campaign
 		{
 			OrganizationId = request.OrganizationId,
 			CreatedByUserId = request.CallerDomainUserId,
-			Title = request.Title,
+			TitleUk = request.TitleUk.Trim(),
+			TitleEn = request.TitleEn.Trim(),
 			Description = request.Description,
 			GoalAmount = request.GoalAmount,
 			Deadline = request.Deadline?.ToUniversalTime(),
@@ -61,14 +77,33 @@ public class CreateCampaignHandler : IRequestHandler<CreateCampaignCommand, Serv
 			CurrentAmount = 0
 		};
 
+		if (categoryIds.Count > 0)
+		{
+			foreach (var categoryId in categoryIds)
+			{
+				campaign.CategoryMappings.Add(new CampaignCategoryMapping
+				{
+					CategoryId = categoryId
+				});
+			}
+		}
+
 		_db.Campaigns.Add(campaign);
 		await _db.SaveChangesAsync(cancellationToken);
 
+		var categories = await _db.CampaignCategories
+			.AsNoTracking()
+			.Where(c => categoryIds.Contains(c.Id))
+			.OrderBy(c => c.SortOrder)
+			.ThenBy(c => c.NameUk)
+			.Select(c => new CampaignCategoryDto(c.Id, c.NameUk, c.NameEn, c.Slug, c.SortOrder, c.IsActive))
+			.ToListAsync(cancellationToken);
+
 		return ServiceResponse<CampaignDto>.Success(new CampaignDto(
-			campaign.Id, campaign.Title, campaign.Description,
+			campaign.Id, campaign.TitleUk, campaign.TitleEn, campaign.Description,
 			_fileStorage.ResolvePublicUrl(campaign.CoverImageStorageKey),
 			campaign.GoalAmount, campaign.CurrentAmount, 0, 0, 0,
 			campaign.Status, campaign.StartDate, campaign.Deadline,
-			campaign.MonobankAccountId, campaign.SendUrl, 0, campaign.CreatedAt));
+			campaign.MonobankAccountId, campaign.SendUrl, categories, 0, campaign.CreatedAt));
 	}
 }

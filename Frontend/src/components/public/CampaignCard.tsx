@@ -7,6 +7,8 @@ import { PhotoGalleryDialog } from '@/components/ui/photo-gallery-dialog';
 import { Progress } from '@/components/ui/progress';
 import { CampaignStatus, type PublicCampaign } from '@/types';
 import { VerifiedBadge } from './VerifiedBadge';
+import { resolveLocalizedText } from '@/lib/localizedText';
+import { useTranslation } from 'react-i18next';
 
 interface CampaignCardProps {
   campaign: PublicCampaign;
@@ -20,14 +22,16 @@ function getStatusLabel(status: number) {
 }
 
 export function CampaignCard({ campaign }: CampaignCardProps) {
+  const { i18n } = useTranslation();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const campaignTitle = resolveLocalizedText(campaign.titleUk, campaign.titleEn, i18n.language);
 
   const galleryImages = campaign.coverImageUrl
     ? [{
       src: campaign.coverImageUrl,
-      alt: campaign.title,
-      caption: campaign.title,
+      alt: campaignTitle,
+      caption: campaignTitle,
     }]
     : [];
 
@@ -56,7 +60,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
           >
             <img
               src={campaign.coverImageUrl}
-              alt={campaign.title}
+              alt={campaignTitle}
               className="h-full w-full object-cover"
               data-testid="home-campaign-cover-thumbnail-image"
             />
@@ -66,7 +70,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
           </button>
         ) : null}
 
-        <CardTitle className="line-clamp-2 text-lg leading-7">{campaign.title}</CardTitle>
+        <CardTitle className="line-clamp-2 text-lg leading-7">{campaignTitle}</CardTitle>
         <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">
           {campaign.description || 'Опис збору ще не додано.'}
         </p>
@@ -103,7 +107,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         onOpenChange={setIsPreviewOpen}
         currentIndex={previewIndex}
         onIndexChange={setPreviewIndex}
-        title={campaign.title}
+        title={campaignTitle}
         description="Попередній перегляд фото збору"
         testIdPrefix="home-campaign-cover-preview"
       />

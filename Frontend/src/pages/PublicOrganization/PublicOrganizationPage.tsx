@@ -11,6 +11,8 @@ import { TransparencyChart } from '@/components/public/TransparencyChart';
 import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
 import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { useOrgTransparency, usePublicOrgCampaigns, usePublicOrganization } from '@/hooks/queries/usePublic';
+import { resolveLocalizedText } from '@/lib/localizedText';
+import { useTranslation } from 'react-i18next';
 
 function mapTabToStatus(tab: 'all' | 'active' | 'completed') {
   if (tab === 'active') return CampaignStatus.Active;
@@ -37,6 +39,7 @@ function buildSiteUrl(path: string): string {
 const SITE_BASE_URL = resolveSiteBaseUrl();
 
 export default function PublicOrganizationPage() {
+  const { i18n } = useTranslation();
   const { slug } = useParams<{ slug: string }>();
   const [tab, setTab] = useState<'all' | 'active' | 'completed'>('all');
 
@@ -163,7 +166,7 @@ export default function PublicOrganizationPage() {
                   data-testid="public-org-campaign-link"
                   className="rounded-2xl border border-border/80 bg-card/90 p-4 shadow-[0_10px_24px_var(--shadow-soft)] transition-colors duration-200 hover:bg-muted/50"
                 >
-                  <p className="font-semibold text-foreground">{campaign.title}</p>
+                  <p className="font-semibold text-foreground">{resolveLocalizedText(campaign.titleUk, campaign.titleEn, i18n.language)}</p>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">{campaign.description || 'Без опису'}</p>
                 </Link>
               ))}

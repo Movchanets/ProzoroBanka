@@ -32,7 +32,8 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 			.Select(c => new
 			{
 				c.Id,
-				c.Title,
+				c.TitleUk,
+				c.TitleEn,
 				c.Description,
 				c.CoverImageStorageKey,
 				c.SendUrl,
@@ -43,7 +44,17 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 				c.Deadline,
 				c.OrganizationId,
 				OrganizationName = c.Organization.Name,
-				OrganizationSlug = c.Organization.Slug
+				OrganizationSlug = c.Organization.Slug,
+				Categories = c.CategoryMappings
+					.Where(m => m.Category.IsActive)
+					.OrderBy(m => m.Category.SortOrder)
+					.ThenBy(m => m.Category.NameUk)
+					.Select(m => new PublicCampaignCategoryDto(
+						m.Category.Id,
+						m.Category.NameUk,
+						m.Category.NameEn,
+						m.Category.Slug))
+					.ToList()
 			})
 			.FirstOrDefaultAsync(cancellationToken);
 
@@ -94,13 +105,14 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 			.Select(p => new PublicCampaignPostDto(
 				p.Id,
 				p.Description,
-				_fileStorage.ResolvePublicUrl(p.StorageKey) ?? string.Empty,
+				_fileStorage.ResolvePublicUrl(p.StorageKey),
 				p.CreatedAt))
 			.ToListAsync(cancellationToken);
 
 		return ServiceResponse<PublicCampaignDetailDto>.Success(new PublicCampaignDetailDto(
 			campaign.Id,
-			campaign.Title,
+			campaign.TitleUk,
+			campaign.TitleEn,
 			campaign.Description,
 			_fileStorage.ResolvePublicUrl(campaign.CoverImageStorageKey),
 			campaign.SendUrl,
@@ -116,6 +128,7 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 			campaign.OrganizationId,
 			campaign.OrganizationName,
 			campaign.OrganizationSlug,
+			campaign.Categories,
 			latestReceipts,
 			posts));
 	}

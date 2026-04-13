@@ -1,4 +1,5 @@
 using ProzoroBanka.Domain.Enums;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ProzoroBanka.Domain.Entities;
 
@@ -10,7 +11,19 @@ public class Campaign : BaseEntity
 	public Guid OrganizationId { get; set; }
 	public Guid CreatedByUserId { get; set; }
 
-	public string Title { get; set; } = string.Empty;
+	public string TitleUk { get; set; } = string.Empty;
+	public string TitleEn { get; set; } = string.Empty;
+	[NotMapped]
+	public string Title
+	{
+		get => TitleUk;
+		set
+		{
+			TitleUk = value;
+			if (string.IsNullOrWhiteSpace(TitleEn))
+				TitleEn = value;
+		}
+	}
 	public string? Description { get; set; }
 	public string? CoverImageStorageKey { get; set; }
 
@@ -44,4 +57,5 @@ public class Campaign : BaseEntity
 	public ICollection<CampaignTransaction> Transactions { get; set; } = new List<CampaignTransaction>();
 	public ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
 	public ICollection<CampaignPhoto> Photos { get; set; } = new List<CampaignPhoto>();
+	public ICollection<CampaignCategoryMapping> CategoryMappings { get; set; } = new List<CampaignCategoryMapping>();
 }

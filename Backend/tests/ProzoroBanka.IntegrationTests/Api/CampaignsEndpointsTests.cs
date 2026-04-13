@@ -29,7 +29,8 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 
 		var response = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/campaigns", new
 		{
-			title = "Збір на дрони",
+			titleUk = "Збір на дрони",
+			titleEn = "Drone fundraiser",
 			description = "Інтеграційний тест",
 			goalAmount = 100000,
 			deadline = DateTime.UtcNow.AddDays(15),
@@ -38,7 +39,7 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 		var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
-		Assert.Equal("Збір на дрони", payload.GetProperty("title").GetString());
+		Assert.Equal("Збір на дрони", payload.GetProperty("titleUk").GetString());
 	}
 
 	[Fact]
@@ -68,7 +69,8 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		{
 			var seed = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/campaigns", new
 			{
-				title = $"Seed campaign {i}",
+				titleUk = $"Seed campaign {i}",
+				titleEn = $"Seed campaign {i}",
 				description = "seed",
 				goalAmount = 50000,
 				deadline = DateTime.UtcNow.AddDays(30 + i)
@@ -78,7 +80,8 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 
 		var overflow = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/campaigns", new
 		{
-			title = "Overflow campaign",
+			titleUk = "Overflow campaign",
+			titleEn = "Overflow campaign",
 			description = "should fail",
 			goalAmount = 70000,
 			deadline = DateTime.UtcNow.AddDays(40)
@@ -107,7 +110,8 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 	{
 		var response = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/campaigns", new
 		{
-			title,
+			titleUk = title,
+			titleEn = title,
 			description = "Integration test campaign",
 			goalAmount = 100000,
 			deadline = DateTime.UtcNow.AddDays(14)

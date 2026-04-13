@@ -213,7 +213,8 @@ public class PublicEndpointsTests : IClassFixture<TestWebApplicationFactory>
 	{
 		var response = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/campaigns", new
 		{
-			title,
+			titleUk = title,
+			titleEn = title,
 			description = "Public campaign",
 			goalAmount = 10000,
 			deadline = DateTime.UtcNow.AddDays(14)

@@ -51,8 +51,8 @@ public class CampaignsController : ApiControllerBase
 			return Unauthorized();
 
 		var command = new CreateCampaignCommand(
-			domainUserId.Value, orgId, request.Title, request.Description,
-			request.GoalAmount, request.Deadline, request.SendUrl);
+			domainUserId.Value, orgId, request.TitleUk, request.TitleEn, request.Description,
+			request.GoalAmount, request.Deadline, request.CategoryIds, request.SendUrl);
 
 		var result = await _sender.Send(command, ct);
 
@@ -148,8 +148,8 @@ public class CampaignsController : ApiControllerBase
 			return Unauthorized();
 
 		var command = new UpdateCampaignCommand(
-			domainUserId.Value, id, request.Title, request.Description,
-			request.GoalAmount, request.Deadline, request.SendUrl);
+			domainUserId.Value, id, request.TitleUk, request.TitleEn, request.Description,
+			request.GoalAmount, request.Deadline, request.CategoryIds, request.SendUrl);
 
 		var result = await _sender.Send(command, ct);
 

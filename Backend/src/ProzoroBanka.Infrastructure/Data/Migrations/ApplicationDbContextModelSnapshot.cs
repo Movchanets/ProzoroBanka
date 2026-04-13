@@ -135,7 +135,12 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Title")
+                    b.Property<string>("TitleEn")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("TitleUk")
                         .IsRequired()
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
@@ -152,6 +157,83 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.HasIndex("OrganizationId");
 
                     b.ToTable("Campaigns", (string)null);
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("NameUk")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.HasIndex("SortOrder");
+
+                    b.ToTable("CampaignCategories", (string)null);
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignCategoryMapping", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("CampaignId", "CategoryId")
+                        .IsUnique();
+
+                    b.ToTable("CampaignCategoryMappings", (string)null);
                 });
 
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignPhoto", b =>
@@ -1115,6 +1197,25 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignCategoryMapping", b =>
+                {
+                    b.HasOne("ProzoroBanka.Domain.Entities.Campaign", "Campaign")
+                        .WithMany("CategoryMappings")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ProzoroBanka.Domain.Entities.CampaignCategory", "Category")
+                        .WithMany("CampaignMappings")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("Category");
+                });
+
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignPhoto", b =>
                 {
                     b.HasOne("ProzoroBanka.Domain.Entities.Campaign", "Campaign")
@@ -1339,11 +1440,18 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.Campaign", b =>
                 {
+                    b.Navigation("CategoryMappings");
+
                     b.Navigation("Photos");
 
                     b.Navigation("Receipts");
 
                     b.Navigation("Transactions");
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignCategory", b =>
+                {
+                    b.Navigation("CampaignMappings");
                 });
 
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.Organization", b =>

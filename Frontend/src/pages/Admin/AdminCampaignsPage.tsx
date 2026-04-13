@@ -85,11 +85,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/services/api';
 import { toast } from 'sonner';
 import type { AdminCampaignDto } from '@/types/admin';
+import { resolveLocalizedText } from '@/lib/localizedText';
 
 function CampaignRow({ campaign }: { campaign: AdminCampaignDto }) {
   const queryClient = useQueryClient();
   const [isChanging, setIsChanging] = useState(false);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const campaignTitle = resolveLocalizedText(campaign.titleUk, campaign.titleEn, i18n.language);
 
   const changeStatus = async (newStatus: CampaignStatus) => {
     setIsChanging(true);
@@ -128,7 +130,7 @@ function CampaignRow({ campaign }: { campaign: AdminCampaignDto }) {
             </div>
           )}
           <div>
-            <div className="font-semibold line-clamp-1" title={campaign.title}>{campaign.title}</div>
+            <div className="font-semibold line-clamp-1" title={campaignTitle}>{campaignTitle}</div>
             <div className="text-xs text-muted-foreground">{campaign.organizationName}</div>
           </div>
         </div>

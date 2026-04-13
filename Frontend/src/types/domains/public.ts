@@ -30,7 +30,8 @@ export interface PublicOrganization {
 
 export interface PublicCampaign {
   id: string;
-  title: string;
+  titleUk: string;
+  titleEn: string;
   description?: string;
   coverImageUrl?: string;
   sendUrl?: string;
@@ -41,10 +42,18 @@ export interface PublicCampaign {
   status: CampaignStatus;
   startDate?: string;
   deadline?: string;
+  categories: PublicCampaignCategory[];
   receiptCount: number;
   organizationName: string;
   organizationSlug: string;
   organizationVerified: boolean;
+}
+
+export interface PublicCampaignCategory {
+  id: string;
+  nameUk: string;
+  nameEn: string;
+  slug: string;
 }
 
 export interface PublicReceipt {
@@ -96,7 +105,8 @@ export interface PublicReceiptItemPhoto {
 
 export interface PublicCampaignDetail {
   id: string;
-  title: string;
+  titleUk: string;
+  titleEn: string;
   description?: string;
   coverImageUrl?: string;
   sendUrl?: string;
@@ -112,6 +122,7 @@ export interface PublicCampaignDetail {
   organizationId: string;
   organizationName: string;
   organizationSlug: string;
+  categories: PublicCampaignCategory[];
   latestReceipts: PublicReceipt[];
   posts: PublicCampaignPost[];
 }
@@ -119,7 +130,7 @@ export interface PublicCampaignDetail {
 export interface PublicCampaignPost {
   id: string;
   description?: string;
-  imageUrl: string;
+  imageUrl?: string;
   createdAt: string;
 }
 

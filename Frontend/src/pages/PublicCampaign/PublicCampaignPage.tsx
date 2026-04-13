@@ -13,6 +13,7 @@ import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
 import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
 import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { usePublicCampaign, usePublicCampaignReceipts } from '@/hooks/queries/usePublic';
+import { resolveLocalizedText } from '@/lib/localizedText';
 
 const ENV_SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '');
 const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
@@ -55,6 +56,9 @@ export default function PublicCampaignPage() {
   const receiptsQuery = usePublicCampaignReceipts(id, 1);
 
   const campaignForSeo = campaignQuery.data;
+  const campaignForSeoTitle = campaignForSeo
+    ? resolveLocalizedText(campaignForSeo.titleUk, campaignForSeo.titleEn, i18n.language)
+    : '';
   const receipts = receiptsQuery.data?.items ?? [];
   const posts = campaignQuery.data?.posts ?? [];
 
@@ -84,14 +88,15 @@ export default function PublicCampaignPage() {
   }
 
   const campaign = campaignQuery.data;
+  const campaignTitle = resolveLocalizedText(campaign.titleUk, campaign.titleEn, i18n.language);
 
   const galleryImages: PhotoGalleryItem[] = [
     ...(campaign.coverImageUrl
-      ? [{ src: campaign.coverImageUrl, alt: campaign.title, caption: campaign.title }]
+      ? [{ src: campaign.coverImageUrl, alt: campaignTitle, caption: campaignTitle }]
       : []),
-    ...posts.map((post) => ({
-      src: post.imageUrl,
-      alt: post.description || campaign.title,
+    ...posts.filter((post) => Boolean(post.imageUrl)).map((post) => ({
+      src: post.imageUrl!,
+      alt: post.description || campaignTitle,
       caption: post.description || t('campaigns.public.postTextFallback', 'Оновлення без опису'),
     })),
   ].filter((item, index, array) => array.findIndex((candidate) => candidate.src === item.src) === index);
@@ -107,11 +112,11 @@ export default function PublicCampaignPage() {
     <>
       <SeoHelmet
         title={campaignForSeo
-          ? t('campaigns.public.seoTitleWithName', { title: campaignForSeo.title })
+          ? t('campaigns.public.seoTitleWithName', { title: campaignForSeoTitle })
           : t('campaigns.public.seoTitleFallback')}
         description={campaignForSeo
           ? t('campaigns.public.seoDescriptionWithName', {
-            title: campaignForSeo.title,
+            title: campaignForSeoTitle,
             organizationName: campaignForSeo.organizationName,
           })
           : t('campaigns.public.seoDescriptionFallback')}
@@ -122,7 +127,7 @@ export default function PublicCampaignPage() {
             {
               '@context': 'https://schema.org',
               '@type': 'WebPage',
-              name: campaignForSeo.title,
+              name: campaignForSeoTitle,
               description: campaignForSeo.description,
               url: buildSiteUrl(`/c/${campaignForSeo.id}`),
               isPartOf: {
@@ -150,7 +155,7 @@ export default function PublicCampaignPage() {
                 {
                   '@type': 'ListItem',
                   position: 3,
-                  name: campaignForSeo.title,
+                  name: campaignForSeoTitle,
                   item: buildSiteUrl(`/c/${campaignForSeo.id}`),
                 },
               ],
@@ -166,7 +171,7 @@ export default function PublicCampaignPage() {
           <div className="grid gap-0 lg:grid-cols-[1.1fr,0.9fr]">
             <div className="space-y-5 p-6 sm:p-8">
               <Badge variant="outline" data-testid="public-campaign-top-badge">{t('campaigns.public.topBadge')}</Badge>
-              <h1 className="text-3xl font-extrabold leading-tight text-foreground sm:text-4xl" data-testid="public-campaign-title">{campaign.title}</h1>
+              <h1 className="text-3xl font-extrabold leading-tight text-foreground sm:text-4xl" data-testid="public-campaign-title">{campaignTitle}</h1>
               <p className="max-w-2xl text-sm leading-7 text-muted-foreground" data-testid="public-campaign-description-text">
                 {campaign.description || t('campaigns.public.descriptionFallback')}
               </p>
@@ -217,7 +222,7 @@ export default function PublicCampaignPage() {
                   onClick={() => openGalleryAt(0)}
                   aria-label="Відкрити обкладинку збору"
                 >
-                  <img src={campaign.coverImageUrl} alt={campaign.title} className="h-full w-full object-cover object-center" data-testid="public-campaign-cover-image" />
+                  <img src={campaign.coverImageUrl} alt={campaignTitle} className="h-full w-full object-cover object-center" data-testid="public-campaign-cover-image" />
                 </button>
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_20%_20%,hsl(var(--primary)/0.2),transparent_45%),radial-gradient(circle_at_80%_20%,hsl(var(--secondary)/0.15),transparent_40%)] px-6 text-center" data-testid="public-campaign-cover-placeholder">
@@ -255,25 +260,27 @@ export default function PublicCampaignPage() {
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {posts.map((post, index) => (
                   <article key={post.id} className="overflow-hidden rounded-2xl border border-border/70 bg-muted/15 shadow-[0_10px_24px_var(--shadow-soft)]" data-testid={`public-campaign-post-${index}`}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const galleryIndex = findGalleryIndexBySrc(post.imageUrl);
-                        if (galleryIndex >= 0) {
-                          openGalleryAt(galleryIndex);
-                        }
-                      }}
-                      className="block w-full cursor-pointer"
-                      data-testid={`public-campaign-post-open-button-${index}`}
-                      aria-label="Відкрити фото оновлення"
-                    >
-                      <img
-                        src={post.imageUrl}
-                        alt={post.description || campaign.title}
-                        className="h-32 w-full object-cover"
-                        data-testid={`public-campaign-post-image-${index}`}
-                      />
-                    </button>
+                    {post.imageUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const galleryIndex = findGalleryIndexBySrc(post.imageUrl!);
+                          if (galleryIndex >= 0) {
+                            openGalleryAt(galleryIndex);
+                          }
+                        }}
+                        className="block w-full cursor-pointer"
+                        data-testid={`public-campaign-post-open-button-${index}`}
+                        aria-label="Відкрити фото оновлення"
+                      >
+                        <img
+                          src={post.imageUrl}
+                          alt={post.description || campaignTitle}
+                          className="h-32 w-full object-cover"
+                          data-testid={`public-campaign-post-image-${index}`}
+                        />
+                      </button>
+                    ) : null}
                     <div className="space-y-2 p-3">
                       <p className="text-xs text-muted-foreground" data-testid={`public-campaign-post-time-${index}`}>
                         {new Date(post.createdAt).toLocaleString(locale)}
@@ -355,7 +362,7 @@ export default function PublicCampaignPage() {
           onOpenChange={setIsGalleryOpen}
           currentIndex={galleryIndex}
           onIndexChange={setGalleryIndex}
-          title={campaign.title}
+          title={campaignTitle}
           description="Галерея фото збору"
           testIdPrefix="public-campaign-gallery"
         />

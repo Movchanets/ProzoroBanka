@@ -58,7 +58,8 @@ public class GetOrganizationCampaignsHandler
 			.Select(c => new
 			{
 				c.Id,
-				c.Title,
+				c.TitleUk,
+				c.TitleEn,
 				c.Description,
 				c.CoverImageStorageKey,
 				c.GoalAmount,
@@ -77,6 +78,18 @@ public class GetOrganizationCampaignsHandler
 				c.Deadline,
 				c.MonobankAccountId,
 				c.SendUrl,
+				Categories = c.CategoryMappings
+					.Where(m => m.Category.IsActive)
+					.OrderBy(m => m.Category.SortOrder)
+					.ThenBy(m => m.Category.NameUk)
+					.Select(m => new CampaignCategoryDto(
+						m.CategoryId,
+						m.Category.NameUk,
+						m.Category.NameEn,
+						m.Category.Slug,
+						m.Category.SortOrder,
+						m.Category.IsActive))
+					.ToList(),
 				c.CreatedAt
 			})
 			.ToListAsync(cancellationToken);
@@ -91,7 +104,7 @@ public class GetOrganizationCampaignsHandler
 				c.CurrentAmount);
 
 			return new CampaignDto(
-				c.Id, c.Title, c.Description,
+				c.Id, c.TitleUk, c.TitleEn, c.Description,
 				_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
 				c.GoalAmount,
 				c.CurrentAmount,
@@ -99,7 +112,7 @@ public class GetOrganizationCampaignsHandler
 				documentedAmount,
 				documentationPercent,
 				c.Status, c.StartDate, c.Deadline,
-				c.MonobankAccountId, c.SendUrl, c.ReceiptCount, c.CreatedAt);
+				c.MonobankAccountId, c.SendUrl, c.Categories, c.ReceiptCount, c.CreatedAt);
 		})
 			.ToList();
 

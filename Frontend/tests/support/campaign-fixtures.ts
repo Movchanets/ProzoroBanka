@@ -8,7 +8,8 @@ interface CampaignSeedContext {
 }
 
 interface CampaignPayload {
-  title?: string;
+  titleUk?: string;
+  titleEn?: string;
   description?: string;
   goalAmount?: number;
   deadline?: string;
@@ -16,7 +17,8 @@ interface CampaignPayload {
 
 interface CampaignEntity {
   id: string;
-  title: string;
+  titleUk: string;
+  titleEn: string;
 }
 
 class CampaignApiSeeder {
@@ -29,11 +31,13 @@ class CampaignApiSeeder {
   }
 
   async createCampaign(orgId: string, payload?: CampaignPayload): Promise<CampaignEntity> {
-    const title = payload?.title ?? `E2E Campaign ${Date.now()}`;
+    const titleUk = payload?.titleUk ?? `E2E Кампанія ${Date.now()}`;
+    const titleEn = payload?.titleEn ?? `E2E Campaign ${Date.now()}`;
 
     const response = await this.request.post(`${E2E_API_BASE_URL}/api/organizations/${orgId}/campaigns`, {
       data: {
-        title,
+        titleUk,
+        titleEn,
         description: payload?.description ?? 'E2E campaign description',
         goalAmount: payload?.goalAmount ?? 50_000,
         deadline: payload?.deadline,
@@ -54,7 +58,7 @@ class CampaignApiSeeder {
       throw new Error('Campaign creation response does not include an id');
     }
 
-    return { id, title };
+    return { id, titleUk, titleEn };
   }
 
   async activateCampaign(campaignId: string): Promise<void> {

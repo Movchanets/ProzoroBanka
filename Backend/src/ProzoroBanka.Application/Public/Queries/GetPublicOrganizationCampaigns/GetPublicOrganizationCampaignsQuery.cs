@@ -60,7 +60,8 @@ public class GetPublicOrganizationCampaignsHandler
 			.Select(c => new
 			{
 				c.Id,
-				c.Title,
+				c.TitleUk,
+				c.TitleEn,
 				c.Description,
 				c.CoverImageStorageKey,
 				c.SendUrl,
@@ -74,6 +75,16 @@ public class GetPublicOrganizationCampaignsHandler
 				c.Status,
 				c.StartDate,
 				c.Deadline,
+				Categories = c.CategoryMappings
+					.Where(m => m.Category.IsActive)
+					.OrderBy(m => m.Category.SortOrder)
+					.ThenBy(m => m.Category.NameUk)
+					.Select(m => new PublicCampaignCategoryDto(
+						m.Category.Id,
+						m.Category.NameUk,
+						m.Category.NameEn,
+						m.Category.Slug))
+					.ToList(),
 				ReceiptCount = _db.Receipts.Count(r => r.CampaignId == c.Id
 					&& r.Status == ReceiptStatus.StateVerified
 					&& r.PublicationStatus == ReceiptPublicationStatus.Active)
@@ -91,7 +102,8 @@ public class GetPublicOrganizationCampaignsHandler
 
 				return new PublicCampaignDto(
 					c.Id,
-					c.Title,
+					c.TitleUk,
+					c.TitleEn,
 					c.Description,
 					_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
 					c.SendUrl,
@@ -102,6 +114,7 @@ public class GetPublicOrganizationCampaignsHandler
 					c.Status,
 					c.StartDate,
 					c.Deadline,
+					c.Categories,
 					c.ReceiptCount,
 					org.Name,
 					org.Slug,

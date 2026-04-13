@@ -16,14 +16,16 @@ test.describe('Dashboard — Campaigns Management', () => {
     await expect(page).toHaveURL(/.*\/campaigns\/new/);
     await expect(campaignCreatePage.pageContainer).toBeVisible();
 
-    const campaignTitle = `Test Campaign ${Date.now()}`;
+    const campaignTitleUk = `Тестовий збір ${Date.now()}`;
+    const campaignTitleEn = `Test Campaign ${Date.now()}`;
 
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + 10);
     const dateString = futureDate.toISOString().split('T')[0];
 
     await campaignCreatePage.fillForm({
-      title: campaignTitle,
+      titleUk: campaignTitleUk,
+      titleEn: campaignTitleEn,
       description: 'E2E Test Description for the campaign.',
       goalAmount: '10000',
       deadline: dateString,
@@ -33,7 +35,7 @@ test.describe('Dashboard — Campaigns Management', () => {
     expect(createResponse.ok()).toBeTruthy();
 
     await expect(page).toHaveURL(new RegExp(`.*/dashboard/${campaignSeed.orgId}/campaigns$`));
-    await expect(campaignsListPage.getCampaignTitle(campaignTitle)).toBeVisible({ timeout: 10_000 });
+    await expect(campaignsListPage.getCampaignTitleAny([campaignTitleUk, campaignTitleEn])).toBeVisible({ timeout: 10_000 });
   });
 
   test('TC-02: User can open campaign details from campaigns list', async ({ page, campaignsListPage, campaignDetailPage, campaignApi, campaignSeed }) => {
@@ -43,7 +45,8 @@ test.describe('Dashboard — Campaigns Management', () => {
     });
 
     const campaign = await campaignApi.createCampaign(campaignSeed.orgId, {
-      title: `Detail Campaign ${Date.now()}`,
+      titleUk: `Детальний збір ${Date.now()}`,
+      titleEn: `Detail Campaign ${Date.now()}`,
       goalAmount: 25_000,
     });
 
@@ -54,7 +57,7 @@ test.describe('Dashboard — Campaigns Management', () => {
 
     await expect(page).toHaveURL(new RegExp(`.*/dashboard/${campaignSeed.orgId}/campaigns/${campaign.id}$`));
     await expect(campaignDetailPage.pageContainer).toBeVisible();
-    await expect(campaignDetailPage.title).toContainText(campaign.title);
+    await expect(campaignDetailPage.title).toContainText(new RegExp(`${campaign.titleUk}|${campaign.titleEn}`));
     await expect(campaignDetailPage.statusBadge).toBeVisible();
   });
 
@@ -65,7 +68,8 @@ test.describe('Dashboard — Campaigns Management', () => {
     });
 
     const campaign = await campaignApi.createCampaign(campaignSeed.orgId, {
-      title: `Edit Campaign ${Date.now()}`,
+      titleUk: `Збір для редагування ${Date.now()}`,
+      titleEn: `Edit Campaign ${Date.now()}`,
       goalAmount: 45_000,
     });
 
@@ -74,14 +78,16 @@ test.describe('Dashboard — Campaigns Management', () => {
     await expect(page).toHaveURL(new RegExp(`.*/dashboard/${campaignSeed.orgId}/campaigns/${campaign.id}/edit$`));
     await expect(campaignEditPage.pageContainer).toBeVisible();
 
-    const updatedTitle = `${campaign.title} Updated`;
-    await campaignEditPage.fillMainDetails(updatedTitle, 'Updated campaign description from E2E');
+    const updatedTitleUk = `${campaign.titleUk} Оновлено`;
+    const updatedTitleEn = `${campaign.titleEn} Updated`;
+    await campaignEditPage.fillMainDetails(updatedTitleUk, updatedTitleEn, 'Updated campaign description from E2E');
 
     const updateResponse = await campaignEditPage.saveAndWaitForUpdate(campaign.id);
     expect(updateResponse.ok()).toBeTruthy();
 
     await expect(campaignEditPage.successAlert).toBeVisible({ timeout: 10_000 });
-    await expect(campaignEditPage.getTitleInput()).toHaveValue(updatedTitle);
+    await expect(campaignEditPage.getTitleUkInput()).toHaveValue(updatedTitleUk);
+    await expect(campaignEditPage.getTitleEnInput()).toHaveValue(updatedTitleEn);
   });
 
   test('TC-04: User can change campaign status on edit page', async ({ campaignEditPage, campaignApi, campaignSeed }) => {
@@ -91,7 +97,8 @@ test.describe('Dashboard — Campaigns Management', () => {
     });
 
     const campaign = await campaignApi.createCampaign(campaignSeed.orgId, {
-      title: `Status Campaign ${Date.now()}`,
+      titleUk: `Збір зі статусом ${Date.now()}`,
+      titleEn: `Status Campaign ${Date.now()}`,
       goalAmount: 35_000,
     });
 
@@ -111,7 +118,8 @@ test.describe('Dashboard — Campaigns Management', () => {
     });
 
     const campaign = await campaignApi.createCampaign(campaignSeed.orgId, {
-      title: `Monobank Wizard Campaign ${Date.now()}`,
+      titleUk: `Збір Monobank ${Date.now()}`,
+      titleEn: `Monobank Wizard Campaign ${Date.now()}`,
       description: 'Campaign for Monobank wizard E2E tests',
       goalAmount: 250_000,
     });
@@ -137,7 +145,8 @@ test.describe('Dashboard — Campaigns Management', () => {
     });
 
     const campaign = await campaignApi.createCampaign(campaignSeed.orgId, {
-      title: `Progress Campaign ${Date.now()}`,
+      titleUk: `Збір прогресу ${Date.now()}`,
+      titleEn: `Progress Campaign ${Date.now()}`,
       goalAmount: 80_000,
     });
 
@@ -163,7 +172,8 @@ test.describe('Dashboard — Campaigns Management', () => {
     });
 
     const campaign = await campaignApi.createCampaign(campaignSeed.orgId, {
-      title: `Delete Campaign ${Date.now()}`,
+      titleUk: `Збір для видалення ${Date.now()}`,
+      titleEn: `Delete Campaign ${Date.now()}`,
       goalAmount: 30_000,
     });
 

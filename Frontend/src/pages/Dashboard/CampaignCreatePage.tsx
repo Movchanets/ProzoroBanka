@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { useCreateCampaign } from '@/hooks/queries/useCampaigns';
@@ -12,29 +12,36 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Loader2, Megaphone } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { usePublicCampaignCategories } from '@/hooks/queries/usePublic';
+import { resolveLocalizedText } from '@/lib/localizedText';
 
 export default function CampaignCreatePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
   const createCampaign = useCreateCampaign(orgId!);
+  const { data: categoryOptions = [] } = usePublicCampaignCategories();
   const [apiError, setApiError] = useState<string | null>(null);
 
   const schema = useMemo(() => createCampaignSchema(t), [t]);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<CreateCampaignFormData>({
+  const { register, handleSubmit, setValue, control, formState: { errors } } = useForm<CreateCampaignFormData>({
     resolver: zodResolver(schema),
-    defaultValues: { title: '', description: '', goalAmount: 0, deadline: '', sendUrl: '' },
+    defaultValues: { titleUk: '', titleEn: '', description: '', goalAmount: 0, deadline: '', sendUrl: '', categoryIds: [] },
   });
+  const selectedCategoryIds = useWatch({ control, name: 'categoryIds' }) ?? [];
 
   const onSubmit = async (data: CreateCampaignFormData) => {
     setApiError(null);
     try {
       await createCampaign.mutateAsync({
-        title: data.title,
+        titleUk: data.titleUk,
+        titleEn: data.titleEn,
         description: data.description || undefined,
         goalAmount: Math.round(data.goalAmount * 100),
         deadline: data.deadline || undefined,
+        categoryIds: data.categoryIds,
         sendUrl: data.sendUrl || undefined,
       });
       navigate(`/dashboard/${orgId}/campaigns`);
@@ -64,13 +71,43 @@ export default function CampaignCreatePage() {
             {apiError && (<Alert variant="destructive" data-testid="campaign-create-api-error"><AlertDescription>{apiError}</AlertDescription></Alert>)}
             <div className="space-y-2">
               <Label htmlFor="campaign-title">{t('campaigns.create.titleLabel')}</Label>
-              <Input id="campaign-title" placeholder={t('campaigns.create.titlePlaceholder')} autoFocus {...register('title')} data-testid="campaign-create-title-input" />
-              {errors.title && (<p className="text-sm text-destructive" data-testid="campaign-create-title-error">{errors.title.message}</p>)}
+              <Input id="campaign-title" placeholder={t('campaigns.create.titlePlaceholderUk', 'Назва українською')} autoFocus {...register('titleUk')} data-testid="campaign-create-title-uk-input" />
+              {errors.titleUk && (<p className="text-sm text-destructive" data-testid="campaign-create-title-uk-error">{errors.titleUk.message}</p>)}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="campaign-title-en">{t('campaigns.create.titleLabelEn', 'Назва (English)')}</Label>
+              <Input id="campaign-title-en" placeholder={t('campaigns.create.titlePlaceholderEn', 'Campaign title in English')} {...register('titleEn')} data-testid="campaign-create-title-en-input" />
+              {errors.titleEn && (<p className="text-sm text-destructive" data-testid="campaign-create-title-en-error">{errors.titleEn.message}</p>)}
             </div>
             <div className="space-y-2">
               <Label htmlFor="campaign-desc">{t('campaigns.create.descriptionLabel')}</Label>
               <Textarea id="campaign-desc" rows={4} placeholder={t('campaigns.create.descriptionPlaceholder')} {...register('description')} data-testid="campaign-create-description-input" />
               {errors.description && (<p className="text-sm text-destructive" data-testid="campaign-create-description-error">{errors.description.message}</p>)}
+            </div>
+            <div className="space-y-2">
+              <Label>{t('campaigns.create.categoriesLabel', 'Категорії')}</Label>
+              <div className="grid gap-2 sm:grid-cols-2" data-testid="campaign-create-categories-list">
+                {categoryOptions.map((category) => {
+                  const label = resolveLocalizedText(category.nameUk, category.nameEn, i18n.language);
+                  const checked = selectedCategoryIds.includes(category.id);
+                  return (
+                    <label key={category.id} className="flex items-center gap-2 rounded-md border border-border/60 p-2">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setValue('categoryIds', [...new Set([...selectedCategoryIds, category.id])], { shouldDirty: true });
+                          } else {
+                            setValue('categoryIds', selectedCategoryIds.filter((id) => id !== category.id), { shouldDirty: true });
+                          }
+                        }}
+                        data-testid={`campaign-create-category-checkbox-${category.slug}`}
+                      />
+                      <span className="text-sm">{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="campaign-send-url">{t('campaigns.create.sendUrlLabel', 'Посилання на банку')}</Label>

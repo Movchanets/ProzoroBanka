@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ShieldAlert,
   Building2,
+  Tags,
   Users,
   KeyRound,
   Settings,
@@ -21,6 +22,7 @@ import {
 
 const navItems = [
   { labelKey: 'admin.layout.nav.organizations', icon: Building2, path: 'organizations' },
+  { labelKey: 'admin.layout.nav.campaignCategories', icon: Tags, path: 'campaign-categories' },
   { labelKey: 'admin.layout.nav.users', icon: Users, path: 'users' },
   { labelKey: 'admin.layout.nav.roles', icon: KeyRound, path: 'roles' },
   { labelKey: 'admin.layout.nav.settings', icon: Settings, path: 'settings' },

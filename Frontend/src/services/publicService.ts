@@ -8,6 +8,7 @@ import type {
   PublicReceipt,
   PublicReceiptDetail,
   Transparency,
+  PublicCampaignCategory,
 } from '../types';
 
 const MINOR_UNITS_PER_HRYVNIA = 100;
@@ -108,6 +109,7 @@ export const publicService = {
 
   searchCampaigns: (
     query: string,
+    categorySlug?: string,
     status?: CampaignStatus,
     verifiedOnly = false,
     page = 1,
@@ -115,6 +117,7 @@ export const publicService = {
   ) => {
     const params = new URLSearchParams();
     if (query.trim()) params.set('query', query.trim());
+    if (categorySlug) params.set('categorySlug', categorySlug);
     if (status !== undefined) params.set('status', String(status));
     params.set('page', String(page));
     params.set('pageSize', String(pageSize));
@@ -125,6 +128,9 @@ export const publicService = {
         items: response.items.map(mapPublicCampaignAmount),
       }));
   },
+
+  getCampaignCategories: () =>
+    apiFetch<PublicCampaignCategory[]>('/api/public/campaign-categories'),
 
   getCampaign: (campaignId: string) =>
     apiFetch<PublicCampaignDetail>(`/api/public/campaigns/${campaignId}`)

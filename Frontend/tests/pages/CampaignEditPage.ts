@@ -2,7 +2,8 @@ import { type Locator, type Page, type Response } from '@playwright/test';
 export class CampaignEditPage {
   private readonly page: Page;
   readonly pageContainer: Locator;
-  private readonly titleInput: Locator;
+  private readonly titleUkInput: Locator;
+  private readonly titleEnInput: Locator;
   private readonly descriptionInput: Locator;
   private readonly saveButton: Locator;
   readonly successAlert: Locator;
@@ -17,7 +18,8 @@ export class CampaignEditPage {
   constructor(page: Page) {
     this.page = page;
     this.pageContainer = page.getByTestId('campaign-edit-page');
-    this.titleInput = page.getByTestId('campaign-edit-title-input');
+    this.titleUkInput = page.getByTestId('campaign-edit-title-uk-input');
+    this.titleEnInput = page.getByTestId('campaign-edit-title-en-input');
     this.descriptionInput = page.getByTestId('campaign-edit-description-input');
     this.saveButton = page.getByTestId('campaign-edit-save-button');
     this.successAlert = page.getByTestId('campaign-edit-success-alert');
@@ -35,16 +37,21 @@ export class CampaignEditPage {
     return this.page.getByTestId(id);
   }
 
-  getTitleInput(): Locator {
-    return this.titleInput;
+  getTitleUkInput(): Locator {
+    return this.titleUkInput;
+  }
+
+  getTitleEnInput(): Locator {
+    return this.titleEnInput;
   }
 
   async goto(orgId: string, campaignId: string): Promise<void> {
     await this.page.goto(`/dashboard/${orgId}/campaigns/${campaignId}/edit`);
   }
 
-  async fillMainDetails(title: string, description: string): Promise<void> {
-    await this.titleInput.fill(title);
+  async fillMainDetails(titleUk: string, titleEn: string, description: string): Promise<void> {
+    await this.titleUkInput.fill(titleUk);
+    await this.titleEnInput.fill(titleEn);
     await this.descriptionInput.fill(description);
   }
 

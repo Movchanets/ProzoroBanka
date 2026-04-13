@@ -29,7 +29,8 @@ public record PublicOrganizationDto(
 
 public record PublicCampaignDto(
 	Guid Id,
-	string Title,
+	string TitleUk,
+	string TitleEn,
 	string? Description,
 	string? CoverImageUrl,
 	string? SendUrl,
@@ -40,14 +41,22 @@ public record PublicCampaignDto(
 	CampaignStatus Status,
 	DateTime? StartDate,
 	DateTime? Deadline,
+	IReadOnlyList<PublicCampaignCategoryDto> Categories,
 	int ReceiptCount,
 	string OrganizationName,
 	string OrganizationSlug,
 	bool OrganizationVerified);
 
+public record PublicCampaignCategoryDto(
+	Guid Id,
+	string NameUk,
+	string NameEn,
+	string Slug);
+
 public record PublicCampaignDetailDto(
 	Guid Id,
-	string Title,
+	string TitleUk,
+	string TitleEn,
 	string? Description,
 	string? CoverImageUrl,
 	string? SendUrl,
@@ -63,13 +72,14 @@ public record PublicCampaignDetailDto(
 	Guid OrganizationId,
 	string OrganizationName,
 	string OrganizationSlug,
+	IReadOnlyList<PublicCampaignCategoryDto> Categories,
 	IReadOnlyList<PublicReceiptDto> LatestReceipts,
 	IReadOnlyList<PublicCampaignPostDto> Posts);
 
 public record PublicCampaignPostDto(
 	Guid Id,
 	string? Description,
-	string ImageUrl,
+	string? ImageUrl,
 	DateTime CreatedAt);
 
 public record PublicReceiptDto(

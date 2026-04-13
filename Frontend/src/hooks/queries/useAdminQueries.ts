@@ -13,6 +13,8 @@ import type {
   AdminUsersFilters,
   OrganizationPlanType,
   OrganizationPlanUsageDto,
+  AdminCampaignCategoryDto,
+  AdminCampaignCategoryPayload,
 } from '../../types/admin';
 import { toast } from 'sonner';
 
@@ -26,6 +28,7 @@ export const adminQueryKeys = {
   plansSettings: () => ['admin', 'settings', 'plans'] as const,
   generalSettings: () => ['admin', 'settings', 'general'] as const,
   roles: () => ['admin', 'roles'] as const,
+  campaignCategories: () => ['admin', 'campaign-categories'] as const,
 };
 
 export function useAdminOrganizations(page: number, verifiedOnly?: boolean, search?: string) {
@@ -125,6 +128,60 @@ export function useAdminChangeCampaignStatus(campaignId: string) {
       toast.success('Статус збору оновлено');
       queryClient.invalidateQueries({ queryKey: ['admin'] });
       queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+}
+
+export function useAdminCampaignCategories(includeInactive = true) {
+  return useQuery({
+    queryKey: [...adminQueryKeys.campaignCategories(), includeInactive],
+    queryFn: () => apiFetch<AdminCampaignCategoryDto[]>(`/api/admin/campaign-categories?includeInactive=${String(includeInactive)}`),
+  });
+}
+
+export function useAdminCreateCampaignCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: AdminCampaignCategoryPayload) =>
+      apiFetch<AdminCampaignCategoryDto>('/api/admin/campaign-categories', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      toast.success('Категорію створено');
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.campaignCategories() });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+}
+
+export function useAdminUpdateCampaignCategory(categoryId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: AdminCampaignCategoryPayload) =>
+      apiFetch<AdminCampaignCategoryDto>(`/api/admin/campaign-categories/${categoryId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      toast.success('Категорію оновлено');
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.campaignCategories() });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+}
+
+export function useAdminDeleteCampaignCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (categoryId: string) =>
+      apiFetch<{ message: string }>(`/api/admin/campaign-categories/${categoryId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      toast.success('Категорію видалено');
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.campaignCategories() });
     },
     onError: (error) => toast.error(error.message),
   });
