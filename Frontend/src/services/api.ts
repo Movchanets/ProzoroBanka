@@ -3,10 +3,9 @@ import type { ApiError, TokenResponse } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-let isRefreshing = false;
-let refreshPromise: Promise<TokenResponse> | null = null;
+let refreshPromise: Promise<string> | null = null;
 
-async function refreshTokens(): Promise<TokenResponse> {
+async function refreshTokens(): Promise<string> {
   const { accessToken, refreshToken } = useAuthStore.getState();
   if (!accessToken || !refreshToken) throw new Error('No tokens');
 
@@ -17,7 +16,26 @@ async function refreshTokens(): Promise<TokenResponse> {
   });
 
   if (!response.ok) throw new Error('Refresh failed');
-  return response.json();
+  
+  const tokens: TokenResponse = await response.json();
+  useAuthStore.getState().setTokens(
+    tokens.accessToken, 
+    tokens.refreshToken, 
+    tokens.accessTokenExpiry
+  );
+  
+  return tokens.accessToken;
+}
+
+// Допоміжна функція, яка гарантує, що рефреш буде лише один одночасно
+async function getRefreshToken(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = refreshTokens().finally(() => {
+      // Очищаємо проміс після завершення (успішного чи ні)
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
 }
 
 async function readResponseBody<T>(response: Response): Promise<T> {
@@ -52,26 +70,15 @@ export async function apiFetch<T>(
   const store = useAuthStore.getState();
   let token = store.accessToken;
 
-  // Якщо токен скоро прострочиться (< 1 хв) — оновлюємо проактивно
+  // 1. Проактивне оновлення токена (< 60 сек)
   if (token && store.accessTokenExpiry) {
     const expiresIn = new Date(store.accessTokenExpiry).getTime() - Date.now();
     if (expiresIn < 60_000 && store.refreshToken) {
       try {
-        if (!isRefreshing) {
-          isRefreshing = true;
-          refreshPromise = refreshTokens();
-        }
-        const tokens = await refreshPromise!;
-        useAuthStore.getState().setTokens(
-          tokens.accessToken, tokens.refreshToken, tokens.accessTokenExpiry
-        );
-        token = tokens.accessToken;
+        token = await getRefreshToken();
       } catch {
         useAuthStore.getState().logout();
         throw new Error('Session expired');
-      } finally {
-        isRefreshing = false;
-        refreshPromise = null;
       }
     }
   }
@@ -83,61 +90,46 @@ export async function apiFetch<T>(
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  let response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...Object.fromEntries(headers.entries()),
-    },
+    headers,
   });
 
+  // 2. Реактивне оновлення токена (отримали 401)
   if (response.status === 401) {
-    // Спроба оновити токен
-    if (store.refreshToken && !isRefreshing) {
+    if (store.refreshToken) {
       try {
-        isRefreshing = true;
-        const tokens = await refreshTokens();
-        useAuthStore.getState().setTokens(
-          tokens.accessToken, tokens.refreshToken, tokens.accessTokenExpiry
-        );
-        isRefreshing = false;
+        // Чекаємо на новий токен
+        token = await getRefreshToken();
 
-        // Повтор оригінального запиту
-        const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
+        // Повторюємо оригінальний запит з новим токеном
+        headers.set('Authorization', `Bearer ${token}`);
+        response = await fetch(`${API_BASE_URL}${endpoint}`, {
           ...options,
-          headers: {
-            Authorization: `Bearer ${tokens.accessToken}`,
-            ...Object.fromEntries(headers.entries()),
-          },
+          headers,
         });
-
-        if (!retryResponse.ok) {
-          const err: ApiError = await retryResponse.json().catch(() => ({}));
-          throw new Error(getErrorMessage(err, retryResponse.status));
-        }
-
-        return readResponseBody<T>(retryResponse);
       } catch {
-        isRefreshing = false;
         useAuthStore.getState().logout();
         throw new Error('Session expired');
       }
+    } else {
+      useAuthStore.getState().logout();
+      throw new Error('Unauthorized');
     }
-
-    let errorMsg = 'Unauthorized';
-    try {
-      const errResponse = await response.clone().json();
-      errorMsg = getErrorMessage(errResponse, response.status) || 'Unauthorized';
-    } catch {
-      // Ignore parsing errors
-    }
-
-    useAuthStore.getState().logout();
-    throw new Error(errorMsg);
   }
 
+  // 3. Обробка помилок API
   if (!response.ok) {
-    const err: ApiError = await response.json().catch(() => ({}));
+    let err: ApiError = {} as ApiError;
+    try {
+      err = await response.json();
+    } catch {
+      // Ігноруємо помилки парсингу (наприклад, якщо бекенд повернув HTML сторінку 500)
+    }
     throw new Error(getErrorMessage(err, response.status));
   }
 
