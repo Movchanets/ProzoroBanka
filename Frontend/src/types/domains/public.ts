@@ -129,9 +129,16 @@ export interface PublicCampaignDetail {
 
 export interface PublicCampaignPost {
   id: string;
-  description?: string;
-  imageUrl?: string;
+  postContentJson?: string;
+  images: PublicCampaignPostImage[];
   createdAt: string;
+}
+
+export interface PublicCampaignPostImage {
+  id: string;
+  imageUrl: string;
+  originalFileName: string;
+  sortOrder: number;
 }
 
 export interface TransparencyCategory {

@@ -140,8 +140,14 @@ export const publicService = {
         currentAmount: toHryvnia(campaign.currentAmount),
         documentedAmount: toHryvnia(campaign.documentedAmount),
         latestReceipts: campaign.latestReceipts.map(mapPublicReceiptAmount),
-        posts: campaign.posts ?? [],
+        posts: (campaign.posts ?? []).map((post) => ({
+          ...post,
+          images: (post.images ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder),
+        })),
       })),
+
+  getCampaignPosts: (campaignId: string) =>
+    apiFetch<PublicCampaignDetail['posts']>(`/api/public/campaigns/${campaignId}/posts`),
 
   getCampaignReceipts: (campaignId: string, page = 1, pageSize = 20) => {
     const params = new URLSearchParams();

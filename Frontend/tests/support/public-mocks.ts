@@ -22,7 +22,7 @@ const campaignPayload = {
   titleUk: 'Тепловізори для евакуаційної бригади',
   titleEn: 'Thermal imagers for evacuation crew',
   description: 'Збираємо на 3 тепловізори для екіпажів.',
-  coverImageUrl: '',
+  coverImageUrl: 'https://cdn.example.com/campaign-cover.png',
   sendUrl: 'https://send.monobank.ua/jar/mock',
   goalAmount: 300000,
   currentAmount: 180000,
@@ -46,6 +46,38 @@ const campaignPayload = {
   ],
   latestReceipts: [
     { id: 'r1', merchantName: 'Епіцентр', totalAmount: 54000, transactionDate: '2026-03-20T00:00:00Z', addedByName: 'Ірина Коваль' },
+  ],
+  posts: [
+    {
+      id: 'post-1',
+      postContentJson: JSON.stringify({
+        type: 'doc',
+        content: [
+          { type: 'paragraph', content: [{ type: 'text', text: 'Оновлення по закупівлі для тестування галереї' }] },
+        ],
+      }),
+      createdAt: '2026-03-21T10:00:00Z',
+      images: [
+        {
+          id: 'post-1-img-1',
+          imageUrl: 'https://cdn.example.com/post-1-image-1.png',
+          originalFileName: 'post-1-image-1.png',
+          sortOrder: 0,
+        },
+        {
+          id: 'post-1-img-2',
+          imageUrl: 'https://cdn.example.com/post-1-image-2.png',
+          originalFileName: 'post-1-image-2.png',
+          sortOrder: 1,
+        },
+        {
+          id: 'post-1-img-3',
+          imageUrl: 'https://cdn.example.com/post-1-image-3.png',
+          originalFileName: 'post-1-image-3.png',
+          sortOrder: 2,
+        },
+      ],
+    },
   ],
 };
 

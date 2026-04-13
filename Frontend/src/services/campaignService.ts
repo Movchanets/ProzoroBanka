@@ -14,6 +14,9 @@ import type {
   UpdateCampaignBalancePayload,
   UpdateCampaignPayload,
   CampaignPhoto,
+  CampaignPost,
+  CreateCampaignPostPayload,
+  UpdateCampaignPostPayload,
   ReorderCampaignPhotosPayload,
   UpdateCampaignPhotoPayload,
 } from '../types';
@@ -128,5 +131,35 @@ export const campaignService = {
     apiFetch<CampaignPhoto>(`/api/campaigns/${id}/photos/${photoId}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
+    }),
+
+  getPosts: (id: string) =>
+    apiFetch<CampaignPost[]>(`/api/campaigns/${id}/posts`),
+
+  createPost: (id: string, payload: CreateCampaignPostPayload) => {
+    const formData = new FormData();
+    if (payload.postContentJson) {
+      formData.append('postContentJson', payload.postContentJson);
+    }
+
+    payload.images.forEach((image) => {
+      formData.append('images', image);
+    });
+
+    return apiFetch<CampaignPost>(`/api/campaigns/${id}/posts`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  updatePost: (id: string, postId: string, payload: UpdateCampaignPostPayload) =>
+    apiFetch<CampaignPost>(`/api/campaigns/${id}/posts/${postId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
+  deletePost: (id: string, postId: string) =>
+    apiFetch<void>(`/api/campaigns/${id}/posts/${postId}`, {
+      method: 'DELETE',
     }),
 };

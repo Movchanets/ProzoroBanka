@@ -13,6 +13,7 @@ import type {
 export const campaignKeys = {
   all: (orgId: string) => ['campaigns', orgId] as const,
   detail: (id: string) => ['campaign', id] as const,
+  posts: (id: string) => ['campaign', id, 'posts'] as const,
   stats: (orgId: string) => ['campaignStats', orgId] as const,
   transactions: (id: string, page: number, pageSize: number) => ['campaignTransactions', id, page, pageSize] as const,
   receipts: (id: string) => ['campaignReceipts', id] as const,
@@ -221,6 +222,43 @@ export function useUpdateCampaignPhoto(campaignId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...campaignKeys.detail(campaignId), 'photos'] });
       queryClient.invalidateQueries({ queryKey: campaignKeys.detail(campaignId) });
+    },
+  });
+}
+
+export function useCampaignPosts(campaignId: string | null | undefined) {
+  return useQuery({
+    queryKey: campaignKeys.posts(campaignId!),
+    queryFn: () => campaignService.getPosts(campaignId!),
+    enabled: !!campaignId,
+  });
+}
+
+export function useCreateCampaignPost(campaignId: string) {
+  return useMutation({
+    mutationFn: ({ postContentJson, images }: { postContentJson?: string; images: File[] }) =>
+      campaignService.createPost(campaignId, { postContentJson, images }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.posts(campaignId) });
+    },
+  });
+}
+
+export function useUpdateCampaignPost(campaignId: string) {
+  return useMutation({
+    mutationFn: ({ postId, payload }: { postId: string; payload: { postContentJson?: string; removeImageIds?: string[]; imageOrderIds?: string[] } }) =>
+      campaignService.updatePost(campaignId, postId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.posts(campaignId) });
+    },
+  });
+}
+
+export function useDeleteCampaignPost(campaignId: string) {
+  return useMutation({
+    mutationFn: (postId: string) => campaignService.deletePost(campaignId, postId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.posts(campaignId) });
     },
   });
 }

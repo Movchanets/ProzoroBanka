@@ -24,6 +24,8 @@ public interface IApplicationDbContext
     DbSet<CampaignCategoryMapping> CampaignCategoryMappings { get; }
     DbSet<CampaignTransaction> CampaignTransactions { get; }
     DbSet<CampaignPhoto> CampaignPhotos { get; }
+    DbSet<CampaignPost> CampaignPosts { get; }
+    DbSet<CampaignPostImage> CampaignPostImages { get; }
     DbSet<OcrModelConfig> OcrModelConfigs { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

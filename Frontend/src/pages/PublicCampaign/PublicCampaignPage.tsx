@@ -14,6 +14,7 @@ import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
 import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { usePublicCampaign, usePublicCampaignReceipts } from '@/hooks/queries/usePublic';
 import { resolveLocalizedText } from '@/lib/localizedText';
+import { extractTextFromTiptapJson } from '@/lib/tiptapContent';
 
 const ENV_SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '');
 const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
@@ -51,6 +52,9 @@ export default function PublicCampaignPage() {
   const { id } = useParams<{ id: string }>();
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [activeGalleryImages, setActiveGalleryImages] = useState<PhotoGalleryItem[]>([]);
+  const [activeGalleryTitle, setActiveGalleryTitle] = useState('');
+  const [activeGalleryDescription, setActiveGalleryDescription] = useState('');
 
   const campaignQuery = usePublicCampaign(id);
   const receiptsQuery = usePublicCampaignReceipts(id, 1);
@@ -90,22 +94,40 @@ export default function PublicCampaignPage() {
   const campaign = campaignQuery.data;
   const campaignTitle = resolveLocalizedText(campaign.titleUk, campaign.titleEn, i18n.language);
 
-  const galleryImages: PhotoGalleryItem[] = [
-    ...(campaign.coverImageUrl
-      ? [{ src: campaign.coverImageUrl, alt: campaignTitle, caption: campaignTitle }]
-      : []),
-    ...posts.filter((post) => Boolean(post.imageUrl)).map((post) => ({
-      src: post.imageUrl!,
-      alt: post.description || campaignTitle,
-      caption: post.description || t('campaigns.public.postTextFallback', 'Оновлення без опису'),
-    })),
-  ].filter((item, index, array) => array.findIndex((candidate) => candidate.src === item.src) === index);
-
-  const findGalleryIndexBySrc = (src: string) => galleryImages.findIndex((item) => item.src === src);
-
   const openGalleryAt = (index: number) => {
     setGalleryIndex(index);
     setIsGalleryOpen(true);
+  };
+
+  const openCoverGallery = () => {
+    if (!campaign.coverImageUrl) {
+      return;
+    }
+
+    setActiveGalleryImages([{ src: campaign.coverImageUrl, alt: campaignTitle, caption: campaignTitle }]);
+    setActiveGalleryTitle(campaignTitle);
+    setActiveGalleryDescription(t('campaigns.public.coverGalleryDescription', 'Галерея обкладинки збору'));
+    openGalleryAt(0);
+  };
+
+  const openPostGallery = (postId: string, startIndex: number) => {
+    const post = posts.find((item) => item.id === postId);
+    if (!post || post.images.length === 0) {
+      return;
+    }
+
+    const textContent = extractTextFromTiptapJson(post.postContentJson, t('campaigns.public.postTextFallback', 'Оновлення без опису'));
+    setActiveGalleryImages(
+      post.images.map((image) => ({
+        src: image.imageUrl,
+        alt: textContent,
+        caption: textContent,
+        richContentJson: post.postContentJson,
+      })),
+    );
+    setActiveGalleryTitle(t('campaigns.public.postGalleryTitle', { id: postId.slice(0, 8) }));
+    setActiveGalleryDescription(t('campaigns.public.postGalleryDescription', 'Окрема галерея цього поста'));
+    openGalleryAt(startIndex);
   };
 
   return (
@@ -219,7 +241,7 @@ export default function PublicCampaignPage() {
                   type="button"
                   className="block h-full w-full cursor-pointer"
                   data-testid="public-campaign-cover-open-button"
-                  onClick={() => openGalleryAt(0)}
+                  onClick={openCoverGallery}
                   aria-label="Відкрити обкладинку збору"
                 >
                   <img src={campaign.coverImageUrl} alt={campaignTitle} className="h-full w-full object-cover object-center" data-testid="public-campaign-cover-image" />
@@ -258,39 +280,48 @@ export default function PublicCampaignPage() {
                 </div>
               ) : null}
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {posts.map((post, index) => (
+                {posts.map((post, index) => {
+                  const selectedImage = post.images[0];
+                  const textContent = extractTextFromTiptapJson(post.postContentJson, t('campaigns.public.postTextFallback', 'Оновлення без опису'));
+
+                  return (
                   <article key={post.id} className="overflow-hidden rounded-2xl border border-border/70 bg-muted/15 shadow-[0_10px_24px_var(--shadow-soft)]" data-testid={`public-campaign-post-${index}`}>
-                    {post.imageUrl ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const galleryIndex = findGalleryIndexBySrc(post.imageUrl!);
-                          if (galleryIndex >= 0) {
-                            openGalleryAt(galleryIndex);
-                          }
-                        }}
-                        className="block w-full cursor-pointer"
-                        data-testid={`public-campaign-post-open-button-${index}`}
-                        aria-label="Відкрити фото оновлення"
-                      >
-                        <img
-                          src={post.imageUrl}
-                          alt={post.description || campaignTitle}
-                          className="h-32 w-full object-cover"
-                          data-testid={`public-campaign-post-image-${index}`}
-                        />
-                      </button>
+                    {selectedImage ? (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openPostGallery(post.id, 0);
+                          }}
+                          className="group block w-full cursor-pointer"
+                          data-testid={`public-campaign-post-open-button-${index}`}
+                          aria-label={t('campaigns.public.openPostImage', 'Відкрити фото оновлення')}
+                        >
+                          <img
+                            src={selectedImage.imageUrl}
+                            alt={textContent}
+                            className="h-36 w-full object-cover transition-transform duration-300 motion-reduce:transition-none group-hover:scale-[1.02]"
+                            data-testid={`public-campaign-post-image-${index}`}
+                          />
+                        </button>
+                      </div>
                     ) : null}
                     <div className="space-y-2 p-3">
                       <p className="text-xs text-muted-foreground" data-testid={`public-campaign-post-time-${index}`}>
                         {new Date(post.createdAt).toLocaleString(locale)}
                       </p>
                       <p className="line-clamp-2 text-sm leading-6" data-testid={`public-campaign-post-text-${index}`}>
-                        {post.description || t('campaigns.public.postTextFallback', 'Оновлення без опису')}
+                        {textContent}
                       </p>
+                      {post.images.length > 0 ? (
+                        <p className="text-xs text-muted-foreground" data-testid={`public-campaign-post-images-count-${index}`}>
+                          {t('campaigns.posts.imagesCount', { count: post.images.length })}
+                        </p>
+                      ) : null}
                     </div>
                   </article>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -357,13 +388,13 @@ export default function PublicCampaignPage() {
         ) : null}
 
         <PhotoGalleryDialog
-          images={galleryImages}
+          images={activeGalleryImages}
           open={isGalleryOpen}
           onOpenChange={setIsGalleryOpen}
           currentIndex={galleryIndex}
           onIndexChange={setGalleryIndex}
-          title={campaignTitle}
-          description="Галерея фото збору"
+          title={activeGalleryTitle || campaignTitle}
+          description={activeGalleryDescription || t('campaigns.public.coverGalleryDescription', 'Галерея обкладинки збору')}
           testIdPrefix="public-campaign-gallery"
         />
       </main>

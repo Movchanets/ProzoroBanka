@@ -3,11 +3,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   useAttachReceiptToCampaign,
-  useAddCampaignPhoto,
   useCampaign,
-  useCampaignPhotos,
+  useCampaignPosts,
   useCampaignReceipts,
   useCampaignTransactions,
+  useCreateCampaignPost,
   useDetachReceiptFromCampaign,
   useUpdateCampaignBalance,
 } from '@/hooks/queries/useCampaigns';
@@ -34,6 +34,9 @@ import { CampaignPhotoGallery } from './CampaignPhotoGallery';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { resolveLocalizedText } from '@/lib/localizedText';
+import { CampaignPostComposer } from '@/components/campaigns/CampaignPostComposer';
+import { extractTextFromTiptapJson } from '@/lib/tiptapContent';
+import { PhotoGalleryDialog, type PhotoGalleryItem } from '@/components/ui/photo-gallery-dialog';
 
 const statusColor: Record<number, string> = {
   0: 'bg-muted text-muted-foreground',
@@ -82,8 +85,8 @@ export default function CampaignDetailPage() {
   const attachReceiptToCampaign = useAttachReceiptToCampaign(orgId!);
   const detachReceiptFromCampaign = useDetachReceiptFromCampaign(orgId!);
   const updateCampaignBalance = useUpdateCampaignBalance(orgId!);
-  const { data: campaignPhotos = [] } = useCampaignPhotos(campaignId);
-  const addCampaignPhoto = useAddCampaignPhoto(campaignId!);
+  const { data: campaignPosts = [] } = useCampaignPosts(campaignId);
+  const createCampaignPost = useCreateCampaignPost(campaignId!);
   const [transactionsPage, setTransactionsPage] = useState(1);
   const transactionsPageSize = 10;
   const {
@@ -99,8 +102,10 @@ export default function CampaignDetailPage() {
   const [manualAmountUah, setManualAmountUah] = useState<string>('');
   const [manualReason, setManualReason] = useState('');
   const [manualUpdateError, setManualUpdateError] = useState<string | null>(null);
-  const [postDescription, setPostDescription] = useState('');
-  const [postImageFile, setPostImageFile] = useState<File | null>(null);
+  const [isPostGalleryOpen, setIsPostGalleryOpen] = useState(false);
+  const [postGalleryIndex, setPostGalleryIndex] = useState(0);
+  const [postGalleryImages, setPostGalleryImages] = useState<PhotoGalleryItem[]>([]);
+  const [postGalleryTitle, setPostGalleryTitle] = useState('');
 
   if (isLoading) {
     return (
@@ -159,19 +164,9 @@ export default function CampaignDetailPage() {
     }
   };
 
-  const handleCreatePost = async () => {
-    if (!postImageFile) {
-      toast.error(t('campaigns.posts.imageRequired', 'Додайте зображення для поста'));
-      return;
-    }
-
+  const handleCreatePost = async (payload: { postContentJson?: string; images: File[] }) => {
     try {
-      await addCampaignPhoto.mutateAsync({
-        file: postImageFile,
-        description: postDescription.trim() || undefined,
-      });
-      setPostDescription('');
-      setPostImageFile(null);
+      await createCampaignPost.mutateAsync(payload);
       toast.success(t('campaigns.posts.createSuccess', 'Пост опубліковано'));
     } catch (error) {
       const message = error instanceof Error
@@ -225,6 +220,23 @@ export default function CampaignDetailPage() {
       setManualUpdateError(message);
       toast.error(message);
     }
+  };
+
+  const openPostGallery = (postId: string, images: { imageUrl: string; originalFileName: string }[], startIndex = 0) => {
+    if (images.length === 0) {
+      return;
+    }
+
+    setPostGalleryImages(
+      images.map((image) => ({
+        src: image.imageUrl,
+        alt: image.originalFileName,
+        caption: image.originalFileName,
+      })),
+    );
+    setPostGalleryTitle(t('campaigns.posts.postGalleryTitle', { id: postId.slice(0, 8) }));
+    setPostGalleryIndex(startIndex);
+    setIsPostGalleryOpen(true);
   };
 
   return (
@@ -318,49 +330,39 @@ export default function CampaignDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="campaign-post-description">{t('campaigns.posts.descriptionLabel', 'Текст поста')}</Label>
-                <Textarea
-                  id="campaign-post-description"
-                  value={postDescription}
-                  onChange={(event) => setPostDescription(event.target.value)}
-                  placeholder={t('campaigns.posts.descriptionPlaceholder', 'Опишіть оновлення по збору')}
-                  data-testid="campaign-detail-post-description-input"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="campaign-post-image">{t('campaigns.posts.imageLabel', 'Зображення')}</Label>
-                <Input
-                  id="campaign-post-image"
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => setPostImageFile(event.target.files?.[0] ?? null)}
-                  data-testid="campaign-detail-post-image-input"
-                />
-              </div>
-              <Button
-                type="button"
-                onClick={() => void handleCreatePost()}
-                disabled={addCampaignPhoto.isPending}
-                data-testid="campaign-detail-post-submit-button"
-              >
-                {addCampaignPhoto.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                {t('campaigns.posts.submit', 'Опублікувати пост')}
-              </Button>
+              <CampaignPostComposer
+                isSubmitting={createCampaignPost.isPending}
+                onSubmit={handleCreatePost}
+              />
 
               <div className="space-y-3 pt-2" data-testid="campaign-detail-posts-feed">
-                {campaignPhotos
+                {campaignPosts
                   .slice()
                   .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                   .slice(0, 6)
-                  .map((photo) => (
-                    <article key={photo.id} className="overflow-hidden rounded-xl border border-border/70 bg-muted/10" data-testid={`campaign-detail-post-${photo.id}`}>
-                      <img src={photo.photoUrl} alt={photo.description || campaignTitle} className="h-44 w-full object-cover" />
+                  .map((post) => (
+                    <article key={post.id} className="overflow-hidden rounded-xl border border-border/70 bg-muted/10" data-testid={`campaign-detail-post-${post.id}`}>
+                      {post.images[0] ? (
+                        <button
+                          type="button"
+                          className="block w-full cursor-pointer"
+                          onClick={() => openPostGallery(post.id, post.images, 0)}
+                          aria-label={t('campaigns.posts.openPostImage', 'Відкрити фото поста')}
+                          data-testid={`campaign-detail-post-open-gallery-${post.id}`}
+                        >
+                          <img src={post.images[0].imageUrl} alt={campaignTitle} className="h-44 w-full object-cover" data-testid={`campaign-detail-post-image-${post.id}`} />
+                        </button>
+                      ) : null}
                       <div className="space-y-1 p-3 text-sm">
-                        <p className="text-xs text-muted-foreground" data-testid={`campaign-detail-post-date-${photo.id}`}>
-                          {new Date(photo.createdAt).toLocaleString(locale)}
+                        <p className="text-xs text-muted-foreground" data-testid={`campaign-detail-post-date-${post.id}`}>
+                          {new Date(post.createdAt).toLocaleString(locale)}
                         </p>
-                        <p data-testid={`campaign-detail-post-text-${photo.id}`}>{photo.description || t('campaigns.posts.emptyText', 'Оновлення без тексту')}</p>
+                        <p data-testid={`campaign-detail-post-text-${post.id}`}>
+                          {extractTextFromTiptapJson(post.postContentJson, t('campaigns.posts.emptyText', 'Оновлення без тексту'))}
+                        </p>
+                        <p className="text-xs text-muted-foreground" data-testid={`campaign-detail-post-images-count-${post.id}`}>
+                          {t('campaigns.posts.imagesCount', { count: post.images.length })}
+                        </p>
                       </div>
                     </article>
                   ))}
@@ -369,6 +371,17 @@ export default function CampaignDetailPage() {
           </Card>
 
           <CampaignPhotoGallery campaignId={campaignId!} />
+
+          <PhotoGalleryDialog
+            images={postGalleryImages}
+            open={isPostGalleryOpen}
+            onOpenChange={setIsPostGalleryOpen}
+            currentIndex={postGalleryIndex}
+            onIndexChange={setPostGalleryIndex}
+            title={postGalleryTitle || t('campaigns.posts.postGalleryFallbackTitle', 'Галерея поста')}
+            description={t('campaigns.posts.postGalleryDescription', 'Окрема галерея зображень поста')}
+            testIdPrefix="campaign-detail-post-gallery"
+          />
         </div>
 
         {/* Sidebar / Receipts */}

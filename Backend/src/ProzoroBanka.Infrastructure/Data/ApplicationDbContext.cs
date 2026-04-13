@@ -39,6 +39,8 @@ public class ApplicationDbContext
 	public DbSet<CampaignCategoryMapping> CampaignCategoryMappings => Set<CampaignCategoryMapping>();
 	public DbSet<CampaignTransaction> CampaignTransactions => Set<CampaignTransaction>();
 	public DbSet<CampaignPhoto> CampaignPhotos => Set<CampaignPhoto>();
+	public DbSet<CampaignPost> CampaignPosts => Set<CampaignPost>();
+	public DbSet<CampaignPostImage> CampaignPostImages => Set<CampaignPostImage>();
 	public DbSet<OcrModelConfig> OcrModelConfigs => Set<OcrModelConfig>();
 
 	// ── IApplicationDbContext explicit implementation ──
@@ -58,6 +60,8 @@ public class ApplicationDbContext
 	DbSet<CampaignCategoryMapping> IApplicationDbContext.CampaignCategoryMappings => CampaignCategoryMappings;
 	DbSet<CampaignTransaction> IApplicationDbContext.CampaignTransactions => CampaignTransactions;
 	DbSet<CampaignPhoto> IApplicationDbContext.CampaignPhotos => CampaignPhotos;
+	DbSet<CampaignPost> IApplicationDbContext.CampaignPosts => CampaignPosts;
+	DbSet<CampaignPostImage> IApplicationDbContext.CampaignPostImages => CampaignPostImages;
 	DbSet<OcrModelConfig> IApplicationDbContext.OcrModelConfigs => OcrModelConfigs;
 
 	protected override void OnModelCreating(ModelBuilder builder)
@@ -434,6 +438,40 @@ public class ApplicationDbContext
 				.WithMany()
 				.HasForeignKey(e => e.CreatedByUserId)
 				.OnDelete(DeleteBehavior.Restrict);
+		});
+
+		builder.Entity<CampaignPost>(b =>
+		{
+			b.ToTable("CampaignPosts");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.PostContentJson).HasMaxLength(20000);
+			b.HasIndex(e => new { e.CampaignId, e.SortOrder });
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.Campaign)
+				.WithMany(c => c.Posts)
+				.HasForeignKey(e => e.CampaignId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasOne(e => e.CreatedBy)
+				.WithMany()
+				.HasForeignKey(e => e.CreatedByUserId)
+				.OnDelete(DeleteBehavior.Restrict);
+		});
+
+		builder.Entity<CampaignPostImage>(b =>
+		{
+			b.ToTable("CampaignPostImages");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
+			b.Property(e => e.OriginalFileName).HasMaxLength(256).IsRequired();
+			b.HasIndex(e => new { e.CampaignPostId, e.SortOrder });
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.CampaignPost)
+				.WithMany(p => p.Images)
+				.HasForeignKey(e => e.CampaignPostId)
+				.OnDelete(DeleteBehavior.Cascade);
 		});
 	}
 

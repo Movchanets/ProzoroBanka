@@ -78,9 +78,15 @@ public record PublicCampaignDetailDto(
 
 public record PublicCampaignPostDto(
 	Guid Id,
-	string? Description,
-	string? ImageUrl,
+	string? PostContentJson,
+	IReadOnlyList<PublicCampaignPostImageDto> Images,
 	DateTime CreatedAt);
+
+public record PublicCampaignPostImageDto(
+	Guid Id,
+	string ImageUrl,
+	string OriginalFileName,
+	int SortOrder);
 
 public record PublicReceiptDto(
 	Guid Id,

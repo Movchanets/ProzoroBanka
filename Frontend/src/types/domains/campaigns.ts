@@ -142,6 +142,32 @@ export interface CampaignPhoto {
   createdAt: string;
 }
 
+export interface CampaignPostImage {
+  id: string;
+  imageUrl: string;
+  originalFileName: string;
+  sortOrder: number;
+}
+
+export interface CampaignPost {
+  id: string;
+  postContentJson?: string;
+  images: CampaignPostImage[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateCampaignPostPayload {
+  postContentJson?: string;
+  images: File[];
+}
+
+export interface UpdateCampaignPostPayload {
+  postContentJson?: string;
+  removeImageIds?: string[];
+  imageOrderIds?: string[];
+}
+
 export interface ReorderCampaignPhotosPayload {
   photoIds: string[];
 }

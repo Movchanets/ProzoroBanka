@@ -6,11 +6,15 @@ using ProzoroBanka.Application.Campaigns.Commands.ChangeCampaignStatus;
 using ProzoroBanka.Application.Campaigns.Commands.CreateCampaign;
 using ProzoroBanka.Application.Campaigns.Commands.DetachReceiptFromCampaign;
 using ProzoroBanka.Application.Campaigns.Commands.DeleteCampaign;
+using ProzoroBanka.Application.Campaigns.Commands.DeleteCampaignPost;
 using ProzoroBanka.Application.Campaigns.Commands.UpdateCampaign;
 using ProzoroBanka.Application.Campaigns.Commands.UpdateCampaignBalance;
+using ProzoroBanka.Application.Campaigns.Commands.UpdateCampaignPost;
 using ProzoroBanka.Application.Campaigns.Commands.UploadCampaignCover;
+using ProzoroBanka.Application.Campaigns.Commands.CreateCampaignPost;
 using ProzoroBanka.Application.Campaigns.DTOs;
 using ProzoroBanka.Application.Campaigns.Queries.GetCampaignDetails;
+using ProzoroBanka.Application.Campaigns.Queries.GetCampaignPosts;
 using ProzoroBanka.Application.Campaigns.Queries.GetCampaignReceipts;
 using ProzoroBanka.Application.Campaigns.Queries.GetCampaignStats;
 using ProzoroBanka.Application.Campaigns.Queries.GetCampaignTransactions;
@@ -372,6 +376,111 @@ public class CampaignsController : ApiControllerBase
 			return NotFound(new { Error = result.Message });
 
 		return Ok(result.Payload);
+	}
+
+	[HttpGet("{id:guid}/posts")]
+	[ProducesResponseType(typeof(IReadOnlyList<CampaignPostDto>), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> GetPosts(Guid id, CancellationToken ct)
+	{
+		var result = await _sender.Send(new GetCampaignPostsQuery(id), ct);
+
+		if (!result.IsSuccess)
+			return NotFound(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpPost("{id:guid}/posts")]
+	[Consumes("multipart/form-data")]
+	[ProducesResponseType(typeof(CampaignPostDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> CreatePost(
+		Guid id,
+		[FromForm] string? postContentJson,
+		[FromForm] List<IFormFile>? images,
+		CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var files = new List<CampaignPostUploadFile>();
+		foreach (var image in images ?? [])
+		{
+			if (image.Length == 0)
+				continue;
+
+			files.Add(new CampaignPostUploadFile(
+				image.OpenReadStream(),
+				image.FileName,
+				image.ContentType));
+		}
+
+		var command = new CreateCampaignPostCommand(domainUserId.Value, id, postContentJson, files);
+		var result = await _sender.Send(command, ct);
+
+		foreach (var file in files)
+			await file.FileStream.DisposeAsync();
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: result.Message.Contains("Недостатньо прав")
+					? StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message })
+					: BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpPut("{id:guid}/posts/{postId:guid}")]
+	[ProducesResponseType(typeof(CampaignPostDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> UpdatePost(Guid id, Guid postId, [FromBody] UpdateCampaignPostRequest request, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(
+			new UpdateCampaignPostCommand(domainUserId.Value, id, postId, request.PostContentJson, request.RemoveImageIds, request.ImageOrderIds),
+			ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: result.Message.Contains("Недостатньо прав")
+					? StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message })
+					: BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpDelete("{id:guid}/posts/{postId:guid}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> DeletePost(Guid id, Guid postId, CancellationToken ct)
+	{
+		var domainUserId = _currentUser.DomainUserId;
+		if (domainUserId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(new DeleteCampaignPostCommand(domainUserId.Value, id, postId), ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: result.Message.Contains("Недостатньо прав")
+					? StatusCode(StatusCodes.Status403Forbidden, new { Error = result.Message })
+					: BadRequest(new { Error = result.Message });
+
+		return NoContent();
 	}
 
 	[HttpPost("{id:guid}/photos")]

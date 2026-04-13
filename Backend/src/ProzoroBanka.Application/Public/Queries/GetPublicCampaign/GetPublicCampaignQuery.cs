@@ -97,15 +97,22 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 		if (campaign.Deadline.HasValue)
 			daysRemaining = Math.Max(0, (campaign.Deadline.Value.Date - DateTime.UtcNow.Date).Days);
 
-		var posts = await _db.CampaignPhotos
+		var posts = await _db.CampaignPosts
 			.AsNoTracking()
 			.Where(p => p.CampaignId == campaign.Id)
 			.OrderByDescending(p => p.CreatedAt)
 			.Take(12)
 			.Select(p => new PublicCampaignPostDto(
 				p.Id,
-				p.Description,
-				_fileStorage.ResolvePublicUrl(p.StorageKey),
+				p.PostContentJson,
+				p.Images
+					.OrderBy(i => i.SortOrder)
+					.Select(i => new PublicCampaignPostImageDto(
+						i.Id,
+						_fileStorage.ResolvePublicUrl(i.StorageKey) ?? string.Empty,
+						i.OriginalFileName,
+						i.SortOrder))
+					.ToList(),
 				p.CreatedAt))
 			.ToListAsync(cancellationToken);
 

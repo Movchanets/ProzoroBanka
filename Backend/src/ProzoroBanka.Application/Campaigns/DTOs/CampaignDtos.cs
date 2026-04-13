@@ -104,6 +104,19 @@ public record CampaignPhotoDto(
 	int SortOrder,
 	DateTime CreatedAt);
 
+public record CampaignPostImageDto(
+	Guid Id,
+	string ImageUrl,
+	string OriginalFileName,
+	int SortOrder);
+
+public record CampaignPostDto(
+	Guid Id,
+	string? PostContentJson,
+	IReadOnlyList<CampaignPostImageDto> Images,
+	DateTime CreatedAt,
+	DateTime? UpdatedAt);
+
 public record AddCampaignPhotosRequest(
 	List<string>? Descriptions);
 
@@ -113,3 +126,11 @@ public record ReorderCampaignPhotosRequest(
 public record UpdateCampaignPhotoRequest(
 	string? Description,
 	bool SetAsCover = false);
+
+public record CreateCampaignPostRequest(
+	string? PostContentJson);
+
+public record UpdateCampaignPostRequest(
+	string? PostContentJson,
+	List<Guid>? RemoveImageIds,
+	List<Guid>? ImageOrderIds);
