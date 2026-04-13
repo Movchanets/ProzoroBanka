@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
@@ -31,7 +32,8 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 			.Select(c => new
 			{
 				c.Id,
-				c.Title,
+				c.TitleUk,
+				c.TitleEn,
 				c.Description,
 				c.CoverImageStorageKey,
 				c.SendUrl,
@@ -42,7 +44,17 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 				c.Deadline,
 				c.OrganizationId,
 				OrganizationName = c.Organization.Name,
-				OrganizationSlug = c.Organization.Slug
+				OrganizationSlug = c.Organization.Slug,
+				Categories = c.CategoryMappings
+					.Where(m => m.Category.IsActive)
+					.OrderBy(m => m.Category.SortOrder)
+					.ThenBy(m => m.Category.NameUk)
+					.Select(m => new PublicCampaignCategoryDto(
+						m.Category.Id,
+						m.Category.NameUk,
+						m.Category.NameEn,
+						m.Category.Slug))
+					.ToList()
 			})
 			.FirstOrDefaultAsync(cancellationToken);
 
@@ -70,25 +82,46 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 
 		var totalDocumented = await _db.Receipts
 			.AsNoTracking()
-			.Where(r => r.CampaignId == campaign.Id
-				&& r.Status == ReceiptStatus.StateVerified
-				&& r.PublicationStatus == ReceiptPublicationStatus.Active)
+			.Where(r => r.CampaignId == campaign.Id)
+			.WhereActiveVerifiedForDocumentation()
 			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
-		var documentedAmount = MoneyConversion.ToMinorUnits(totalDocumented);
+		var documentedAmount = CampaignDocumentationMetrics.BoundToCollectedAmount(
+			CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(totalDocumented),
+			campaign.CurrentAmount);
 
-		var documentationPercent = campaign.GoalAmount <= 0
-			? 0
-			: Math.Min(100, (double)documentedAmount / campaign.GoalAmount * 100);
+		var documentationPercent = CampaignDocumentationMetrics.CalculateDocumentedSharePercent(
+			documentedAmount,
+			campaign.CurrentAmount);
 
 		int? daysRemaining = null;
 		if (campaign.Deadline.HasValue)
 			daysRemaining = Math.Max(0, (campaign.Deadline.Value.Date - DateTime.UtcNow.Date).Days);
 
+		var posts = await _db.CampaignPosts
+			.AsNoTracking()
+			.Where(p => p.CampaignId == campaign.Id)
+			.OrderByDescending(p => p.CreatedAt)
+			.Take(12)
+			.Select(p => new PublicCampaignPostDto(
+				p.Id,
+				p.PostContentJson,
+				p.Images
+					.OrderBy(i => i.SortOrder)
+					.Select(i => new PublicCampaignPostImageDto(
+						i.Id,
+						_fileStorage.ResolvePublicUrl(i.StorageKey) ?? string.Empty,
+						i.OriginalFileName,
+						i.SortOrder))
+					.ToList(),
+				p.CreatedAt))
+			.ToListAsync(cancellationToken);
+
 		return ServiceResponse<PublicCampaignDetailDto>.Success(new PublicCampaignDetailDto(
 			campaign.Id,
-			campaign.Title,
+			campaign.TitleUk,
+			campaign.TitleEn,
 			campaign.Description,
-			StorageUrlResolver.Resolve(_fileStorage, campaign.CoverImageStorageKey),
+			_fileStorage.ResolvePublicUrl(campaign.CoverImageStorageKey),
 			campaign.SendUrl,
 			campaign.GoalAmount,
 			campaign.CurrentAmount,
@@ -102,6 +135,8 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 			campaign.OrganizationId,
 			campaign.OrganizationName,
 			campaign.OrganizationSlug,
-			latestReceipts));
+			campaign.Categories,
+			latestReceipts,
+			posts));
 	}
 }

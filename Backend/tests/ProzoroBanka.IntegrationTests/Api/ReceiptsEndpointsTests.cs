@@ -209,6 +209,166 @@ public class ReceiptsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 	}
 
 	[Fact]
+	public async Task OrganizationReceipt_MultiUserFlow_MemberCanExtractOwnersReceipt()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var orgId = await CreateOrganizationAsync($"Receipt Shared Extract Org {Guid.NewGuid():N}");
+		var inviteToken = await CreateInviteLinkAsync(orgId);
+
+		var memberEmail = $"receipt-extract-member-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(memberEmail, "Password123!");
+		await AuthenticateAsync(memberEmail, "Password123!");
+
+		var acceptInviteResponse = await _client.PostAsync($"/api/invitations/{inviteToken}/accept", content: null);
+		Assert.Equal(HttpStatusCode.NoContent, acceptInviteResponse.StatusCode);
+
+		await AuthenticateAsAdminAsync();
+		var uploadResponse = await UploadOrganizationDraftAsync(orgId);
+		uploadResponse.EnsureSuccessStatusCode();
+		var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var receiptId = uploadJson.GetProperty("id").GetGuid();
+
+		await AuthenticateAsync(memberEmail, "Password123!");
+		var extractResponse = await ExtractAsync(receiptId, orgId);
+
+		Assert.Equal(HttpStatusCode.OK, extractResponse.StatusCode);
+		var extractJson = await extractResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Equal((int)ReceiptStatus.PendingOcr, extractJson.GetProperty("status").GetInt32());
+	}
+
+	[Fact]
+	public async Task OrganizationReceipt_MultiUserFlow_MemberCanVerifyOwnersReceipt()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var orgId = await CreateOrganizationAsync($"Receipt Shared Verify Org {Guid.NewGuid():N}");
+		await SeedRegistryCredentialAsync(orgId, RegistryProvider.TaxService, "test-registry-token-verify-123456");
+		var inviteToken = await CreateInviteLinkAsync(orgId);
+
+		var memberEmail = $"receipt-verify-member-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(memberEmail, "Password123!");
+		await AuthenticateAsync(memberEmail, "Password123!");
+
+		var acceptInviteResponse = await _client.PostAsync($"/api/invitations/{inviteToken}/accept", content: null);
+		Assert.Equal(HttpStatusCode.NoContent, acceptInviteResponse.StatusCode);
+
+		await AuthenticateAsAdminAsync();
+		var uploadResponse = await UploadOrganizationDraftAsync(orgId);
+		uploadResponse.EnsureSuccessStatusCode();
+		var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var receiptId = uploadJson.GetProperty("id").GetGuid();
+
+		await AdvanceReceiptToOcrExtractedAsync(receiptId);
+
+		await AuthenticateAsync(memberEmail, "Password123!");
+		var verifyResponse = await _client.PostAsJsonAsync($"/api/receipts/{receiptId}/verify", new { organizationId = orgId });
+
+		Assert.Equal(HttpStatusCode.OK, verifyResponse.StatusCode);
+		var verifyJson = await verifyResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Equal((int)ReceiptStatus.StateVerified, verifyJson.GetProperty("status").GetInt32());
+	}
+
+	[Fact]
+	public async Task OrganizationReceipt_MultiUserFlow_MemberCanAddItemPhotoToOwnersReceipt()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var orgId = await CreateOrganizationAsync($"Receipt Shared Photo Org {Guid.NewGuid():N}");
+		var inviteToken = await CreateInviteLinkAsync(orgId);
+
+		var memberEmail = $"receipt-photo-member-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(memberEmail, "Password123!");
+		await AuthenticateAsync(memberEmail, "Password123!");
+
+		var acceptInviteResponse = await _client.PostAsync($"/api/invitations/{inviteToken}/accept", content: null);
+		Assert.Equal(HttpStatusCode.NoContent, acceptInviteResponse.StatusCode);
+
+		await AuthenticateAsAdminAsync();
+		var uploadResponse = await UploadOrganizationDraftAsync(orgId);
+		uploadResponse.EnsureSuccessStatusCode();
+		var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var receiptId = uploadJson.GetProperty("id").GetGuid();
+
+		await AuthenticateAsync(memberEmail, "Password123!");
+		var addPhotoResponse = await AddItemPhotoAsync(receiptId);
+
+		Assert.Equal(HttpStatusCode.OK, addPhotoResponse.StatusCode);
+		var addPhotoJson = await addPhotoResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.True(addPhotoJson.GetProperty("itemPhotos").GetArrayLength() > 0);
+	}
+
+	[Fact]
+	public async Task OrganizationReceipt_ItemPhoto_NonMemberGetsReceiptNotFound()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var orgId = await CreateOrganizationAsync($"Receipt Photo Access Org {Guid.NewGuid():N}");
+		var uploadResponse = await UploadOrganizationDraftAsync(orgId);
+		uploadResponse.EnsureSuccessStatusCode();
+		var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var receiptId = uploadJson.GetProperty("id").GetGuid();
+
+		var outsiderEmail = $"receipt-outsider-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(outsiderEmail, "Password123!");
+		await AuthenticateAsync(outsiderEmail, "Password123!");
+
+		var addPhotoResponse = await AddItemPhotoAsync(receiptId);
+
+		Assert.Equal(HttpStatusCode.BadRequest, addPhotoResponse.StatusCode);
+		var addPhotoError = await addPhotoResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Contains("Чек не знайдено", addPhotoError.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+	}
+
+	[Fact]
+	public async Task OrganizationReceipt_ItemPhoto_OtherOrganizationMemberCannotLinkReorderDelete()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var ownerOrgId = await CreateOrganizationAsync($"Receipt Owner Org {Guid.NewGuid():N}");
+		var ownerUploadResponse = await UploadOrganizationDraftAsync(ownerOrgId);
+		ownerUploadResponse.EnsureSuccessStatusCode();
+		var ownerUploadJson = await ownerUploadResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var receiptId = ownerUploadJson.GetProperty("id").GetGuid();
+
+		var ownerAddPhotoResponse = await AddItemPhotoAsync(receiptId);
+		ownerAddPhotoResponse.EnsureSuccessStatusCode();
+		var ownerAddPhotoJson = await ownerAddPhotoResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var photoId = ownerAddPhotoJson.GetProperty("itemPhotos")[0].GetProperty("id").GetGuid();
+
+		var outsiderOrgId = await CreateOrganizationAsync($"Receipt Outsider Org {Guid.NewGuid():N}");
+		var outsiderInviteToken = await CreateInviteLinkAsync(outsiderOrgId);
+
+		var outsiderMemberEmail = $"receipt-other-org-member-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(outsiderMemberEmail, "Password123!");
+		await AuthenticateAsync(outsiderMemberEmail, "Password123!");
+
+		var acceptInviteResponse = await _client.PostAsync($"/api/invitations/{outsiderInviteToken}/accept", content: null);
+		Assert.Equal(HttpStatusCode.NoContent, acceptInviteResponse.StatusCode);
+
+		var reorderResponse = await _client.PutAsJsonAsync($"/api/receipts/{receiptId}/item-photos/order", new
+		{
+			photoIds = new[] { photoId }
+		});
+		Assert.Equal(HttpStatusCode.BadRequest, reorderResponse.StatusCode);
+		var reorderError = await reorderResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Contains("Чек не знайдено", reorderError.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+
+		var linkResponse = await _client.PutAsJsonAsync($"/api/receipts/{receiptId}/item-photos/{photoId}/link", new
+		{
+			receiptItemId = (Guid?)null,
+		});
+		Assert.Equal(HttpStatusCode.BadRequest, linkResponse.StatusCode);
+		var linkError = await linkResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Contains("Чек не знайдено", linkError.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+
+		var deleteResponse = await _client.DeleteAsync($"/api/receipts/{receiptId}/item-photos/{photoId}");
+		Assert.Equal(HttpStatusCode.BadRequest, deleteResponse.StatusCode);
+		var deleteError = await deleteResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Contains("Чек не знайдено", deleteError.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+	}
+
+	[Fact]
 	public async Task DeleteReceipt_RemovesReceiptFromOrganizationList()
 	{
 		await AuthenticateAsAdminAsync();

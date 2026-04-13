@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.OutputCaching;
 using ProzoroBanka.Application.Public.DTOs;
 using ProzoroBanka.Application.Public.Queries.GetOrganizationTransparency;
 using ProzoroBanka.Application.Public.Queries.GetPublicCampaign;
+using ProzoroBanka.Application.Public.Queries.GetPublicCampaignCategories;
+using ProzoroBanka.Application.Public.Queries.GetPublicCampaignPosts;
 using ProzoroBanka.Application.Public.Queries.GetPublicCampaignReceipts;
 using ProzoroBanka.Application.Public.Queries.GetPublicOrganization;
 using ProzoroBanka.Application.Public.Queries.GetPublicOrganizationCampaigns;
@@ -93,10 +95,11 @@ public class PublicController : ApiControllerBase
 	[HttpGet("/api/public/campaigns/search")]
 	[OutputCache(
 		PolicyName = "PublicCampaignSearch",
-		VaryByQueryKeys = ["query", "status", "page", "pageSize", "verifiedOnly"])]
+		VaryByQueryKeys = ["query", "categorySlug", "status", "page", "pageSize", "verifiedOnly"])]
 	[ProducesResponseType(typeof(PublicListResponse<PublicCampaignDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> SearchCampaigns(
 		[FromQuery] string? query,
+		[FromQuery] string? categorySlug,
 		[FromQuery] CampaignStatus? status,
 		[FromQuery] int page = 1,
 		[FromQuery] int pageSize = 24,
@@ -104,8 +107,17 @@ public class PublicController : ApiControllerBase
 		CancellationToken ct = default)
 	{
 		var result = await _sender.Send(
-			new SearchPublicCampaignsQuery(query, status, page, pageSize, verifiedOnly), ct);
+			new SearchPublicCampaignsQuery(query, categorySlug, status, page, pageSize, verifiedOnly), ct);
 
+		return Ok(result.Payload);
+	}
+
+	[HttpGet("/api/public/campaign-categories")]
+	[OutputCache(PolicyName = "PublicCampaignSearch")]
+	[ProducesResponseType(typeof(IReadOnlyList<PublicCampaignCategoryDto>), StatusCodes.Status200OK)]
+	public async Task<IActionResult> GetCampaignCategories(CancellationToken ct = default)
+	{
+		var result = await _sender.Send(new GetPublicCampaignCategoriesQuery(), ct);
 		return Ok(result.Payload);
 	}
 
@@ -133,6 +145,19 @@ public class PublicController : ApiControllerBase
 		CancellationToken ct = default)
 	{
 		var result = await _sender.Send(new GetPublicCampaignReceiptsQuery(id, page, pageSize), ct);
+		if (!result.IsSuccess)
+			return NotFound(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpGet("/api/public/campaigns/{id:guid}/posts")]
+	[OutputCache(PolicyName = "PublicCampaign")]
+	[ProducesResponseType(typeof(IReadOnlyList<PublicCampaignPostDto>), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> GetCampaignPosts(Guid id, CancellationToken ct = default)
+	{
+		var result = await _sender.Send(new GetPublicCampaignPostsQuery(id), ct);
 		if (!result.IsSuccess)
 			return NotFound(new { Error = result.Message });
 

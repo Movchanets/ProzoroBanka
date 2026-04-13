@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
@@ -71,7 +72,7 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 				photo.Id,
 				photo.ReceiptItemId,
 				photo.OriginalFileName,
-				StorageUrlResolver.Resolve(_fileStorage, photo.StorageKey) ?? string.Empty,
+				_fileStorage.ResolvePublicUrl(photo.StorageKey) ?? string.Empty,
 				photo.SortOrder))
 			.ToList();
 
@@ -81,7 +82,7 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 			receipt.TotalAmount,
 			receipt.TransactionDate,
 			receipt.Status.ToString(),
-			StorageUrlResolver.Resolve(_fileStorage, receipt.StorageKey) ?? string.Empty,
+			_fileStorage.ResolvePublicUrl(receipt.StorageKey) ?? string.Empty,
 			receipt.OcrStructuredPayloadJson,
 			items,
 			itemPhotos,

@@ -43,6 +43,10 @@ public class DeleteCampaignPhotoHandler : IRequestHandler<DeleteCampaignPhotoCom
 			return ServiceResponse<Unit>.Failure("Фото не знайдено.");
 
 		await _fileStorage.DeleteAsync(photo.StorageKey, cancellationToken);
+		if (string.Equals(campaign.CoverImageStorageKey, photo.StorageKey, StringComparison.Ordinal))
+		{
+			campaign.CoverImageStorageKey = null;
+		}
 
 		_db.CampaignPhotos.Remove(photo);
 		await _db.SaveChangesAsync(cancellationToken);

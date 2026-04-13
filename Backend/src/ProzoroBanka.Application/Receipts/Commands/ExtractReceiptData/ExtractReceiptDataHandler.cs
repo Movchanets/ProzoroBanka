@@ -31,9 +31,16 @@ public class ExtractReceiptDataHandler : IRequestHandler<ExtractReceiptDataComma
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(ExtractReceiptDataCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.FindOwnedWithPipelineGraphAsync(request.ReceiptId, request.CallerDomainUserId, ct);
+		var receipt = await _db.FindWithPipelineGraphByIdAsync(request.ReceiptId, ct);
 		if (receipt is null)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
+
+		var isOwner = receipt.UserId == request.CallerDomainUserId;
+		if (!isOwner)
+		{
+			if (!receipt.OrganizationId.HasValue || receipt.OrganizationId.Value != request.OrganizationId)
+				return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
+		}
 
 		var isMember = await _orgAuth.IsMember(request.OrganizationId, request.CallerDomainUserId, ct);
 		if (!isMember)
@@ -71,7 +78,7 @@ public class ExtractReceiptDataHandler : IRequestHandler<ExtractReceiptDataComma
 		await _ocrQueue.EnqueueAsync(new OcrWorkItem(
 			receipt.Id,
 			request.OrganizationId,
-			request.CallerDomainUserId,
+			receipt.UserId,
 			request.ModelIdentifier), ct);
 
 		return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));

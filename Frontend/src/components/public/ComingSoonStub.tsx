@@ -9,7 +9,7 @@ interface ComingSoonStubProps {
 
 export function ComingSoonStub({ title, description, testId }: ComingSoonStubProps) {
   return (
-    <Card data-testid={testId} className="border-dashed border-border/80 bg-card/70">
+    <Card data-testid={testId} className="border-dashed border-border/80 bg-card/72 shadow-[0_12px_30px_var(--shadow-soft)]">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base">{title}</CardTitle>

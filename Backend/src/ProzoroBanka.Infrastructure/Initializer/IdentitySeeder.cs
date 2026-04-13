@@ -47,6 +47,90 @@ public static class IdentitySeeder
 
 		await EnsureAdminUserAsync(dbContext, userManager, roleManager, configuration, environment, logger, cancellationToken);
 		await EnsureDefaultOcrModelAsync(dbContext, logger, cancellationToken);
+		await EnsureDefaultCampaignCategoriesAsync(dbContext, logger, cancellationToken);
+	}
+
+	private sealed record SeedCampaignCategory(string Slug, string NameUk, string NameEn, int SortOrder);
+
+	private static readonly IReadOnlyList<SeedCampaignCategory> DefaultCampaignCategories =
+	[
+		new("military-equipment", "Військове спорядження", "Military equipment", 10),
+		new("medical-aid", "Медична допомога", "Medical aid", 20),
+		new("transport-logistics", "Транспорт і логістика", "Transport and logistics", 30),
+		new("communications", "Зв'язок та РЕБ", "Communications and EW", 40),
+		new("humanitarian", "Гуманітарна допомога", "Humanitarian aid", 50),
+		new("education-rehab", "Навчання та реабілітація", "Education and rehabilitation", 60),
+	];
+
+	private static async Task EnsureDefaultCampaignCategoriesAsync(
+		ApplicationDbContext dbContext,
+		ILogger logger,
+		CancellationToken cancellationToken)
+	{
+		var slugs = DefaultCampaignCategories.Select(c => c.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+		var existingBySlug = await dbContext.CampaignCategories
+			.IgnoreQueryFilters()
+			.Where(c => slugs.Contains(c.Slug))
+			.ToDictionaryAsync(c => c.Slug, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+		var changed = false;
+		var createdCount = 0;
+
+		foreach (var seed in DefaultCampaignCategories)
+		{
+			if (!existingBySlug.TryGetValue(seed.Slug, out var category))
+			{
+				dbContext.CampaignCategories.Add(new CampaignCategory
+				{
+					Slug = seed.Slug,
+					NameUk = seed.NameUk,
+					NameEn = seed.NameEn,
+					SortOrder = seed.SortOrder,
+					IsActive = true,
+				});
+
+				createdCount++;
+				changed = true;
+				continue;
+			}
+
+			if (!string.Equals(category.NameUk, seed.NameUk, StringComparison.Ordinal))
+			{
+				category.NameUk = seed.NameUk;
+				changed = true;
+			}
+
+			if (!string.Equals(category.NameEn, seed.NameEn, StringComparison.Ordinal))
+			{
+				category.NameEn = seed.NameEn;
+				changed = true;
+			}
+
+			if (category.SortOrder != seed.SortOrder)
+			{
+				category.SortOrder = seed.SortOrder;
+				changed = true;
+			}
+
+			if (!category.IsActive)
+			{
+				category.IsActive = true;
+				changed = true;
+			}
+
+			if (category.IsDeleted)
+			{
+				category.IsDeleted = false;
+				changed = true;
+			}
+		}
+
+		if (!changed)
+			return;
+
+		await dbContext.SaveChangesAsync(cancellationToken);
+		logger.LogInformation("Default campaign categories ensured. Created {CreatedCount}.", createdCount);
 	}
 
 	private static async Task EnsureDefaultOcrModelAsync(

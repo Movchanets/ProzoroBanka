@@ -5,7 +5,10 @@ using Microsoft.AspNetCore.OutputCaching;
 using ProzoroBanka.API.Authorization;
 using ProzoroBanka.Application.Admin.Commands.AdminChangeCampaignStatus;
 using ProzoroBanka.Application.Admin.Commands.AdminDeleteOrganization;
+using ProzoroBanka.Application.Admin.Commands.CreateCampaignCategory;
+using ProzoroBanka.Application.Admin.Commands.DeleteCampaignCategory;
 using ProzoroBanka.Application.Admin.Commands.RemoveUserOrganizationLink;
+using ProzoroBanka.Application.Admin.Commands.UpdateCampaignCategory;
 using ProzoroBanka.Application.Admin.Commands.UpdateAdminGeneralSettings;
 using ProzoroBanka.Application.Admin.Commands.UpdateAdminPlansSettings;
 using ProzoroBanka.Application.Admin.Commands.UpdateUserLimitsSettings;
@@ -13,6 +16,7 @@ using ProzoroBanka.Application.Admin.Commands.UpdateUserOrganizationLink;
 using ProzoroBanka.Application.Admin.Commands.VerifyOrganization;
 using ProzoroBanka.Application.Admin.DTOs;
 using ProzoroBanka.Application.Admin.Queries.GetAllOrganizations;
+using ProzoroBanka.Application.Admin.Queries.GetCampaignCategories;
 using ProzoroBanka.Application.Admin.Queries.GetAdminGeneralSettings;
 using ProzoroBanka.Application.Admin.Queries.GetAdminPlansSettings;
 using ProzoroBanka.Application.Admin.Queries.GetOrganizationCampaigns;
@@ -132,6 +136,70 @@ public class AdminController : ControllerBase
 
 		if (!result.IsSuccess)
 			return NotFound(new { Error = result.Message });
+
+		return Ok(new { Message = result.Message });
+	}
+
+	[HttpGet("campaign-categories")]
+	[ProducesResponseType(typeof(IReadOnlyList<AdminCampaignCategoryDto>), StatusCodes.Status200OK)]
+	public async Task<IActionResult> GetCampaignCategories(
+		[FromQuery] bool includeInactive = true,
+		CancellationToken ct = default)
+	{
+		var result = await _sender.Send(new GetAdminCampaignCategoriesQuery(includeInactive), ct);
+		return Ok(result.Payload);
+	}
+
+	[HttpPost("campaign-categories")]
+	[ProducesResponseType(typeof(AdminCampaignCategoryDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> CreateCampaignCategory(
+		[FromBody] AdminCreateCampaignCategoryRequest request,
+		CancellationToken ct = default)
+	{
+		var result = await _sender.Send(
+			new CreateCampaignCategoryCommand(request.NameUk, request.NameEn, request.Slug, request.SortOrder, request.IsActive),
+			ct);
+
+		if (!result.IsSuccess)
+			return BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpPut("campaign-categories/{id:guid}")]
+	[ProducesResponseType(typeof(AdminCampaignCategoryDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> UpdateCampaignCategory(
+		Guid id,
+		[FromBody] AdminUpdateCampaignCategoryRequest request,
+		CancellationToken ct = default)
+	{
+		var result = await _sender.Send(
+			new UpdateCampaignCategoryCommand(id, request.NameUk, request.NameEn, request.Slug, request.SortOrder, request.IsActive),
+			ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: BadRequest(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpDelete("campaign-categories/{id:guid}")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> DeleteCampaignCategory(Guid id, CancellationToken ct = default)
+	{
+		var result = await _sender.Send(new DeleteCampaignCategoryCommand(id), ct);
+
+		if (!result.IsSuccess)
+			return result.Message.Contains("не знайдено")
+				? NotFound(new { Error = result.Message })
+				: BadRequest(new { Error = result.Message });
 
 		return Ok(new { Message = result.Message });
 	}

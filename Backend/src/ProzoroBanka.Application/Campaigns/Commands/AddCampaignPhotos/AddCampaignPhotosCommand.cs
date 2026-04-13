@@ -68,6 +68,7 @@ public class AddCampaignPhotosHandler : IRequestHandler<AddCampaignPhotosCommand
 			_fileStorage.GetPublicUrl(photo.StorageKey),
 			photo.OriginalFileName,
 			photo.Description,
+			campaign.CoverImageStorageKey == photo.StorageKey,
 			photo.SortOrder,
 			photo.CreatedAt);
 

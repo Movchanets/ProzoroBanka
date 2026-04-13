@@ -2,15 +2,22 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using ProzoroBanka.Domain.Entities;
+using ProzoroBanka.Domain.Enums;
+using ProzoroBanka.Infrastructure.Data;
 
 namespace ProzoroBanka.IntegrationTests.Api;
 
 public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 {
+	private readonly TestWebApplicationFactory _factory;
 	private readonly HttpClient _client;
 
 	public CampaignsEndpointsTests(TestWebApplicationFactory factory)
 	{
+		_factory = factory;
 		_client = factory.CreateClient();
 	}
 
@@ -22,7 +29,8 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 
 		var response = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/campaigns", new
 		{
-			title = "Збір на дрони",
+			titleUk = "Збір на дрони",
+			titleEn = "Drone fundraiser",
 			description = "Інтеграційний тест",
 			goalAmount = 100000,
 			deadline = DateTime.UtcNow.AddDays(15),
@@ -31,7 +39,24 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 		var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
-		Assert.Equal("Збір на дрони", payload.GetProperty("title").GetString());
+		Assert.Equal("Збір на дрони", payload.GetProperty("titleUk").GetString());
+	}
+
+	[Fact]
+	public async Task GetCampaignDetails_UsesOnlyActiveVerifiedReceiptsForDocumentedAmount()
+	{
+		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync($"Detail Org {Guid.NewGuid():N}");
+		var campaignId = await CreateCampaignAsync(orgId, $"Detail Campaign {Guid.NewGuid():N}");
+
+		await SeedCampaignReceiptsAsync(orgId, campaignId);
+
+		var response = await _client.GetAsync($"/api/campaigns/{campaignId}");
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+		var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Equal(60300, payload.GetProperty("documentedAmount").GetInt64());
+		Assert.Equal(100, payload.GetProperty("documentationPercent").GetDouble());
 	}
 
 	[Fact]
@@ -44,7 +69,8 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		{
 			var seed = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/campaigns", new
 			{
-				title = $"Seed campaign {i}",
+				titleUk = $"Seed campaign {i}",
+				titleEn = $"Seed campaign {i}",
 				description = "seed",
 				goalAmount = 50000,
 				deadline = DateTime.UtcNow.AddDays(30 + i)
@@ -54,7 +80,8 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 
 		var overflow = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/campaigns", new
 		{
-			title = "Overflow campaign",
+			titleUk = "Overflow campaign",
+			titleEn = "Overflow campaign",
 			description = "should fail",
 			goalAmount = 70000,
 			deadline = DateTime.UtcNow.AddDays(40)
@@ -77,6 +104,64 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		response.EnsureSuccessStatusCode();
 		var json = await response.Content.ReadFromJsonAsync<JsonElement>();
 		return json.GetProperty("id").GetGuid();
+	}
+
+	private async Task<Guid> CreateCampaignAsync(Guid orgId, string title)
+	{
+		var response = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/campaigns", new
+		{
+			titleUk = title,
+			titleEn = title,
+			description = "Integration test campaign",
+			goalAmount = 100000,
+			deadline = DateTime.UtcNow.AddDays(14)
+		});
+		response.EnsureSuccessStatusCode();
+		var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+		return json.GetProperty("id").GetGuid();
+	}
+
+	private async Task SeedCampaignReceiptsAsync(Guid organizationId, Guid campaignId)
+	{
+		using var scope = _factory.Services.CreateScope();
+		var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+		var ownerUserId = await db.Organizations
+			.Where(org => org.Id == organizationId)
+			.Select(org => org.OwnerUserId)
+			.SingleAsync();
+
+		var campaign = await db.Campaigns.SingleAsync(c => c.Id == campaignId);
+		campaign.CurrentAmount = 60300;
+
+		db.Receipts.AddRange(
+			new Receipt
+			{
+				Id = Guid.NewGuid(),
+				UserId = ownerUserId,
+				OrganizationId = organizationId,
+				CampaignId = campaignId,
+				StorageKey = "verified-active.jpg",
+				OriginalFileName = "verified-active.jpg",
+				Status = ReceiptStatus.StateVerified,
+				PublicationStatus = ReceiptPublicationStatus.Active,
+				TotalAmount = 606.13m,
+				CreatedAt = DateTime.UtcNow,
+			},
+			new Receipt
+			{
+				Id = Guid.NewGuid(),
+				UserId = ownerUserId,
+				OrganizationId = organizationId,
+				CampaignId = campaignId,
+				StorageKey = "verified-draft.jpg",
+				OriginalFileName = "verified-draft.jpg",
+				Status = ReceiptStatus.StateVerified,
+				PublicationStatus = ReceiptPublicationStatus.Draft,
+				TotalAmount = 193.87m,
+				CreatedAt = DateTime.UtcNow,
+			});
+
+		await db.SaveChangesAsync();
 	}
 
 	private async Task AuthenticateAsAdminAsync()

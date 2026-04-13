@@ -35,8 +35,12 @@ public class ApplicationDbContext
 	public DbSet<MonobankTransaction> MonobankTransactions => Set<MonobankTransaction>();
 	public DbSet<MatchResult> MatchResults => Set<MatchResult>();
 	public DbSet<Campaign> Campaigns => Set<Campaign>();
+	public DbSet<CampaignCategory> CampaignCategories => Set<CampaignCategory>();
+	public DbSet<CampaignCategoryMapping> CampaignCategoryMappings => Set<CampaignCategoryMapping>();
 	public DbSet<CampaignTransaction> CampaignTransactions => Set<CampaignTransaction>();
 	public DbSet<CampaignPhoto> CampaignPhotos => Set<CampaignPhoto>();
+	public DbSet<CampaignPost> CampaignPosts => Set<CampaignPost>();
+	public DbSet<CampaignPostImage> CampaignPostImages => Set<CampaignPostImage>();
 	public DbSet<OcrModelConfig> OcrModelConfigs => Set<OcrModelConfig>();
 
 	// ── IApplicationDbContext explicit implementation ──
@@ -52,8 +56,12 @@ public class ApplicationDbContext
 	DbSet<MonobankTransaction> IApplicationDbContext.MonobankTransactions => MonobankTransactions;
 	DbSet<MatchResult> IApplicationDbContext.MatchResults => MatchResults;
 	DbSet<Campaign> IApplicationDbContext.Campaigns => Campaigns;
+	DbSet<CampaignCategory> IApplicationDbContext.CampaignCategories => CampaignCategories;
+	DbSet<CampaignCategoryMapping> IApplicationDbContext.CampaignCategoryMappings => CampaignCategoryMappings;
 	DbSet<CampaignTransaction> IApplicationDbContext.CampaignTransactions => CampaignTransactions;
 	DbSet<CampaignPhoto> IApplicationDbContext.CampaignPhotos => CampaignPhotos;
+	DbSet<CampaignPost> IApplicationDbContext.CampaignPosts => CampaignPosts;
+	DbSet<CampaignPostImage> IApplicationDbContext.CampaignPostImages => CampaignPostImages;
 	DbSet<OcrModelConfig> IApplicationDbContext.OcrModelConfigs => OcrModelConfigs;
 
 	protected override void OnModelCreating(ModelBuilder builder)
@@ -341,7 +349,8 @@ public class ApplicationDbContext
 		{
 			b.ToTable("Campaigns");
 			b.HasKey(e => e.Id);
-			b.Property(e => e.Title).HasMaxLength(300).IsRequired();
+			b.Property(e => e.TitleUk).HasMaxLength(300).IsRequired();
+			b.Property(e => e.TitleEn).HasMaxLength(300).IsRequired();
 			b.Property(e => e.Description).HasMaxLength(5000);
 			b.Property(e => e.CoverImageStorageKey).HasMaxLength(512);
 			b.Property(e => e.Status).HasConversion<int>();
@@ -364,6 +373,37 @@ public class ApplicationDbContext
 				.WithOne(t => t.Campaign)
 				.HasForeignKey(t => t.CampaignId)
 				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasMany(e => e.CategoryMappings)
+				.WithOne(m => m.Campaign)
+				.HasForeignKey(m => m.CampaignId)
+				.OnDelete(DeleteBehavior.Cascade);
+		});
+
+		builder.Entity<CampaignCategory>(b =>
+		{
+			b.ToTable("CampaignCategories");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.NameUk).HasMaxLength(160).IsRequired();
+			b.Property(e => e.NameEn).HasMaxLength(160).IsRequired();
+			b.Property(e => e.Slug).HasMaxLength(180).IsRequired();
+			b.HasIndex(e => e.Slug).IsUnique();
+			b.HasIndex(e => e.SortOrder);
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasMany(e => e.CampaignMappings)
+				.WithOne(m => m.Category)
+				.HasForeignKey(m => m.CategoryId)
+				.OnDelete(DeleteBehavior.Cascade);
+		});
+
+		builder.Entity<CampaignCategoryMapping>(b =>
+		{
+			b.ToTable("CampaignCategoryMappings");
+			b.HasKey(e => e.Id);
+			b.HasIndex(e => new { e.CampaignId, e.CategoryId }).IsUnique();
+			b.HasIndex(e => e.CategoryId);
+			b.HasQueryFilter(e => !e.IsDeleted);
 		});
 
 		builder.Entity<CampaignTransaction>(b =>
@@ -398,6 +438,40 @@ public class ApplicationDbContext
 				.WithMany()
 				.HasForeignKey(e => e.CreatedByUserId)
 				.OnDelete(DeleteBehavior.Restrict);
+		});
+
+		builder.Entity<CampaignPost>(b =>
+		{
+			b.ToTable("CampaignPosts");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.PostContentJson).HasMaxLength(20000);
+			b.HasIndex(e => new { e.CampaignId, e.SortOrder });
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.Campaign)
+				.WithMany(c => c.Posts)
+				.HasForeignKey(e => e.CampaignId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasOne(e => e.CreatedBy)
+				.WithMany()
+				.HasForeignKey(e => e.CreatedByUserId)
+				.OnDelete(DeleteBehavior.Restrict);
+		});
+
+		builder.Entity<CampaignPostImage>(b =>
+		{
+			b.ToTable("CampaignPostImages");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
+			b.Property(e => e.OriginalFileName).HasMaxLength(256).IsRequired();
+			b.HasIndex(e => new { e.CampaignPostId, e.SortOrder });
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.CampaignPost)
+				.WithMany(p => p.Images)
+				.HasForeignKey(e => e.CampaignPostId)
+				.OnDelete(DeleteBehavior.Cascade);
 		});
 	}
 

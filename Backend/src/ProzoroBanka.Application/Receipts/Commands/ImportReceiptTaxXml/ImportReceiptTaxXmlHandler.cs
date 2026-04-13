@@ -11,22 +11,25 @@ namespace ProzoroBanka.Application.Receipts.Commands.ImportReceiptTaxXml;
 public class ImportReceiptTaxXmlHandler : IRequestHandler<ImportReceiptTaxXmlCommand, ServiceResponse<ReceiptPipelineDto>>
 {
     private readonly IApplicationDbContext _db;
+    private readonly IOrganizationAuthorizationService _orgAuth;
     private readonly IFileStorage _fileStorage;
     private readonly IReceiptTaxXmlParser _xmlParser;
 
     public ImportReceiptTaxXmlHandler(
         IApplicationDbContext db,
+        IOrganizationAuthorizationService orgAuth,
         IFileStorage fileStorage,
         IReceiptTaxXmlParser xmlParser)
     {
         _db = db;
+        _orgAuth = orgAuth;
         _fileStorage = fileStorage;
         _xmlParser = xmlParser;
     }
 
     public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(ImportReceiptTaxXmlCommand request, CancellationToken ct)
     {
-        var receipt = await _db.FindOwnedWithPipelineGraphAsync(request.ReceiptId, request.CallerDomainUserId, ct);
+        var receipt = await _db.FindAccessibleWithPipelineGraphAsync(_orgAuth, request.ReceiptId, request.CallerDomainUserId, ct);
 
         if (receipt is null)
             return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");

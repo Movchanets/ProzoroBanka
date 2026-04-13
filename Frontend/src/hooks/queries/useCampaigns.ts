@@ -13,6 +13,7 @@ import type {
 export const campaignKeys = {
   all: (orgId: string) => ['campaigns', orgId] as const,
   detail: (id: string) => ['campaign', id] as const,
+  posts: (id: string) => ['campaign', id, 'posts'] as const,
   stats: (orgId: string) => ['campaignStats', orgId] as const,
   transactions: (id: string, page: number, pageSize: number) => ['campaignTransactions', id, page, pageSize] as const,
   receipts: (id: string) => ['campaignReceipts', id] as const,
@@ -161,6 +162,20 @@ export function useAttachReceiptToCampaign(orgId: string) {
   });
 }
 
+export function useDetachReceiptFromCampaign(orgId: string) {
+  return useMutation({
+    mutationFn: ({ campaignId, receiptId }: { campaignId: string; receiptId: string }) =>
+      campaignService.detachReceipt(campaignId, receiptId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.all(orgId) });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.stats(orgId) });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.receipts(variables.campaignId) });
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all });
+    },
+  });
+}
+
 export function useCampaignPhotos(campaignId: string | null | undefined) {
   return useQuery({
     queryKey: [...campaignKeys.detail(campaignId!), 'photos'],
@@ -175,6 +190,7 @@ export function useAddCampaignPhoto(campaignId: string) {
       campaignService.addPhoto(campaignId, file, description),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...campaignKeys.detail(campaignId), 'photos'] });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(campaignId) });
     },
   });
 }
@@ -184,6 +200,7 @@ export function useDeleteCampaignPhoto(campaignId: string) {
     mutationFn: (photoId: string) => campaignService.deletePhoto(campaignId, photoId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...campaignKeys.detail(campaignId), 'photos'] });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(campaignId) });
     },
   });
 }
@@ -200,10 +217,48 @@ export function useReorderCampaignPhotos(campaignId: string) {
 
 export function useUpdateCampaignPhoto(campaignId: string) {
   return useMutation({
-    mutationFn: ({ photoId, payload }: { photoId: string; payload: { description?: string } }) =>
+    mutationFn: ({ photoId, payload }: { photoId: string; payload: { description?: string; setAsCover?: boolean } }) =>
       campaignService.updatePhoto(campaignId, photoId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...campaignKeys.detail(campaignId), 'photos'] });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(campaignId) });
+    },
+  });
+}
+
+export function useCampaignPosts(campaignId: string | null | undefined) {
+  return useQuery({
+    queryKey: campaignKeys.posts(campaignId!),
+    queryFn: () => campaignService.getPosts(campaignId!),
+    enabled: !!campaignId,
+  });
+}
+
+export function useCreateCampaignPost(campaignId: string) {
+  return useMutation({
+    mutationFn: ({ postContentJson, images }: { postContentJson?: string; images: File[] }) =>
+      campaignService.createPost(campaignId, { postContentJson, images }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.posts(campaignId) });
+    },
+  });
+}
+
+export function useUpdateCampaignPost(campaignId: string) {
+  return useMutation({
+    mutationFn: ({ postId, payload }: { postId: string; payload: { postContentJson?: string; removeImageIds?: string[]; imageOrderIds?: string[] } }) =>
+      campaignService.updatePost(campaignId, postId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.posts(campaignId) });
+    },
+  });
+}
+
+export function useDeleteCampaignPost(campaignId: string) {
+  return useMutation({
+    mutationFn: (postId: string) => campaignService.deletePost(campaignId, postId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.posts(campaignId) });
     },
   });
 }

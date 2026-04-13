@@ -1,6 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using ProzoroBanka.Application.Common.Helpers;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Public.DTOs;
@@ -10,6 +10,7 @@ namespace ProzoroBanka.Application.Public.Queries.SearchPublicCampaigns;
 
 public record SearchPublicCampaignsQuery(
 	string? Query,
+	string? CategorySlug = null,
 	CampaignStatus? Status = null,
 	int Page = 1,
 	int PageSize = 24,
@@ -45,6 +46,13 @@ public class SearchPublicCampaignsHandler
 		if (request.VerifiedOnly)
 			query = query.Where(c => c.Organization.IsVerified);
 
+		if (!string.IsNullOrWhiteSpace(request.CategorySlug))
+		{
+			var normalizedCategorySlug = request.CategorySlug.Trim().ToLowerInvariant();
+			query = query.Where(c => c.CategoryMappings.Any(m =>
+				m.Category.IsActive && m.Category.Slug == normalizedCategorySlug));
+		}
+
 		if (!string.IsNullOrWhiteSpace(request.Query))
 		{
 			var term = request.Query.Trim();
@@ -53,7 +61,8 @@ public class SearchPublicCampaignsHandler
 			// TODO: Switch to PostgreSQL FTS with ToTsVector/Matches after the Npgsql search extensions
 			// are exposed in the Application layer and backed by a GIN index.
 			query = query.Where(c =>
-				EF.Functions.Like(c.Title, likePattern, @"\") ||
+				EF.Functions.Like(c.TitleUk, likePattern, @"\") ||
+				EF.Functions.Like(c.TitleEn, likePattern, @"\") ||
 				(c.Description != null && EF.Functions.Like(c.Description, likePattern, @"\")) ||
 				EF.Functions.Like(c.Organization.Name, likePattern, @"\") ||
 				EF.Functions.Like(c.Organization.Slug, likePattern, @"\"));
@@ -68,9 +77,10 @@ public class SearchPublicCampaignsHandler
 			.Take(pageSize)
 			.Select(c => new PublicCampaignDto(
 				c.Id,
-				c.Title,
+				c.TitleUk,
+				c.TitleEn,
 				c.Description,
-				StorageUrlResolver.Resolve(_fileStorage, c.CoverImageStorageKey),
+				_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
 				c.SendUrl,
 				c.GoalAmount,
 				c.CurrentAmount,
@@ -79,6 +89,16 @@ public class SearchPublicCampaignsHandler
 				c.Status,
 				c.StartDate,
 				c.Deadline,
+				c.CategoryMappings
+					.Where(m => m.Category.IsActive)
+					.OrderBy(m => m.Category.SortOrder)
+					.ThenBy(m => m.Category.NameUk)
+					.Select(m => new PublicCampaignCategoryDto(
+						m.Category.Id,
+						m.Category.NameUk,
+						m.Category.NameEn,
+						m.Category.Slug))
+					.ToList(),
 				0,
 				c.Organization.Name,
 				c.Organization.Slug,

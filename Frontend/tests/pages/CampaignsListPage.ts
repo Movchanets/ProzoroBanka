@@ -26,6 +26,10 @@ export class CampaignsListPage {
     return this.page.getByText(title, { exact: true });
   }
 
+  getCampaignTitleAny(titles: readonly string[]): Locator {
+    return this.page.getByText(new RegExp(titles.map((title) => title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')));
+  }
+
   async openCreateCampaign(): Promise<void> {
     await this.createButton.click();
   }

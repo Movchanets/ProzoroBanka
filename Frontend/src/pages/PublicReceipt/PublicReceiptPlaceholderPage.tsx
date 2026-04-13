@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { CalendarDays, FileCheck2, Loader2, ReceiptText, ShieldCheck, Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -5,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { PhotoGalleryDialog } from '@/components/ui/photo-gallery-dialog';
 import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
 import { usePublicReceipt } from '@/hooks/queries/usePublic';
 import { ReceiptItemsTable } from '@/components/receipt/ReceiptItemsTable';
@@ -15,12 +17,14 @@ export default function PublicReceiptPlaceholderPage() {
   const locale = i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US';
   const { id } = useParams<{ id: string }>();
   const { data: receipt, isLoading, error } = usePublicReceipt(id);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   if (isLoading) {
     return (
       <main className="mx-auto flex w-[min(1100px,calc(100%-24px))] flex-col gap-6 py-8 sm:w-[min(1100px,calc(100%-40px))]" data-testid="public-receipt-page">
         <PublicPageToolbar compact />
-        <Card className="rounded-4xl border border-border/80">
+        <Card className="rounded-4xl border border-border/80 bg-card/92 shadow-[0_16px_40px_var(--shadow-soft)]">
           <CardContent className="flex min-h-56 items-center justify-center gap-3">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
             <span className="text-sm text-muted-foreground" data-testid="public-receipt-loading">{t('receipts.public.loading')}</span>
@@ -65,11 +69,29 @@ export default function PublicReceiptPlaceholderPage() {
   const itemPhotos = (receipt.itemPhotos ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
   const itemNameById = new Map(receiptItemsForTable.map((item) => [item.id, item.name]));
 
+  const galleryImages = [
+    {
+      src: receipt.imageUrl,
+      alt: t('receipts.public.scanAlt'),
+      caption: t('receipts.public.scanTitle'),
+    },
+    ...itemPhotos.map((photo, index) => ({
+      src: photo.photoUrl,
+      alt: photo.originalFileName || t('receipts.public.itemPhotoAlt', { index: index + 1 }),
+      caption: photo.originalFileName,
+    })),
+  ];
+
+  const openGalleryAt = (index: number) => {
+    setGalleryIndex(index);
+    setIsGalleryOpen(true);
+  };
+
   return (
     <main className="mx-auto flex w-[min(1100px,calc(100%-24px))] flex-col gap-6 py-8 sm:w-[min(1100px,calc(100%-40px))]" data-testid="public-receipt-page">
       <PublicPageToolbar compact />
 
-      <section className="overflow-hidden rounded-4xl border border-border/80 bg-card" data-testid="public-receipt-hero">
+      <section className="overflow-hidden rounded-4xl border border-border/80 bg-card/92 shadow-[0_24px_80px_var(--shadow-soft)]" data-testid="public-receipt-hero">
         <div className="grid gap-0 lg:grid-cols-[1.1fr,0.9fr]">
           <div className="space-y-4 p-6 sm:p-8">
             <div className="flex flex-wrap items-center gap-2">
@@ -80,17 +102,17 @@ export default function PublicReceiptPlaceholderPage() {
             </div>
             <h1 className="text-3xl font-extrabold leading-tight" data-testid="public-receipt-title">{receipt.merchantName || t('receipts.public.titleFallback')}</h1>
             <div className="grid gap-3 sm:grid-cols-3" data-testid="public-receipt-kpis">
-              <div className="rounded-2xl border border-border/70 bg-background/70 p-3">
+              <div className="rounded-2xl border border-border/70 bg-background/72 p-3 shadow-[0_10px_24px_var(--shadow-soft)]">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('receipts.public.kpiAmount')}</p>
                 <p className="mt-1 text-base font-semibold" data-testid="public-receipt-total-amount">{formattedAmount}</p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-background/70 p-3">
+              <div className="rounded-2xl border border-border/70 bg-background/72 p-3 shadow-[0_10px_24px_var(--shadow-soft)]">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('receipts.public.kpiDate')}</p>
                 <p className="mt-1 text-sm font-semibold" data-testid="public-receipt-transaction-date">
                   {receipt.transactionDate ? new Date(receipt.transactionDate).toLocaleString(locale) : t('common.na')}
                 </p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-background/70 p-3">
+              <div className="rounded-2xl border border-border/70 bg-background/72 p-3 shadow-[0_10px_24px_var(--shadow-soft)]">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('receipts.public.kpiAddedBy')}</p>
                 <p className="mt-1 text-sm font-semibold" data-testid="public-receipt-added-by">{receipt.addedByName || t('common.na')}</p>
               </div>
@@ -119,25 +141,33 @@ export default function PublicReceiptPlaceholderPage() {
             </div>
           </div>
 
-          <div className="border-t border-border bg-muted/20 p-4 lg:border-t-0 lg:border-l lg:p-6" data-testid="public-receipt-scan-block">
+          <div className="border-t border-border/80 bg-muted/20 p-4 lg:border-t-0 lg:border-l lg:p-6" data-testid="public-receipt-scan-block">
             <h2 className="mb-3 flex items-center text-sm font-semibold text-foreground">
               <FileCheck2 className="mr-2 h-4 w-4 text-primary" />
               {t('receipts.public.scanTitle')}
             </h2>
-            <div className="overflow-hidden rounded-2xl border border-border bg-background" data-testid="public-receipt-image-wrap">
-              <img
-                src={receipt.imageUrl}
-                alt={t('receipts.public.scanAlt')}
-                className="max-h-140 w-full object-contain"
-                data-testid="public-receipt-image"
-              />
+            <div className="overflow-hidden rounded-2xl border border-border/80 bg-background shadow-[0_10px_24px_var(--shadow-soft)]" data-testid="public-receipt-image-wrap">
+              <button
+                type="button"
+                className="block w-full cursor-pointer"
+                data-testid="public-receipt-image-open-button"
+                onClick={() => openGalleryAt(0)}
+                aria-label="Відкрити скан чека"
+              >
+                <img
+                  src={receipt.imageUrl}
+                  alt={t('receipts.public.scanAlt')}
+                  className="max-h-140 w-full object-contain"
+                  data-testid="public-receipt-image"
+                />
+              </button>
             </div>
           </div>
         </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.2fr,0.8fr]" data-testid="public-receipt-main-content">
-        <Card className="border-border/80" data-testid="public-receipt-items-card">
+        <Card className="border-border/80 bg-card/92 shadow-[0_16px_40px_var(--shadow-soft)]" data-testid="public-receipt-items-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Store className="h-5 w-5 text-primary" />
@@ -158,15 +188,23 @@ export default function PublicReceiptPlaceholderPage() {
                   {t('receipts.public.itemPhotosEmpty')}
                 </div>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="public-receipt-item-photos-grid">
+                <div className="flex gap-3 overflow-x-auto pb-2" data-testid="public-receipt-item-photos-grid">
                   {itemPhotos.map((photo, index) => (
-                    <article key={photo.id} className="overflow-hidden rounded-2xl border border-border/70 bg-card" data-testid={`public-receipt-item-photo-${index}`}>
-                      <div className="aspect-4/3 overflow-hidden border-b border-border/70 bg-muted/20">
-                        <img
-                          src={photo.photoUrl}
-                          alt={photo.originalFileName || t('receipts.public.itemPhotoAlt', { index: index + 1 })}
-                          className="h-full w-full object-cover"
-                        />
+                    <article key={photo.id} className="w-44 shrink-0 overflow-hidden rounded-2xl border border-border/70 bg-card/92 shadow-[0_10px_24px_var(--shadow-soft)]" data-testid={`public-receipt-item-photo-${index}`}>
+                      <div className="aspect-square overflow-hidden border-b border-border/70 bg-muted/20">
+                        <button
+                          type="button"
+                          className="block h-full w-full cursor-pointer"
+                          data-testid={`public-receipt-item-photo-open-button-${index}`}
+                          onClick={() => openGalleryAt(index + 1)}
+                          aria-label="Відкрити фото товару"
+                        >
+                          <img
+                            src={photo.photoUrl}
+                            alt={photo.originalFileName || t('receipts.public.itemPhotoAlt', { index: index + 1 })}
+                            className="h-full w-full object-cover"
+                          />
+                        </button>
                       </div>
                       <div className="space-y-1 p-3">
                         <p className="truncate text-sm font-medium" title={photo.originalFileName}>{photo.originalFileName}</p>
@@ -186,7 +224,7 @@ export default function PublicReceiptPlaceholderPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/80" data-testid="public-receipt-details-card">
+        <Card className="border-border/80 bg-card/92 shadow-[0_16px_40px_var(--shadow-soft)]" data-testid="public-receipt-details-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <CalendarDays className="h-5 w-5 text-primary" />
@@ -218,6 +256,17 @@ export default function PublicReceiptPlaceholderPage() {
           </CardContent>
         </Card>
       </section>
+
+      <PhotoGalleryDialog
+        images={galleryImages}
+        open={isGalleryOpen}
+        onOpenChange={setIsGalleryOpen}
+        currentIndex={galleryIndex}
+        onIndexChange={setGalleryIndex}
+        title={receipt.merchantName || t('receipts.public.titleFallback')}
+        description="Галерея фото чека"
+        testIdPrefix="public-receipt-gallery"
+      />
     </main>
   );
 }

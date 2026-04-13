@@ -16,7 +16,8 @@ export const CampaignStatusLabel: Record<CampaignStatus, string> = {
 
 export interface Campaign {
   id: string;
-  title: string;
+  titleUk: string;
+  titleEn: string;
   description?: string;
   coverImageUrl?: string;
   sendUrl?: string;
@@ -29,8 +30,18 @@ export interface Campaign {
   startDate?: string;
   deadline?: string;
   monobankAccountId?: string;
+  categories: CampaignCategory[];
   receiptCount?: number;
   createdAt: string;
+}
+
+export interface CampaignCategory {
+  id: string;
+  nameUk: string;
+  nameEn: string;
+  slug: string;
+  sortOrder?: number;
+  isActive?: boolean;
 }
 
 export interface CampaignDetail extends Campaign {
@@ -48,18 +59,22 @@ export interface CampaignStats {
 }
 
 export interface CreateCampaignPayload {
-  title: string;
+  titleUk: string;
+  titleEn: string;
   description?: string;
   goalAmount: number;
   deadline?: string;
+  categoryIds?: string[];
   sendUrl?: string;
 }
 
 export interface UpdateCampaignPayload {
-  title?: string;
+  titleUk?: string;
+  titleEn?: string;
   description?: string;
   goalAmount?: number;
   deadline?: string;
+  categoryIds?: string[];
   sendUrl?: string;
 }
 
@@ -122,8 +137,35 @@ export interface CampaignPhoto {
   photoUrl: string;
   originalFileName: string;
   description?: string | null;
+  isCover: boolean;
   sortOrder: number;
   createdAt: string;
+}
+
+export interface CampaignPostImage {
+  id: string;
+  imageUrl: string;
+  originalFileName: string;
+  sortOrder: number;
+}
+
+export interface CampaignPost {
+  id: string;
+  postContentJson?: string;
+  images: CampaignPostImage[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateCampaignPostPayload {
+  postContentJson?: string;
+  images: File[];
+}
+
+export interface UpdateCampaignPostPayload {
+  postContentJson?: string;
+  removeImageIds?: string[];
+  imageOrderIds?: string[];
 }
 
 export interface ReorderCampaignPhotosPayload {
@@ -132,4 +174,5 @@ export interface ReorderCampaignPhotosPayload {
 
 export interface UpdateCampaignPhotoPayload {
   description?: string;
+  setAsCover?: boolean;
 }

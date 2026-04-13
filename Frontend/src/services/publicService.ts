@@ -8,6 +8,7 @@ import type {
   PublicReceipt,
   PublicReceiptDetail,
   Transparency,
+  PublicCampaignCategory,
 } from '../types';
 
 const MINOR_UNITS_PER_HRYVNIA = 100;
@@ -108,6 +109,7 @@ export const publicService = {
 
   searchCampaigns: (
     query: string,
+    categorySlug?: string,
     status?: CampaignStatus,
     verifiedOnly = false,
     page = 1,
@@ -115,6 +117,7 @@ export const publicService = {
   ) => {
     const params = new URLSearchParams();
     if (query.trim()) params.set('query', query.trim());
+    if (categorySlug) params.set('categorySlug', categorySlug);
     if (status !== undefined) params.set('status', String(status));
     params.set('page', String(page));
     params.set('pageSize', String(pageSize));
@@ -126,6 +129,9 @@ export const publicService = {
       }));
   },
 
+  getCampaignCategories: () =>
+    apiFetch<PublicCampaignCategory[]>('/api/public/campaign-categories'),
+
   getCampaign: (campaignId: string) =>
     apiFetch<PublicCampaignDetail>(`/api/public/campaigns/${campaignId}`)
       .then((campaign) => ({
@@ -134,7 +140,14 @@ export const publicService = {
         currentAmount: toHryvnia(campaign.currentAmount),
         documentedAmount: toHryvnia(campaign.documentedAmount),
         latestReceipts: campaign.latestReceipts.map(mapPublicReceiptAmount),
+        posts: (campaign.posts ?? []).map((post) => ({
+          ...post,
+          images: (post.images ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder),
+        })),
       })),
+
+  getCampaignPosts: (campaignId: string) =>
+    apiFetch<PublicCampaignDetail['posts']>(`/api/public/campaigns/${campaignId}/posts`),
 
   getCampaignReceipts: (campaignId: string, page = 1, pageSize = 20) => {
     const params = new URLSearchParams();

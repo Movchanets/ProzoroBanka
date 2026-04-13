@@ -35,6 +35,7 @@ const NotFoundPage = lazy(() => import('./pages/NotFound/NotFoundPage'));
 const AdminLayout = lazy(() => import('./pages/Admin/AdminLayout'));
 const AdminOrganizationsPage = lazy(() => import('./pages/Admin/AdminOrganizationsPage'));
 const AdminCampaignsPage = lazy(() => import('./pages/Admin/AdminCampaignsPage'));
+const AdminCampaignCategoriesPage = lazy(() => import('./pages/Admin/AdminCampaignCategoriesPage'));
 const AdminUsersPage = lazy(() => import('./pages/Admin/AdminUsersPage'));
 const AdminRolesPage = lazy(() => import('./pages/Admin/AdminRolesPage'));
 const AdminSettingsPage = lazy(() => import('./pages/Admin/AdminSettingsPage'));
@@ -164,6 +165,7 @@ function App() {
               <Route index element={<Navigate to="organizations" replace />} />
               <Route path="organizations" element={<AdminOrganizationsPage />} />
               <Route path="organizations/:orgId/campaigns" element={<AdminCampaignsPage />} />
+              <Route path="campaign-categories" element={<AdminCampaignCategoriesPage />} />
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="roles" element={<AdminRolesPage />} />
               <Route path="settings" element={<AdminSettingsPage />} />

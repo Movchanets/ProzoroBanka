@@ -1,4 +1,4 @@
-using ProzoroBanka.Application.Common.Helpers;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Organizations.DTOs;
 using ProzoroBanka.Domain.Entities;
@@ -21,7 +21,7 @@ internal static class InvitationDtoFactory
 			invitation.Id,
 			invitation.OrganizationId,
 			invitation.Organization.Name,
-			StorageUrlResolver.Resolve(fileStorage, invitation.Organization.LogoStorageKey),
+			fileStorage.ResolvePublicUrl(invitation.Organization.LogoStorageKey),
 			invitation.Inviter.FirstName,
 			invitation.Inviter.LastName,
 			includeEmail ? invitation.Email : null,

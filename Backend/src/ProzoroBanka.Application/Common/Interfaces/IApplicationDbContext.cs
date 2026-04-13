@@ -20,8 +20,12 @@ public interface IApplicationDbContext
     DbSet<MonobankTransaction> MonobankTransactions { get; }
     DbSet<MatchResult> MatchResults { get; }
     DbSet<Campaign> Campaigns { get; }
+    DbSet<CampaignCategory> CampaignCategories { get; }
+    DbSet<CampaignCategoryMapping> CampaignCategoryMappings { get; }
     DbSet<CampaignTransaction> CampaignTransactions { get; }
     DbSet<CampaignPhoto> CampaignPhotos { get; }
+    DbSet<CampaignPost> CampaignPosts { get; }
+    DbSet<CampaignPostImage> CampaignPostImages { get; }
     DbSet<OcrModelConfig> OcrModelConfigs { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

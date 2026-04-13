@@ -10,17 +10,19 @@ namespace ProzoroBanka.Application.Receipts.Commands.UpdateReceiptDraftFile;
 public class UpdateReceiptDraftFileHandler : IRequestHandler<UpdateReceiptDraftFileCommand, ServiceResponse<ReceiptPipelineDto>>
 {
 	private readonly IApplicationDbContext _db;
+	private readonly IOrganizationAuthorizationService _orgAuth;
 	private readonly IFileStorage _fileStorage;
 
-	public UpdateReceiptDraftFileHandler(IApplicationDbContext db, IFileStorage fileStorage)
+	public UpdateReceiptDraftFileHandler(IApplicationDbContext db, IOrganizationAuthorizationService orgAuth, IFileStorage fileStorage)
 	{
 		_db = db;
+		_orgAuth = orgAuth;
 		_fileStorage = fileStorage;
 	}
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(UpdateReceiptDraftFileCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.FindOwnedWithPipelineGraphAsync(request.ReceiptId, request.CallerDomainUserId, ct);
+		var receipt = await _db.FindAccessibleWithPipelineGraphAsync(_orgAuth, request.ReceiptId, request.CallerDomainUserId, ct);
 
 		if (receipt is null)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");

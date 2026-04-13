@@ -105,17 +105,42 @@ public class TokenService : ITokenService
 
 		var userId = Guid.Parse(userIdClaim);
 		var user = await _dbContext.Set<ApplicationUser>()
+			.Include(u => u.UserRoles)
+				.ThenInclude(userRole => userRole.Role)
+					.ThenInclude(role => role.RoleClaims)
 			.FirstOrDefaultAsync(u => u.Id == userId, ct)
 			?? throw new SecurityTokenException("User not found");
 
 		if (user.RefreshToken != HashRefreshToken(refreshToken, refreshKey) || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
 			throw new SecurityTokenException("Invalid or expired refresh token");
 
-		var roles = principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-		var permissions = principal.FindAll("permission").Select(c => c.Value).ToList();
-		var email = principal.FindFirst(ClaimTypes.Email)?.Value ?? user.Email!;
+		var roles = user.UserRoles
+			.Select(userRole => userRole.Role.Name)
+			.Where(roleName => !string.IsNullOrWhiteSpace(roleName))
+			.Select(roleName => roleName!)
+			.Distinct(StringComparer.OrdinalIgnoreCase)
+			.ToList();
 
-		return await GenerateTokensAsync(userId, email, roles, permissions, ct);
+		var permissions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		foreach (var role in user.UserRoles.Select(userRole => userRole.Role))
+		{
+			foreach (var claim in role.RoleClaims)
+			{
+				if (claim.ClaimType == "permission" && !string.IsNullOrWhiteSpace(claim.ClaimValue))
+					permissions.Add(claim.ClaimValue);
+			}
+
+			var predefinedRole = ApplicationRoleDefinitions.FindByName(role.Name ?? string.Empty);
+			if (predefinedRole is null)
+				continue;
+
+			foreach (var permission in predefinedRole.Permissions)
+				permissions.Add(permission);
+		}
+
+		var email = user.Email ?? principal.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+
+		return await GenerateTokensAsync(userId, email, roles, permissions.ToList(), ct);
 	}
 
 	public async Task RevokeRefreshTokenAsync(Guid applicationUserId, CancellationToken ct = default)

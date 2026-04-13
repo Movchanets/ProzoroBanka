@@ -2,7 +2,8 @@ import { type Locator, type Page, type Response } from '@playwright/test';
 export class CampaignCreatePage {
   private readonly page: Page;
   readonly pageContainer: Locator;
-  private readonly titleInput: Locator;
+  private readonly titleUkInput: Locator;
+  private readonly titleEnInput: Locator;
   private readonly descriptionInput: Locator;
   private readonly goalInput: Locator;
   private readonly deadlineInput: Locator;
@@ -11,7 +12,8 @@ export class CampaignCreatePage {
   constructor(page: Page) {
     this.page = page;
     this.pageContainer = page.getByTestId('campaign-create-page');
-    this.titleInput = page.getByTestId('campaign-create-title-input');
+    this.titleUkInput = page.getByTestId('campaign-create-title-uk-input');
+    this.titleEnInput = page.getByTestId('campaign-create-title-en-input');
     this.descriptionInput = page.getByTestId('campaign-create-description-input');
     this.goalInput = page.getByTestId('campaign-create-goal-input');
     this.deadlineInput = page.getByTestId('campaign-create-deadline-input');
@@ -19,12 +21,14 @@ export class CampaignCreatePage {
   }
 
   async fillForm(payload: {
-    title: string;
+    titleUk: string;
+    titleEn: string;
     description: string;
     goalAmount: string;
     deadline: string;
   }): Promise<void> {
-    await this.titleInput.fill(payload.title);
+    await this.titleUkInput.fill(payload.titleUk);
+    await this.titleEnInput.fill(payload.titleEn);
     await this.descriptionInput.fill(payload.description);
     await this.goalInput.fill(payload.goalAmount);
     await this.deadlineInput.fill(payload.deadline);

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { CampaignStatus, type CampaignStatus as CampaignStatusType } from '@/types';
 import { publicService } from '@/services/publicService';
+import type { PublicListResponse, PublicReceipt } from '@/types';
 
 type HomeCampaignStatusFilter = 'all' | 'active' | 'completed';
 
@@ -22,6 +23,14 @@ export const publicKeys = {
   ) => [...publicKeys.all, 'organizations', query, page, verifiedOnly, activeOnly, sortBy, pageSize] as const,
   campaignSearch: (query: string, status: HomeCampaignStatusFilter, verifiedOnly: boolean, pageSize: number) =>
     [...publicKeys.all, 'campaignSearch', query, status, verifiedOnly, pageSize] as const,
+  campaignSearchWithCategory: (
+    query: string,
+    categorySlug: string | undefined,
+    status: HomeCampaignStatusFilter,
+    verifiedOnly: boolean,
+    pageSize: number,
+  ) => [...publicKeys.all, 'campaignSearch', query, categorySlug ?? '', status, verifiedOnly, pageSize] as const,
+  campaignCategories: () => [...publicKeys.all, 'campaignCategories'] as const,
   organization: (slug: string) => [...publicKeys.all, 'organization', slug] as const,
   orgCampaigns: (slug: string, status: CampaignStatus | undefined, page: number) =>
     [...publicKeys.all, 'orgCampaigns', slug, status, page] as const,
@@ -56,16 +65,18 @@ export function useSearchOrganizations(
 
 export function useHomeCampaignFeed(
   query: string,
+  categorySlug: string | undefined,
   status: HomeCampaignStatusFilter,
   verifiedOnly: boolean,
   pageSize = 24,
   enabled = true,
 ) {
   return useQuery({
-    queryKey: publicKeys.campaignSearch(query, status, verifiedOnly, pageSize),
+    queryKey: publicKeys.campaignSearchWithCategory(query, categorySlug, status, verifiedOnly, pageSize),
     queryFn: async () => {
       const response = await publicService.searchCampaigns(
         query,
+        categorySlug,
         mapHomeStatusToCampaignStatus(status),
         verifiedOnly,
         1,
@@ -74,6 +85,15 @@ export function useHomeCampaignFeed(
 
       return response.items;
     },
+    enabled,
+    ...publicQueryDefaults,
+  });
+}
+
+export function usePublicCampaignCategories(enabled = true) {
+  return useQuery({
+    queryKey: publicKeys.campaignCategories(),
+    queryFn: () => publicService.getCampaignCategories(),
     enabled,
     ...publicQueryDefaults,
   });
@@ -109,7 +129,26 @@ export function usePublicCampaign(campaignId: string | null | undefined) {
 export function usePublicCampaignReceipts(campaignId: string | null | undefined, page = 1) {
   return useQuery({
     queryKey: publicKeys.campaignReceipts(campaignId ?? '', page),
-    queryFn: () => publicService.getCampaignReceipts(campaignId ?? '', page),
+    queryFn: async (): Promise<PublicListResponse<PublicReceipt>> => {
+      const firstPage = await publicService.getCampaignReceipts(campaignId ?? '', page, 50);
+      if (firstPage.items.length >= firstPage.totalCount) {
+        return firstPage;
+      }
+
+      const totalPages = Math.ceil(firstPage.totalCount / firstPage.pageSize);
+      const remainingPages = Array.from({ length: Math.max(0, totalPages - page) }, (_, index) => page + index + 1);
+      const nextPages = await Promise.all(
+        remainingPages.map((pageNumber) => publicService.getCampaignReceipts(campaignId ?? '', pageNumber, firstPage.pageSize)),
+      );
+
+      return {
+        ...firstPage,
+        items: [
+          ...firstPage.items,
+          ...nextPages.flatMap((response) => response.items),
+        ],
+      };
+    },
     enabled: Boolean(campaignId),
     ...publicQueryDefaults,
   });

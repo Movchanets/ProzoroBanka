@@ -11,8 +11,9 @@ import { CampaignCard } from '@/components/public/CampaignCard';
 import { ComingSoonStub } from '@/components/public/ComingSoonStub';
 import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
 import { SeoHelmet } from '@/components/seo/SeoHelmet';
-import { useHomeCampaignFeed, useSearchOrganizations } from '@/hooks/queries/usePublic';
+import { useHomeCampaignFeed, usePublicCampaignCategories, useSearchOrganizations } from '@/hooks/queries/usePublic';
 import { useTranslation } from 'react-i18next';
+import { resolveLocalizedText } from '@/lib/localizedText';
 
 type HomeTab = 'campaigns' | 'organizations';
 type CampaignFilterStatus = 'all' | 'active' | 'completed';
@@ -34,10 +35,13 @@ export default function HomePage() {
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<HomeTab>('campaigns');
   const [campaignStatus, setCampaignStatus] = useState<CampaignFilterStatus>('all');
+  const [campaignCategorySlug, setCampaignCategorySlug] = useState<string>('all');
   const [campaignVerifiedOnly, setCampaignVerifiedOnly] = useState(true);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [activeOnly, setActiveOnly] = useState(false);
   const deferredQuery = useDeferredValue(query);
+
+  const campaignCategoriesQuery = usePublicCampaignCategories(tab === 'campaigns');
 
   const organizationSearch = useSearchOrganizations(
     deferredQuery,
@@ -50,6 +54,7 @@ export default function HomePage() {
   );
   const campaignSearch = useHomeCampaignFeed(
     deferredQuery,
+    campaignCategorySlug === 'all' ? undefined : campaignCategorySlug,
     campaignStatus,
     campaignVerifiedOnly,
     24,
@@ -96,19 +101,19 @@ export default function HomePage() {
       >
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/65">ProzoroBanka</p>
         <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">{t('home.hero.title')}</h1>
-        <p className="mt-3 max-w-2xl text-sm text-foreground/72 sm:text-base">
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-foreground/72 sm:text-base">
           {t('home.hero.description')}
         </p>
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-white/25 bg-background/82 p-3 backdrop-blur-sm dark:border-border/70 dark:bg-background/60">
+          <div className="rounded-2xl border border-white/25 bg-background/82 p-3 shadow-[0_10px_24px_var(--shadow-soft)] backdrop-blur-sm dark:border-border/70 dark:bg-background/60">
             <p className="text-xs text-foreground/70 dark:text-muted-foreground">{t('home.kpi.campaignsCount')}</p>
             <p data-testid="home-kpi-campaigns-count" className="mt-1 text-2xl font-bold text-foreground">{campaigns.length}</p>
           </div>
-          <div className="rounded-2xl border border-white/25 bg-background/82 p-3 backdrop-blur-sm dark:border-border/70 dark:bg-background/60">
+          <div className="rounded-2xl border border-white/25 bg-background/82 p-3 shadow-[0_10px_24px_var(--shadow-soft)] backdrop-blur-sm dark:border-border/70 dark:bg-background/60">
             <p className="text-xs text-foreground/70 dark:text-muted-foreground">{t('home.kpi.activeCampaignsCount')}</p>
             <p data-testid="home-kpi-active-campaigns-count" className="mt-1 text-2xl font-bold text-foreground">{activeCampaignCount}</p>
           </div>
-          <div className="rounded-2xl border border-white/25 bg-background/82 p-3 backdrop-blur-sm dark:border-border/70 dark:bg-background/60">
+          <div className="rounded-2xl border border-white/25 bg-background/82 p-3 shadow-[0_10px_24px_var(--shadow-soft)] backdrop-blur-sm dark:border-border/70 dark:bg-background/60">
             <p className="text-xs text-foreground/70 dark:text-muted-foreground">{t('home.kpi.mode')}</p>
             <p data-testid="home-kpi-current-tab" className="mt-1 text-2xl font-bold text-foreground">
               {tab === 'campaigns' ? t('home.tabs.campaigns') : t('home.tabs.organizations')}
@@ -117,7 +122,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border bg-card p-5 sm:p-6" data-testid="home-seo-content-section">
+      <section className="rounded-3xl border border-border/80 bg-card/92 p-5 shadow-[0_16px_40px_var(--shadow-soft)] sm:p-6" data-testid="home-seo-content-section">
         <h2 className="text-2xl font-bold text-foreground">{t('home.seoContent.title')}</h2>
         <p className="mt-3 text-sm leading-7 text-muted-foreground">
           {t('home.seoContent.paragraph1')}
@@ -148,12 +153,12 @@ export default function HomePage() {
       </section>
 
       <Tabs value={tab} onValueChange={(value) => setTab(value as HomeTab)} data-testid="home-main-tabs" className="gap-4">
-        <TabsList data-testid="home-main-tabs-list" className="w-full justify-start rounded-2xl border border-border bg-card p-1">
+        <TabsList data-testid="home-main-tabs-list" className="w-full justify-start rounded-2xl border border-border/80 bg-card/92 p-1 shadow-[0_10px_24px_var(--shadow-soft)]">
           <TabsTrigger data-testid="home-main-tab-campaigns" value="campaigns" className="rounded-xl px-4">{t('home.tabs.campaigns')}</TabsTrigger>
           <TabsTrigger data-testid="home-main-tab-organizations" value="organizations" className="rounded-xl px-4">{t('home.tabs.organizations')}</TabsTrigger>
         </TabsList>
 
-        <section data-testid="home-search-form" className="rounded-3xl border border-border bg-card p-4 sm:p-5">
+        <section data-testid="home-search-form" className="rounded-3xl border border-border/80 bg-card/92 p-4 shadow-[0_16px_40px_var(--shadow-soft)] sm:p-5">
           <label htmlFor="home-search-input" className="mb-2 block text-sm font-semibold text-foreground">
             {tab === 'campaigns' ? t('home.search.campaignsLabel') : t('home.search.organizationsLabel')}
           </label>
@@ -184,7 +189,7 @@ export default function HomePage() {
 
           {tab === 'campaigns' ? (
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr_1fr]">
-              <div className="rounded-2xl border border-border/70 bg-background/50 p-3">
+              <div className="rounded-2xl border border-border/70 bg-background/60 p-3 shadow-[0_10px_24px_var(--shadow-soft)]">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('home.filters.campaignsTitle')}</p>
                 <Select value={campaignStatus} onValueChange={(value) => setCampaignStatus(value as CampaignFilterStatus)}>
                   <SelectTrigger data-testid="home-campaign-status-select" className="w-full">
@@ -199,7 +204,7 @@ export default function HomePage() {
                 <p className="mt-2 text-xs text-muted-foreground">{t('home.filters.selectedStatus')}: {t(`home.filters.status.${campaignStatus}`)}</p>
               </div>
 
-              <div className="rounded-2xl border border-border/70 bg-background/50 p-3">
+              <div className="rounded-2xl border border-border/70 bg-background/60 p-3 shadow-[0_10px_24px_var(--shadow-soft)]">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('home.filters.verifiedOrganizationsOnly')}</p>
                 <label className="inline-flex items-center gap-2 text-sm">
                   <input
@@ -212,11 +217,22 @@ export default function HomePage() {
                 </label>
               </div>
 
-              <ComingSoonStub
-                testId="home-coming-soon-campaign-filters"
-                title={t('home.comingSoon.filtersTitle')}
-                description={t('home.comingSoon.filtersDescription')}
-              />
+              <div className="rounded-2xl border border-border/70 bg-background/60 p-3 shadow-[0_10px_24px_var(--shadow-soft)]">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('home.filters.categoryTitle')}</p>
+                <Select value={campaignCategorySlug} onValueChange={setCampaignCategorySlug}>
+                  <SelectTrigger data-testid="home-campaign-category-select" className="w-full">
+                    <SelectValue placeholder={t('home.filters.categoryPlaceholder')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('home.filters.categoryAll')}</SelectItem>
+                    {(campaignCategoriesQuery.data ?? []).map((category) => (
+                      <SelectItem value={category.slug} key={category.id}>
+                        {resolveLocalizedText(category.nameUk, category.nameEn, i18n.language)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           ) : (
             <div className="mt-4 flex flex-wrap gap-4 text-sm">
@@ -275,7 +291,7 @@ export default function HomePage() {
         ) : null}
 
         {!activeQuery.isLoading && !activeQuery.isError && activeItemCount === 0 ? (
-          <section data-testid="home-empty-state" className="rounded-3xl border border-border bg-card p-6 text-center">
+          <section data-testid="home-empty-state" className="rounded-3xl border border-border/80 bg-card/92 p-6 text-center shadow-[0_16px_40px_var(--shadow-soft)]">
             <h2 className="text-xl font-semibold">{t('home.empty.title')}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{emptyText}</p>
           </section>

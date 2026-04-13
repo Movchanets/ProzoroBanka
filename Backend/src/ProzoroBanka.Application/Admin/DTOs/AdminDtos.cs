@@ -40,7 +40,8 @@ public record AdminOrganizationListResponse(
 /// </summary>
 public record AdminCampaignDto(
 	Guid Id,
-	string Title,
+	string TitleUk,
+	string TitleEn,
 	string? Description,
 	string? CoverImageUrl,
 	long GoalAmount,
@@ -49,9 +50,32 @@ public record AdminCampaignDto(
 	CampaignStatus Status,
 	DateTime? StartDate,
 	DateTime? Deadline,
+	IReadOnlyList<AdminCampaignCategoryDto> Categories,
 	string OrganizationName,
 	string CreatedByName,
 	DateTime CreatedAt);
+
+public record AdminCampaignCategoryDto(
+	Guid Id,
+	string NameUk,
+	string NameEn,
+	string Slug,
+	int SortOrder,
+	bool IsActive);
+
+public record AdminCreateCampaignCategoryRequest(
+	string NameUk,
+	string NameEn,
+	string Slug,
+	int SortOrder,
+	bool IsActive);
+
+public record AdminUpdateCampaignCategoryRequest(
+	string NameUk,
+	string NameEn,
+	string Slug,
+	int SortOrder,
+	bool IsActive);
 
 /// <summary>
 /// Request для верифікації організації адміном.

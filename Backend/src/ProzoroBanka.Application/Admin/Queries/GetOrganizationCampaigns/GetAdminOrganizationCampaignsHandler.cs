@@ -1,7 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Admin.DTOs;
-using ProzoroBanka.Application.Common.Helpers;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 
@@ -36,7 +36,8 @@ public class GetAdminOrganizationCampaignsHandler
 			.Select(c => new
 			{
 				c.Id,
-				c.Title,
+				c.TitleUk,
+				c.TitleEn,
 				c.Description,
 				c.CoverImageStorageKey,
 				c.GoalAmount,
@@ -45,6 +46,18 @@ public class GetAdminOrganizationCampaignsHandler
 				c.Status,
 				c.StartDate,
 				c.Deadline,
+				Categories = c.CategoryMappings
+					.Where(m => m.Category.IsActive)
+					.OrderBy(m => m.Category.SortOrder)
+					.ThenBy(m => m.Category.NameUk)
+					.Select(m => new AdminCampaignCategoryDto(
+						m.Category.Id,
+						m.Category.NameUk,
+						m.Category.NameEn,
+						m.Category.Slug,
+						m.Category.SortOrder,
+						m.Category.IsActive))
+					.ToList(),
 				OrganizationName = c.Organization.Name,
 				CreatedByName = c.CreatedBy.FirstName + " " + c.CreatedBy.LastName,
 				c.CreatedAt
@@ -53,15 +66,17 @@ public class GetAdminOrganizationCampaignsHandler
 
 		var items = campaigns.Select(c => new AdminCampaignDto(
 			c.Id,
-			c.Title,
+			c.TitleUk,
+			c.TitleEn,
 			c.Description,
-			StorageUrlResolver.Resolve(_fileStorage, c.CoverImageStorageKey),
+			_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
 			c.GoalAmount,
 			c.CurrentAmount,
 			c.SendUrl,
 			c.Status,
 			c.StartDate,
 			c.Deadline,
+			c.Categories,
 			c.OrganizationName,
 			c.CreatedByName,
 			c.CreatedAt

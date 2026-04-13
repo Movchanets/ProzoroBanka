@@ -1,6 +1,6 @@
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
@@ -72,16 +72,70 @@ public class OpenRouterOcrService : IOcrService
 				}
 			};
 
-			var response = await _httpClient.PostAsJsonAsync("/v1/chat/completions", request, ct);
-			response.EnsureSuccessStatusCode();
+			var completionsEndpoint = GetCompletionsEndpoint();
+			var response = await _httpClient.PostAsJsonAsync(completionsEndpoint, request, ct);
+			var responseBody = await response.Content.ReadAsStringAsync(ct);
+			var statusCode = (int)response.StatusCode;
+			var requestUri = response.RequestMessage?.RequestUri?.ToString() ?? "<unknown>";
+			var contentType = response.Content.Headers.ContentType?.MediaType ?? "<missing>";
 
-			var result = await response.Content.ReadFromJsonAsync<OpenRouterResponse>(cancellationToken: ct);
+			if (!response.IsSuccessStatusCode)
+			{
+				_logger.LogWarning(
+					"OpenRouter OCR returned HTTP {StatusCode} for {FileName}. Uri: {RequestUri}. ContentType: {ContentType}. Body: {Body}",
+					statusCode,
+					fileName,
+					requestUri,
+					contentType,
+					Truncate(responseBody));
+				return Failure($"OpenRouter OCR HTTP {statusCode}: {Truncate(responseBody)}");
+			}
 
-			var rawContent = result?.Choices?.FirstOrDefault()?.Message?.Content;
-			if (string.IsNullOrWhiteSpace(rawContent))
-				return Failure("No content returned from OpenRouter");
+			if (LooksLikeHtml(responseBody))
+			{
+				_logger.LogWarning(
+					"OpenRouter OCR returned HTML-like response for {FileName}. Uri: {RequestUri}. ContentType: {ContentType}. Body: {Body}",
+					fileName,
+					requestUri,
+					contentType,
+					Truncate(responseBody));
+				return Failure("OpenRouter OCR returned non-JSON HTML response");
+			}
 
-			_logger.LogDebug("OpenRouter raw response: {Raw}", rawContent);
+			if (!IsJsonContentType(contentType) && !LooksLikeJson(responseBody))
+			{
+				_logger.LogWarning(
+					"OpenRouter OCR returned unexpected content-type for {FileName}. Uri: {RequestUri}. ContentType: {ContentType}. Body: {Body}",
+					fileName,
+					requestUri,
+					contentType,
+					Truncate(responseBody));
+				return Failure($"OpenRouter OCR returned non-JSON response (content-type: {contentType})");
+			}
+
+			if (TryExtractTopLevelError(responseBody, out var upstreamCode, out var upstreamMessage))
+			{
+				_logger.LogWarning(
+					"OpenRouter OCR returned provider error payload for {FileName}. Uri: {RequestUri}. UpstreamCode: {UpstreamCode}. Message: {Message}",
+					fileName,
+					requestUri,
+					upstreamCode,
+					upstreamMessage);
+				return Failure($"OpenRouter OCR upstream error ({upstreamCode}): {upstreamMessage}");
+			}
+
+			if (!TryExtractModelContent(responseBody, out var rawContent, out var diagnostic))
+			{
+				_logger.LogWarning(
+					"OpenRouter OCR response envelope is invalid for {FileName}. Uri: {RequestUri}. Diagnostic: {Diagnostic}. Body: {Body}",
+					fileName,
+					requestUri,
+					diagnostic,
+					Truncate(responseBody));
+				return Failure($"OpenRouter OCR invalid response envelope: {diagnostic}");
+			}
+
+			_logger.LogDebug("OpenRouter raw model content for {FileName}: {Raw}", fileName, Truncate(rawContent, 2000));
 
 			return ParseFiscalJson(rawContent, fileName);
 		}
@@ -184,23 +238,175 @@ public class OpenRouterOcrService : IOcrService
 	private static OcrResult Failure(string error) =>
 		new(false, null, null, null, null, null, null, null, error);
 
-	// ── Response models ──
-
-	private class OpenRouterResponse
+	private Uri GetCompletionsEndpoint()
 	{
-		[JsonPropertyName("choices")]
-		public List<OpenRouterChoice> Choices { get; set; } = new();
+		var baseAddress = _httpClient.BaseAddress;
+		if (baseAddress is null)
+			return new Uri("https://openrouter.ai/api/v1/chat/completions", UriKind.Absolute);
+
+		if (!baseAddress.Host.EndsWith("openrouter.ai", StringComparison.OrdinalIgnoreCase))
+			return new Uri(baseAddress, "v1/chat/completions");
+
+		var path = baseAddress.AbsolutePath.TrimEnd('/');
+		var hasApiPrefix = path.Equals("/api", StringComparison.OrdinalIgnoreCase)
+			|| path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase);
+
+		if (hasApiPrefix)
+			return new Uri(baseAddress, "/api/v1/chat/completions");
+
+		_logger.LogWarning(
+			"OpenRouter BaseAddress {BaseAddress} is missing '/api' path segment. Falling back to canonical endpoint.",
+			baseAddress);
+		return new Uri(baseAddress, "/api/v1/chat/completions");
 	}
 
-	private class OpenRouterChoice
+	private static bool IsJsonContentType(string contentType) =>
+		contentType.Contains("application/json", StringComparison.OrdinalIgnoreCase)
+		|| contentType.Contains("application/problem+json", StringComparison.OrdinalIgnoreCase)
+		|| contentType.Contains("text/json", StringComparison.OrdinalIgnoreCase);
+
+	private static bool LooksLikeHtml(string value)
 	{
-		[JsonPropertyName("message")]
-		public OpenRouterMessage Message { get; set; } = new();
+		if (string.IsNullOrWhiteSpace(value))
+			return false;
+
+		var trimmed = value.TrimStart();
+		return trimmed.StartsWith("<", StringComparison.Ordinal)
+			|| trimmed.StartsWith("<!doctype", StringComparison.OrdinalIgnoreCase)
+			|| trimmed.StartsWith("<html", StringComparison.OrdinalIgnoreCase);
 	}
 
-	private class OpenRouterMessage
+	private static bool LooksLikeJson(string value)
 	{
-		[JsonPropertyName("content")]
-		public string Content { get; set; } = string.Empty;
+		if (string.IsNullOrWhiteSpace(value))
+			return false;
+
+		var trimmed = value.TrimStart();
+		return trimmed.StartsWith("{", StringComparison.Ordinal) || trimmed.StartsWith("[", StringComparison.Ordinal);
+	}
+
+	private static bool TryExtractModelContent(string responseBody, out string content, out string diagnostic)
+	{
+		content = string.Empty;
+		diagnostic = string.Empty;
+
+		if (string.IsNullOrWhiteSpace(responseBody))
+		{
+			diagnostic = "response body is empty";
+			return false;
+		}
+
+		try
+		{
+			using var doc = JsonDocument.Parse(responseBody);
+			var root = doc.RootElement;
+
+			if (!root.TryGetProperty("choices", out var choices) || choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0)
+			{
+				diagnostic = "choices[] is missing or empty";
+				return false;
+			}
+
+			var firstChoice = choices[0];
+			if (!firstChoice.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object)
+			{
+				diagnostic = "choices[0].message is missing";
+				return false;
+			}
+
+			if (!message.TryGetProperty("content", out var rawContent) || rawContent.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+			{
+				diagnostic = "choices[0].message.content is missing";
+				return false;
+			}
+
+			if (rawContent.ValueKind == JsonValueKind.String)
+			{
+				content = rawContent.GetString() ?? string.Empty;
+				if (!string.IsNullOrWhiteSpace(content))
+					return true;
+
+				diagnostic = "choices[0].message.content is empty";
+				return false;
+			}
+
+			if (rawContent.ValueKind == JsonValueKind.Array)
+			{
+				var sb = new StringBuilder();
+				foreach (var item in rawContent.EnumerateArray())
+				{
+					if (item.ValueKind == JsonValueKind.String)
+					{
+						sb.Append(item.GetString());
+						continue;
+					}
+
+					if (item.ValueKind == JsonValueKind.Object
+						&& item.TryGetProperty("text", out var textElement)
+						&& textElement.ValueKind == JsonValueKind.String)
+					{
+						sb.Append(textElement.GetString());
+					}
+				}
+
+				content = sb.ToString();
+				if (!string.IsNullOrWhiteSpace(content))
+					return true;
+
+				diagnostic = "choices[0].message.content array has no text content";
+				return false;
+			}
+
+			diagnostic = $"unsupported content kind: {rawContent.ValueKind}";
+			return false;
+		}
+		catch (JsonException ex)
+		{
+			diagnostic = $"response is not valid JSON: {ex.Message}";
+			return false;
+		}
+	}
+
+	private static bool TryExtractTopLevelError(string responseBody, out int code, out string message)
+	{
+		code = 0;
+		message = string.Empty;
+
+		if (string.IsNullOrWhiteSpace(responseBody))
+			return false;
+
+		try
+		{
+			using var doc = JsonDocument.Parse(responseBody);
+			var root = doc.RootElement;
+
+			if (!root.TryGetProperty("error", out var error) || error.ValueKind != JsonValueKind.Object)
+				return false;
+
+			if (error.TryGetProperty("code", out var codeElement))
+			{
+				if (codeElement.ValueKind == JsonValueKind.Number && codeElement.TryGetInt32(out var intCode))
+					code = intCode;
+				else if (codeElement.ValueKind == JsonValueKind.String)
+					_ = int.TryParse(codeElement.GetString(), out code);
+			}
+
+			if (error.TryGetProperty("message", out var messageElement) && messageElement.ValueKind == JsonValueKind.String)
+				message = messageElement.GetString() ?? string.Empty;
+
+			return !string.IsNullOrWhiteSpace(message) || code != 0;
+		}
+		catch (JsonException)
+		{
+			return false;
+		}
+	}
+
+	private static string Truncate(string value, int maxLength = 600)
+	{
+		if (string.IsNullOrWhiteSpace(value))
+			return "<empty>";
+
+		return value.Length <= maxLength ? value : $"{value[..maxLength]}...";
 	}
 }

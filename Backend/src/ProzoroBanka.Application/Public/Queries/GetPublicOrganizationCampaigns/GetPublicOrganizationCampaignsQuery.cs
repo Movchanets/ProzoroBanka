@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
@@ -59,45 +60,66 @@ public class GetPublicOrganizationCampaignsHandler
 			.Select(c => new
 			{
 				c.Id,
-				c.Title,
+				c.TitleUk,
+				c.TitleEn,
 				c.Description,
 				c.CoverImageStorageKey,
 				c.SendUrl,
 				c.GoalAmount,
 				c.CurrentAmount,
 				DocumentedAmountRaw = _db.Receipts
-					.Where(r => r.CampaignId == c.Id
-						&& r.Status == ReceiptStatus.StateVerified
-						&& r.PublicationStatus == ReceiptPublicationStatus.Active)
+					.Where(r => r.CampaignId == c.Id)
+					.Where(r => r.Status == ReceiptStatus.StateVerified)
+					.Where(r => r.PublicationStatus == ReceiptPublicationStatus.Active)
 					.Sum(r => (decimal?)r.TotalAmount) ?? 0m,
 				c.Status,
 				c.StartDate,
 				c.Deadline,
+				Categories = c.CategoryMappings
+					.Where(m => m.Category.IsActive)
+					.OrderBy(m => m.Category.SortOrder)
+					.ThenBy(m => m.Category.NameUk)
+					.Select(m => new PublicCampaignCategoryDto(
+						m.Category.Id,
+						m.Category.NameUk,
+						m.Category.NameEn,
+						m.Category.Slug))
+					.ToList(),
 				ReceiptCount = _db.Receipts.Count(r => r.CampaignId == c.Id
 					&& r.Status == ReceiptStatus.StateVerified
 					&& r.PublicationStatus == ReceiptPublicationStatus.Active)
 			})
 			.ToListAsync(cancellationToken);
 
-		var campaigns = campaignRows.Select(c => new PublicCampaignDto(
-				c.Id,
-				c.Title,
-				c.Description,
-				StorageUrlResolver.Resolve(_fileStorage, c.CoverImageStorageKey),
-				c.SendUrl,
-				c.GoalAmount,
-				c.CurrentAmount,
-				Math.Min(c.CurrentAmount, MoneyConversion.ToMinorUnits(c.DocumentedAmountRaw)),
-				c.GoalAmount <= 0
-					? 0
-					: Math.Min(100, (double)Math.Min(c.CurrentAmount, MoneyConversion.ToMinorUnits(c.DocumentedAmountRaw)) / c.GoalAmount * 100),
-				c.Status,
-				c.StartDate,
-				c.Deadline,
-				c.ReceiptCount,
-				org.Name,
-				org.Slug,
-				org.IsVerified))
+		var campaigns = campaignRows.Select(c =>
+			{
+				var documentedAmount = CampaignDocumentationMetrics.BoundToCollectedAmount(
+					CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(c.DocumentedAmountRaw),
+					c.CurrentAmount);
+				var documentationPercent = CampaignDocumentationMetrics.CalculateDocumentedSharePercent(
+					documentedAmount,
+					c.CurrentAmount);
+
+				return new PublicCampaignDto(
+					c.Id,
+					c.TitleUk,
+					c.TitleEn,
+					c.Description,
+					_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
+					c.SendUrl,
+					c.GoalAmount,
+					c.CurrentAmount,
+					documentedAmount,
+					documentationPercent,
+					c.Status,
+					c.StartDate,
+					c.Deadline,
+					c.Categories,
+					c.ReceiptCount,
+					org.Name,
+					org.Slug,
+					org.IsVerified);
+			})
 			.ToList();
 
 		return ServiceResponse<PublicListResponse<PublicCampaignDto>>.Success(

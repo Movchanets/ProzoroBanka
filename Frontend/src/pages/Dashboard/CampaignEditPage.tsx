@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import {
@@ -23,9 +23,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ArrowLeft, CheckCircle2, Link2, Loader2, Megaphone, Wallet } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { usePublicCampaignCategories } from '@/hooks/queries/usePublic';
+import { resolveLocalizedText } from '@/lib/localizedText';
 
 export default function CampaignEditPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { orgId, campaignId } = useParams<{ orgId: string; campaignId: string }>();
   const navigate = useNavigate();
   const { data: campaign, isLoading } = useCampaign(campaignId);
@@ -33,6 +36,7 @@ export default function CampaignEditPage() {
   const changeStatus = useChangeCampaignStatus(orgId!);
   const getMonobankJars = useGetMonobankJars();
   const setupMonobankWebhook = useSetupMonobankWebhook(orgId!);
+  const { data: categoryOptions = [] } = usePublicCampaignCategories();
   const [apiError, setApiError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -90,16 +94,19 @@ export default function CampaignEditPage() {
     [jarOptions, selectedJarAccountId],
   );
 
-  const { register, handleSubmit, formState: { errors, isDirty } } = useForm<CreateCampaignFormData>({
+  const { register, handleSubmit, setValue, control, formState: { errors, isDirty } } = useForm<CreateCampaignFormData>({
     resolver: zodResolver(schema),
     values: campaign ? {
-      title: campaign.title,
+      titleUk: campaign.titleUk,
+      titleEn: campaign.titleEn,
       description: campaign.description ?? '',
       goalAmount: campaign.goalAmount / 100,
       deadline: campaign.deadline?.split('T')[0] ?? '',
       sendUrl: campaign.sendUrl ?? '',
+      categoryIds: campaign.categories?.map((category) => category.id) ?? [],
     } : undefined,
   });
+  const selectedCategoryIds = useWatch({ control, name: 'categoryIds' }) ?? [];
 
   const onSubmit = async (data: CreateCampaignFormData) => {
     setApiError(null); setSuccessMsg(null);
@@ -107,10 +114,12 @@ export default function CampaignEditPage() {
       await updateCampaign.mutateAsync({ 
         id: campaignId!, 
         payload: {
-          title: data.title,
+          titleUk: data.titleUk,
+          titleEn: data.titleEn,
           description: data.description || undefined,
           goalAmount: Math.round(data.goalAmount * 100),
           deadline: data.deadline || undefined,
+          categoryIds: data.categoryIds,
           sendUrl: data.sendUrl || undefined,
         }
       });
@@ -232,13 +241,44 @@ export default function CampaignEditPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" data-testid="campaign-edit-form">
             <div className="space-y-2">
               <Label htmlFor="edit-title">{t('campaigns.create.titleLabel')}</Label>
-              <Input id="edit-title" {...register('title')} data-testid="campaign-edit-title-input" />
-              {errors.title && (<p className="text-sm text-destructive" data-testid="campaign-edit-title-error">{errors.title.message}</p>)}
+              <Input id="edit-title" {...register('titleUk')} data-testid="campaign-edit-title-uk-input" />
+              {errors.titleUk && (<p className="text-sm text-destructive" data-testid="campaign-edit-title-uk-error">{errors.titleUk.message}</p>)}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-title-en">{t('campaigns.create.titleLabelEn', 'Назва (English)')}</Label>
+              <Input id="edit-title-en" {...register('titleEn')} data-testid="campaign-edit-title-en-input" />
+              {errors.titleEn && (<p className="text-sm text-destructive" data-testid="campaign-edit-title-en-error">{errors.titleEn.message}</p>)}
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-desc">{t('campaigns.create.descriptionLabel')}</Label>
               <Textarea id="edit-desc" rows={4} {...register('description')} data-testid="campaign-edit-description-input" />
               {errors.description && (<p className="text-sm text-destructive" data-testid="campaign-edit-description-error">{errors.description.message}</p>)}
+            </div>
+            <div className="space-y-2">
+              <Label>{t('campaigns.create.categoriesLabel', 'Категорії')}</Label>
+              <div className="grid gap-2 sm:grid-cols-2" data-testid="campaign-edit-categories-list">
+                {categoryOptions.map((category) => {
+                  const label = resolveLocalizedText(category.nameUk, category.nameEn, i18n.language);
+                  const checked = selectedCategoryIds.includes(category.id);
+
+                  return (
+                    <label key={category.id} className="flex items-center gap-2 rounded-md border border-border/60 p-2">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(isChecked) => {
+                          if (isChecked) {
+                            setValue('categoryIds', [...new Set([...selectedCategoryIds, category.id])], { shouldDirty: true });
+                          } else {
+                            setValue('categoryIds', selectedCategoryIds.filter((id) => id !== category.id), { shouldDirty: true });
+                          }
+                        }}
+                        data-testid={`campaign-edit-category-checkbox-${category.slug}`}
+                      />
+                      <span className="text-sm">{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-send-url">{t('campaigns.create.sendUrlLabel', 'Посилання на банку')}</Label>

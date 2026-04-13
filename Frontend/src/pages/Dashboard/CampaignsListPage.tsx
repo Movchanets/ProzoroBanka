@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
 import { Megaphone, Plus, Calendar, Globe, Loader2, Trash2 } from 'lucide-react';
+import { resolveLocalizedText } from '@/lib/localizedText';
 
 const statusColor: Record<number, string> = {
   0: 'bg-muted text-muted-foreground',
@@ -32,9 +33,10 @@ function CampaignCard({
   isDeleting: boolean;
   onDelete: (campaign: Campaign) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const withdrawn = new Intl.NumberFormat('uk-UA').format(campaign.withdrawnAmount / 100);
+  const campaignTitle = resolveLocalizedText(campaign.titleUk, campaign.titleEn, i18n.language);
 
   return (
     <Card
@@ -44,7 +46,7 @@ function CampaignCard({
     >
       <CardContent className="space-y-3 p-5">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-base font-semibold leading-tight" data-testid={`campaign-card-title-${campaign.id}`}>{campaign.title}</h3>
+          <h3 className="text-base font-semibold leading-tight" data-testid={`campaign-card-title-${campaign.id}`}>{campaignTitle}</h3>
           <Badge className={statusColor[campaign.status]} data-testid={`campaign-card-status-${campaign.id}`}>{t(CampaignStatusLabel[campaign.status])}</Badge>
         </div>
         {campaign.description && (<p className="line-clamp-2 text-sm text-muted-foreground">{campaign.description}</p>)}
@@ -107,7 +109,7 @@ function CampaignCard({
 }
 
 export default function CampaignsListPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
   const { data: campaigns, isLoading } = useCampaigns(orgId);
@@ -139,12 +141,6 @@ export default function CampaignsListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2" data-testid="campaigns-list-title">
-
-      {deleteError && (
-        <Alert variant="destructive" data-testid="campaigns-list-delete-error-alert">
-          <AlertDescription>{deleteError}</AlertDescription>
-        </Alert>
-      )}
             <Megaphone className="h-6 w-6 text-primary" />
             {t('campaigns.title')}
           </h2>
@@ -155,6 +151,12 @@ export default function CampaignsListPage() {
           {t('campaigns.newCampaign')}
         </Button>
       </div>
+
+      {deleteError && (
+        <Alert variant="destructive" data-testid="campaigns-list-delete-error-alert">
+          <AlertDescription>{deleteError}</AlertDescription>
+        </Alert>
+      )}
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -190,7 +192,11 @@ export default function CampaignsListPage() {
         <DialogContent data-testid="campaign-delete-dialog">
           <DialogHeader>
             <DialogTitle>
-              {t('campaigns.deleteConfirmTitle', 'Видалити збір "{{title}}"?', { title: deleteTarget?.title ?? '' })}
+              {t('campaigns.deleteConfirmTitle', 'Видалити збір "{{title}}"?', {
+                title: deleteTarget
+                  ? resolveLocalizedText(deleteTarget.titleUk, deleteTarget.titleEn, i18n.language)
+                  : '',
+              })}
             </DialogTitle>
             <DialogDescription>
               {t('campaigns.deleteConfirmDescription', 'Цю дію не можна скасувати.')}

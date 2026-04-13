@@ -1,6 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using ProzoroBanka.Application.Common.Helpers;
+using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Public.DTOs;
@@ -123,7 +123,7 @@ public class SearchOrganizationsHandler
 						m.UserId,
 						m.FirstName,
 						m.LastName,
-						StorageUrlResolver.Resolve(_fileStorage, m.ProfilePhotoStorageKey)))
+						_fileStorage.ResolvePublicUrl(m.ProfilePhotoStorageKey)))
 					.ToList());
 
 		var items = pageItems.Select(o => new PublicOrganizationDto(
@@ -131,7 +131,7 @@ public class SearchOrganizationsHandler
 			o.Name,
 			o.Slug,
 			o.Description,
-			StorageUrlResolver.Resolve(_fileStorage, o.LogoStorageKey),
+			_fileStorage.ResolvePublicUrl(o.LogoStorageKey),
 			o.IsVerified,
 			o.Website,
 			o.MemberCount,
