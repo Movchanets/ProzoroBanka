@@ -272,67 +272,67 @@ export function ReceiptItemsTable({
                   <Input
                     value={draft.name}
                     onChange={(event) => setDraft((current) => (current ? { ...current, name: event.target.value } : current))}
-                    data-testid={`${testIdPrefix}-edit-name-${index}`}
+                    data-testid={`${testIdPrefix}-mobile-edit-name-${index}`}
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <Input
                       value={draft.quantity}
                       onChange={(event) => setDraft((current) => (current ? { ...current, quantity: event.target.value } : current))}
                       placeholder={t('receipts.detail.itemsTable.columns.quantity')}
-                      data-testid={`${testIdPrefix}-edit-quantity-${index}`}
+                      data-testid={`${testIdPrefix}-mobile-edit-quantity-${index}`}
                     />
                     <Input
                       value={draft.unitPrice}
                       onChange={(event) => setDraft((current) => (current ? { ...current, unitPrice: event.target.value } : current))}
                       placeholder={t('receipts.detail.itemsTable.columns.unitPrice')}
-                      data-testid={`${testIdPrefix}-edit-unit-price-${index}`}
+                      data-testid={`${testIdPrefix}-mobile-edit-unit-price-${index}`}
                     />
                     <Input
                       value={draft.totalPrice}
                       onChange={(event) => setDraft((current) => (current ? { ...current, totalPrice: event.target.value } : current))}
                       placeholder={t('receipts.detail.itemsTable.columns.totalPrice')}
-                      data-testid={`${testIdPrefix}-edit-total-price-${index}`}
+                      data-testid={`${testIdPrefix}-mobile-edit-total-price-${index}`}
                     />
                     <Input
                       value={draft.barcode}
                       onChange={(event) => setDraft((current) => (current ? { ...current, barcode: event.target.value } : current))}
                       placeholder={t('receipts.detail.itemsTable.columns.barcode')}
-                      data-testid={`${testIdPrefix}-edit-barcode-${index}`}
+                      data-testid={`${testIdPrefix}-mobile-edit-barcode-${index}`}
                     />
                     <Input
                       value={draft.vatRate}
                       onChange={(event) => setDraft((current) => (current ? { ...current, vatRate: event.target.value } : current))}
                       placeholder={t('receipts.detail.itemsTable.columns.vatRate')}
-                      data-testid={`${testIdPrefix}-edit-vat-rate-${index}`}
+                      data-testid={`${testIdPrefix}-mobile-edit-vat-rate-${index}`}
                     />
                     <Input
                       value={draft.vatAmount}
                       onChange={(event) => setDraft((current) => (current ? { ...current, vatAmount: event.target.value } : current))}
                       placeholder={t('receipts.detail.itemsTable.columns.vatAmount')}
-                      data-testid={`${testIdPrefix}-edit-vat-amount-${index}`}
+                      data-testid={`${testIdPrefix}-mobile-edit-vat-amount-${index}`}
                     />
                   </div>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <p className="break-words text-sm font-medium" data-testid={`${testIdPrefix}-item-name-${index}`}>{item.name}</p>
+                  <p className="break-words text-sm font-medium" data-testid={`${testIdPrefix}-mobile-item-name-${index}`}>{item.name}</p>
                   <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
                     <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.quantity')}</dt>
-                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-item-quantity-${index}`}>{formatText(quantity ?? item.quantity, t('common.na'))}</dd>
+                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-mobile-item-quantity-${index}`}>{formatText(quantity ?? item.quantity, t('common.na'))}</dd>
                     <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.unitPrice')}</dt>
-                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-item-unit-price-${index}`}>{formatMoney(unitPrice ?? item.unit_price, locale, isPersisted, t('common.na'))}</dd>
+                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-mobile-item-unit-price-${index}`}>{formatMoney(unitPrice ?? item.unit_price, locale, isPersisted, t('common.na'))}</dd>
                     <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.totalPrice')}</dt>
-                    <dd className="text-right tabular-nums font-medium" data-testid={`${testIdPrefix}-item-total-price-${index}`}>{formatMoney(totalPrice ?? item.total_price, locale, isPersisted, t('common.na'))}</dd>
+                    <dd className="text-right tabular-nums font-medium" data-testid={`${testIdPrefix}-mobile-item-total-price-${index}`}>{formatMoney(totalPrice ?? item.total_price, locale, isPersisted, t('common.na'))}</dd>
                     <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.barcode')}</dt>
-                    <dd className="break-words text-right" data-testid={`${testIdPrefix}-item-barcode-${index}`}>{item.barcode || t('common.na')}</dd>
+                    <dd className="break-words text-right" data-testid={`${testIdPrefix}-mobile-item-barcode-${index}`}>{item.barcode || t('common.na')}</dd>
                     <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.vatRate')}</dt>
-                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-item-vat-rate-${index}`}>
+                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-mobile-item-vat-rate-${index}`}>
                       {vatRate === undefined
                         ? t('common.na')
                         : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(vatRate)}%`}
                     </dd>
                     <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.vatAmount')}</dt>
-                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-item-vat-amount-${index}`}>{formatMoney(vatAmount ?? item.vat_amount, locale, isPersisted, t('common.na'))}</dd>
+                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-mobile-item-vat-amount-${index}`}>{formatMoney(vatAmount ?? item.vat_amount, locale, isPersisted, t('common.na'))}</dd>
                   </dl>
                 </div>
               )}
@@ -347,7 +347,7 @@ export function ReceiptItemsTable({
                         variant="outline"
                         onClick={() => void saveEditing(item)}
                         disabled={savingItemId === item.id}
-                        data-testid={`${testIdPrefix}-save-button-${index}`}
+                        data-testid={`${testIdPrefix}-mobile-save-button-${index}`}
                       >
                         {savingItemId === item.id ? <Save className="h-4 w-4 animate-pulse" /> : <Save className="h-4 w-4" />}
                       </Button>
@@ -357,7 +357,7 @@ export function ReceiptItemsTable({
                         variant="ghost"
                         onClick={cancelEditing}
                         disabled={savingItemId === item.id}
-                        data-testid={`${testIdPrefix}-cancel-button-${index}`}
+                        data-testid={`${testIdPrefix}-mobile-cancel-button-${index}`}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -370,7 +370,7 @@ export function ReceiptItemsTable({
                           size="sm"
                           variant="outline"
                           onClick={() => startEditing(item)}
-                          data-testid={`${testIdPrefix}-edit-button-${index}`}
+                          data-testid={`${testIdPrefix}-mobile-edit-button-${index}`}
                         >
                           <PencilLine className="h-4 w-4" />
                         </Button>
@@ -381,7 +381,7 @@ export function ReceiptItemsTable({
                           size="sm"
                           variant="outline"
                           onClick={() => void onDeleteItem(item.id as string)}
-                          data-testid={`${testIdPrefix}-delete-button-${index}`}
+                          data-testid={`${testIdPrefix}-mobile-delete-button-${index}`}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>

@@ -271,6 +271,7 @@ export async function registerAndSetAuthStorage(
   },
 ): Promise<RegisteredUser> {
   const registeredUser = await registerRandomUserViaApi(page.request, options);
+  await setTestLanguage(page, 'uk');
   await setAuthStorage(page, registeredUser.auth);
   return registeredUser;
 }

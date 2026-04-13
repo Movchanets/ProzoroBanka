@@ -1473,7 +1473,10 @@ export default function ReceiptDetailPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground" data-testid="dashboard-receipts-items-photos-empty-hint">
+            <p
+              className="text-sm text-muted-foreground"
+              data-testid="dashboard-receipts-item-photos-empty-hint"
+            >
               {t('receipts.detail.itemPhotos.emptyHint')}
             </p>
           )}
