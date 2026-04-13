@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { PencilLine, Save, Trash2, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -157,15 +158,15 @@ function parseReceiptItems(structuredOutputJson?: string | null, persistedItems?
   }
 }
 
-function formatMoney(value?: number | string, isPersisted = false) {
+function formatMoney(value: number | string | undefined, locale: string, isPersisted = false, fallback = '—') {
   const amount = parseNumber(value);
-  if (amount === undefined) return '—';
+  if (amount === undefined) return fallback;
   const displayAmount = isPersisted ? amount / 100 : amount;
-  return new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayAmount);
+  return new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayAmount);
 }
 
-function formatText(value?: number | string) {
-  if (value === undefined || value === null || value === '') return '—';
+function formatText(value: number | string | undefined, fallback = '—') {
+  if (value === undefined || value === null || value === '') return fallback;
   return String(value);
 }
 
@@ -177,6 +178,8 @@ export function ReceiptItemsTable({
   onUpdateItem,
   onDeleteItem,
 }: ReceiptItemsTableProps) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language.startsWith('en') ? 'en-US' : 'uk-UA';
   const items = parseReceiptItems(structuredOutputJson, persistedItems);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [savingItemId, setSavingItemId] = useState<string | null>(null);
@@ -228,7 +231,7 @@ export function ReceiptItemsTable({
   if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-4 py-6 text-sm text-muted-foreground" data-testid={`${testIdPrefix}-empty`}>
-        {emptyMessage ?? 'У структурованому OCR JSON ще немає позицій товарів.'}
+        {emptyMessage ?? t('receipts.detail.itemsTable.empty')}
       </div>
     );
   }
@@ -239,188 +242,335 @@ export function ReceiptItemsTable({
   }, 0);
 
   return (
-    <div className="space-y-4" data-testid={`${testIdPrefix}-wrapper`}>
+    <div className="w-full min-w-0 space-y-4" data-testid={`${testIdPrefix}-wrapper`}>
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline" data-testid={`${testIdPrefix}-count-badge`}>
-          {items.length} позицій
+          {t('receipts.detail.itemsTable.positionsCount', { count: items.length })}
         </Badge>
         <Badge variant="secondary" data-testid={`${testIdPrefix}-qty-badge`}>
-          {totalItems > 0 ? `Сумарна кількість: ${totalItems}` : 'Кількість не вказано'}
+          {totalItems > 0
+            ? t('receipts.detail.itemsTable.totalQuantity', { count: totalItems })
+            : t('receipts.detail.itemsTable.quantityMissing')}
         </Badge>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card" data-testid={`${testIdPrefix}-table-container`}>
-        <Table data-testid={`${testIdPrefix}-table`}>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[34%]">Товар</TableHead>
-              <TableHead className="w-[10%] text-right">Кількість</TableHead>
-              <TableHead className="w-[14%] text-right">Ціна</TableHead>
-              <TableHead className="w-[14%] text-right">Сума</TableHead>
-              <TableHead className="w-[12%]">Штрихкод</TableHead>
-              <TableHead className="w-[8%] text-right">ПДВ</TableHead>
-              <TableHead className="w-[8%] text-right">ПДВ сума</TableHead>
-              {onUpdateItem || onDeleteItem ? <TableHead className="w-[8%] text-right">Дії</TableHead> : null}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((item, index) => {
-              const quantity = parseNumber(item.quantity);
-              const unitPrice = parseNumber(item.unit_price ?? item.unitPrice);
-              const totalPrice = parseNumber(item.total_price ?? item.totalPrice);
-              const vatRate = parseNumber(item.vat_rate ?? item.vatRate);
-              const vatAmount = parseNumber(item.vat_amount ?? item.vatAmount);
-              const isEditable = Boolean(item.id && (onUpdateItem || onDeleteItem));
-              const isEditing = editingItemId === item.id;
-              const itemId = item.id;
-              const isPersisted = Boolean(item.isPersisted);
+      <div className="space-y-3 md:hidden" data-testid={`${testIdPrefix}-mobile-list`}>
+        {items.map((item, index) => {
+          const quantity = parseNumber(item.quantity);
+          const unitPrice = parseNumber(item.unit_price ?? item.unitPrice);
+          const totalPrice = parseNumber(item.total_price ?? item.totalPrice);
+          const vatRate = parseNumber(item.vat_rate ?? item.vatRate);
+          const vatAmount = parseNumber(item.vat_amount ?? item.vatAmount);
+          const isEditable = Boolean(item.id && (onUpdateItem || onDeleteItem));
+          const isEditing = editingItemId === item.id;
+          const isPersisted = Boolean(item.isPersisted);
 
-              return (
-                <TableRow key={`${item.name}-${index}`} data-testid={`${testIdPrefix}-row-${index}`}>
-                  <TableCell className="align-top font-medium text-foreground">
-                    {isEditing && draft ? (
-                      <Input
-                        value={draft.name}
-                        onChange={(event) => setDraft((current) => (current ? { ...current, name: event.target.value } : current))}
-                        data-testid={`${testIdPrefix}-edit-name-${index}`}
-                      />
-                    ) : (
-                      <div className="space-y-1">
-                        <div data-testid={`${testIdPrefix}-item-name-${index}`}>{item.name}</div>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="align-top text-right tabular-nums" data-testid={`${testIdPrefix}-item-quantity-${index}`}>
-                    {isEditing && draft ? (
-                      <Input
-                        value={draft.quantity}
-                        onChange={(event) => setDraft((current) => (current ? { ...current, quantity: event.target.value } : current))}
-                        className="text-right"
-                        data-testid={`${testIdPrefix}-edit-quantity-${index}`}
-                      />
-                    ) : (
-                      formatText(quantity ?? item.quantity)
-                    )}
-                  </TableCell>
-                  <TableCell className="align-top text-right tabular-nums" data-testid={`${testIdPrefix}-item-unit-price-${index}`}>
-                    {isEditing && draft ? (
-                      <Input
-                        value={draft.unitPrice}
-                        onChange={(event) => setDraft((current) => (current ? { ...current, unitPrice: event.target.value } : current))}
-                        className="text-right"
-                        data-testid={`${testIdPrefix}-edit-unit-price-${index}`}
-                      />
-                    ) : (
-                      formatMoney(unitPrice ?? item.unit_price, isPersisted)
-                    )}
-                  </TableCell>
-                  <TableCell className="align-top text-right tabular-nums font-medium" data-testid={`${testIdPrefix}-item-total-price-${index}`}>
-                    {isEditing && draft ? (
-                      <Input
-                        value={draft.totalPrice}
-                        onChange={(event) => setDraft((current) => (current ? { ...current, totalPrice: event.target.value } : current))}
-                        className="text-right"
-                        data-testid={`${testIdPrefix}-edit-total-price-${index}`}
-                      />
-                    ) : (
-                      formatMoney(totalPrice ?? item.total_price, isPersisted)
-                    )}
-                  </TableCell>
-                  <TableCell className="align-top text-sm text-muted-foreground" data-testid={`${testIdPrefix}-item-barcode-${index}`}>
-                    {isEditing && draft ? (
-                      <Input
-                        value={draft.barcode}
-                        onChange={(event) => setDraft((current) => (current ? { ...current, barcode: event.target.value } : current))}
-                        data-testid={`${testIdPrefix}-edit-barcode-${index}`}
-                      />
-                    ) : (
-                      item.barcode || '—'
-                    )}
-                  </TableCell>
-                  <TableCell className="align-top text-right tabular-nums" data-testid={`${testIdPrefix}-item-vat-rate-${index}`}>
-                    {isEditing && draft ? (
-                      <Input
-                        value={draft.vatRate}
-                        onChange={(event) => setDraft((current) => (current ? { ...current, vatRate: event.target.value } : current))}
-                        className="text-right"
-                        data-testid={`${testIdPrefix}-edit-vat-rate-${index}`}
-                      />
-                    ) : (
-                      vatRate === undefined ? '—' : `${new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 2 }).format(vatRate)}%`
-                    )}
-                  </TableCell>
-                  <TableCell className="align-top text-right tabular-nums" data-testid={`${testIdPrefix}-item-vat-amount-${index}`}>
-                    {isEditing && draft ? (
-                      <Input
-                        value={draft.vatAmount}
-                        onChange={(event) => setDraft((current) => (current ? { ...current, vatAmount: event.target.value } : current))}
-                        className="text-right"
-                        data-testid={`${testIdPrefix}-edit-vat-amount-${index}`}
-                      />
-                    ) : (
-                      formatMoney(vatAmount ?? item.vat_amount, isPersisted)
-                    )}
-                  </TableCell>
-                  <TableCell className="align-top text-right">
-                    {isEditable ? (
-                      <div className="flex justify-end gap-2">
-                        {isEditing ? (
-                          <>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => void saveEditing(item)}
-                              disabled={savingItemId === item.id}
-                              data-testid={`${testIdPrefix}-save-button-${index}`}
-                            >
-                              {savingItemId === item.id ? <Save className="h-4 w-4 animate-pulse" /> : <Save className="h-4 w-4" />}
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={cancelEditing}
-                              disabled={savingItemId === item.id}
-                              data-testid={`${testIdPrefix}-cancel-button-${index}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            {onUpdateItem ? (
+          return (
+            <div key={`${item.name}-${index}`} className="rounded-2xl border border-border bg-card p-3" data-testid={`${testIdPrefix}-mobile-row-${index}`}>
+              {isEditing && draft ? (
+                <div className="space-y-2">
+                  <Input
+                    value={draft.name}
+                    onChange={(event) => setDraft((current) => (current ? { ...current, name: event.target.value } : current))}
+                    data-testid={`${testIdPrefix}-edit-name-${index}`}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      value={draft.quantity}
+                      onChange={(event) => setDraft((current) => (current ? { ...current, quantity: event.target.value } : current))}
+                      placeholder={t('receipts.detail.itemsTable.columns.quantity')}
+                      data-testid={`${testIdPrefix}-edit-quantity-${index}`}
+                    />
+                    <Input
+                      value={draft.unitPrice}
+                      onChange={(event) => setDraft((current) => (current ? { ...current, unitPrice: event.target.value } : current))}
+                      placeholder={t('receipts.detail.itemsTable.columns.unitPrice')}
+                      data-testid={`${testIdPrefix}-edit-unit-price-${index}`}
+                    />
+                    <Input
+                      value={draft.totalPrice}
+                      onChange={(event) => setDraft((current) => (current ? { ...current, totalPrice: event.target.value } : current))}
+                      placeholder={t('receipts.detail.itemsTable.columns.totalPrice')}
+                      data-testid={`${testIdPrefix}-edit-total-price-${index}`}
+                    />
+                    <Input
+                      value={draft.barcode}
+                      onChange={(event) => setDraft((current) => (current ? { ...current, barcode: event.target.value } : current))}
+                      placeholder={t('receipts.detail.itemsTable.columns.barcode')}
+                      data-testid={`${testIdPrefix}-edit-barcode-${index}`}
+                    />
+                    <Input
+                      value={draft.vatRate}
+                      onChange={(event) => setDraft((current) => (current ? { ...current, vatRate: event.target.value } : current))}
+                      placeholder={t('receipts.detail.itemsTable.columns.vatRate')}
+                      data-testid={`${testIdPrefix}-edit-vat-rate-${index}`}
+                    />
+                    <Input
+                      value={draft.vatAmount}
+                      onChange={(event) => setDraft((current) => (current ? { ...current, vatAmount: event.target.value } : current))}
+                      placeholder={t('receipts.detail.itemsTable.columns.vatAmount')}
+                      data-testid={`${testIdPrefix}-edit-vat-amount-${index}`}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="break-words text-sm font-medium" data-testid={`${testIdPrefix}-item-name-${index}`}>{item.name}</p>
+                  <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
+                    <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.quantity')}</dt>
+                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-item-quantity-${index}`}>{formatText(quantity ?? item.quantity, t('common.na'))}</dd>
+                    <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.unitPrice')}</dt>
+                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-item-unit-price-${index}`}>{formatMoney(unitPrice ?? item.unit_price, locale, isPersisted, t('common.na'))}</dd>
+                    <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.totalPrice')}</dt>
+                    <dd className="text-right tabular-nums font-medium" data-testid={`${testIdPrefix}-item-total-price-${index}`}>{formatMoney(totalPrice ?? item.total_price, locale, isPersisted, t('common.na'))}</dd>
+                    <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.barcode')}</dt>
+                    <dd className="break-words text-right" data-testid={`${testIdPrefix}-item-barcode-${index}`}>{item.barcode || t('common.na')}</dd>
+                    <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.vatRate')}</dt>
+                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-item-vat-rate-${index}`}>
+                      {vatRate === undefined
+                        ? t('common.na')
+                        : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(vatRate)}%`}
+                    </dd>
+                    <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.vatAmount')}</dt>
+                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-item-vat-amount-${index}`}>{formatMoney(vatAmount ?? item.vat_amount, locale, isPersisted, t('common.na'))}</dd>
+                  </dl>
+                </div>
+              )}
+
+              {isEditable ? (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {isEditing ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void saveEditing(item)}
+                        disabled={savingItemId === item.id}
+                        data-testid={`${testIdPrefix}-save-button-${index}`}
+                      >
+                        {savingItemId === item.id ? <Save className="h-4 w-4 animate-pulse" /> : <Save className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={cancelEditing}
+                        disabled={savingItemId === item.id}
+                        data-testid={`${testIdPrefix}-cancel-button-${index}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      {onUpdateItem ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => startEditing(item)}
+                          data-testid={`${testIdPrefix}-edit-button-${index}`}
+                        >
+                          <PencilLine className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                      {onDeleteItem && item.id ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void onDeleteItem(item.id as string)}
+                          data-testid={`${testIdPrefix}-delete-button-${index}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden md:block">
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card" data-testid={`${testIdPrefix}-table-container`}>
+          <Table data-testid={`${testIdPrefix}-table`} className="min-w-[860px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[34%]">{t('receipts.detail.itemsTable.columns.item')}</TableHead>
+                <TableHead className="w-[10%] text-right whitespace-nowrap">{t('receipts.detail.itemsTable.columns.quantity')}</TableHead>
+                <TableHead className="w-[14%] text-right whitespace-nowrap">{t('receipts.detail.itemsTable.columns.unitPrice')}</TableHead>
+                <TableHead className="w-[14%] text-right whitespace-nowrap">{t('receipts.detail.itemsTable.columns.totalPrice')}</TableHead>
+                <TableHead className="w-[12%] whitespace-nowrap">{t('receipts.detail.itemsTable.columns.barcode')}</TableHead>
+                <TableHead className="w-[8%] text-right whitespace-nowrap">{t('receipts.detail.itemsTable.columns.vatRate')}</TableHead>
+                <TableHead className="w-[8%] text-right whitespace-nowrap">{t('receipts.detail.itemsTable.columns.vatAmount')}</TableHead>
+                {onUpdateItem || onDeleteItem ? <TableHead className="w-[8%] text-right whitespace-nowrap">{t('common.actions')}</TableHead> : null}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item, index) => {
+                const quantity = parseNumber(item.quantity);
+                const unitPrice = parseNumber(item.unit_price ?? item.unitPrice);
+                const totalPrice = parseNumber(item.total_price ?? item.totalPrice);
+                const vatRate = parseNumber(item.vat_rate ?? item.vatRate);
+                const vatAmount = parseNumber(item.vat_amount ?? item.vatAmount);
+                const isEditable = Boolean(item.id && (onUpdateItem || onDeleteItem));
+                const isEditing = editingItemId === item.id;
+                const itemId = item.id;
+                const isPersisted = Boolean(item.isPersisted);
+
+                return (
+                  <TableRow key={`${item.name}-${index}`} data-testid={`${testIdPrefix}-row-${index}`}>
+                    <TableCell className="align-top font-medium text-foreground">
+                      {isEditing && draft ? (
+                        <Input
+                          value={draft.name}
+                          onChange={(event) => setDraft((current) => (current ? { ...current, name: event.target.value } : current))}
+                          data-testid={`${testIdPrefix}-edit-name-${index}`}
+                        />
+                      ) : (
+                        <div className="space-y-1">
+                          <div data-testid={`${testIdPrefix}-item-name-${index}`}>{item.name}</div>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top text-right tabular-nums whitespace-nowrap" data-testid={`${testIdPrefix}-item-quantity-${index}`}>
+                      {isEditing && draft ? (
+                        <Input
+                          value={draft.quantity}
+                          onChange={(event) => setDraft((current) => (current ? { ...current, quantity: event.target.value } : current))}
+                          className="text-right"
+                          data-testid={`${testIdPrefix}-edit-quantity-${index}`}
+                        />
+                      ) : (
+                        formatText(quantity ?? item.quantity, t('common.na'))
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top text-right tabular-nums whitespace-nowrap" data-testid={`${testIdPrefix}-item-unit-price-${index}`}>
+                      {isEditing && draft ? (
+                        <Input
+                          value={draft.unitPrice}
+                          onChange={(event) => setDraft((current) => (current ? { ...current, unitPrice: event.target.value } : current))}
+                          className="text-right"
+                          data-testid={`${testIdPrefix}-edit-unit-price-${index}`}
+                        />
+                      ) : (
+                        formatMoney(unitPrice ?? item.unit_price, locale, isPersisted, t('common.na'))
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top text-right tabular-nums font-medium whitespace-nowrap" data-testid={`${testIdPrefix}-item-total-price-${index}`}>
+                      {isEditing && draft ? (
+                        <Input
+                          value={draft.totalPrice}
+                          onChange={(event) => setDraft((current) => (current ? { ...current, totalPrice: event.target.value } : current))}
+                          className="text-right"
+                          data-testid={`${testIdPrefix}-edit-total-price-${index}`}
+                        />
+                      ) : (
+                        formatMoney(totalPrice ?? item.total_price, locale, isPersisted, t('common.na'))
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top text-sm text-muted-foreground" data-testid={`${testIdPrefix}-item-barcode-${index}`}>
+                      {isEditing && draft ? (
+                        <Input
+                          value={draft.barcode}
+                          onChange={(event) => setDraft((current) => (current ? { ...current, barcode: event.target.value } : current))}
+                          data-testid={`${testIdPrefix}-edit-barcode-${index}`}
+                        />
+                      ) : (
+                        item.barcode || t('common.na')
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top text-right tabular-nums whitespace-nowrap" data-testid={`${testIdPrefix}-item-vat-rate-${index}`}>
+                      {isEditing && draft ? (
+                        <Input
+                          value={draft.vatRate}
+                          onChange={(event) => setDraft((current) => (current ? { ...current, vatRate: event.target.value } : current))}
+                          className="text-right"
+                          data-testid={`${testIdPrefix}-edit-vat-rate-${index}`}
+                        />
+                      ) : (
+                        vatRate === undefined
+                          ? t('common.na')
+                          : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(vatRate)}%`
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top text-right tabular-nums whitespace-nowrap" data-testid={`${testIdPrefix}-item-vat-amount-${index}`}>
+                      {isEditing && draft ? (
+                        <Input
+                          value={draft.vatAmount}
+                          onChange={(event) => setDraft((current) => (current ? { ...current, vatAmount: event.target.value } : current))}
+                          className="text-right"
+                          data-testid={`${testIdPrefix}-edit-vat-amount-${index}`}
+                        />
+                      ) : (
+                        formatMoney(vatAmount ?? item.vat_amount, locale, isPersisted, t('common.na'))
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top text-right">
+                      {isEditable ? (
+                        <div className="flex justify-end gap-2">
+                          {isEditing ? (
+                            <>
                               <Button
                                 type="button"
                                 size="sm"
                                 variant="outline"
-                                onClick={() => startEditing(item)}
-                                data-testid={`${testIdPrefix}-edit-button-${index}`}
+                                onClick={() => void saveEditing(item)}
+                                disabled={savingItemId === item.id}
+                                data-testid={`${testIdPrefix}-save-button-${index}`}
                               >
-                                <PencilLine className="h-4 w-4" />
+                                {savingItemId === item.id ? <Save className="h-4 w-4 animate-pulse" /> : <Save className="h-4 w-4" />}
                               </Button>
-                            ) : null}
-                            {onDeleteItem && itemId ? (
                               <Button
                                 type="button"
                                 size="sm"
-                                variant="outline"
-                                onClick={() => void onDeleteItem(itemId)}
-                                data-testid={`${testIdPrefix}-delete-button-${index}`}
+                                variant="ghost"
+                                onClick={cancelEditing}
+                                disabled={savingItemId === item.id}
+                                data-testid={`${testIdPrefix}-cancel-button-${index}`}
                               >
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <X className="h-4 w-4" />
                               </Button>
-                            ) : null}
-                          </>
-                        )}
-                      </div>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                            </>
+                          ) : (
+                            <>
+                              {onUpdateItem ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => startEditing(item)}
+                                  data-testid={`${testIdPrefix}-edit-button-${index}`}
+                                >
+                                  <PencilLine className="h-4 w-4" />
+                                </Button>
+                              ) : null}
+                              {onDeleteItem && itemId ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => void onDeleteItem(itemId)}
+                                  data-testid={`${testIdPrefix}-delete-button-${index}`}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              ) : null}
+                            </>
+                          )}
+                        </div>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );
