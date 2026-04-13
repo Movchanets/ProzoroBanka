@@ -65,7 +65,8 @@ public class GetOrganizationCampaignsHandler
 				c.CurrentAmount,
 				DocumentedAmount = _db.Receipts
 					.Where(r => r.CampaignId == c.Id)
-					.WhereActiveVerifiedForDocumentation()
+					.Where(r => r.Status == ReceiptStatus.StateVerified)
+					.Where(r => r.PublicationStatus == ReceiptPublicationStatus.Active)
 					.Sum(r => (decimal?)(r.TotalAmount ?? 0)) ?? 0,
 				ReceiptCount = _db.Receipts.Count(r => r.CampaignId == c.Id),
 				WithdrawnAmount = _db.CampaignTransactions

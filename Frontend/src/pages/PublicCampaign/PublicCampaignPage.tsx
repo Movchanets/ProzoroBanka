@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { PhotoGalleryDialog } from '@/components/ui/photo-gallery-dialog';
+import { PhotoGalleryDialog, type PhotoGalleryItem } from '@/components/ui/photo-gallery-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
 import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
@@ -55,9 +55,8 @@ export default function PublicCampaignPage() {
   const receiptsQuery = usePublicCampaignReceipts(id, 1);
 
   const campaignForSeo = campaignQuery.data;
-  const campaign = campaignQuery.data;
   const receipts = receiptsQuery.data?.items ?? [];
-  const posts = campaign?.posts ?? [];
+  const posts = campaignQuery.data?.posts ?? [];
 
   const receiptDetailQueries = useQueries({
     queries: receipts.map((receipt) => ({
@@ -84,7 +83,9 @@ export default function PublicCampaignPage() {
     );
   }
 
-  const galleryImages = [
+  const campaign = campaignQuery.data;
+
+  const galleryImages: PhotoGalleryItem[] = [
     ...(campaign.coverImageUrl
       ? [{ src: campaign.coverImageUrl, alt: campaign.title, caption: campaign.title }]
       : []),

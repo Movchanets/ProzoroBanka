@@ -26,6 +26,7 @@ export default function InvitePage() {
   const [error, setError] = useState<string | null>(null);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const organizationLogoUrl = info?.organizationLogoUrl ? getImageUrl(info.organizationLogoUrl) : undefined;
 
   const inviterName = useMemo(
     () => info
@@ -146,7 +147,7 @@ export default function InvitePage() {
               data-testid="invite-page-org-logo-open-button"
               aria-label="Відкрити логотип організації"
             >
-              <img src={getImageUrl(info.organizationLogoUrl)} alt={info.organizationName} className="h-14 w-14 rounded-2xl object-cover" data-testid="invite-page-org-logo" />
+              <img src={organizationLogoUrl} alt={info.organizationName} className="h-14 w-14 rounded-2xl object-cover" data-testid="invite-page-org-logo" />
             </button>
           ) : (
             <div className="mb-2 grid h-14 w-14 place-items-center rounded-2xl bg-linear-to-br from-primary/80 to-primary text-xl font-extrabold text-primary-foreground" data-testid="invite-page-org-initial">
@@ -184,7 +185,7 @@ export default function InvitePage() {
       </Card>
 
       <PhotoGalleryDialog
-        images={info.organizationLogoUrl ? [{ src: getImageUrl(info.organizationLogoUrl), alt: info.organizationName, caption: info.organizationName }] : []}
+        images={organizationLogoUrl ? [{ src: organizationLogoUrl, alt: info.organizationName, caption: info.organizationName }] : []}
         open={isGalleryOpen}
         onOpenChange={setIsGalleryOpen}
         currentIndex={galleryIndex}

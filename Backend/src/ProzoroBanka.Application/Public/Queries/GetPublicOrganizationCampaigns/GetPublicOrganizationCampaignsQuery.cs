@@ -68,7 +68,8 @@ public class GetPublicOrganizationCampaignsHandler
 				c.CurrentAmount,
 				DocumentedAmountRaw = _db.Receipts
 					.Where(r => r.CampaignId == c.Id)
-					.WhereActiveVerifiedForDocumentation()
+					.Where(r => r.Status == ReceiptStatus.StateVerified)
+					.Where(r => r.PublicationStatus == ReceiptPublicationStatus.Active)
 					.Sum(r => (decimal?)r.TotalAmount) ?? 0m,
 				c.Status,
 				c.StartDate,

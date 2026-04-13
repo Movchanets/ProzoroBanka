@@ -139,12 +139,6 @@ export default function CampaignsListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2" data-testid="campaigns-list-title">
-
-      {deleteError && (
-        <Alert variant="destructive" data-testid="campaigns-list-delete-error-alert">
-          <AlertDescription>{deleteError}</AlertDescription>
-        </Alert>
-      )}
             <Megaphone className="h-6 w-6 text-primary" />
             {t('campaigns.title')}
           </h2>
@@ -155,6 +149,12 @@ export default function CampaignsListPage() {
           {t('campaigns.newCampaign')}
         </Button>
       </div>
+
+      {deleteError && (
+        <Alert variant="destructive" data-testid="campaigns-list-delete-error-alert">
+          <AlertDescription>{deleteError}</AlertDescription>
+        </Alert>
+      )}
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
