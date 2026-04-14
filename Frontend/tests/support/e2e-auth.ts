@@ -5,11 +5,34 @@ export const E2E_API_BASE_URL = process.env.E2E_API_URL ?? 'http://localhost:518
 // Cloudflare official testing response token for server-side validation flows.
 export const E2E_TURNSTILE_TEST_TOKEN = process.env.E2E_TURNSTILE_TOKEN ?? 'XXXX.DUMMY.TOKEN.XXXX';
 export const E2E_DEFAULT_PASSWORD = 'Qwerty-1';
+const SEEDED_ADMIN_EMAIL = 'admin@example.com';
+const SEEDED_ADMIN_PASSWORD_FALLBACKS = [E2E_DEFAULT_PASSWORD, 'Admin123!ChangeMe'];
 
 const RETRYABLE_HTTP_STATUS = new Set([500, 502, 503, 504]);
 
 function isRetryableStatus(status: number) {
   return RETRYABLE_HTTP_STATUS.has(status);
+}
+
+function shouldTrySeededAdminFallbacks(email: string) {
+  return !process.env.E2E_PASSWORD && email.toLowerCase() === SEEDED_ADMIN_EMAIL;
+}
+
+function buildPasswordCandidates(email: string, password: string) {
+  if (!shouldTrySeededAdminFallbacks(email)) {
+    return [password];
+  }
+
+  const uniqueCandidates = new Set<string>([password, ...SEEDED_ADMIN_PASSWORD_FALLBACKS]);
+  return Array.from(uniqueCandidates);
+}
+
+function isInvalidCredentialsResponse(status: number, body: string) {
+  if (status !== 401) {
+    return false;
+  }
+
+  return /невірний email або пароль|invalid email or password/i.test(body);
 }
 
 async function delay(ms: number) {
@@ -91,33 +114,39 @@ export async function loginViaApi(
   email: string,
   password: string,
 ): Promise<AuthResponse> {
-  let lastError = '';
+  const passwordCandidates = buildPasswordCandidates(email, password);
+  const errors: string[] = [];
 
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    const response = await request.post(`${E2E_API_BASE_URL}/api/auth/login`, {
-      data: {
-        email,
-        password,
-        turnstileToken: E2E_TURNSTILE_TEST_TOKEN,
-      },
-    });
+  for (const candidate of passwordCandidates) {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const response = await request.post(`${E2E_API_BASE_URL}/api/auth/login`, {
+        data: {
+          email,
+          password: candidate,
+          turnstileToken: E2E_TURNSTILE_TEST_TOKEN,
+        },
+      });
 
-    if (response.ok()) {
-      return (await response.json()) as AuthResponse;
+      if (response.ok()) {
+        return (await response.json()) as AuthResponse;
+      }
+
+      const status = response.status();
+      const body = await response.text();
+      errors.push(`Failed to login user ${email}: ${status} ${body}`);
+
+      const canRetrySameCandidate = isRetryableStatus(status)
+        || (shouldTrySeededAdminFallbacks(email) && isInvalidCredentialsResponse(status, body));
+
+      if (!canRetrySameCandidate || attempt === 3) {
+        break;
+      }
+
+      await delay(500 * attempt);
     }
-
-    const status = response.status();
-    const body = await response.text();
-    lastError = `Failed to login user ${email}: ${status} ${body}`;
-
-    if (!isRetryableStatus(status) || attempt === 3) {
-      break;
-    }
-
-    await delay(500 * attempt);
   }
 
-  throw new Error(lastError);
+  throw new Error(errors.at(-1) ?? `Failed to login user ${email}`);
 }
 
 export async function setAuthStorage(page: Page, auth: AuthResponse): Promise<void> {

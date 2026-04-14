@@ -40,7 +40,7 @@ export class ReceiptDetailPage {
     this.itemsCard = page.getByTestId('dashboard-receipts-items-card');
     this.itemPhotosInput = page.getByTestId('dashboard-receipts-items-files-input');
     this.itemPhotosList = page.getByTestId('dashboard-receipts-items-files-list');
-    this.itemPhotosEmpty = page.getByTestId('dashboard-receipts-items-empty');
+    this.itemPhotosEmpty = page.getByTestId('dashboard-receipts-item-photos-empty-hint');
     this.addItemNameInput = page.getByTestId('dashboard-receipts-add-item-name-input');
     this.addItemQuantityInput = page.getByTestId('dashboard-receipts-add-item-quantity-input');
     this.addItemUnitPriceInput = page.getByTestId('dashboard-receipts-add-item-unit-price-input');
@@ -114,11 +114,15 @@ export class ReceiptDetailPage {
   }
 
   itemEditButton(index: number) {
-    return this.page.getByTestId(`dashboard-receipts-items-edit-button-${index}`);
+    return this.page.locator(
+      `[data-testid="dashboard-receipts-items-mobile-edit-button-${index}"]:visible, [data-testid="dashboard-receipts-items-edit-button-${index}"]:visible`,
+    );
   }
 
   itemEditNameInput(index: number) {
-    return this.page.getByTestId(`dashboard-receipts-items-edit-name-${index}`);
+    return this.page.locator(
+      `[data-testid="dashboard-receipts-items-mobile-edit-name-${index}"]:visible, [data-testid="dashboard-receipts-items-edit-name-${index}"]:visible`,
+    );
   }
 
   itemEditQuantityInput(index: number) {
@@ -126,7 +130,9 @@ export class ReceiptDetailPage {
   }
 
   itemEditUnitPriceInput(index: number) {
-    return this.page.getByTestId(`dashboard-receipts-items-edit-unit-price-${index}`);
+    return this.page.locator(
+      `[data-testid="dashboard-receipts-items-mobile-edit-unit-price-${index}"]:visible, [data-testid="dashboard-receipts-items-edit-unit-price-${index}"]:visible`,
+    );
   }
 
   itemEditTotalPriceInput(index: number) {
@@ -134,11 +140,15 @@ export class ReceiptDetailPage {
   }
 
   itemSaveButton(index: number) {
-    return this.page.getByTestId(`dashboard-receipts-items-save-button-${index}`);
+    return this.page.locator(
+      `[data-testid="dashboard-receipts-items-mobile-save-button-${index}"]:visible, [data-testid="dashboard-receipts-items-save-button-${index}"]:visible`,
+    );
   }
 
   itemUnitPrice(index: number) {
-    return this.page.getByTestId(`dashboard-receipts-items-item-unit-price-${index}`);
+    return this.page.locator(
+      `[data-testid="dashboard-receipts-items-mobile-item-unit-price-${index}"]:visible, [data-testid="dashboard-receipts-items-item-unit-price-${index}"]:visible`,
+    );
   }
 
   itemTotalPrice(index: number) {
@@ -146,7 +156,9 @@ export class ReceiptDetailPage {
   }
 
   itemName(index: number) {
-    return this.page.getByTestId(`dashboard-receipts-items-item-name-${index}`);
+    return this.page.locator(
+      `[data-testid="dashboard-receipts-items-mobile-item-name-${index}"]:visible, [data-testid="dashboard-receipts-items-item-name-${index}"]:visible`,
+    );
   }
 
   itemPhoto(index: number) {
