@@ -30,24 +30,16 @@ public class UploadOrganizationLogoHandler
 	{
 		await using var fileStream = request.FileStream;
 
-		var org = await _db.Organizations
-			.FirstOrDefaultAsync(o => o.Id == request.OrganizationId && !o.IsDeleted, cancellationToken);
-
-		if (org is null)
-			return ServiceResponse<OrganizationDto>.Failure("Організацію не знайдено");
-
-		var callerIsMember = await _orgAuth.IsMember(request.OrganizationId, request.CallerDomainUserId, cancellationToken);
-		if (!callerIsMember)
-			return ServiceResponse<OrganizationDto>.Failure("Немає доступу до організації");
-
-		var canUploadLogo = await _orgAuth.HasPermission(
+		var access = await _orgAuth.EnsureOrganizationAccessAsync(
 			request.OrganizationId,
 			request.CallerDomainUserId,
-			OrganizationPermissions.UploadLogo,
-			cancellationToken);
+			requiredPermission: OrganizationPermissions.UploadLogo,
+			ct: cancellationToken);
 
-		if (!canUploadLogo)
-			return ServiceResponse<OrganizationDto>.Failure("Недостатньо прав для завантаження логотипу");
+		if (!access.IsSuccess)
+			return ServiceResponse<OrganizationDto>.Failure(access.Message);
+
+		var org = access.Payload!.Organization;
 
 		// Remove previous logo if exists
 		if (!string.IsNullOrEmpty(org.LogoStorageKey))

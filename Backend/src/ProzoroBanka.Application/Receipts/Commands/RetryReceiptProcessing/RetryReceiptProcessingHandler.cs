@@ -22,9 +22,17 @@ public class RetryReceiptProcessingHandler : IRequestHandler<RetryReceiptProcess
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(RetryReceiptProcessingCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.FindAccessibleWithPipelineGraphAsync(_orgAuth, request.ReceiptId, request.CallerDomainUserId, ct);
-		if (receipt is null)
-			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
+		var receiptAccess = await _db.FindManageableOrganizationReceiptAsync(
+			_orgAuth,
+			request.ReceiptId,
+			request.CallerDomainUserId,
+			expectedOrganizationId: null,
+			ct);
+
+		if (!receiptAccess.IsSuccess)
+			return ServiceResponse<ReceiptPipelineDto>.Failure(receiptAccess.Message);
+
+		var receipt = receiptAccess.Payload!;
 
 		var canRetry = receipt.Status is ReceiptStatus.FailedVerification
 			or ReceiptStatus.InvalidData

@@ -28,7 +28,7 @@ public class ReceiptsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 
 		await SeedRegistryCredentialAsync(orgId, RegistryProvider.TaxService, "test-registry-token-123456");
 
-		var uploadResponse = await UploadDraftAsync();
+		var uploadResponse = await UploadOrganizationDraftAsync(orgId);
 		Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
 		var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>();
 		var receiptId = uploadJson.GetProperty("id").GetGuid();
@@ -83,18 +83,22 @@ public class ReceiptsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 	public async Task Extract_WhenCallerNotMemberOfOrganization_ReturnsBadRequest()
 	{
 		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync($"Receipt Org Access {Guid.NewGuid():N}");
 
-		var uploadResponse = await UploadDraftAsync();
+		var uploadResponse = await UploadOrganizationDraftAsync(orgId);
 		uploadResponse.EnsureSuccessStatusCode();
 		var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>();
 		var receiptId = uploadJson.GetProperty("id").GetGuid();
 
-		var randomOrgId = Guid.NewGuid();
-		var extractResponse = await ExtractAsync(receiptId, randomOrgId);
+		var outsiderEmail = $"receipt-outsider-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(outsiderEmail, "Password123!");
+		await AuthenticateAsync(outsiderEmail, "Password123!");
+
+		var extractResponse = await ExtractAsync(receiptId, orgId);
 
 		Assert.Equal(HttpStatusCode.BadRequest, extractResponse.StatusCode);
 		var error = await extractResponse.Content.ReadFromJsonAsync<JsonElement>();
-		Assert.Contains("не є учасником організації", error.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+		Assert.Contains("Чек не знайдено", error.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
 	}
 
 	[Fact]

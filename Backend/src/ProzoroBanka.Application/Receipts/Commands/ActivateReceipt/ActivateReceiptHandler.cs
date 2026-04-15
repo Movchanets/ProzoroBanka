@@ -22,9 +22,17 @@ public class ActivateReceiptHandler : IRequestHandler<ActivateReceiptCommand, Se
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(ActivateReceiptCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.FindAccessibleWithPipelineGraphAsync(_orgAuth, request.ReceiptId, request.CallerDomainUserId, ct);
-		if (receipt is null)
-			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
+		var receiptAccess = await _db.FindManageableOrganizationReceiptAsync(
+			_orgAuth,
+			request.ReceiptId,
+			request.CallerDomainUserId,
+			expectedOrganizationId: null,
+			ct);
+
+		if (!receiptAccess.IsSuccess)
+			return ServiceResponse<ReceiptPipelineDto>.Failure(receiptAccess.Message);
+
+		var receipt = receiptAccess.Payload!;
 
 		if (receipt.Status != ReceiptStatus.StateVerified)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Активувати можна тільки чек зі статусом StateVerified");

@@ -51,6 +51,7 @@ public class SearchOrganizationsHandler
 
 		var organizationsQuery = _db.Organizations
 			.AsNoTracking()
+			.Where(o => !o.IsDeleted && !o.IsBlocked)
 			.AsQueryable();
 
 		if (!string.IsNullOrWhiteSpace(request.Query))

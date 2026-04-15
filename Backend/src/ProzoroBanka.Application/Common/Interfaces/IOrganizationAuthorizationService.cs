@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
+using ProzoroBanka.Application.Common.Models;
 
 namespace ProzoroBanka.Application.Common.Interfaces;
 
@@ -20,4 +21,17 @@ public interface IOrganizationAuthorizationService
 
 	/// <summary>Повертає запис членства або null, якщо не є учасником.</summary>
 	Task<OrganizationMember?> GetMembership(Guid orgId, Guid userId, CancellationToken ct = default);
+
+	/// <summary>Отримує організацію та перевіряє права доступу за один запит.</summary>
+	Task<ServiceResponse<OrganizationAccessContext>> EnsureOrganizationAccessAsync(
+		Guid orgId, 
+		Guid userId, 
+		OrganizationPermissions? requiredPermission = null,
+		OrganizationRole? minRole = null,
+		CancellationToken ct = default);
 }
+
+public record OrganizationAccessContext(
+	Organization Organization, 
+	OrganizationMember Member
+);

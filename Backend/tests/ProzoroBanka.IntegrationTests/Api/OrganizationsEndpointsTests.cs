@@ -179,6 +179,44 @@ public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFacto
 		Assert.Equal(1, settingsJson.GetProperty("stateVerificationConfiguredKeys").GetInt32());
 	}
 
+	[Fact]
+	public async Task AdminBlockAndUnblockOrganization_TogglesWriteAccessForOrganizationMembers()
+	{
+		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync($"Blocked Org {Guid.NewGuid():N}");
+
+		var blockResponse = await _client.PostAsJsonAsync($"/api/admin/organizations/{orgId}/block", new
+		{
+			reason = "Terms violation"
+		});
+		Assert.Equal(HttpStatusCode.OK, blockResponse.StatusCode);
+
+		var blockedUpdateResponse = await _client.PutAsJsonAsync($"/api/organizations/{orgId}", new
+		{
+			name = "Should Not Update While Blocked",
+			description = "Blocked edit",
+			website = "https://blocked.example.org",
+			contactEmail = "blocked@example.org",
+			phone = "+380 50 111 22 33"
+		});
+
+		Assert.Equal(HttpStatusCode.Forbidden, blockedUpdateResponse.StatusCode);
+
+		var unblockResponse = await _client.PostAsync($"/api/admin/organizations/{orgId}/unblock", content: null);
+		Assert.Equal(HttpStatusCode.OK, unblockResponse.StatusCode);
+
+		var unblockedUpdateResponse = await _client.PutAsJsonAsync($"/api/organizations/{orgId}", new
+		{
+			name = "Updated After Unblock",
+			description = "Unblocked edit",
+			website = "https://unblocked.example.org",
+			contactEmail = "unblocked@example.org",
+			phone = "+380 50 444 55 66"
+		});
+
+		Assert.Equal(HttpStatusCode.OK, unblockedUpdateResponse.StatusCode);
+	}
+
 	private async Task<Guid> CreateOrganizationAsync(string name)
 	{
 		var response = await _client.PostAsJsonAsync("/api/organizations", new

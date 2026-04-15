@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Domain.Enums;
 
 namespace ProzoroBanka.Infrastructure.Services;
 
@@ -19,11 +20,14 @@ public class OrganizationPlanLimitService : IOrganizationPlanLimitService
 
 	public async Task<CampaignCreationAllowance> CanCreateCampaignAsync(Guid organizationId, CancellationToken cancellationToken)
 	{
-		var orgPlan = await _db.Organizations
+		var orgPlanNullable = await _db.Organizations
 			.AsNoTracking()
 			.Where(o => o.Id == organizationId)
-			.Select(o => o.PlanType)
+			.Select(o => (OrganizationPlanType?)o.PlanType)
 			.FirstOrDefaultAsync(cancellationToken);
+
+		var orgPlan = orgPlanNullable ?? OrganizationPlanType.Free;
+		if (orgPlan == 0) orgPlan = OrganizationPlanType.Free;
 
 		var limits = await _systemSettingsService.GetPlanLimitsAsync(orgPlan, cancellationToken);
 		var usedCampaigns = await _db.Campaigns

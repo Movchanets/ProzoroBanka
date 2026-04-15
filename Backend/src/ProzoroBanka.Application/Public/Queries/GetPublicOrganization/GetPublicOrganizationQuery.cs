@@ -27,7 +27,7 @@ public class GetPublicOrganizationHandler : IRequestHandler<GetPublicOrganizatio
 	{
 		var org = await _db.Organizations
 			.AsNoTracking()
-			.Where(o => o.Slug == request.Slug)
+			.Where(o => o.Slug == request.Slug && !o.IsDeleted && !o.IsBlocked)
 			.Select(o => new
 			{
 				o.Id,

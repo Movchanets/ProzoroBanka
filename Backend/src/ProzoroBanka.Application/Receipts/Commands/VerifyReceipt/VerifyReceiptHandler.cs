@@ -37,13 +37,17 @@ public class VerifyReceiptHandler : IRequestHandler<VerifyReceiptCommand, Servic
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(VerifyReceiptCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.FindAccessibleWithPipelineGraphAsync(_orgAuth, request.ReceiptId, request.CallerDomainUserId, ct);
-		if (receipt is null)
-			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
+		var receiptAccess = await _db.FindManageableOrganizationReceiptAsync(
+			_orgAuth,
+			request.ReceiptId,
+			request.CallerDomainUserId,
+			expectedOrganizationId: request.OrganizationId,
+			ct);
 
-		var isMember = await _orgAuth.IsMember(request.OrganizationId, request.CallerDomainUserId, ct);
-		if (!isMember)
-			return ServiceResponse<ReceiptPipelineDto>.Failure("Користувач не є учасником організації");
+		if (!receiptAccess.IsSuccess)
+			return ServiceResponse<ReceiptPipelineDto>.Failure(receiptAccess.Message);
+
+		var receipt = receiptAccess.Payload!;
 
 		if (receipt.Status != ReceiptStatus.OcrExtracted && receipt.Status != ReceiptStatus.FailedVerification && receipt.Status != ReceiptStatus.ValidationDeferredRateLimit)
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не готовий до державної верифікації");

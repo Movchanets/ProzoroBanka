@@ -59,6 +59,29 @@ public class AdminOrganizationsController : ControllerBase
 
 		return Ok(response);
 	}
+	[HttpPost("{id:guid}/block")]
+	[HasPermission(Permissions.OrganizationsManage)]
+	public async Task<ActionResult<ServiceResponse>> BlockOrganization(
+		[FromRoute] Guid id,
+		[FromBody] AdminBlockOrganizationRequest request,
+		CancellationToken cancellationToken)
+	{
+		var command = new ProzoroBanka.Application.Admin.Commands.AdminBlockOrganization.AdminBlockOrganizationCommand(id, request.Reason);
+		var response = await _mediator.Send(command, cancellationToken);
+		return response.IsSuccess ? Ok(response) : BadRequest(response);
+	}
+
+	[HttpPost("{id:guid}/unblock")]
+	[HasPermission(Permissions.OrganizationsManage)]
+	public async Task<ActionResult<ServiceResponse>> UnblockOrganization(
+		[FromRoute] Guid id,
+		CancellationToken cancellationToken)
+	{
+		var command = new ProzoroBanka.Application.Admin.Commands.AdminUnblockOrganization.AdminUnblockOrganizationCommand(id);
+		var response = await _mediator.Send(command, cancellationToken);
+		return response.IsSuccess ? Ok(response) : BadRequest(response);
+	}
 }
 
 public record SetOrganizationPlanRequest(OrganizationPlanType PlanType);
+public record AdminBlockOrganizationRequest(string Reason);

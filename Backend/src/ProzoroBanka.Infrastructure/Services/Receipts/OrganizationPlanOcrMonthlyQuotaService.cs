@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Domain.Entities;
+using ProzoroBanka.Domain.Enums;
 using System.Globalization;
 
 namespace ProzoroBanka.Infrastructure.Services.Receipts;
@@ -21,14 +22,16 @@ public class OrganizationPlanOcrMonthlyQuotaService : IOcrMonthlyQuotaService
 
 	public async Task<QuotaDecision> TryConsumeAsync(Guid organizationId, DateTime utcNow, CancellationToken ct)
 	{
-		var orgPlan = await _db.Organizations
+		var orgPlanNullable = await _db.Organizations
 			.AsNoTracking()
 			.Where(o => o.Id == organizationId)
-			.Select(o => o.PlanType)
+			.Select(o => (OrganizationPlanType?)o.PlanType)
 			.FirstOrDefaultAsync(ct);
 
-		if (orgPlan == 0)
+		if (orgPlanNullable == null)
 			return new QuotaDecision(false, "Організацію не знайдено");
+
+		var orgPlan = orgPlanNullable.Value == 0 ? OrganizationPlanType.Free : orgPlanNullable.Value;
 
 		var limits = await _systemSettingsService.GetPlanLimitsAsync(orgPlan, ct);
 		var monthStart = new DateTime(utcNow.Year, utcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);

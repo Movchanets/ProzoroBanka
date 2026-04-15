@@ -56,6 +56,7 @@ internal static class ApplicationRoleDefinitions
 			"monobank.sync",
 			"monobank.read",
 			"system.settings",
+			"organizations.manage",
 			"organizations.plan.manage"
 		]);
 

@@ -6,7 +6,9 @@ import { CampaignStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, Globe, Megaphone, ReceiptText, Users, Zap, ShieldCheck, ScanSearch } from 'lucide-react';
+import { BarChart3, Globe, Megaphone, ReceiptText, Users, Zap, ShieldCheck, ScanSearch, ShieldAlert } from 'lucide-react';
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const PLAN_LABELS: Record<number, string> = {
   1: 'Free',
@@ -58,6 +60,16 @@ export default function DashboardHomePage() {
 
   return (
     <div className="space-y-6">
+      {org?.isBlocked && (
+        <Alert variant="destructive" className="border-destructive/50 bg-destructive/10 text-destructive" data-testid="dashboard-org-blocked-banner">
+          <ShieldAlert className="h-5 w-5" />
+          <AlertTitle className="ml-2 font-semibold">Організацію заблоковано</AlertTitle>
+          <AlertDescription className="ml-2 mt-1">
+            Можливості вашої організації обмежені. Причина: <span className="font-medium">{org?.blockReason || 'Не вказана'}</span>. Зверніться до підтримки.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">{t('dashboard.welcomeOrg', { name: org?.name })}</h2>

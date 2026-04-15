@@ -23,6 +23,10 @@ public class Organization : BaseEntity
 	public DateTime? PlanChangedAtUtc { get; set; }
 	public Guid? PlanChangedByUserId { get; set; }
 
+	public bool IsBlocked { get; set; }
+	public DateTime? BlockedAtUtc { get; set; }
+	public string? BlockReason { get; set; }
+
 	public ICollection<OrganizationMember> Members { get; set; } = new List<OrganizationMember>();
 	public ICollection<Invitation> Invitations { get; set; } = new List<Invitation>();
 	public ICollection<Campaign> Campaigns { get; set; } = new List<Campaign>();

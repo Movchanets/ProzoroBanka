@@ -4,6 +4,7 @@ using ProzoroBanka.Application.Admin.DTOs;
 using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Domain.Enums;
 
 namespace ProzoroBanka.Application.Admin.Queries.GetAllOrganizations;
 
@@ -62,7 +63,9 @@ public class GetAllOrganizationsHandler
 				CampaignCount = o.Campaigns.Count(c => !c.IsDeleted),
 				TotalRaised = o.Campaigns.Where(c => !c.IsDeleted).Sum(c => c.CurrentAmount),
 				o.CreatedAt,
-				o.PlanType
+				o.PlanType,
+				o.IsBlocked,
+				o.BlockReason
 			})
 			.ToListAsync(ct);
 
@@ -83,7 +86,9 @@ public class GetAllOrganizationsHandler
 			o.CampaignCount,
 			o.TotalRaised,
 			o.CreatedAt,
-			o.PlanType
+			o.PlanType == 0 ? OrganizationPlanType.Free : o.PlanType,
+			o.IsBlocked,
+			o.BlockReason
 		)).ToList();
 
 		var response = new AdminOrganizationListResponse(items, totalCount, request.Page, request.PageSize);

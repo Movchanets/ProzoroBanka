@@ -43,6 +43,8 @@ export interface Organization {
   memberCount: number;
   createdAt: string;
   planType: 1 | 2;
+  isBlocked?: boolean;
+  blockReason?: string;
 }
 
 export interface OrganizationDetail extends Organization {

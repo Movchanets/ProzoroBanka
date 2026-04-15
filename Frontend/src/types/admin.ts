@@ -26,6 +26,8 @@ export interface AdminOrganizationDto {
   totalRaised: number;
   createdAt: string;
   planType: OrganizationPlanType;
+  isBlocked?: boolean;
+  blockReason?: string;
 }
 
 export interface AdminOrganizationListResponse {
