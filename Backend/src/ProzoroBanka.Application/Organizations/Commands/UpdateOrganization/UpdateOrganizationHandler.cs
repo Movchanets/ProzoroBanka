@@ -31,24 +31,16 @@ public class UpdateOrganizationHandler : IRequestHandler<UpdateOrganizationComma
 	public async Task<ServiceResponse<OrganizationDto>> Handle(
 		UpdateOrganizationCommand request, CancellationToken cancellationToken)
 	{
-		var org = await _db.Organizations
-			.FirstOrDefaultAsync(o => o.Id == request.OrganizationId && !o.IsDeleted, cancellationToken);
-
-		if (org is null)
-			return ServiceResponse<OrganizationDto>.Failure("Організацію не знайдено");
-
-		var callerIsMember = await _orgAuth.IsMember(request.OrganizationId, request.CallerDomainUserId, cancellationToken);
-		if (!callerIsMember)
-			return ServiceResponse<OrganizationDto>.Failure("Немає доступу до організації");
-
-		var canManageOrganization = await _orgAuth.HasPermission(
+		var access = await _orgAuth.EnsureOrganizationAccessAsync(
 			request.OrganizationId,
 			request.CallerDomainUserId,
-			OrganizationPermissions.ManageOrganization,
-			cancellationToken);
+			requiredPermission: OrganizationPermissions.ManageOrganization,
+			ct: cancellationToken);
 
-		if (!canManageOrganization)
-			return ServiceResponse<OrganizationDto>.Failure("Недостатньо прав для редагування організації");
+		if (!access.IsSuccess)
+			return ServiceResponse<OrganizationDto>.Failure(access.Message);
+
+		var org = access.Payload!.Organization;
 
 		if (request.Name is not null && request.Name != org.Name)
 		{

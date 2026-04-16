@@ -4,6 +4,7 @@ using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.DTOs;
+using ProzoroBanka.Domain.Enums;
 
 namespace ProzoroBanka.Application.Organizations.Queries.GetOrganizationById;
 
@@ -42,7 +43,9 @@ public class GetOrganizationByIdHandler : IRequestHandler<GetOrganizationByIdQue
 				o.PlanType,
 				o.CreatedAt,
 				MemberCount = o.Members.Count,
-				IsMember = o.Members.Any(m => m.UserId == request.CallerDomainUserId)
+				IsMember = o.Members.Any(m => m.UserId == request.CallerDomainUserId),
+				o.IsBlocked,
+				o.BlockReason
 			})
 			.FirstOrDefaultAsync(cancellationToken);
 
@@ -55,6 +58,7 @@ public class GetOrganizationByIdHandler : IRequestHandler<GetOrganizationByIdQue
 		return ServiceResponse<OrganizationDto>.Success(new OrganizationDto(
 			org.Id, org.Name, org.Slug, org.Description, _fileStorage.ResolvePublicUrl(org.LogoStorageKey),
 			org.IsVerified, org.Website, org.ContactEmail, org.Phone, org.OwnerUserId,
-			org.MemberCount, org.CreatedAt, org.PlanType));
+			org.MemberCount, org.CreatedAt, org.PlanType == 0 ? OrganizationPlanType.Free : org.PlanType,
+			org.IsBlocked, org.BlockReason));
 	}
 }

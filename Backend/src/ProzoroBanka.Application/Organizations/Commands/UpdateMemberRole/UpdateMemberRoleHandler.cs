@@ -28,26 +28,14 @@ public class UpdateMemberRoleHandler
 	public async Task<ServiceResponse<OrganizationMemberDto>> Handle(
 		UpdateMemberRoleCommand request, CancellationToken cancellationToken)
 	{
-		var organizationExists = await _db.Organizations
-			.AnyAsync(o => o.Id == request.OrganizationId && !o.IsDeleted, cancellationToken);
-
-		if (!organizationExists)
-			return ServiceResponse<OrganizationMemberDto>.Failure("Організацію не знайдено");
-
-		var canManageMembers = await _orgAuth.HasPermission(
+		var access = await _orgAuth.EnsureOrganizationAccessAsync(
 			request.OrganizationId,
 			request.CallerDomainUserId,
-			OrganizationPermissions.ManageMembers,
-			cancellationToken);
+			requiredPermission: OrganizationPermissions.ManageMembers,
+			ct: cancellationToken);
 
-		if (!canManageMembers)
-		{
-			var callerIsMember = await _orgAuth.IsMember(request.OrganizationId, request.CallerDomainUserId, cancellationToken);
-			if (!callerIsMember)
-				return ServiceResponse<OrganizationMemberDto>.Failure("Немає доступу до організації");
-
-			return ServiceResponse<OrganizationMemberDto>.Failure("Недостатньо прав для зміни ролі учасника");
-		}
+		if (!access.IsSuccess)
+			return ServiceResponse<OrganizationMemberDto>.Failure(access.Message);
 
 		var target = await _db.OrganizationMembers
 			.Include(m => m.User)

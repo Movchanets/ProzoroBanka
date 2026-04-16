@@ -107,6 +107,39 @@ export function useAdminDeleteOrganization(organizationId: string) {
   });
 }
 
+export function useAdminBlockOrganization(organizationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (reason: string) =>
+      apiFetch<ServiceResponse<{ message: string }>>(`/api/admin/organizations/${organizationId}/block`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    onSuccess: () => {
+      toast.success('Організацію заблоковано');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+}
+
+export function useAdminUnblockOrganization(organizationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<ServiceResponse<{ message: string }>>(`/api/admin/organizations/${organizationId}/unblock`, {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      toast.success('Організацію розблоковано');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+}
+
 export function useAdminOrganizationCampaigns(orgId: string, page: number) {
   return useQuery({
     queryKey: adminQueryKeys.organizationCampaigns(orgId, page),

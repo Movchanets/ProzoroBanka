@@ -20,26 +20,14 @@ public class RemoveMemberHandler : IRequestHandler<RemoveMemberCommand, ServiceR
 	public async Task<ServiceResponse> Handle(
 		RemoveMemberCommand request, CancellationToken cancellationToken)
 	{
-		var organizationExists = await _db.Organizations
-			.AnyAsync(o => o.Id == request.OrganizationId && !o.IsDeleted, cancellationToken);
-
-		if (!organizationExists)
-			return ServiceResponse.Failure("Організацію не знайдено");
-
-		var canManageMembers = await _orgAuth.HasPermission(
+		var access = await _orgAuth.EnsureOrganizationAccessAsync(
 			request.OrganizationId,
 			request.CallerDomainUserId,
-			OrganizationPermissions.ManageMembers,
-			cancellationToken);
+			requiredPermission: OrganizationPermissions.ManageMembers,
+			ct: cancellationToken);
 
-		if (!canManageMembers)
-		{
-			var callerIsMember = await _orgAuth.IsMember(request.OrganizationId, request.CallerDomainUserId, cancellationToken);
-			if (!callerIsMember)
-				return ServiceResponse.Failure("Немає доступу до організації");
-
-			return ServiceResponse.Failure("Недостатньо прав для видалення учасника");
-		}
+		if (!access.IsSuccess)
+			return ServiceResponse.Failure(access.Message);
 
 		var target = await _db.OrganizationMembers
 			.FirstOrDefaultAsync(

@@ -1,4 +1,5 @@
 using Moq;
+using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Receipts.Commands.VerifyReceipt;
@@ -45,6 +46,7 @@ public class VerifyReceiptHandlerTests
 		{
 			Id = receiptId,
 			UserId = userId,
+			OrganizationId = orgId,
 			StorageKey = "uploads/receipt.png",
 			ReceiptImageStorageKey = "uploads/receipt.png",
 			OriginalFileName = "receipt.png",
@@ -69,8 +71,22 @@ public class VerifyReceiptHandlerTests
 			.ReturnsAsync(new RegistryValidationResult(true, "STATE-OK-1", null));
 
 		var orgAuth = new Mock<IOrganizationAuthorizationService>();
-		orgAuth.Setup(x => x.IsMember(orgId, userId, It.IsAny<CancellationToken>()))
-			.ReturnsAsync(true);
+		var org = await db.Organizations.SingleAsync(x => x.Id == orgId);
+		var member = new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = userId,
+			Role = OrganizationRole.Owner,
+			PermissionsFlags = OrganizationPermissions.All,
+			JoinedAt = DateTime.UtcNow
+		};
+		orgAuth.Setup(x => x.EnsureOrganizationAccessAsync(
+				orgId,
+				userId,
+				OrganizationPermissions.ManageReceipts,
+				null,
+				It.IsAny<CancellationToken>()))
+			.ReturnsAsync(ServiceResponse<OrganizationAccessContext>.Success(new OrganizationAccessContext(org, member)));
 
 		var credentials = new Mock<IRegistryCredentialService>();
 		credentials.Setup(c => c.HasActiveKeyAsync(orgId, RegistryProvider.TaxService, It.IsAny<CancellationToken>()))
@@ -110,8 +126,22 @@ public class VerifyReceiptHandlerTests
 			.ReturnsAsync(new RegistryValidationResult(false, "STATE-FAIL-1", "Не знайдено в реєстрі"));
 
 		var orgAuth = new Mock<IOrganizationAuthorizationService>();
-		orgAuth.Setup(x => x.IsMember(orgId, userId, It.IsAny<CancellationToken>()))
-			.ReturnsAsync(true);
+		var org = await db.Organizations.SingleAsync(x => x.Id == orgId);
+		var member = new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = userId,
+			Role = OrganizationRole.Owner,
+			PermissionsFlags = OrganizationPermissions.All,
+			JoinedAt = DateTime.UtcNow
+		};
+		orgAuth.Setup(x => x.EnsureOrganizationAccessAsync(
+				orgId,
+				userId,
+				OrganizationPermissions.ManageReceipts,
+				null,
+				It.IsAny<CancellationToken>()))
+			.ReturnsAsync(ServiceResponse<OrganizationAccessContext>.Success(new OrganizationAccessContext(org, member)));
 
 		var credentials = new Mock<IRegistryCredentialService>();
 		credentials.Setup(c => c.HasActiveKeyAsync(orgId, RegistryProvider.TaxService, It.IsAny<CancellationToken>()))
@@ -137,5 +167,34 @@ public class VerifyReceiptHandlerTests
 		Assert.NotNull(reloaded);
 		Assert.Equal(ReceiptStatus.FailedVerification, reloaded!.Status);
 		Assert.Equal("Не знайдено в реєстрі", reloaded.VerificationFailureReason);
+	}
+
+	[Fact]
+	public async Task Handle_WhenOrganizationIsBlocked_ReturnsFailure()
+	{
+		await using var db = _fixture.CreateContext();
+		var (userId, receiptId, orgId) = await SeedExtractedFiscalReceiptAsync(db);
+
+		var validator = new Mock<IStateReceiptValidator>();
+		var orgAuth = new Mock<IOrganizationAuthorizationService>();
+		orgAuth.Setup(x => x.EnsureOrganizationAccessAsync(
+				orgId,
+				userId,
+				OrganizationPermissions.ManageReceipts,
+				null,
+				It.IsAny<CancellationToken>()))
+			.ReturnsAsync(ServiceResponse<OrganizationAccessContext>.Failure("Організацію заблоковано. Зміни заборонені."));
+
+		var credentials = new Mock<IRegistryCredentialService>();
+		var quota = new Mock<IApiKeyDailyQuotaService>();
+		var fileStorage = new Mock<IFileStorage>();
+		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => key);
+
+		var handler = new VerifyReceiptHandler(db, orgAuth.Object, validator.Object, credentials.Object, quota.Object, fileStorage.Object);
+		var result = await handler.Handle(new VerifyReceiptCommand(userId, receiptId, orgId), CancellationToken.None);
+
+		Assert.False(result.IsSuccess);
+		Assert.Equal("Організацію заблоковано. Зміни заборонені.", result.Message);
+		validator.Verify(v => v.ValidateFiscalAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
 	}
 }

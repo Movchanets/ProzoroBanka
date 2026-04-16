@@ -24,7 +24,9 @@ public record AdminOrganizationDto(
 	int CampaignCount,
 	long TotalRaised,
 	DateTime CreatedAt,
-	OrganizationPlanType PlanType);
+	OrganizationPlanType PlanType,
+	bool IsBlocked,
+	string? BlockReason);
 
 /// <summary>
 /// Вхідна модель з пагінацією для списку організацій.

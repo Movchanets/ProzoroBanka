@@ -26,13 +26,14 @@ public class UploadOrganizationReceiptDraftHandler : IRequestHandler<UploadOrgan
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(UploadOrganizationReceiptDraftCommand request, CancellationToken ct)
 	{
-		var userExists = await _db.Users.AnyAsync(u => u.Id == request.CallerDomainUserId, ct);
-		if (!userExists)
-			return ServiceResponse<ReceiptPipelineDto>.Failure("Користувача не знайдено");
+		var access = await _orgAuth.EnsureOrganizationAccessAsync(
+			request.OrganizationId,
+			request.CallerDomainUserId,
+			requiredPermission: OrganizationPermissions.ManageReceipts,
+			ct: ct);
 
-		var isMember = await _orgAuth.IsMember(request.OrganizationId, request.CallerDomainUserId, ct);
-		if (!isMember)
-			return ServiceResponse<ReceiptPipelineDto>.Failure("Користувач не є учасником організації");
+		if (!access.IsSuccess)
+			return ServiceResponse<ReceiptPipelineDto>.Failure(access.Message);
 
 		request.FileStream.Position = 0;
 		var storageKey = await _fileStorage.UploadAsync(request.FileStream, request.FileName, request.ContentType, ct);

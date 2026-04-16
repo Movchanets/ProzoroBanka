@@ -65,12 +65,12 @@ public class OcrBackgroundWorker : BackgroundService
 		var receipt = await db.Receipts
 			.Include(r => r.Items)
 			.Include(r => r.ItemPhotos)
-			.FirstOrDefaultAsync(r => r.Id == item.ReceiptId && r.UserId == item.CallerUserId, ct);
+			.FirstOrDefaultAsync(r => r.Id == item.ReceiptId && r.OrganizationId == item.OrganizationId, ct);
 
 		if (receipt is null)
 		{
-			_logger.LogWarning("OCR Worker: receipt {ReceiptId} not found or not owned by {UserId}",
-				item.ReceiptId, item.CallerUserId);
+			_logger.LogWarning("OCR Worker: receipt {ReceiptId} not found in organization {OrganizationId}",
+				item.ReceiptId, item.OrganizationId);
 			return;
 		}
 

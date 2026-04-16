@@ -3,6 +3,8 @@ import {
   useAdminOrganizations,
   useAdminOrganizationPlanUsage,
   useAdminSetOrganizationPlan,
+  useAdminBlockOrganization,
+  useAdminUnblockOrganization,
 } from '@/hooks/queries/useAdminQueries';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +28,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/services/api';
 import { toast } from 'sonner';
-import { Check, X, Trash, MoreVertical, ExternalLink } from 'lucide-react';
+import { Check, X, Trash, MoreVertical, ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useTranslation } from 'react-i18next';
 import type { AdminOrganizationDto, OrganizationPlanType, OrganizationPlanUsageDto } from '@/types/admin';
@@ -320,6 +322,8 @@ function OrganizationRow({
   const queryClient = useQueryClient();
   const [isVerifying, setIsVerifying] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const blockMutation = useAdminBlockOrganization(org.id);
+  const unblockMutation = useAdminUnblockOrganization(org.id);
 
   const toggleVerify = async () => {
     if (!window.confirm(t('admin.organizations.actions.verifyConfirm', { name: org.name }))) return;
@@ -352,6 +356,21 @@ function OrganizationRow({
     }
   };
 
+  const toggleBlock = async () => {
+    if (org.isBlocked) {
+      if (!window.confirm(`Розблокувати організацію ${org.name}?`)) return;
+      await unblockMutation.mutateAsync();
+    } else {
+      const reason = window.prompt(`Введіть причину блокування для організації ${org.name}:`);
+      if (reason === null) return;
+      if (!reason.trim()) {
+        toast.error('Причина блокування не може бути порожньою');
+        return;
+      }
+      await blockMutation.mutateAsync(reason.trim());
+    }
+  };
+
   return (
     <TableRow data-testid={`admin-organizations-row-${org.id}`} className={isSelected ? 'bg-primary/5' : ''}>
       <TableCell className="font-medium">
@@ -374,11 +393,16 @@ function OrganizationRow({
         <div className="text-xs text-muted-foreground">{org.ownerEmail}</div>
       </TableCell>
       <TableCell>
-        {org.isVerified ? (
-          <Badge variant="default" className="bg-green-600" data-testid={`admin-organizations-verified-${org.id}`}>{t('admin.organizations.status.verified')}</Badge>
-        ) : (
-          <Badge variant="secondary" data-testid={`admin-organizations-unverified-${org.id}`}>{t('admin.organizations.status.unverified')}</Badge>
-        )}
+        <div className="flex gap-2">
+          {org.isVerified ? (
+            <Badge variant="default" className="bg-green-600" data-testid={`admin-organizations-verified-${org.id}`}>{t('admin.organizations.status.verified')}</Badge>
+          ) : (
+            <Badge variant="secondary" data-testid={`admin-organizations-unverified-${org.id}`}>{t('admin.organizations.status.unverified')}</Badge>
+          )}
+          {org.isBlocked ? (
+            <Badge variant="destructive" title={org.blockReason} data-testid={`admin-organizations-blocked-${org.id}`}>Заблок.</Badge>
+          ) : null}
+        </div>
       </TableCell>
       <TableCell>
         <Badge variant="outline" data-testid={`admin-organizations-plan-${org.id}`}>{planLabel(org.planType)}</Badge>
@@ -418,6 +442,24 @@ function OrganizationRow({
                 <ExternalLink className="mr-2 h-4 w-4" />
                 {t('admin.organizations.actions.organizationCampaigns')}
               </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={toggleBlock} 
+              disabled={blockMutation.isPending || unblockMutation.isPending} 
+              className={org.isBlocked ? "" : "text-destructive focus:bg-destructive/10"}
+              data-testid={`admin-organizations-block-${org.id}`}
+            >
+              {org.isBlocked ? (
+                <>
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Розблокувати
+                </>
+              ) : (
+                <>
+                  <ShieldAlert className="mr-2 h-4 w-4" />
+                  Заблокувати
+                </>
+              )}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={deleteOrg} disabled={isDeleting} className="text-destructive focus:bg-destructive/10" data-testid={`admin-organizations-delete-${org.id}`}>
               <Trash className="mr-2 h-4 w-4" />

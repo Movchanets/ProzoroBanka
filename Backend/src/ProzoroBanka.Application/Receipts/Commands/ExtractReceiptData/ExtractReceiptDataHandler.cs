@@ -31,20 +31,17 @@ public class ExtractReceiptDataHandler : IRequestHandler<ExtractReceiptDataComma
 
 	public async Task<ServiceResponse<ReceiptPipelineDto>> Handle(ExtractReceiptDataCommand request, CancellationToken ct)
 	{
-		var receipt = await _db.FindWithPipelineGraphByIdAsync(request.ReceiptId, ct);
-		if (receipt is null)
-			return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
+		var receiptAccess = await _db.FindManageableOrganizationReceiptAsync(
+			_orgAuth,
+			request.ReceiptId,
+			request.CallerDomainUserId,
+			expectedOrganizationId: request.OrganizationId,
+			ct);
 
-		var isOwner = receipt.UserId == request.CallerDomainUserId;
-		if (!isOwner)
-		{
-			if (!receipt.OrganizationId.HasValue || receipt.OrganizationId.Value != request.OrganizationId)
-				return ServiceResponse<ReceiptPipelineDto>.Failure("Чек не знайдено");
-		}
+		if (!receiptAccess.IsSuccess)
+			return ServiceResponse<ReceiptPipelineDto>.Failure(receiptAccess.Message);
 
-		var isMember = await _orgAuth.IsMember(request.OrganizationId, request.CallerDomainUserId, ct);
-		if (!isMember)
-			return ServiceResponse<ReceiptPipelineDto>.Failure("Користувач не є учасником організації");
+		var receipt = receiptAccess.Payload!;
 
 		var quota = await _ocrQuotaService.TryConsumeAsync(request.OrganizationId, DateTime.UtcNow, ct);
 		if (!quota.Allowed)
@@ -78,7 +75,7 @@ public class ExtractReceiptDataHandler : IRequestHandler<ExtractReceiptDataComma
 		await _ocrQueue.EnqueueAsync(new OcrWorkItem(
 			receipt.Id,
 			request.OrganizationId,
-			receipt.UserId,
+			request.CallerDomainUserId,
 			request.ModelIdentifier), ct);
 
 		return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.Commands.UpdateOrganization;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
@@ -42,9 +43,24 @@ public class UpdateOrganizationHandlerTests
 		});
 		await db.SaveChangesAsync();
 
+		var organization = await db.Organizations.SingleAsync(x => x.Id == orgId);
+		var membership = new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = ownerId,
+			Role = OrganizationRole.Owner,
+			PermissionsFlags = OrganizationPermissions.All,
+			JoinedAt = DateTime.UtcNow
+		};
+
 		var orgAuth = new Mock<IOrganizationAuthorizationService>();
-		orgAuth.Setup(x => x.IsMember(orgId, ownerId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-		orgAuth.Setup(x => x.HasPermission(orgId, ownerId, OrganizationPermissions.ManageOrganization, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+		orgAuth.Setup(x => x.EnsureOrganizationAccessAsync(
+				orgId,
+				ownerId,
+				OrganizationPermissions.ManageOrganization,
+				null,
+				It.IsAny<CancellationToken>()))
+			.ReturnsAsync(ServiceResponse<OrganizationAccessContext>.Success(new OrganizationAccessContext(organization, membership)));
 
 		var fileStorage = new Mock<IFileStorage>();
 		fileStorage.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns<string>(key => $"https://storage.test/{key}");

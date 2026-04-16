@@ -15,7 +15,9 @@ public record OrganizationDto(
 	Guid OwnerUserId,
 	int MemberCount,
 	DateTime CreatedAt,
-	OrganizationPlanType PlanType
+	OrganizationPlanType PlanType,
+	bool IsBlocked = false,
+	string? BlockReason = null
 );
 
 public record OrganizationPlanUsageDto(

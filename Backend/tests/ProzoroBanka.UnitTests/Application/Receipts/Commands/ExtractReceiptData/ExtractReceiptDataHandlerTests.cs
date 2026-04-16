@@ -1,4 +1,5 @@
 using Moq;
+using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Receipts.Commands.ExtractReceiptData;
@@ -19,10 +20,11 @@ public class ExtractReceiptDataHandlerTests
 		_fixture = fixture;
 	}
 
-	private static async Task<(Guid UserId, Guid ReceiptId)> SeedDraftReceiptAsync(ApplicationDbContext db)
+	private static async Task<(Guid UserId, Guid ReceiptId, Guid OrgId)> SeedDraftReceiptAsync(ApplicationDbContext db)
 	{
 		var userId = Guid.NewGuid();
 		var receiptId = Guid.NewGuid();
+		var orgId = Guid.NewGuid();
 
 		db.DomainUsers.Add(new User
 		{
@@ -32,10 +34,19 @@ public class ExtractReceiptDataHandlerTests
 			LastName = "User"
 		});
 
+		db.Organizations.Add(new Organization
+		{
+			Id = orgId,
+			OwnerUserId = userId,
+			Name = "Shared Receipt Org",
+			Slug = $"shared-receipt-org-{orgId:N}"
+		});
+
 		db.Receipts.Add(new Receipt
 		{
 			Id = receiptId,
 			UserId = userId,
+			OrganizationId = orgId,
 			StorageKey = "uploads/receipt.png",
 			ReceiptImageStorageKey = "uploads/receipt.png",
 			OriginalFileName = "receipt.png",
@@ -44,7 +55,7 @@ public class ExtractReceiptDataHandlerTests
 		});
 
 		await db.SaveChangesAsync();
-		return (userId, receiptId);
+		return (userId, receiptId, orgId);
 	}
 
 	private static async Task<(Guid OwnerUserId, Guid MemberUserId, Guid ReceiptId, Guid OrganizationId)> SeedOrganizationDraftReceiptAsync(ApplicationDbContext db)
@@ -74,7 +85,8 @@ public class ExtractReceiptDataHandlerTests
 		{
 			Id = organizationId,
 			OwnerUserId = ownerUserId,
-			Name = "Test Organization"
+			Name = "Test Organization",
+			Slug = $"test-organization-{organizationId:N}"
 		});
 
 		db.OrganizationMembers.Add(new OrganizationMember
@@ -104,16 +116,29 @@ public class ExtractReceiptDataHandlerTests
 	public async Task Handle_WhenQuotaAllowed_SetsStatusToPendingOcrAndEnqueues()
 	{
 		await using var db = _fixture.CreateContext();
-		var (userId, receiptId) = await SeedDraftReceiptAsync(db);
-		var orgId = Guid.NewGuid();
+		var (userId, receiptId, orgId) = await SeedDraftReceiptAsync(db);
 
 		var quota = new Mock<IOcrMonthlyQuotaService>();
 		quota.Setup(q => q.TryConsumeAsync(orgId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new QuotaDecision(true, null));
 
 		var orgAuth = new Mock<IOrganizationAuthorizationService>();
-		orgAuth.Setup(x => x.IsMember(orgId, userId, It.IsAny<CancellationToken>()))
-			.ReturnsAsync(true);
+		var org = await db.Organizations.SingleAsync(x => x.Id == orgId);
+		var member = new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = userId,
+			Role = OrganizationRole.Owner,
+			PermissionsFlags = OrganizationPermissions.All,
+			JoinedAt = DateTime.UtcNow
+		};
+		orgAuth.Setup(x => x.EnsureOrganizationAccessAsync(
+				orgId,
+				userId,
+				OrganizationPermissions.ManageReceipts,
+				null,
+				It.IsAny<CancellationToken>()))
+			.ReturnsAsync(ServiceResponse<OrganizationAccessContext>.Success(new OrganizationAccessContext(org, member)));
 
 		var ocrQueue = new Mock<IOcrProcessingQueue>();
 		var fileStorage = new Mock<IFileStorage>();
@@ -137,16 +162,29 @@ public class ExtractReceiptDataHandlerTests
 	public async Task Handle_WhenQuotaExceeded_SetsDeferredStatusAndReturnsFailure()
 	{
 		await using var db = _fixture.CreateContext();
-		var (userId, receiptId) = await SeedDraftReceiptAsync(db);
-		var orgId = Guid.NewGuid();
+		var (userId, receiptId, orgId) = await SeedDraftReceiptAsync(db);
 
 		var quota = new Mock<IOcrMonthlyQuotaService>();
 		quota.Setup(q => q.TryConsumeAsync(orgId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new QuotaDecision(false, "Ліміт OCR вичерпано"));
 
 		var orgAuth = new Mock<IOrganizationAuthorizationService>();
-		orgAuth.Setup(x => x.IsMember(orgId, userId, It.IsAny<CancellationToken>()))
-			.ReturnsAsync(true);
+		var org = await db.Organizations.SingleAsync(x => x.Id == orgId);
+		var member = new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = userId,
+			Role = OrganizationRole.Owner,
+			PermissionsFlags = OrganizationPermissions.All,
+			JoinedAt = DateTime.UtcNow
+		};
+		orgAuth.Setup(x => x.EnsureOrganizationAccessAsync(
+				orgId,
+				userId,
+				OrganizationPermissions.ManageReceipts,
+				null,
+				It.IsAny<CancellationToken>()))
+			.ReturnsAsync(ServiceResponse<OrganizationAccessContext>.Success(new OrganizationAccessContext(org, member)));
 
 		var ocrQueue = new Mock<IOcrProcessingQueue>();
 		var fileStorage = new Mock<IFileStorage>();
@@ -170,16 +208,29 @@ public class ExtractReceiptDataHandlerTests
 	public async Task Handle_WhenNoFileProvided_EnqueuesWithExistingStorageKey()
 	{
 		await using var db = _fixture.CreateContext();
-		var (userId, receiptId) = await SeedDraftReceiptAsync(db);
-		var orgId = Guid.NewGuid();
+		var (userId, receiptId, orgId) = await SeedDraftReceiptAsync(db);
 
 		var quota = new Mock<IOcrMonthlyQuotaService>();
 		quota.Setup(q => q.TryConsumeAsync(orgId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new QuotaDecision(true, null));
 
 		var orgAuth = new Mock<IOrganizationAuthorizationService>();
-		orgAuth.Setup(x => x.IsMember(orgId, userId, It.IsAny<CancellationToken>()))
-			.ReturnsAsync(true);
+		var org = await db.Organizations.SingleAsync(x => x.Id == orgId);
+		var member = new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = userId,
+			Role = OrganizationRole.Owner,
+			PermissionsFlags = OrganizationPermissions.All,
+			JoinedAt = DateTime.UtcNow
+		};
+		orgAuth.Setup(x => x.EnsureOrganizationAccessAsync(
+				orgId,
+				userId,
+				OrganizationPermissions.ManageReceipts,
+				null,
+				It.IsAny<CancellationToken>()))
+			.ReturnsAsync(ServiceResponse<OrganizationAccessContext>.Success(new OrganizationAccessContext(org, member)));
 
 		var ocrQueue = new Mock<IOcrProcessingQueue>();
 		var fileStorage = new Mock<IFileStorage>();
@@ -214,8 +265,15 @@ public class ExtractReceiptDataHandlerTests
 			.ReturnsAsync(new QuotaDecision(true, null));
 
 		var orgAuth = new Mock<IOrganizationAuthorizationService>();
-		orgAuth.Setup(x => x.IsMember(orgId, memberUserId, It.IsAny<CancellationToken>()))
-			.ReturnsAsync(true);
+		var org = await db.Organizations.SingleAsync(x => x.Id == orgId);
+		var member = await db.OrganizationMembers.SingleAsync(x => x.OrganizationId == orgId && x.UserId == memberUserId);
+		orgAuth.Setup(x => x.EnsureOrganizationAccessAsync(
+				orgId,
+				memberUserId,
+				OrganizationPermissions.ManageReceipts,
+				null,
+				It.IsAny<CancellationToken>()))
+			.ReturnsAsync(ServiceResponse<OrganizationAccessContext>.Success(new OrganizationAccessContext(org, member)));
 
 		var ocrQueue = new Mock<IOcrProcessingQueue>();
 		var fileStorage = new Mock<IFileStorage>();
@@ -233,7 +291,7 @@ public class ExtractReceiptDataHandlerTests
 		ocrQueue.Verify(q => q.EnqueueAsync(
 			It.Is<OcrWorkItem>(item => item.ReceiptId == receiptId
 				&& item.OrganizationId == orgId
-				&& item.CallerUserId == ownerUserId),
+				&& item.CallerUserId == memberUserId),
 			It.IsAny<CancellationToken>()), Times.Once);
 	}
 }

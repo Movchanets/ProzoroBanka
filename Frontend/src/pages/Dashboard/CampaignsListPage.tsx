@@ -40,16 +40,26 @@ function CampaignCard({
 
   return (
     <Card
-      className="cursor-pointer border border-border bg-card/60 backdrop-blur-sm transition-shadow hover:shadow-lg"
+      className="cursor-pointer border border-border bg-card/60 backdrop-blur-sm transition-shadow hover:shadow-lg flex flex-col h-full"
       onClick={() => navigate(`${campaign.id}`)}
       data-testid={`campaign-card-${campaign.id}`}
     >
-      <CardContent className="space-y-3 p-5">
+      <CardContent className="flex flex-col flex-1 p-5 space-y-3">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-base font-semibold leading-tight" data-testid={`campaign-card-title-${campaign.id}`}>{campaignTitle}</h3>
-          <Badge className={statusColor[campaign.status]} data-testid={`campaign-card-status-${campaign.id}`}>{t(CampaignStatusLabel[campaign.status])}</Badge>
+          <h3 className="text-base font-semibold leading-tight line-clamp-1 sm:line-clamp-2 break-words flex-1" data-testid={`campaign-card-title-${campaign.id}`}>
+            {campaignTitle}
+          </h3>
+          <Badge className={`${statusColor[campaign.status]} shrink-0 mt-0.5`} data-testid={`campaign-card-status-${campaign.id}`}>
+            {t(CampaignStatusLabel[campaign.status])}
+          </Badge>
         </div>
-        {campaign.description && (<p className="line-clamp-2 text-sm text-muted-foreground">{campaign.description}</p>)}
+        
+        {campaign.description && (
+          <p className="line-clamp-1 sm:line-clamp-2 text-sm text-muted-foreground">
+            {campaign.description}
+          </p>
+        )}
+        
         <CampaignProgressBar
           currentAmount={campaign.currentAmount / 100}
           goalAmount={campaign.goalAmount / 100}
@@ -57,9 +67,11 @@ function CampaignCard({
           documentationPercent={campaign.documentationPercent}
           testId={`campaign-card-progress-${campaign.id}`}
         />
+        
         <p className="text-xs text-muted-foreground" data-testid={`campaign-card-withdrawn-${campaign.id}`}>
           {t('campaigns.withdrawnPrefix')}: {withdrawn} ₴
         </p>
+        
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-2">
           {campaign.deadline && (
             <div className="flex items-center gap-1.5">
@@ -74,24 +86,29 @@ function CampaignCard({
           )}
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-2 mt-auto pt-2">
           <Button
             variant="outline"
             size="sm"
-            className="w-full gap-2"
+            className="w-full gap-2 overflow-hidden"
             data-testid={`campaign-card-public-link-${campaign.id}`}
             onClick={(event) => {
               event.stopPropagation();
               navigate(`/c/${campaign.id}`);
             }}
           >
-            <Globe className="h-4 w-4" />
-            {t('campaigns.openPublicCampaignPage')}
+            <Globe className="h-4 w-4 shrink-0" />
+            <span className="hidden xl:inline truncate">
+              {t('campaigns.openPublicCampaignPage')}
+            </span>
+            <span className="xl:hidden truncate">
+              {t('campaigns.openPublicCampaignPageShort', 'Відкрити')}
+            </span>
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="w-full gap-2 text-destructive hover:text-destructive"
+            className="w-full gap-2 text-destructive hover:text-destructive overflow-hidden"
             data-testid={`campaign-card-delete-button-${campaign.id}`}
             disabled={!canDelete || isDeleting}
             onClick={(event) => {
@@ -99,8 +116,8 @@ function CampaignCard({
               onDelete(campaign);
             }}
           >
-            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            {t('common.delete')}
+            {isDeleting ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <Trash2 className="h-4 w-4 shrink-0" />}
+            <span className="truncate">{t('common.delete')}</span>
           </Button>
         </div>
       </CardContent>

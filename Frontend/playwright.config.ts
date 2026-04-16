@@ -17,7 +17,7 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Run with multiple workers now that auth rate limiting is disabled in Playwright config. */
-  workers: process.env.CI ? 10 : 10,
+  workers: process.env.CI ? 10 : undefined,
   /* Reporter to use (HTML gives a great visual timeline). */
   reporter: 'html',
   

@@ -132,4 +132,97 @@ public class OrganizationAuthorizationServiceTests
 
 		Assert.False(result);
 	}
+
+	[Fact]
+	public async Task EnsureOrganizationAccessAsync_ReturnsFailure_WhenOrganizationIsBlocked_ForManagedOperations()
+	{
+		await using var db = _fixture.CreateContext();
+		var ownerId = Guid.NewGuid();
+		var userId = Guid.NewGuid();
+		var orgId = Guid.NewGuid();
+
+		db.DomainUsers.AddRange(
+			new User { Id = ownerId, Email = $"own-{ownerId:N}@test.com", FirstName = "O", LastName = "W" },
+			new User { Id = userId, Email = $"usr-{userId:N}@test.com", FirstName = "U", LastName = "S" }
+		);
+
+		db.Organizations.Add(new Organization
+		{
+			Id = orgId,
+			Name = "Blocked Org",
+			Slug = $"blocked-{orgId:N}",
+			OwnerUserId = ownerId,
+			IsBlocked = true,
+			BlockReason = "policy violation",
+			BlockedAtUtc = DateTime.UtcNow
+		});
+		await db.SaveChangesAsync();
+
+		db.OrganizationMembers.Add(new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = userId,
+			Role = OrganizationRole.Admin,
+			PermissionsFlags = OrganizationPermissions.ManageOrganization | OrganizationPermissions.ManageMembers,
+			JoinedAt = DateTime.UtcNow
+		});
+		await db.SaveChangesAsync();
+
+		var service = new OrganizationAuthorizationService(db);
+		var accessResult = await service.EnsureOrganizationAccessAsync(
+			orgId,
+			userId,
+			requiredPermission: OrganizationPermissions.ManageOrganization,
+			ct: CancellationToken.None);
+
+		Assert.False(accessResult.IsSuccess);
+		Assert.Equal("Організацію заблоковано. Зміни заборонені.", accessResult.Message);
+	}
+
+	[Fact]
+	public async Task EnsureOrganizationAccessAsync_ReturnsSuccess_WhenOrganizationIsBlocked_ButOnlyReadContextRequested()
+	{
+		await using var db = _fixture.CreateContext();
+		var ownerId = Guid.NewGuid();
+		var userId = Guid.NewGuid();
+		var orgId = Guid.NewGuid();
+
+		db.DomainUsers.AddRange(
+			new User { Id = ownerId, Email = $"own-{ownerId:N}@test.com", FirstName = "O", LastName = "W" },
+			new User { Id = userId, Email = $"usr-{userId:N}@test.com", FirstName = "U", LastName = "S" }
+		);
+
+		db.Organizations.Add(new Organization
+		{
+			Id = orgId,
+			Name = "Blocked Read Org",
+			Slug = $"blocked-read-{orgId:N}",
+			OwnerUserId = ownerId,
+			IsBlocked = true,
+			BlockReason = "investigation",
+			BlockedAtUtc = DateTime.UtcNow
+		});
+		await db.SaveChangesAsync();
+
+		db.OrganizationMembers.Add(new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = userId,
+			Role = OrganizationRole.Reporter,
+			PermissionsFlags = OrganizationPermissions.ViewReports,
+			JoinedAt = DateTime.UtcNow
+		});
+		await db.SaveChangesAsync();
+
+		var service = new OrganizationAuthorizationService(db);
+		var accessResult = await service.EnsureOrganizationAccessAsync(
+			orgId,
+			userId,
+			requiredPermission: null,
+			minRole: null,
+			ct: CancellationToken.None);
+
+		Assert.True(accessResult.IsSuccess);
+		Assert.NotNull(accessResult.Payload);
+	}
 }
