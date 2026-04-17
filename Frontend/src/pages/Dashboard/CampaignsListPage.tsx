@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useCampaigns, useDeleteCampaign } from '@/hooks/queries/useCampaigns';
 import { useOrganizationMembers } from '@/hooks/queries/useOrganizations';
@@ -24,11 +24,13 @@ const statusColor: Record<number, string> = {
 
 function CampaignCard({
   campaign,
+  orgId,
   canDelete,
   isDeleting,
   onDelete,
 }: {
   campaign: Campaign;
+  orgId: string;
   canDelete: boolean;
   isDeleting: boolean;
   onDelete: (campaign: Campaign) => void;
@@ -41,7 +43,7 @@ function CampaignCard({
   return (
     <Card
       className="cursor-pointer border border-border bg-card/60 backdrop-blur-sm transition-shadow hover:shadow-lg flex flex-col h-full"
-      onClick={() => navigate(`${campaign.id}`)}
+      onClick={() => navigate({ to: '/dashboard/$orgId/campaigns/$campaignId', params: { orgId, campaignId: campaign.id } })}
       data-testid={`campaign-card-${campaign.id}`}
     >
       <CardContent className="flex flex-col flex-1 p-5 space-y-3">
@@ -94,7 +96,7 @@ function CampaignCard({
             data-testid={`campaign-card-public-link-${campaign.id}`}
             onClick={(event) => {
               event.stopPropagation();
-              navigate(`/c/${campaign.id}`);
+              navigate({ to: '/c/$id', params: { id: campaign.id } });
             }}
           >
             <Globe className="h-4 w-4 shrink-0" />
@@ -127,7 +129,7 @@ function CampaignCard({
 
 export default function CampaignsListPage() {
   const { t, i18n } = useTranslation();
-  const { orgId } = useParams<{ orgId: string }>();
+  const { orgId } = useParams({ from: '/dashboard/$orgId/campaigns' });
   const navigate = useNavigate();
   const { data: campaigns, isLoading } = useCampaigns(orgId);
   const { data: members } = useOrganizationMembers(orgId);
@@ -163,7 +165,7 @@ export default function CampaignsListPage() {
           </h2>
           <p className="text-muted-foreground">{t('campaigns.subtitle')}</p>
         </div>
-        <Button onClick={() => navigate('new')} data-testid="campaigns-list-create-button">
+        <Button onClick={() => navigate({ to: '/dashboard/$orgId/campaigns/new', params: { orgId } })} data-testid="campaigns-list-create-button">
           <Plus className="h-4 w-4" />
           {t('campaigns.newCampaign')}
         </Button>
@@ -185,7 +187,7 @@ export default function CampaignsListPage() {
             <Megaphone className="h-10 w-10 text-muted-foreground/40" />
             <CardTitle className="text-lg">{t('campaigns.empty')}</CardTitle>
             <p className="text-sm text-muted-foreground">{t('campaigns.emptyDescription')}</p>
-            <Button className="mt-2" onClick={() => navigate('new')} data-testid="campaigns-empty-create-button">
+            <Button className="mt-2" onClick={() => navigate({ to: '/dashboard/$orgId/campaigns/new', params: { orgId } })} data-testid="campaigns-empty-create-button">
               <Plus className="h-4 w-4" />
               {t('campaigns.createCampaign')}
             </Button>
@@ -197,6 +199,7 @@ export default function CampaignsListPage() {
             <CampaignCard
               key={c.id}
               campaign={c}
+              orgId={orgId}
               canDelete={Boolean(canDeleteCampaign)}
               isDeleting={deleteCampaign.isPending && deleteTarget?.id === c.id}
               onDelete={setDeleteTarget}

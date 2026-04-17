@@ -383,7 +383,9 @@ export function useReceiptDetailController({
 
   useEffect(() => {
     if (!ocrModels || ocrModels.length === 0) {
-      setSelectedModelIdentifier('');
+      queueMicrotask(() => {
+        setSelectedModelIdentifier('');
+      });
       return;
     }
 
@@ -392,7 +394,9 @@ export function useReceiptDetailController({
     }
 
     const defaultModel = ocrModels.find((model) => model.isDefault) ?? ocrModels[0];
-    setSelectedModelIdentifier(defaultModel?.modelIdentifier ?? '');
+    queueMicrotask(() => {
+      setSelectedModelIdentifier(defaultModel?.modelIdentifier ?? '');
+    });
   }, [ocrModels, selectedModelIdentifier]);
 
   useEffect(() => {
@@ -447,26 +451,32 @@ export function useReceiptDetailController({
 
   useEffect(() => {
     if (!receiptId) {
-      setReceipt(null);
-      setReceiptIdInput('');
-      setAliasInput('');
-      setOcrDraft(emptyOcrDraft);
-      setHasOcrChanges(false);
-      setHasPendingExtractRequest(false);
-      setItemDraft({ name: '', quantity: '', unitPrice: '', totalPrice: '', barcode: '' });
-      setSelectedFile(null);
-      setSelectedFileWasCropped(false);
-      replaceSelectedFilePreview(null);
-      replaceItemPhotoAssets([]);
+      queueMicrotask(() => {
+        setReceipt(null);
+        setReceiptIdInput('');
+        setAliasInput('');
+        setOcrDraft(emptyOcrDraft);
+        setHasOcrChanges(false);
+        setHasPendingExtractRequest(false);
+        setItemDraft({ name: '', quantity: '', unitPrice: '', totalPrice: '', barcode: '' });
+        setSelectedFile(null);
+        setSelectedFileWasCropped(false);
+        replaceSelectedFilePreview(null);
+        replaceItemPhotoAssets([]);
+      });
       return;
     }
 
     if (receipt?.id === receiptId) {
-      setReceiptIdInput(receiptId);
+      queueMicrotask(() => {
+        setReceiptIdInput(receiptId);
+      });
       return;
     }
 
-    setReceiptIdInput(receiptId);
+    queueMicrotask(() => {
+      setReceiptIdInput(receiptId);
+    });
 
     if (!orgId) {
       toast.error(t('receipts.detail.toasts.routeMissingOrganization'));
@@ -491,7 +501,9 @@ export function useReceiptDetailController({
 
   useEffect(() => {
     if (receipt?.status !== ReceiptStatus.PendingOcr && hasPendingExtractRequest) {
-      setHasPendingExtractRequest(false);
+      queueMicrotask(() => {
+        setHasPendingExtractRequest(false);
+      });
     }
   }, [receipt?.status, hasPendingExtractRequest]);
 

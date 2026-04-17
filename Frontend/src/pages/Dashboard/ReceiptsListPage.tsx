@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from '@tanstack/react-router';
 import {
   ArrowRight,
   CheckCircle2,
@@ -112,7 +112,7 @@ function ReceiptStatusBadge({ receipt }: { receipt: ReceiptListItem }) {
 }
 
 export default function ReceiptsListPage() {
-  const { orgId } = useParams<{ orgId: string }>();
+  const { orgId } = useParams({ from: '/dashboard/$orgId/receipts' });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [deleteTarget, setDeleteTarget] = useState<ReceiptListItem | null>(null);

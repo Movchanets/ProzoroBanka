@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from '@tanstack/react-router';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +18,7 @@ import { resolveLocalizedText } from '@/lib/localizedText';
 
 export default function CampaignCreatePage() {
   const { t, i18n } = useTranslation();
-  const { orgId } = useParams<{ orgId: string }>();
+  const { orgId } = useParams({ from: '/dashboard/$orgId/campaigns/new' });
   const navigate = useNavigate();
   const createCampaign = useCreateCampaign(orgId!);
   const { data: categoryOptions = [] } = usePublicCampaignCategories();
@@ -44,7 +44,7 @@ export default function CampaignCreatePage() {
         categoryIds: data.categoryIds,
         sendUrl: data.sendUrl || undefined,
       });
-      navigate(`/dashboard/${orgId}/campaigns`);
+      navigate({ to: '/dashboard/$orgId/campaigns', params: { orgId } });
     } catch (err) {
       setApiError(err instanceof Error ? err.message : t('campaigns.createError'));
     }
@@ -53,7 +53,7 @@ export default function CampaignCreatePage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6" data-testid="campaign-create-page">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate(`/dashboard/${orgId}/campaigns`)} data-testid="campaign-create-back-button">
+        <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/dashboard/$orgId/campaigns', params: { orgId } })} data-testid="campaign-create-back-button">
           <ArrowLeft className="h-4 w-4" />
           {t('common.back')}
         </Button>
@@ -133,7 +133,7 @@ export default function CampaignCreatePage() {
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => navigate(`/dashboard/${orgId}/campaigns`)} data-testid="campaign-create-cancel-button">{t('common.cancel')}</Button>
+              <Button type="button" variant="outline" onClick={() => navigate({ to: '/dashboard/$orgId/campaigns', params: { orgId } })} data-testid="campaign-create-cancel-button">{t('common.cancel')}</Button>
               <Button type="submit" disabled={createCampaign.isPending} data-testid="campaign-create-submit-button">
                 {createCampaign.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t('common.create')}

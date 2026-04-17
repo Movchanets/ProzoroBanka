@@ -108,11 +108,7 @@ test.describe('Public pages', () => {
     await loginPage.goto();
     await expect(loginPage.publicPagesLink).toBeVisible();
 
-    const href = await loginPage.publicPagesLink.getAttribute('href');
-    await loginPage.publicPagesLink.click({ force: true });
-    if (href) {
-      await page.goto(href);
-    }
+    await loginPage.publicPagesLink.click();
 
     await expect(page).toHaveURL('/');
     await expect(homePage.heroSection).toBeVisible();

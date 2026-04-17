@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useCreateOrganization } from '@/hooks/queries/useOrganizations';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -78,7 +78,9 @@ export function CreateOrganizationDialog({ open, onOpenChange, redirectAfterCrea
       reset();
       setSlugEdited(false);
       onOpenChange(false);
-      if (redirectAfterCreate) navigate(`/dashboard/${org.id}`);
+      if (redirectAfterCreate) {
+        navigate({ to: '/dashboard/$orgId', params: { orgId: org.id } });
+      }
     } catch (err) {
       setApiError(err instanceof Error ? err.message : t('organizations.create.errorDefault'));
     }

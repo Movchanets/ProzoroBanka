@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet, NavLink, useNavigate, Navigate } from 'react-router-dom';
+import { Link, Outlet, useNavigate, Navigate } from '@tanstack/react-router';
 import { useAuthStore } from '@/stores/authStore';
 import { AppRoles, hasAppRole } from '@/constants/appRoles';
 import { useMyOrganizations } from '@/hooks/queries/useOrganizations';
@@ -42,11 +42,11 @@ function SidebarContent({
 
   const handleBackToDashboard = () => {
     if (primaryOrganizationId) {
-      navigate(`/dashboard/${primaryOrganizationId}`);
+      navigate({ to: '/dashboard/$orgId', params: { orgId: primaryOrganizationId } });
       return;
     }
 
-    navigate('/onboarding');
+    navigate({ to: '/onboarding' });
   };
 
   return (
@@ -60,22 +60,27 @@ function SidebarContent({
 
       <nav className="flex-1 space-y-1 px-2 py-3">
         {navItems.map((item) => (
-          <NavLink
+          <Link
             key={item.path}
             data-testid={`admin-nav-${item.path || 'organizations'}`}
-            to={`/admin${item.path ? `/${item.path}` : ''}`}
-            end={item.path === 'organizations'}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted',
-                isActive && 'bg-primary/10 text-primary font-semibold',
+            to={item.path === 'organizations' ? '/admin/organizations' : `/admin/${item.path}`}
+            activeOptions={{ exact: item.path === 'organizations' }}
+            activeProps={{
+              className: cn(
+                'flex items-center gap-3 rounded-xl bg-primary/10 px-3 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-muted',
                 collapsed && 'justify-center px-2',
-              )
-            }
+              ),
+            }}
+            inactiveProps={{
+              className: cn(
+                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted',
+                collapsed && 'justify-center px-2',
+              ),
+            }}
           >
-            <item.icon className="h-[18px] w-[18px] shrink-0" />
+            <item.icon className="h-4.5 w-4.5 shrink-0" />
             {!collapsed && <span>{t(item.labelKey)}</span>}
-          </NavLink>
+          </Link>
         ))}
       </nav>
 
@@ -85,10 +90,10 @@ function SidebarContent({
           className="mb-2 flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           {collapsed ? (
-            <ArrowLeft className="h-[18px] w-[18px]" />
+            <ArrowLeft className="h-4.5 w-4.5" />
           ) : (
             <>
-              <ArrowLeft className="h-[18px] w-[18px]" />
+              <ArrowLeft className="h-4.5 w-4.5" />
               <span className="flex-1 text-left">{t('admin.layout.back')}</span>
             </>
           )}
@@ -98,10 +103,10 @@ function SidebarContent({
           className="flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           {collapsed ? (
-            <PanelLeft className="h-[18px] w-[18px]" />
+            <PanelLeft className="h-4.5 w-4.5" />
           ) : (
             <>
-              <PanelLeftClose className="h-[18px] w-[18px]" />
+              <PanelLeftClose className="h-4.5 w-4.5" />
               <span className="flex-1 text-left">{t('admin.layout.collapse')}</span>
             </>
           )}
@@ -156,7 +161,7 @@ export default function AdminLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <aside className={cn('hidden flex-col border-r border-border bg-card/40 backdrop-blur-lg transition-[width] duration-200 md:flex', collapsed ? 'w-[68px]' : 'w-64')}>
+      <aside className={cn('hidden flex-col border-r border-border bg-card/40 backdrop-blur-lg transition-[width] duration-200 md:flex', collapsed ? 'w-17' : 'w-64')}>
         <SidebarContent collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
       </aside>
 

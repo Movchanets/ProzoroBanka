@@ -154,11 +154,13 @@ export async function setAuthStorage(page: Page, auth: AuthResponse): Promise<vo
 
   await page.addInitScript((value) => {
     localStorage.setItem('auth-storage', value);
+    localStorage.removeItem('workspace-storage');
   }, serializedAuthState);
 
   if (page.url().startsWith('http://') || page.url().startsWith('https://')) {
     await page.evaluate((value) => {
       localStorage.setItem('auth-storage', value);
+      localStorage.removeItem('workspace-storage');
     }, serializedAuthState);
   }
 }

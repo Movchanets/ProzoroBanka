@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@tanstack/react-router';
 import { CircleAlert, CircleCheckBig } from 'lucide-react';
 import { createProfileSchema, type ProfileFormData } from '../../utils/authSchemas';
 import { useProfileQuery, useUpdateProfileMutation, useUploadAvatarMutation } from '../../hooks/queries/useProfile';
@@ -35,15 +35,13 @@ export default function ProfilePage() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
 
-  const systemRolesLabel = useMemo(() => {
-    const roles = profile?.roles?.length ? profile.roles : [AppRoles.Volunteer];
-    return roles
-      .map((role) => {
-        const labelKey = getSystemRoleLabelKey(role);
-        return labelKey.startsWith('systemRoles.') ? t(labelKey) : role;
-      })
-      .join(', ');
-  }, [profile?.roles, t]);
+  const roles = profile?.roles?.length ? profile.roles : [AppRoles.Volunteer];
+  const systemRolesLabel = roles
+    .map((role) => {
+      const labelKey = getSystemRoleLabelKey(role);
+      return labelKey.startsWith('systemRoles.') ? t(labelKey) : role;
+    })
+    .join(', ');
 
   const schema = useMemo(() => createProfileSchema(t), [t]);
 
@@ -143,7 +141,7 @@ export default function ProfilePage() {
           variant="outline"
           size="pill"
           data-testid="profile-go-onboarding-button"
-          onClick={() => navigate('/onboarding')}
+          onClick={() => navigate({ to: '/onboarding' })}
         >
           {t('profile.goOnboarding')}
         </Button>

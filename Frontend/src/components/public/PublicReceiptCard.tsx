@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 import type { PublicReceipt } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 

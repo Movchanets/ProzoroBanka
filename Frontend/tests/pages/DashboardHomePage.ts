@@ -14,8 +14,43 @@ export class DashboardHomePage {
     this.mobileMenuButton = page.getByTestId('dashboard-mobile-menu-button');
   }
 
+  private async gotoWithRetry(targetUrl: string) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
+        return;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        const isTransientFirefoxNavigationError = message.includes('NS_BINDING_ABORTED') || message.includes('NS_ERROR_FAILURE');
+        if (attempt === 2 || !isTransientFirefoxNavigationError) {
+          throw error;
+        }
+      }
+    }
+  }
+
   async goto(orgId: string) {
-    await this.page.goto(`/dashboard/${orgId}`);
+    const targetUrl = `/dashboard/${orgId}`;
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await this.gotoWithRetry(targetUrl);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        const isTransientFirefoxNavigationError = message.includes('NS_BINDING_ABORTED') || message.includes('NS_ERROR_FAILURE');
+        if (!isTransientFirefoxNavigationError) {
+          throw error;
+        }
+      }
+
+      if (this.page.url().includes(`/dashboard/${orgId}`)) {
+        return;
+      }
+    }
+
+    if (!this.page.url().includes(`/dashboard/${orgId}`)) {
+      throw new Error(`Unable to open dashboard home for ${orgId}. Current URL: ${this.page.url()}`);
+    }
   }
 
   getNavLink(key: string) {
@@ -33,7 +68,7 @@ export class DashboardHomePage {
         await link.click({ force: true });
       } catch {
         if (href) {
-          await this.page.goto(href);
+          await this.gotoWithRetry(href);
         }
         return;
       }
@@ -42,7 +77,7 @@ export class DashboardHomePage {
         await expect.poll(() => this.page.url(), { timeout: 1000 }).not.toBe(beforeUrl);
       } catch {
         if (href) {
-          await this.page.goto(href);
+          await this.gotoWithRetry(href);
         }
       }
     };
@@ -87,6 +122,6 @@ export class DashboardHomePage {
       throw new Error(`Unsupported dashboard navigation key: ${key}`);
     }
 
-    await this.page.goto(fallbackPath);
+    await this.gotoWithRetry(fallbackPath);
   }
 }

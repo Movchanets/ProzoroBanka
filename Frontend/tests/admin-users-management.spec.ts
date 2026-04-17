@@ -6,6 +6,24 @@ import { applyLocale, TEST_LOCALES } from './support/locale-matrix';
 const VALID_EMAIL = process.env.E2E_EMAIL ?? 'admin@example.com';
 const VALID_PASSWORD = process.env.E2E_PASSWORD ?? 'Qwerty-1';
 
+async function gotoAdminUsersWithRetry(page: Parameters<typeof test>[0]['page'], adminUsersPage: { pageContainer: ReturnType<Parameters<typeof test>[0]['page']['locator']> }) {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await page.goto('/admin/users', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL(/.*\/admin\/users.*/, { timeout: 10_000 });
+      await expect(adminUsersPage.pageContainer).toBeVisible({ timeout: 10_000 });
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isFirefoxAbort = message.includes('NS_BINDING_ABORTED');
+      if (attempt === maxAttempts || !isFirefoxAbort) {
+        throw error;
+      }
+    }
+  }
+}
+
 for (const localeConfig of TEST_LOCALES) {
   test.describe(`Admin users management [${localeConfig.key}]`, () => {
     let adminAuth: AuthResponse;
@@ -29,8 +47,7 @@ for (const localeConfig of TEST_LOCALES) {
       await page.goto('/dashboard');
       await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10_000 });
 
-      await page.goto('/admin/users');
-      await expect(adminUsersPage.pageContainer).toBeVisible();
+      await gotoAdminUsersWithRetry(page, adminUsersPage);
       await expect(adminUsersPage.filters).toBeVisible();
 
       if (test.info().project.name === 'Mobile Safari') {
@@ -56,8 +73,7 @@ for (const localeConfig of TEST_LOCALES) {
       await page.goto('/dashboard');
       await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10_000 });
 
-      await page.goto('/admin/users');
-      await expect(adminUsersPage.pageContainer).toBeVisible();
+      await gotoAdminUsersWithRetry(page, adminUsersPage);
 
       await adminUsersPage.searchInput.fill(createdUser.auth.user.email);
       await expect
