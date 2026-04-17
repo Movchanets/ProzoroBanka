@@ -9,6 +9,16 @@ export class OnboardingPage {
   }
 
   async goto() {
-    await this.page.goto('/onboarding');
+    try {
+      await this.page.goto('/onboarding', { waitUntil: 'domcontentloaded' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      const isTransientFirefoxNavigationError = message.includes('NS_BINDING_ABORTED') || message.includes('NS_ERROR_FAILURE');
+      if (!isTransientFirefoxNavigationError) {
+        throw error;
+      }
+    }
+
+    await this.createOrgButton.waitFor({ state: 'visible' });
   }
 }

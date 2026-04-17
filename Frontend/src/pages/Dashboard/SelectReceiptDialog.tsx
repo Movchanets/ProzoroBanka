@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@tanstack/react-router';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -104,7 +104,9 @@ export function SelectReceiptDialog({
             variant="outline"
             onClick={() => {
               onOpenChange(false);
-              navigate(`/dashboard/${organizationId}/receipts/new`, {
+              navigate({
+                to: '/dashboard/$orgId/receipts/new',
+                params: { orgId: organizationId },
                 state: { campaignId },
               });
             }}

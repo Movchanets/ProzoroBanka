@@ -10,7 +10,26 @@ export class DashboardPage {
   }
 
   async goto(orgId: string) {
-    await this.page.goto(`/dashboard/${orgId}`);
+    const targetUrl = `/dashboard/${orgId}`;
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        const isTransientFirefoxNavigationError = message.includes('NS_BINDING_ABORTED') || message.includes('NS_ERROR_FAILURE');
+        if (!isTransientFirefoxNavigationError) {
+          throw error;
+        }
+      }
+
+      if (this.page.url().includes(`/dashboard/${orgId}`)) {
+        await this.adminLink.waitFor({ state: 'visible' });
+        return;
+      }
+    }
+
+    throw new Error(`Unable to open dashboard for ${orgId}. Current URL: ${this.page.url()}`);
   }
 
   async clickAdminLink() {

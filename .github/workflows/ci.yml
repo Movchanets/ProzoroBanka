@@ -91,7 +91,7 @@ jobs:
           cache-dependency-path: Frontend/package-lock.json
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm install --include=optional
 
       - name: Lint frontend
         run: npm run lint
@@ -150,7 +150,7 @@ jobs:
         run: |
           dotnet restore Backend/ProzoroBanka.slnx
           dotnet build Backend/ProzoroBanka.slnx --configuration Release --no-restore
-          cd Frontend && npm ci
+          cd Frontend && npm install --include=optional
           npx playwright install --with-deps chromium
 
       - name: Run Playwright tests

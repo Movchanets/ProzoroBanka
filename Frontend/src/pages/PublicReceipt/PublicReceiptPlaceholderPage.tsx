@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from '@tanstack/react-router';
 import { CalendarDays, FileCheck2, Loader2, ReceiptText, ShieldCheck, Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +15,7 @@ import type { ReceiptItem } from '@/types';
 export default function PublicReceiptPlaceholderPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US';
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams({ from: '/receipt/$id' });
   const { data: receipt, isLoading, error } = usePublicReceipt(id);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate } from '@tanstack/react-router';
 import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ export default function OnboardingPage() {
 
   const handleLogout = async () => {
     await logoutMutation.mutateAsync();
-    navigate('/login', { replace: true });
+    navigate({ to: '/login', replace: true });
   };
 
   // If user already has organizations, redirect to the first one
@@ -73,7 +73,7 @@ export default function OnboardingPage() {
         data-testid="onboarding-go-profile-button"
         variant="outline"
         size="pillWide"
-        onClick={() => navigate('/profile')}
+        onClick={() => navigate({ to: '/profile' })}
       >
         {t('onboarding.goProfile')}
       </Button>

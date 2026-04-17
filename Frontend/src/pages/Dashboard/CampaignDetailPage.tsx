@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import {
   useAttachReceiptToCampaign,
@@ -74,7 +74,7 @@ type InsightTab = 'receipts' | 'transactions';
 export default function CampaignDetailPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US';
-  const { orgId, campaignId } = useParams<{ orgId: string; campaignId: string }>();
+  const { orgId, campaignId } = useParams({ from: '/dashboard/$orgId/campaigns/$campaignId' });
   const navigate = useNavigate();
   const { data: campaign, isLoading } = useCampaign(campaignId);
   const {
@@ -119,7 +119,7 @@ export default function CampaignDetailPage() {
   if (!campaign) {
     return (
       <div className="mx-auto max-w-4xl space-y-6" data-testid="campaign-detail-not-found-page">
-        <Button variant="ghost" onClick={() => navigate(`/dashboard/${orgId}/campaigns`)} data-testid="campaign-detail-back-button">
+        <Button variant="ghost" onClick={() => navigate({ to: '/dashboard/$orgId/campaigns', params: { orgId } })} data-testid="campaign-detail-back-button">
           <ArrowLeft className="h-4 w-4 mr-2" />
           {t('common.back')}
         </Button>
@@ -242,11 +242,11 @@ export default function CampaignDetailPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-6" data-testid="campaign-detail-page">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => navigate(`/dashboard/${orgId}/campaigns`)} data-testid="campaign-detail-back-button">
+        <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/dashboard/$orgId/campaigns', params: { orgId } })} data-testid="campaign-detail-back-button">
           <ArrowLeft className="h-4 w-4 mr-2" />
           {t('common.back')}
         </Button>
-        <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/${orgId}/campaigns/${campaignId}/edit`)} data-testid="campaign-detail-edit-button">
+        <Button variant="outline" size="sm" onClick={() => navigate({ to: '/dashboard/$orgId/campaigns/$campaignId/edit', params: { orgId, campaignId } })} data-testid="campaign-detail-edit-button">
           <Edit2 className="h-4 w-4 mr-2" />
           {t('common.edit')}
         </Button>

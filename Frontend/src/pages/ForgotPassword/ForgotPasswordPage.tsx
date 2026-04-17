@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link } from 'react-router-dom';
+import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { CircleAlert, CircleCheckBig, Mail } from 'lucide-react';
 import { TurnstileWidget } from '../../components/TurnstileWidget';
@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
     defaultValues: { email: '', turnstileToken: '' },
   });
 
-  const onSubmit = handleSubmit(async (values) => {
+  const onSubmit = handleSubmit(async (values: ForgotPasswordFormData) => {
     const response = await forgotPasswordMutation.mutateAsync(values);
     setSubmitted(response.message || t('auth.forgotPassword.fallbackMessage'));
   });

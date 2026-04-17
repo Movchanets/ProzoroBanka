@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useOrganization, useOrganizationStateRegistrySettings } from '@/hooks/queries/useOrganizations';
 import { useCampaigns } from '@/hooks/queries/useCampaigns';
@@ -22,7 +22,7 @@ const PLAN_DESCRIPTIONS: Record<number, string> = {
 
 export default function DashboardHomePage() {
   const { t } = useTranslation();
-  const { orgId } = useParams<{ orgId: string }>();
+  const { orgId } = useParams({ from: '/dashboard/$orgId/' });
   const { data: org, isLoading: orgLoading } = useOrganization(orgId);
   const { data: usageSettings, isLoading: usageLoading, isError: isUsageError } = useOrganizationStateRegistrySettings(orgId);
   const { data: campaigns, isLoading: campLoading } = useCampaigns(orgId);

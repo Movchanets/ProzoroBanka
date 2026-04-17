@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from '@tanstack/react-router';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -40,7 +40,7 @@ const SITE_BASE_URL = resolveSiteBaseUrl();
 
 export default function PublicOrganizationPage() {
   const { i18n } = useTranslation();
-  const { slug } = useParams<{ slug: string }>();
+  const { slug } = useParams({ from: '/o/$slug' });
   const [tab, setTab] = useState<'all' | 'active' | 'completed'>('all');
 
   const organizationQuery = usePublicOrganization(slug);
