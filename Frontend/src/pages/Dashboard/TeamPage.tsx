@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from '@tanstack/react-router';
+import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useOrganizationMembers, useUpdateMemberRole, useRemoveMember, useLeaveOrganization } from '@/hooks/queries/useOrganizations';
 import { useAuthStore } from '@/stores/authStore';
@@ -23,7 +23,7 @@ const roleBadgeVariant: Record<number, 'default' | 'secondary' | 'outline'> = {
 
 export default function TeamPage() {
   const { t } = useTranslation();
-  const { orgId } = useParams({ from: '/dashboard/$orgId/team' });
+  const { orgId } = useParams<{ orgId: string }>();
   const currentUser = useAuthStore((s) => s.user);
   const { data: members, isLoading } = useOrganizationMembers(orgId);
   const updateRole = useUpdateMemberRole(orgId!);

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CircleAlert, CircleCheckBig, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 import { AuthShell } from '../../components/auth/AuthShell';
@@ -19,7 +19,7 @@ const REDIRECT_DELAY_SECONDS = 4;
 export default function ResetPasswordPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const search = useSearch({ from: '/reset-password' });
+  const [searchParams] = useSearchParams();
   const resetPasswordMutation = useResetPasswordMutation();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
@@ -41,12 +41,12 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     reset({
-      email: search.email ?? '',
-      token: search.token ?? '',
+      email: searchParams.get('email') ?? '',
+      token: searchParams.get('token') ?? '',
       newPassword: '',
       confirmPassword: '',
     });
-  }, [reset, search.email, search.token]);
+  }, [reset, searchParams]);
 
   useEffect(() => {
     if (!successMessage) return;
@@ -57,12 +57,12 @@ export default function ResetPasswordPage() {
       });
     }, 1000);
     const redirectTimeout = window.setTimeout(() => {
-      navigate({ to: '/login', replace: true });
+      navigate('/login', { replace: true });
     }, REDIRECT_DELAY_SECONDS * 1000);
     return () => { window.clearInterval(countdownInterval); window.clearTimeout(redirectTimeout); };
   }, [navigate, successMessage]);
 
-  const hasLinkParams = Boolean(search.email && search.token);
+  const hasLinkParams = Boolean(searchParams.get('email') && searchParams.get('token'));
 
   const onSubmit = handleSubmit(async (values) => {
     const response = await resetPasswordMutation.mutateAsync(values);

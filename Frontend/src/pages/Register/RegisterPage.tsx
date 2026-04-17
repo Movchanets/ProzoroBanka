@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CircleAlert, KeyRound, Mail, UserRound } from 'lucide-react';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createRegisterSchema, type RegisterFormData } from '../../utils/authSchemas';
 import { useRegisterMutation } from '../../hooks/queries/useAuth';
@@ -46,7 +46,7 @@ export default function RegisterPage() {
     setServerError(null);
     try {
       await registerMutation.mutateAsync(data);
-      navigate({ to: '/', replace: true });
+      navigate('/', { replace: true });
     } catch (err) {
       setServerError(err instanceof Error ? err.message : t('auth.register.errorDefault'));
     }

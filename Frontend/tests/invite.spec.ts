@@ -14,15 +14,6 @@ interface InviteScenario {
   inviteToken: string;
 }
 
-async function ensureGuestSession(page: import('@playwright/test').Page) {
-  await page.context().clearCookies();
-  await page.goto('/');
-  await page.evaluate(() => {
-    localStorage.removeItem('auth-storage');
-    sessionStorage.clear();
-  });
-}
-
 async function createInviteScenario(
   page: import('@playwright/test').Page,
   flowName: 'Invite' | 'Accept' | 'Decline',
@@ -49,7 +40,6 @@ test.describe('Invite Flow', () => {
     const { invitee, inviteToken } = await createInviteScenario(page, 'Invite');
 
     await setTestLanguage(page);
-    await ensureGuestSession(page);
     await invitePage.goto(inviteToken);
     await expect(page).toHaveURL(new RegExp(`/login\\?next=%2Finvite%2F${inviteToken}$`));
 
@@ -67,7 +57,6 @@ test.describe('Invite Flow', () => {
     const { invitee, inviteToken } = await createInviteScenario(page, 'Accept');
 
     await setTestLanguage(page);
-    await ensureGuestSession(page);
     await invitePage.goto(inviteToken);
     await loginViaUi(page, invitee.auth.user.email, invitee.password, {
       gotoPath: null,
@@ -94,7 +83,6 @@ test.describe('Invite Flow', () => {
     const { invitee, inviteToken } = await createInviteScenario(page, 'Decline');
 
     await setTestLanguage(page);
-    await ensureGuestSession(page);
     await invitePage.goto(inviteToken);
     await loginViaUi(page, invitee.auth.user.email, invitee.password, {
       gotoPath: null,

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams, useNavigate } from '@tanstack/react-router';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -29,7 +29,7 @@ import { resolveLocalizedText } from '@/lib/localizedText';
 
 export default function CampaignEditPage() {
   const { t, i18n } = useTranslation();
-  const { orgId, campaignId } = useParams({ from: '/dashboard/$orgId/campaigns/$campaignId/edit' });
+  const { orgId, campaignId } = useParams<{ orgId: string; campaignId: string }>();
   const navigate = useNavigate();
   const { data: campaign, isLoading } = useCampaign(campaignId);
   const updateCampaign = useUpdateCampaign(orgId!);
@@ -192,7 +192,7 @@ export default function CampaignEditPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6" data-testid="campaign-edit-page">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/dashboard/$orgId/campaigns', params: { orgId } })} data-testid="campaign-edit-back-button"><ArrowLeft className="h-4 w-4" />{t('common.back')}</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate(`/dashboard/${orgId}/campaigns`)} data-testid="campaign-edit-back-button"><ArrowLeft className="h-4 w-4" />{t('common.back')}</Button>
       </div>
 
       {successMsg && (<Alert className="border-success/30 bg-success/10 text-success" data-testid="campaign-edit-success-alert"><CheckCircle2 className="h-4 w-4" /><AlertDescription>{successMsg}</AlertDescription></Alert>)}
@@ -303,7 +303,7 @@ export default function CampaignEditPage() {
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => navigate({ to: '/dashboard/$orgId/campaigns', params: { orgId } })} data-testid="campaign-edit-cancel-button">{t('common.cancel')}</Button>
+              <Button type="button" variant="outline" onClick={() => navigate(`/dashboard/${orgId}/campaigns`)} data-testid="campaign-edit-cancel-button">{t('common.cancel')}</Button>
               <Button type="submit" disabled={updateCampaign.isPending || !isDirty} data-testid="campaign-edit-save-button">
                 {updateCampaign.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t('common.save')}

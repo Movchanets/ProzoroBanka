@@ -1,5 +1,4 @@
 import { test, expect } from './support/fixtures';
-import type { Page } from '@playwright/test';
 
 import { setTestLanguage } from './support/i18n';
 import {
@@ -11,32 +10,6 @@ import {
 } from './support/e2e-auth';
 
 test.describe.configure({ timeout: 90_000 });
-
-async function gotoWithRetry(page: Page, targetUrl: string) {
-  const expectedPath = new URL(targetUrl, 'http://localhost').pathname;
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '';
-      const isTransientFirefoxNavigationError = message.includes('NS_BINDING_ABORTED') || message.includes('NS_ERROR_FAILURE');
-      if (!isTransientFirefoxNavigationError && attempt === 2) {
-        throw error;
-      }
-
-      if (!isTransientFirefoxNavigationError) {
-        throw error;
-      }
-    }
-
-    if (new URL(page.url()).pathname === expectedPath) {
-      return;
-    }
-  }
-
-  throw new Error(`Unable to navigate to ${targetUrl}. Current URL: ${page.url()}`);
-}
 
 test.describe('Team Invitations — Real Backend', () => {
   test.beforeEach(async ({ page }) => {
@@ -62,7 +35,7 @@ test.describe('Team Invitations — Real Backend', () => {
 
     const orgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `Invite Org ${Date.now()}`);
 
-    await gotoWithRetry(page, `/dashboard/${orgId}/team`);
+    await page.goto(`/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
 
     await teamPage.openInviteDialogButton.click();
@@ -85,7 +58,7 @@ test.describe('Team Invitations — Real Backend', () => {
 
     await setAuthStorage(page, invitee.auth);
     // onboardingPage goto is not using url logic so use normal goto
-    await gotoWithRetry(page, '/onboarding');
+    await page.goto('/onboarding');
     await expect(page.getByTestId('onboarding-go-profile-button')).toBeVisible();
     await page.getByTestId('onboarding-go-profile-button').click();
     await expect(page).toHaveURL(/\/profile$/);
@@ -111,7 +84,7 @@ test.describe('Team Invitations — Real Backend', () => {
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}`));
 
     await setAuthStorage(page, owner.auth);
-    await gotoWithRetry(page, `/dashboard/${orgId}/team`);
+    await page.goto(`/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
 
     const inviteeRow = teamPage.getMemberRow(invitee.auth.user.email);
@@ -148,7 +121,7 @@ test.describe('Team Invitations — Real Backend', () => {
     });
     const orgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `Invite Link Org ${Date.now()}`);
 
-    await gotoWithRetry(page, `/dashboard/${orgId}/team`);
+    await page.goto(`/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
 
     await teamPage.openInviteDialogButton.click();
@@ -190,7 +163,7 @@ test.describe('Team Invitations — Real Backend', () => {
     await createEmailInviteViaApi(page.request, owner.auth.accessToken, orgId, invitee.auth.user.email, 2);
 
     await setAuthStorage(page, invitee.auth);
-    await gotoWithRetry(page, '/profile');
+    await page.goto('/profile');
     await expect(page).toHaveURL(/\/profile$/);
     await profilePage.tabInvitations.click();
 
@@ -230,7 +203,7 @@ test.describe('Team Invitations — Real Backend', () => {
 
     const orgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `Invite Cancel Sent Org ${Date.now()}`);
 
-    await gotoWithRetry(page, `/dashboard/${orgId}/team`);
+    await page.goto(`/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
 
     await teamPage.openInviteDialogButton.click();
@@ -248,10 +221,7 @@ test.describe('Team Invitations — Real Backend', () => {
     const inviteResponse = await inviteResponsePromise;
     expect(inviteResponse.ok()).toBeTruthy();
 
-    await page.keyboard.press('Escape');
-    await expect(teamPage.inviteDialog).not.toBeVisible();
-
-    await page.getByTestId('dashboard-profile-link').click();
+    await page.goto('/profile');
     await expect(page).toHaveURL(/\/profile$/);
     await profilePage.tabInvitations.click();
     await expect(profilePage.tabContentInvitations).toBeVisible();

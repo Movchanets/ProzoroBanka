@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate } from 'react-router-dom';
 import { Building2, Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { useMyOrganizations } from '@/hooks/queries/useOrganizations';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -33,14 +33,7 @@ export function WorkspaceSwitcher({ onCreateClick, collapsed }: WorkspaceSwitche
         <DropdownMenuLabel>{t('organizations.switcher.label')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {orgs?.map((org) => (
-          <DropdownMenuItem
-            key={org.id}
-            onClick={() => {
-              setActiveOrg(org.id);
-              navigate({ to: '/dashboard/$orgId', params: { orgId: org.id } });
-            }}
-            className="gap-3"
-          >
+          <DropdownMenuItem key={org.id} onClick={() => { setActiveOrg(org.id); navigate(`/dashboard/${org.id}`); }} className="gap-3">
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-linear-to-br from-primary/80 to-primary text-[0.65rem] font-extrabold text-primary-foreground">
               {org.logoUrl ? (<img src={getImageUrl(org.logoUrl)} alt={org.name} className="h-full w-full rounded-md object-cover" />) : org.name.charAt(0).toUpperCase()}
             </span>

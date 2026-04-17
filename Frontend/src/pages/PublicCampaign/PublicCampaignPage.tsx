@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from '@tanstack/react-router';
+import { Link, useParams } from 'react-router-dom';
 import { CalendarDays, Eye, FileText, ImageIcon, Newspaper, ShieldCheck, Target } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useQueries } from '@tanstack/react-query';
@@ -49,7 +49,7 @@ function formatPublicAmount(value: number | undefined, locale: string, emptyText
 export default function PublicCampaignPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US';
-  const { id } = useParams({ from: '/c/$id' });
+  const { id } = useParams<{ id: string }>();
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [activeGalleryImages, setActiveGalleryImages] = useState<PhotoGalleryItem[]>([]);

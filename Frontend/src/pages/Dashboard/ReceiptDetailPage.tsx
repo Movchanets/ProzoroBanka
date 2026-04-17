@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   AlertCircle,
 } from 'lucide-react';
@@ -41,9 +41,7 @@ const publicationLabelKeyMap: Record<number, string> = {
 export default function ReceiptDetailPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const params = useParams({ strict: false });
-  const orgId = typeof params.orgId === 'string' ? params.orgId : '';
-  const receiptId = typeof params.receiptId === 'string' ? params.receiptId : undefined;
+  const { orgId, receiptId } = useParams<{ orgId: string; receiptId?: string }>();
   const locale = i18n.language.startsWith('en') ? 'en-US' : 'uk-UA';
   const {
     selectedFile,
@@ -109,11 +107,7 @@ export default function ReceiptDetailPage() {
     orgId,
     receiptId,
     onReceiptRouteSync: (nextReceiptId, replace) => {
-      navigate({
-        to: '/dashboard/$orgId/receipts/$receiptId',
-        params: { orgId, receiptId: nextReceiptId },
-        replace,
-      });
+      navigate(`/dashboard/${orgId}/receipts/${nextReceiptId}`, { replace });
     },
   });
 
@@ -128,8 +122,8 @@ export default function ReceiptDetailPage() {
           : t('receipts.detail.pageSubtitleNew')}
         backToRegistryLabel={t('receipts.detail.backToRegistry')}
         createAnotherLabel={t('receipts.detail.createAnother')}
-        onBackToList={() => navigate({ to: '/dashboard/$orgId/receipts', params: { orgId } })}
-        onCreateAnother={() => navigate({ to: '/dashboard/$orgId/receipts/new', params: { orgId } })}
+        onBackToList={() => navigate(`/dashboard/${orgId}/receipts`)}
+        onCreateAnother={() => navigate(`/dashboard/${orgId}/receipts/new`)}
       />
 
       {!orgId ? (
@@ -239,7 +233,7 @@ export default function ReceiptDetailPage() {
         hasOcrChanges={hasOcrChanges}
         statusLabelKeyMap={statusLabelKeyMap}
         publicationLabelKeyMap={publicationLabelKeyMap}
-        onOpenCampaign={(campaignId) => navigate({ to: '/dashboard/$orgId/campaigns/$campaignId', params: { orgId, campaignId } })}
+        onOpenCampaign={(campaignId) => navigate(`/dashboard/${orgId}/campaigns/${campaignId}`)}
       />
 
       <ReceiptReextractDialog

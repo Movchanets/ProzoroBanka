@@ -4,7 +4,7 @@ ARG API_URL=http://localhost:5000
 ARG BUILD_PUBLIC_VALUE_1=
 ARG BUILD_PUBLIC_VALUE_2=
 COPY package*.json ./
-RUN npm install --include=optional
+RUN npm ci
 COPY . .
 RUN VITE_API_URL="$API_URL" VITE_TURNSTILE_SITE_KEY="$BUILD_PUBLIC_VALUE_1" VITE_GOOGLE_CLIENT_ID="$BUILD_PUBLIC_VALUE_2" npm run build
 

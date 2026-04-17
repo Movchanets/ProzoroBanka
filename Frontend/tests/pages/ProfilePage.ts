@@ -26,26 +26,7 @@ export class ProfilePage {
   }
 
   async goto() {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        await this.page.goto('/profile', { waitUntil: 'domcontentloaded' });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : '';
-        const isTransientFirefoxNavigationError = message.includes('NS_BINDING_ABORTED') || message.includes('NS_ERROR_FAILURE');
-        if (!isTransientFirefoxNavigationError) {
-          throw error;
-        }
-      }
-
-      try {
-        await this.firstNameInput.waitFor({ state: 'visible', timeout: 5000 });
-        return;
-      } catch {
-        // Retry on transient redirects/navigation interruptions in Firefox.
-      }
-    }
-
-    await this.firstNameInput.waitFor({ state: 'visible' });
+    await this.page.goto('/profile');
   }
 
   getIncomingInvitationRow(idOrPattern: string | RegExp) {

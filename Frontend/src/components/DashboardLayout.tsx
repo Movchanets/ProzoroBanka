@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, Outlet, useParams, useNavigate } from '@tanstack/react-router';
+import { Outlet, useParams, useNavigate, NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useOrganization } from '@/hooks/queries/useOrganizations';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -63,29 +63,23 @@ function SidebarContent({
 
       <nav className="flex-1 space-y-1 px-2 py-3">
         {navItems.map((item) => (
-          <Link
+          <NavLink
             key={item.path}
             data-testid={`dashboard-nav-${item.path || 'home'}`}
-            to={item.path === '' ? '/dashboard/$orgId' : `/dashboard/$orgId/${item.path}`}
-            params={{ orgId }}
-            activeOptions={{ exact: item.path === '' }}
+            to={`/dashboard/${orgId}/${item.path}`}
+            end={item.path === ''}
             onClick={closeMobile}
-            activeProps={{
-              className: cn(
-                'flex items-center gap-3 rounded-xl bg-primary/10 px-3 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-muted',
-                collapsed && 'justify-center px-2',
-              ),
-            }}
-            inactiveProps={{
-              className: cn(
+            className={({ isActive }) =>
+              cn(
                 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted',
+                isActive && 'bg-primary/10 text-primary font-semibold',
                 collapsed && 'justify-center px-2',
-              ),
-            }}
+              )
+            }
           >
-            <item.icon className="h-4.5 w-4.5 shrink-0" />
+            <item.icon className="h-[18px] w-[18px] shrink-0" />
             {!collapsed && <span>{t(item.labelKey)}</span>}
-          </Link>
+          </NavLink>
         ))}
       </nav>
 
@@ -96,10 +90,10 @@ function SidebarContent({
             className="flex w-full items-center justify-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             {collapsed ? (
-              <PanelLeft className="h-4.5 w-4.5" />
+              <PanelLeft className="h-[18px] w-[18px]" />
             ) : (
               <>
-                <PanelLeftClose className="h-4.5 w-4.5" />
+                <PanelLeftClose className="h-[18px] w-[18px]" />
                 <span className="flex-1 text-left">{t('nav.collapse')}</span>
               </>
             )}
@@ -120,7 +114,7 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
 
   const handleLogout = async () => {
     await logoutMutation.mutateAsync();
-    navigate({ to: '/login', replace: true });
+    navigate('/login', { replace: true });
   };
 
   const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.trim().toUpperCase() || 'PB';
@@ -147,7 +141,7 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
             data-testid="dashboard-public-home-link"
             variant="outline"
             size="sm"
-            onClick={() => navigate({ to: '/' })}
+            onClick={() => navigate('/')}
             aria-label={t('common.goToPublicPages')}
             className="h-9 rounded-xl border-border/50 gap-2 px-2.5 shadow-none sm:px-3"
           >
@@ -160,7 +154,7 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
               data-testid="dashboard-admin-link"
               variant="outline"
               size="sm"
-              onClick={() => navigate({ to: '/admin' })}
+              onClick={() => navigate('/admin')}
               aria-label={t('common.goToAdminPanel')}
               className="h-9 rounded-xl border-border/50 gap-2 px-2.5 shadow-none sm:px-3"
             >
@@ -169,7 +163,7 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
             </Button>
           ) : null}
 
-          <Link to="/profile" data-testid="dashboard-profile-link" className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted sm:px-3">
+          <NavLink to="/profile" data-testid="dashboard-profile-link" className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted sm:px-3">
             <span className="relative">
               {user?.profilePhotoUrl ? (
                 <img className="h-8 w-8 rounded-lg object-cover" src={user.profilePhotoUrl} alt={t('appShell.avatarAlt')} />
@@ -198,7 +192,7 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
                 {t('systemRoles.admin')}
               </span>
             ) : null}
-          </Link>
+          </NavLink>
           <Button variant="outline" size="sm" onClick={handleLogout} disabled={logoutMutation.isPending} className="h-9 gap-2 rounded-xl border-border/50 text-muted-foreground shadow-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 max-sm:w-9 max-sm:px-0">
             <LogOut className="h-4 w-4" />
             <span className="hidden sm:inline">{logoutMutation.isPending ? t('nav.logoutPending') : t('nav.logout')}</span>
@@ -211,7 +205,7 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
 
 export default function DashboardLayout() {
   const { t } = useTranslation();
-  const { orgId } = useParams({ from: '/dashboard/$orgId' });
+  const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
   const setActiveOrg = useWorkspaceStore((s) => s.setActiveOrg);
   const { data: org, isLoading } = useOrganization(orgId);
@@ -227,14 +221,14 @@ export default function DashboardLayout() {
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 
   if (!orgId) {
-    navigate({ to: '/onboarding', replace: true });
+    navigate('/onboarding', { replace: true });
     return null;
   }
 
   return (
     <>
       <div className="flex h-screen overflow-hidden">
-        <aside className={cn('hidden flex-col border-r border-border bg-card/40 backdrop-blur-lg transition-[width] duration-200 md:flex', collapsed ? 'w-17' : 'w-64')}>
+        <aside className={cn('hidden flex-col border-r border-border bg-card/40 backdrop-blur-lg transition-[width] duration-200 md:flex', collapsed ? 'w-[68px]' : 'w-64')}>
           <SidebarContent orgId={orgId} collapsed={collapsed} onCreateOrg={() => setCreateDialogOpen(true)} onToggleCollapse={() => setCollapsed((c) => !c)} />
         </aside>
 

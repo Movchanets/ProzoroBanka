@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useLocation } from '@tanstack/react-router';
+import { useLocation } from 'react-router-dom';
 import { SeoHelmet, type SeoConfig } from '@/components/seo/SeoHelmet';
 
 function hasDedicatedPageSeo(pathname: string): boolean {

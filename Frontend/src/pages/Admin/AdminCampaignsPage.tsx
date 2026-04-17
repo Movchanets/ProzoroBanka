@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from '@tanstack/react-router';
+import { useParams, Link } from 'react-router-dom';
 import { useAdminOrganizationCampaigns } from '@/hooks/queries/useAdminQueries';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +23,7 @@ import { CampaignStatus, CampaignStatusLabel } from '@/types';
 import { useTranslation } from 'react-i18next';
 
 export default function AdminCampaignsPage() {
-  const { orgId } = useParams({ from: '/admin/organizations/$orgId/campaigns' });
+  const { orgId } = useParams<{ orgId: string }>();
   const [page] = useState(1);
   const { data: campaigns, isLoading } = useAdminOrganizationCampaigns(orgId || '', page);
 

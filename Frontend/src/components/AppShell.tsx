@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useLogoutMutation } from '../hooks/queries/useAuth';
 import { useMyOrganizations } from '../hooks/queries/useOrganizations';
@@ -30,7 +30,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   const handleLogout = async () => {
     await logoutMutation.mutateAsync();
-    navigate({ to: '/login', replace: true });
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -47,7 +47,7 @@ export default function AppShell({ children }: AppShellProps) {
                 ProzoroBanka
               </span>
               {hasOrgs && (
-                <Button variant="outline" size="sm" onClick={() => navigate({ to: '/dashboard/$orgId', params: { orgId: orgs[0].id } })} className="h-8 max-w-full rounded-full px-4 text-xs shadow-none max-sm:w-full sm:shrink-0">
+                <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/${orgs[0].id}`)} className="h-8 max-w-full rounded-full px-4 text-xs shadow-none max-sm:w-full sm:shrink-0">
                   <ArrowLeft className="mr-2 h-3.5 w-3.5" />
                   {t('common.goToDashboard')}
                 </Button>
@@ -57,7 +57,7 @@ export default function AppShell({ children }: AppShellProps) {
                   data-testid="app-shell-admin-link"
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate({ to: '/admin' })}
+                  onClick={() => navigate('/admin')}
                   className="h-8 max-w-full rounded-full px-4 text-xs shadow-none max-sm:w-full sm:shrink-0"
                 >
                   {t('common.goToAdminPanel')}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from '@tanstack/react-router';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useInviteInfo, useAcceptInvitation, useDeclineInvitation } from '@/hooks/queries/useInvitations';
 import { useAuthStore } from '@/stores/authStore';
@@ -15,7 +15,7 @@ import { CheckCircle2, Loader2, X } from 'lucide-react';
 
 export default function InvitePage() {
   const { t } = useTranslation();
-  const { token } = useParams({ from: '/invite/$token' });
+  const { token } = useParams<{ token: string }>();
 
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -40,8 +40,7 @@ export default function InvitePage() {
       return;
     }
 
-    const encodedNext = encodeURIComponent(`/invite/${token}`);
-    window.location.replace(`/login?next=${encodedNext}`);
+    navigate(`/login?next=${encodeURIComponent(`/invite/${token}`)}`, { replace: true });
   }, [isAuthenticated, navigate, token]);
 
   if (!token) {
@@ -99,7 +98,7 @@ export default function InvitePage() {
             </div>
             <CardTitle>{t('invitations.page.invalidTitle')}</CardTitle>
             <CardDescription>{t('invitations.page.invalidDesc')}</CardDescription>
-            <Button variant="outline" onClick={() => navigate({ to: '/' })} data-testid="invite-page-go-home-button">{t('common.goHome')}</Button>
+            <Button variant="outline" onClick={() => navigate('/')} data-testid="invite-page-go-home-button">{t('common.goHome')}</Button>
           </CardContent>
         </Card>
       </div>
@@ -118,7 +117,7 @@ export default function InvitePage() {
                 </div>
                 <CardTitle>{t('invitations.page.acceptedTitle')}</CardTitle>
                 <CardDescription>{t('invitations.page.acceptedDesc', { name: info.organizationName })}</CardDescription>
-                <Button onClick={() => navigate({ to: '/onboarding' })} data-testid="invite-page-go-dashboard-button">{t('common.goToDashboard')}</Button>
+                <Button onClick={() => navigate('/onboarding')} data-testid="invite-page-go-dashboard-button">{t('common.goToDashboard')}</Button>
               </>
             ) : (
               <>
@@ -127,7 +126,7 @@ export default function InvitePage() {
                 </div>
                 <CardTitle>{t('invitations.page.declinedTitle')}</CardTitle>
                 <CardDescription>{t('invitations.page.declinedDesc', { name: info.organizationName })}</CardDescription>
-                <Button variant="outline" onClick={() => navigate({ to: '/' })} data-testid="invite-page-go-home-button">{t('common.goHome')}</Button>
+                <Button variant="outline" onClick={() => navigate('/')} data-testid="invite-page-go-home-button">{t('common.goHome')}</Button>
               </>
             )}
           </CardContent>

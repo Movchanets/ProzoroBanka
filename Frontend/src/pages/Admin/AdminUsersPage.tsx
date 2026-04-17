@@ -10,7 +10,7 @@ import {
   useAdminUpdateUserOrganizationLink,
 } from '@/hooks/queries/useAdminQueries';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -84,20 +84,18 @@ function planLabel(planType: 1 | 2) {
 
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const searchParams = useSearch({ from: '/admin/users' });
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const page = Math.max(1, Number(searchParams.page ?? '1') || 1);
-  const statusFilter = parseStatusFilter(searchParams.status ?? null);
-  const roleFilter = searchParams.role ?? 'all';
-  const searchFromUrl = searchParams.search ?? '';
+  const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
+  const statusFilter = parseStatusFilter(searchParams.get('status'));
+  const roleFilter = searchParams.get('role') ?? 'all';
+  const searchFromUrl = searchParams.get('search') ?? '';
 
   const [searchInput, setSearchInput] = useState(searchFromUrl);
   const [editingUser, setEditingUser] = useState<AdminUserDto | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearchInput(searchFromUrl);
   }, [searchFromUrl]);
 
@@ -105,44 +103,17 @@ export default function AdminUsersPage() {
     updater: (params: URLSearchParams) => void,
     options?: { replace?: boolean },
   ) => {
-    const current = new URLSearchParams();
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      updater(next);
 
-    if (searchParams.page) {
-      current.set('page', searchParams.page);
-    }
+      if ((next.get('page') ?? '1') === '1') {
+        next.delete('page');
+      }
 
-    if (searchParams.status) {
-      current.set('status', searchParams.status);
-    }
-
-    if (searchParams.role) {
-      current.set('role', searchParams.role);
-    }
-
-    if (searchParams.search) {
-      current.set('search', searchParams.search);
-    }
-
-    updater(current);
-
-    if ((current.get('page') ?? '1') === '1') {
-      current.delete('page');
-    }
-
-    const nextStatusRaw = current.get('status');
-    const nextStatus = nextStatusRaw === 'active' || nextStatusRaw === 'locked' ? nextStatusRaw : undefined;
-
-    navigate({
-      to: '/admin/users',
-      replace: options?.replace ?? false,
-      search: {
-        page: current.get('page') ?? undefined,
-        status: nextStatus,
-        role: current.get('role') ?? undefined,
-        search: current.get('search') ?? undefined,
-      },
-    });
-  }, [navigate, searchParams.page, searchParams.role, searchParams.search, searchParams.status]);
+      return next;
+    }, { replace: options?.replace ?? false });
+  }, [setSearchParams]);
 
   const applyFilters = useCallback((next: {
     search?: string;
