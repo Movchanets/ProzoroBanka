@@ -291,7 +291,7 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: Frontend
-        run: npm ci
+        run: npm install --include=optional
 
       - name: Generate dynamic sitemap from updated backend
         working-directory: Frontend
