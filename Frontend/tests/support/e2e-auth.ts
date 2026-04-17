@@ -318,23 +318,5 @@ export async function ensureTurnstileTokenForE2E(
 ): Promise<void> {
   const timeoutMs = options?.timeoutMs ?? 20_000;
   const tokenInput = page.locator('input[name="cf-turnstile-response"]').first();
-
   await expect(tokenInput).toHaveValue(/.+/, { timeout: timeoutMs });
-
-  const currentToken = (await tokenInput.inputValue()).trim();
-  if (currentToken === E2E_TURNSTILE_TEST_TOKEN) {
-    return;
-  }
-
-  await tokenInput.evaluate((element, token) => {
-    const input = element as {
-      value: string;
-      dispatchEvent: (event: Event) => boolean;
-    };
-    input.value = token;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  }, E2E_TURNSTILE_TEST_TOKEN);
-
-  await expect(tokenInput).toHaveValue(E2E_TURNSTILE_TEST_TOKEN);
 }

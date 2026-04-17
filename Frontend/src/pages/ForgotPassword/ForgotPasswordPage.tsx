@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
     defaultValues: { email: '', turnstileToken: '' },
   });
 
-  const onSubmit = handleSubmit(async (values) => {
+  const onSubmit = handleSubmit(async (values: ForgotPasswordFormData) => {
     const response = await forgotPasswordMutation.mutateAsync(values);
     setSubmitted(response.message || t('auth.forgotPassword.fallbackMessage'));
   });
