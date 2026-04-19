@@ -34,9 +34,10 @@ public class GetPublicCampaignPurchasesHandler
 
 		var result = purchases.Select(p => new PurchaseDetailDto(
 			p.Id,
-			p.CampaignId ?? Guid.Empty,
+			p.CampaignId,
 			p.CreatedByUserId,
 			p.Title,
+			p.Description,
 			p.TotalAmount,
 			p.Status,
 			p.Documents

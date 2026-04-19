@@ -42,6 +42,7 @@ public class UploadDocumentHandlerTests
 		db.CampaignPurchases.Add(new CampaignPurchase
 		{
 			Id = purchaseId,
+			OrganizationId = orgId,
 			CampaignId = campaignId,
 			CreatedByUserId = userId,
 			Title = "Test",
@@ -96,7 +97,7 @@ public class UploadDocumentHandlerTests
 		db.DomainUsers.Add(new User { Id = userId, Email = $"user2-{userId:N}@test.com", FirstName = "U", LastName = "Ser" });
 		db.Organizations.Add(new Organization { Id = orgId, OwnerUserId = userId, Name = "Org", Slug = $"org-{orgId}" });
 		db.Campaigns.Add(new Campaign { Id = campaignId, OrganizationId = orgId, CreatedByUserId = userId, Title = "C", Description = "D" });
-		db.CampaignPurchases.Add(new CampaignPurchase { Id = purchaseId, CampaignId = campaignId, CreatedByUserId = userId, Title = "Test", TotalAmount = 100, Status = PurchaseStatus.PaymentSent });
+		db.CampaignPurchases.Add(new CampaignPurchase { Id = purchaseId, OrganizationId = orgId, CampaignId = campaignId, CreatedByUserId = userId, Title = "Test", TotalAmount = 100, Status = PurchaseStatus.PaymentSent });
 		await db.SaveChangesAsync();
 
 		var fileStorageMock = new Mock<IFileStorage>();

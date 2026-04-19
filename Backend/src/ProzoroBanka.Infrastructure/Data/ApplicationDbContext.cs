@@ -495,6 +495,7 @@ public class ApplicationDbContext
 		{
 			b.ToTable("CampaignPurchases");
 			b.HasKey(e => e.Id);
+			b.Property(e => e.Description).HasMaxLength(2000);
 			b.Property(e => e.Title).HasMaxLength(500).IsRequired();
 			b.Property(e => e.Status).HasConversion<int>();
 			b.HasIndex(e => e.OrganizationId);

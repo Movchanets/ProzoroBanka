@@ -49,18 +49,44 @@ export interface DocumentDto {
   counterpartyName: string | null;
   ocrProcessingStatus: OcrProcessingStatus;
   isDataVerifiedByUser: boolean;
+  items?: DocumentItemDto[] | null;
   createdAt: string;
 }
 
 export interface PurchaseDetailDto {
   id: string;
-  campaignId: string;
+  campaignId: string | null;
   createdByUserId: string;
   title: string;
+  description?: string | null;
   totalAmount: number;
   status: PurchaseStatus;
   documents: DocumentDto[];
   createdAt: string;
+}
+
+export interface DocumentItemDto {
+  id: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface CreateDraftPurchaseRequest {
+  organizationId: string;
+  title: string;
+  description?: string | null;
+}
+
+export interface AttachPurchaseToCampaignRequest {
+  campaignId: string;
+}
+
+export interface AddItemToWaybillRequest {
+  name: string;
+  quantity: number;
+  unitPrice: number;
 }
 
 export interface CreatePurchaseRequest {

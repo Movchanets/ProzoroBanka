@@ -20,9 +20,10 @@ public static class PurchaseDtoMapper
 	public static PurchaseDetailDto ToDetailDto(IFileStorage fileStorage, CampaignPurchase purchase) =>
 		new(
 			purchase.Id,
-			purchase.CampaignId ?? Guid.Empty,
+			purchase.CampaignId,
 			purchase.CreatedByUserId,
 			purchase.Title,
+			purchase.Description,
 			purchase.TotalAmount,
 			purchase.Status,
 			purchase.Documents
@@ -45,6 +46,7 @@ public static class PurchaseDtoMapper
 			document.CounterpartyName,
 			document.OcrProcessingStatus,
 			document.IsDataVerifiedByUser,
+			ToDocumentItems(document),
 			document.CreatedAt);
 
 	/// <summary>
@@ -63,5 +65,29 @@ public static class PurchaseDtoMapper
 			document.CounterpartyName,
 			document.OcrProcessingStatus,
 			document.IsDataVerifiedByUser,
+			ToDocumentItems(document),
 			document.CreatedAt);
+
+	private static IReadOnlyList<DocumentItemDto>? ToDocumentItems(CampaignDocument document)
+	{
+		var documentItems = document switch
+		{
+			WaybillDocument waybill => waybill.Items,
+			InvoiceDocument invoice => invoice.Items,
+			_ => null
+		};
+
+		return documentItems is null
+			? null
+			: documentItems
+				.Where(item => !item.IsDeleted)
+				.OrderBy(item => item.CreatedAt)
+				.Select(item => new DocumentItemDto(
+					item.Id,
+					item.Name,
+					item.Quantity,
+					item.UnitPrice,
+					item.TotalPrice))
+				.ToList();
+	}
 }

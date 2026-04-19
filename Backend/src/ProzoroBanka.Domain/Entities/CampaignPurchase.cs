@@ -11,6 +11,7 @@ public class CampaignPurchase : BaseEntity
 	public Guid OrganizationId { get; set; }
 	public Guid? CampaignId { get; set; }
 	public Guid CreatedByUserId { get; set; }
+	public string? Description { get; set; }
 
 	/// <summary>
 	/// Назва закупівлі (наприклад, "5x DJI Mavic 3T").

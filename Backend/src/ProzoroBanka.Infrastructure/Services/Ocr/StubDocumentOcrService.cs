@@ -12,18 +12,6 @@ public class StubDocumentOcrService : IDocumentOcrService
 		string? modelIdentifier = null,
 		CancellationToken ct = default)
 	{
-		if (type == DocumentType.TransferAct)
-		{
-			return Task.FromResult(new DocumentOcrResult(
-				false,
-				null,
-				null,
-				null,
-				null,
-				null,
-				"OCR is forbidden for Transfer Acts for security reasons."));
-		}
-
 		var usedModel = string.IsNullOrWhiteSpace(modelIdentifier) ? "stub-model" : modelIdentifier;
 		var rawJson = $$"""
 {"source":"stub","fileName":"{{fileName}}","type":"{{type}}","model":"{{usedModel}}"}

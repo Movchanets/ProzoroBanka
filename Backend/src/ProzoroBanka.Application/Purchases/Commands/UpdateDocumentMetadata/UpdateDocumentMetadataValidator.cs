@@ -10,7 +10,8 @@ public class UpdateDocumentMetadataValidator : AbstractValidator<UpdateDocumentM
 			.NotEmpty().WithMessage("OrganizationId обов'язковий");
 
 		RuleFor(x => x.CampaignId)
-			.NotEmpty().WithMessage("CampaignId обов'язковий");
+			.NotEmpty().WithMessage("CampaignId обов'язковий")
+			.When(x => x.CampaignId.HasValue);
 
 		RuleFor(x => x.PurchaseId)
 			.NotEmpty().WithMessage("PurchaseId обов'язковий");

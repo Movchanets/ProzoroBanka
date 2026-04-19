@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useCampaigns } from '@/hooks/queries/useCampaigns';
-import { useCreatePurchase, usePurchases } from '@/hooks/queries/usePurchases';
+import { usePurchases } from '@/hooks/queries/usePurchases';
 import { PurchaseStatus } from '@/types';
 import { resolveLocalizedText } from '@/lib/localizedText';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +42,6 @@ export default function OrganizationPurchasesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const { data: campaigns, isLoading: isCampaignsLoading } = useCampaigns(orgId);
-  const createPurchase = useCreatePurchase();
 
   const selectedCampaignId = useMemo(() => {
     if (!campaigns || campaigns.length === 0) {
@@ -77,26 +76,12 @@ export default function OrganizationPurchasesPage() {
   const activeCampaign = campaigns?.find((campaign) => campaign.id === selectedCampaignId);
 
   const handleCreatePurchase = async () => {
-    if (!orgId || !selectedCampaignId) {
-      toast.error(t('purchases.toasts.selectCampaignFirst', 'Спершу оберіть збір'));
+    if (!orgId) {
+      toast.error(t('common.error'));
       return;
     }
 
-    try {
-      const created = await createPurchase.mutateAsync({
-        organizationId: orgId,
-        campaignId: selectedCampaignId,
-        payload: {
-          title: t('purchases.defaultNewTitle', 'Нова закупівля'),
-          totalAmount: 0,
-        },
-      });
-
-      toast.success(t('purchases.createSuccess', 'Закупівлю створено'));
-      navigate(`/dashboard/${orgId}/purchases/${created.id}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('common.error'));
-    }
+    navigate(`/dashboard/${orgId}/purchases/new`);
   };
 
   if (isCampaignsLoading) {
@@ -157,7 +142,7 @@ export default function OrganizationPurchasesPage() {
             </SelectContent>
           </Select>
 
-          <Button onClick={handleCreatePurchase} disabled={createPurchase.isPending} data-testid="organization-purchases-open-create-dialog">
+          <Button onClick={handleCreatePurchase} data-testid="organization-purchases-open-create-dialog">
             <Plus className="h-4 w-4" />
             {t('purchases.createNew', 'Нова закупівля')}
           </Button>

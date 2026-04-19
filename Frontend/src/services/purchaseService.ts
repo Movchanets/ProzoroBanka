@@ -3,6 +3,9 @@ import type {
   PurchaseListItemDto,
   PurchaseDetailDto,
   DocumentDto,
+  CreateDraftPurchaseRequest,
+  AttachPurchaseToCampaignRequest,
+  AddItemToWaybillRequest,
   CreatePurchaseRequest,
   UpdatePurchaseRequest,
   UpdateDocumentMetadataRequest,
@@ -30,6 +33,24 @@ export const purchaseService = {
 
   create: (organizationId: string, campaignId: string, payload: CreatePurchaseRequest) =>
     apiFetch<PurchaseDetailDto>(`/api/organizations/${organizationId}/campaigns/${campaignId}/purchases`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  createDraft: (payload: CreateDraftPurchaseRequest) =>
+    apiFetch<{ id: string }>(`/api/purchases/draft`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  attachToCampaign: (purchaseId: string, payload: AttachPurchaseToCampaignRequest) =>
+    apiFetch<{ message: string }>(`/api/purchases/${purchaseId}/attach`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  addItemToWaybill: (documentId: string, payload: AddItemToWaybillRequest) =>
+    apiFetch<{ id: string }>(`/api/purchases/documents/${documentId}/items`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

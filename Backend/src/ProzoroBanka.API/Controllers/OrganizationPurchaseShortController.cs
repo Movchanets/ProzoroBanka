@@ -38,14 +38,6 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 		_db = db;
 	}
 
-	private async Task<Guid?> ResolveCampaignIdAsync(Guid organizationId, Guid purchaseId, CancellationToken ct)
-	{
-		return await _db.CampaignPurchases
-			.Where(p => p.Id == purchaseId && p.Campaign.OrganizationId == organizationId)
-			.Select(p => (Guid?)p.CampaignId)
-			.FirstOrDefaultAsync(ct);
-	}
-
 	[HttpGet("{purchaseId:guid}")]
 	[HasPermission(Permissions.PurchasesManage)]
 	[ProducesResponseType(typeof(PurchaseDetailDto), StatusCodes.Status200OK)]
@@ -58,12 +50,8 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 		var userId = _currentUser.DomainUserId;
 		if (userId is null) return Unauthorized();
 
-		var campaignId = await ResolveCampaignIdAsync(organizationId, purchaseId, ct);
-		if (campaignId is null)
-			return NotFound(new { Error = "Закупівлю не знайдено в цій організації" });
-
 		var result = await _sender.Send(
-			new GetPurchaseDetailQuery(userId.Value, organizationId, campaignId.Value, purchaseId), ct);
+			new GetPurchaseDetailQuery(userId.Value, organizationId, null, purchaseId), ct);
 
 		return result.IsSuccess ? Ok(result.Payload) : NotFound(new { Error = result.Message });
 	}
@@ -81,13 +69,9 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 		var userId = _currentUser.DomainUserId;
 		if (userId is null) return Unauthorized();
 
-		var campaignId = await ResolveCampaignIdAsync(organizationId, purchaseId, ct);
-		if (campaignId is null)
-			return NotFound(new { Error = "Закупівлю не знайдено в цій організації" });
-
 		var result = await _sender.Send(
 			new UpdatePurchaseCommand(
-				userId.Value, organizationId, campaignId.Value, purchaseId,
+				userId.Value, organizationId, null, purchaseId,
 				request.Title, request.TotalAmount, request.Status),
 			ct);
 
@@ -106,12 +90,8 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 		var userId = _currentUser.DomainUserId;
 		if (userId is null) return Unauthorized();
 
-		var campaignId = await ResolveCampaignIdAsync(organizationId, purchaseId, ct);
-		if (campaignId is null)
-			return NotFound(new { Error = "Закупівлю не знайдено в цій організації" });
-
 		var result = await _sender.Send(
-			new DeletePurchaseCommand(userId.Value, organizationId, campaignId.Value, purchaseId), ct);
+			new DeletePurchaseCommand(userId.Value, organizationId, null, purchaseId), ct);
 
 		return result.IsSuccess
 			? Ok(new { Message = result.Message })
@@ -140,14 +120,10 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 		if (file is null || file.Length == 0)
 			return BadRequest(new { Error = "Файл документа обов'язковий" });
 
-		var campaignId = await ResolveCampaignIdAsync(organizationId, purchaseId, ct);
-		if (campaignId is null)
-			return NotFound(new { Error = "Закупівлю не знайдено в цій організації" });
-
 		await using var stream = file.OpenReadStream();
 		var result = await _sender.Send(
 			new UploadDocumentCommand(
-				userId.Value, organizationId, campaignId.Value, purchaseId,
+				userId.Value, organizationId, null, purchaseId,
 				stream, file.FileName, file.ContentType,
 				type, documentDate, amount, counterpartyName),
 			ct);
@@ -171,13 +147,9 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 		var userId = _currentUser.DomainUserId;
 		if (userId is null) return Unauthorized();
 
-		var campaignId = await ResolveCampaignIdAsync(organizationId, purchaseId, ct);
-		if (campaignId is null)
-			return NotFound(new { Error = "Закупівлю не знайдено в цій організації" });
-
 		var result = await _sender.Send(
 			new UpdateDocumentMetadataCommand(
-				userId.Value, organizationId, campaignId.Value, purchaseId, documentId,
+				userId.Value, organizationId, null, purchaseId, documentId,
 				request.Amount, request.CounterpartyName, request.DocumentDate),
 			ct);
 
@@ -197,12 +169,8 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 		var userId = _currentUser.DomainUserId;
 		if (userId is null) return Unauthorized();
 
-		var campaignId = await ResolveCampaignIdAsync(organizationId, purchaseId, ct);
-		if (campaignId is null)
-			return NotFound(new { Error = "Закупівлю не знайдено в цій організації" });
-
 		var result = await _sender.Send(
-			new DeleteDocumentCommand(userId.Value, organizationId, campaignId.Value, purchaseId, documentId), ct);
+			new DeleteDocumentCommand(userId.Value, organizationId, null, purchaseId, documentId), ct);
 
 		return result.IsSuccess
 			? Ok(new { Message = result.Message })
@@ -222,12 +190,8 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 		var userId = _currentUser.DomainUserId;
 		if (userId is null) return Unauthorized();
 
-		var campaignId = await ResolveCampaignIdAsync(organizationId, purchaseId, ct);
-		if (campaignId is null)
-			return NotFound(new { Error = "Закупівлю не знайдено в цій організації" });
-
 		var result = await _sender.Send(
-			new ProcessPurchaseDocumentOcrCommand(organizationId, campaignId.Value, purchaseId, documentId, userId.Value), ct);
+			new ProcessPurchaseDocumentOcrCommand(organizationId, null, purchaseId, documentId, userId.Value), ct);
 
 		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
 	}

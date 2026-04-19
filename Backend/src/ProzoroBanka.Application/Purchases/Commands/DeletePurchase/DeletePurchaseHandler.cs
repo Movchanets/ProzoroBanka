@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
 
 namespace ProzoroBanka.Application.Purchases.Commands.DeletePurchase;
@@ -33,18 +34,22 @@ public class DeletePurchaseHandler : IRequestHandler<DeletePurchaseCommand, Serv
 		if (!authResult.IsSuccess)
 			return ServiceResponse.Failure(authResult.Message);
 
-		var campaignExists = await _db.Campaigns.AnyAsync(
-			c => c.Id == request.CampaignId && c.OrganizationId == request.OrganizationId,
-			ct);
+		if (request.CampaignId.HasValue)
+		{
+			var campaignExists = await _db.Campaigns.AnyAsync(
+				c => c.Id == request.CampaignId.Value && c.OrganizationId == request.OrganizationId,
+				ct);
 
-		if (!campaignExists)
-			return ServiceResponse.Failure("Збір не знайдено в цій організації");
+			if (!campaignExists)
+				return ServiceResponse.Failure("Збір не знайдено в цій організації");
+		}
 
 		var purchase = await _db.CampaignPurchases
 			.Include(p => p.Documents)
 			.FirstOrDefaultAsync(
 				p => p.Id == request.PurchaseId
-				     && p.CampaignId == request.CampaignId,
+				     && p.OrganizationId == request.OrganizationId
+				     && (request.CampaignId == null || p.CampaignId == request.CampaignId),
 				ct);
 
 		if (purchase is null)

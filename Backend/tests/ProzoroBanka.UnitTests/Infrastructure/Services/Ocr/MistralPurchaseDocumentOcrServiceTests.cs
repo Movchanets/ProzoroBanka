@@ -98,7 +98,7 @@ public class MistralPurchaseDocumentOcrServiceTests
 	}
 
 	[Fact]
-	public async Task ParseDocumentAsync_WhenTransferAct_ReturnsFailureWithoutHttpCall()
+	public async Task ParseDocumentAsync_WhenTransferAct_StillUsesOcrEndpoint()
 	{
 		var handler = new CountingHandler(_ => JsonResponse(HttpStatusCode.OK, "{}"));
 		var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.mistral.ai") };
@@ -108,8 +108,8 @@ public class MistralPurchaseDocumentOcrServiceTests
 		var result = await sut.ParseDocumentAsync(stream, "act.pdf", DocumentType.TransferAct, null, CancellationToken.None);
 
 		Assert.False(result.Success);
-		Assert.Contains("forbidden", result.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
-		Assert.Equal(0, handler.CallCount);
+		Assert.Contains("No structured JSON", result.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+		Assert.Equal(1, handler.CallCount);
 	}
 
 	private static MistralPurchaseDocumentOcrService CreateSut(Func<HttpRequestMessage, HttpResponseMessage> responseFactory)

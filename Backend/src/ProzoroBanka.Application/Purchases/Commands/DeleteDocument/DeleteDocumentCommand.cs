@@ -6,6 +6,6 @@ namespace ProzoroBanka.Application.Purchases.Commands.DeleteDocument;
 public record DeleteDocumentCommand(
 	Guid CallerDomainUserId,
 	Guid OrganizationId,
-	Guid CampaignId,
+	Guid? CampaignId,
 	Guid PurchaseId,
 	Guid DocumentId) : IRequest<ServiceResponse>;

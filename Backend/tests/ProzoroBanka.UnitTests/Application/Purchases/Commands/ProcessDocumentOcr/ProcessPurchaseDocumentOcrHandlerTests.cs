@@ -36,6 +36,7 @@ public class ProcessPurchaseDocumentOcrHandlerTests
 		var purchase = new CampaignPurchase
 		{
 			Id = Guid.NewGuid(),
+			OrganizationId = orgId,
 			CampaignId = campaignId,
 			CreatedByUserId = callerId,
 			Title = "Test",
@@ -95,6 +96,7 @@ public class ProcessPurchaseDocumentOcrHandlerTests
 		var purchase = new CampaignPurchase
 		{
 			Id = Guid.NewGuid(),
+			OrganizationId = orgId,
 			CampaignId = campaignId,
 			CreatedByUserId = callerId,
 			Title = "Test Security",

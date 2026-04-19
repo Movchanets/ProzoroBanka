@@ -38,6 +38,7 @@ public class DeletePurchaseHandlerTests
 		db.CampaignPurchases.Add(new CampaignPurchase
 		{
 			Id = purchaseId,
+			OrganizationId = orgId,
 			CampaignId = campaignId,
 			CreatedByUserId = userId,
 			Title = "DelTest",

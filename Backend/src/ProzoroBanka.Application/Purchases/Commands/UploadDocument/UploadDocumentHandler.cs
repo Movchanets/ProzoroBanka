@@ -35,15 +35,20 @@ public class UploadDocumentHandler : IRequestHandler<UploadDocumentCommand, Serv
 		if (!authResult.IsSuccess)
 			return ServiceResponse<DocumentDto>.Failure(authResult.Message);
 
-		var campaignExists = await _db.Campaigns.AnyAsync(
-			c => c.Id == request.CampaignId && c.OrganizationId == request.OrganizationId,
-			ct);
+		if (request.CampaignId.HasValue)
+		{
+			var campaignExists = await _db.Campaigns.AnyAsync(
+				c => c.Id == request.CampaignId.Value && c.OrganizationId == request.OrganizationId,
+				ct);
 
-		if (!campaignExists)
-			return ServiceResponse<DocumentDto>.Failure("Збір не знайдено в цій організації");
+			if (!campaignExists)
+				return ServiceResponse<DocumentDto>.Failure("Збір не знайдено в цій організації");
+		}
 
 		var purchaseExists = await _db.CampaignPurchases.AnyAsync(
-			p => p.Id == request.PurchaseId && p.CampaignId == request.CampaignId, ct);
+			p => p.Id == request.PurchaseId
+				&& p.OrganizationId == request.OrganizationId
+				&& (request.CampaignId == null || p.CampaignId == request.CampaignId), ct);
 
 		if (!purchaseExists)
 			return ServiceResponse<DocumentDto>.Failure("Закупівлю не знайдено");

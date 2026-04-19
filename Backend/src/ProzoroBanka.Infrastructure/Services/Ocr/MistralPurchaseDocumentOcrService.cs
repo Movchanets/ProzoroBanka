@@ -20,11 +20,6 @@ public class MistralPurchaseDocumentOcrService : IDocumentOcrService
 
 	public async Task<DocumentOcrResult> ParseDocumentAsync(Stream imageStream, string fileName, DocumentType type, string? modelIdentifier = null, CancellationToken ct = default)
 	{
-		if (type == DocumentType.TransferAct)
-		{
-			return Failure("OCR is forbidden for Transfer Acts for security reasons.");
-		}
-
 		var model = !string.IsNullOrWhiteSpace(modelIdentifier) ? modelIdentifier : "mistral-ocr-latest";
 
 		await _concurrencyLimiter.WaitAsync(ct);

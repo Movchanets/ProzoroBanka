@@ -8,7 +8,7 @@ namespace ProzoroBanka.Application.Purchases.Commands.UpdatePurchase;
 public record UpdatePurchaseCommand(
 	Guid CallerDomainUserId,
 	Guid OrganizationId,
-	Guid CampaignId,
+	Guid? CampaignId,
 	Guid PurchaseId,
 	string? Title,
 	long? TotalAmount,

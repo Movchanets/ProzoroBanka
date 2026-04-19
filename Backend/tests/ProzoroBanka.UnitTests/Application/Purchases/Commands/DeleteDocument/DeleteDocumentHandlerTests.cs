@@ -37,6 +37,7 @@ public class DeleteDocumentHandlerTests
 		db.CampaignPurchases.Add(new CampaignPurchase
 		{
 			Id = purchaseId,
+			OrganizationId = foreignOrgId,
 			CampaignId = campaignId,
 			CreatedByUserId = userId,
 			Title = "Purchase",

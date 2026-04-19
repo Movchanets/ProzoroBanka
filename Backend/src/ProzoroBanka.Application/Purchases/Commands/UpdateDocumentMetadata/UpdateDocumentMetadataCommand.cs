@@ -7,7 +7,7 @@ namespace ProzoroBanka.Application.Purchases.Commands.UpdateDocumentMetadata;
 public record UpdateDocumentMetadataCommand(
 	Guid CallerDomainUserId,
 	Guid OrganizationId,
-	Guid CampaignId,
+	Guid? CampaignId,
 	Guid PurchaseId,
 	Guid DocumentId,
 	long? Amount,

@@ -3,7 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useForm } from 'react-hook-form';
+import { useCampaigns } from '@/hooks/queries/useCampaigns';
 import {
+  useCreateDraftPurchase,
+  useAttachPurchaseToCampaign,
+  useAddWaybillItem,
   usePurchaseDetailShort,
   useUpdatePurchaseShort,
   useDeletePurchaseShort,
@@ -12,14 +16,15 @@ import {
   useDeletePurchaseDocumentShort,
   useProcessPurchaseDocumentOcrShort,
 } from '@/hooks/queries/usePurchases';
-import type { PurchaseStatus as PurchaseStatusType, DocumentType as DocumentTypeType } from '@/types';
-import { PurchaseStatus, DocumentType, OcrProcessingStatus, type DocumentDto } from '@/types';
+import { CampaignStatus, PurchaseStatus, DocumentType, OcrProcessingStatus, type DocumentDto } from '@/types';
+import type { PurchaseStatus as PurchaseStatusType } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Loader2, Trash2, UploadCloud, Download, Sparkles, Save } from 'lucide-react';
 import { toast } from 'sonner';
@@ -89,17 +94,22 @@ function getOcrBadgeVariant(status: OcrProcessingStatus): 'default' | 'secondary
 function DocumentMetadataForm({
   document,
   onSubmit,
+  onAddWaybillItem,
   isPending,
   t,
 }: {
   document: DocumentDto;
   onSubmit: (documentId: string, payload: { amount?: number; counterpartyName?: string; documentDate?: string }) => Promise<void>;
+  onAddWaybillItem?: (documentId: string, payload: { name: string; quantity: number; unitPrice: number }) => Promise<void>;
   isPending: boolean;
   t: TFunction;
 }) {
   const [amount, setAmount] = useState(document.amount ? (document.amount / 100).toFixed(2) : '');
   const [counterpartyName, setCounterpartyName] = useState(document.counterpartyName ?? '');
   const [documentDate, setDocumentDate] = useState(document.documentDate ? document.documentDate.slice(0, 10) : '');
+  const [itemName, setItemName] = useState('');
+  const [itemQuantity, setItemQuantity] = useState('1');
+  const [itemUnitPrice, setItemUnitPrice] = useState('0');
 
   const handleSave = async () => {
     const normalizedAmount = amount.trim().length > 0 ? Number(amount.replace(',', '.')) : undefined;
@@ -112,33 +122,120 @@ function DocumentMetadataForm({
   };
 
   if (document.type === DocumentType.Waybill || document.type === DocumentType.Invoice) {
+    const handleAddItem = async () => {
+      if (!onAddWaybillItem) {
+        return;
+      }
+
+      const quantity = Number(itemQuantity.replace(',', '.'));
+      const unitPriceHryvnia = Number(itemUnitPrice.replace(',', '.'));
+
+      if (!itemName.trim() || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPriceHryvnia) || unitPriceHryvnia < 0) {
+        toast.error(t('purchases.invalidWaybillItem', 'Некоректні дані позиції'));
+        return;
+      }
+
+      await onAddWaybillItem(document.id, {
+        name: itemName.trim(),
+        quantity,
+        unitPrice: Math.round(unitPriceHryvnia * 100),
+      });
+
+      setItemName('');
+      setItemQuantity('1');
+      setItemUnitPrice('0');
+    };
+
     return (
       <div className="grid gap-3 rounded-xl border border-border/60 bg-muted/20 p-3" data-testid={`purchase-document-metadata-form-${document.id}`}>
         <div className="space-y-3">
           <p className="text-sm font-semibold">{t('purchases.items.listTitle', 'Позиції з документа')}</p>
-          <div className="space-y-2 max-h-48 overflow-y-auto pr-2" data-testid={`purchase-document-mocked-items-${document.id}`}>
-            {[1, 2, 3].map((_, idx) => (
-              <div key={idx} className="flex gap-2 items-end bg-background p-2 rounded-md border border-border/50 text-xs">
-                 <div className="flex-1 space-y-1">
-                    <Label className="text-[10px] text-muted-foreground">{t('purchases.items.itemName', 'Назва товару')}</Label>
-                    <Input defaultValue={`Товар ${idx + 1}`} className="h-7 text-xs" />
-                 </div>
-                 <div className="w-16 space-y-1">
-                    <Label className="text-[10px] text-muted-foreground">{t('purchases.items.qty', 'К-сть')}</Label>
-                    <Input defaultValue="10" type="number" className="h-7 text-xs px-2" />
-                 </div>
-                 <div className="w-20 space-y-1">
-                    <Label className="text-[10px] text-muted-foreground">{t('purchases.items.price', 'Ціна (₴)')}</Label>
-                    <Input defaultValue="1500" type="number" className="h-7 text-xs px-2" />
-                 </div>
-                 <div className="w-24 space-y-1">
-                    <Label className="text-[10px] text-muted-foreground">{t('purchases.items.total', 'Сума (₴)')}</Label>
-                    <Input defaultValue="15000" type="number" readOnly className="h-7 text-xs bg-muted px-2" />
-                 </div>
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-2" data-testid={`purchase-document-items-list-${document.id}`}>
+            {(document.items ?? []).length === 0 ? (
+              <p className="text-xs text-muted-foreground" data-testid={`purchase-document-items-empty-${document.id}`}>{t('purchases.items.empty', 'Позиції ще не додані')}</p>
+            ) : (
+              (document.items ?? []).map((item) => (
+                <div key={item.id} className="grid grid-cols-12 items-center gap-2 rounded-md border border-border/50 bg-background p-2 text-xs" data-testid={`purchase-document-item-row-${item.id}`}>
+                  <p className="col-span-6 truncate font-medium">{item.name}</p>
+                  <p className="col-span-2 text-muted-foreground">{item.quantity}</p>
+                  <p className="col-span-2 text-muted-foreground">{(item.unitPrice / 100).toFixed(2)} ₴</p>
+                  <p className="col-span-2 text-right font-semibold">{(item.totalPrice / 100).toFixed(2)} ₴</p>
+                </div>
+              ))
+            )}
+          </div>
+
+          {document.type === DocumentType.Waybill ? (
+            <div className="grid gap-2 rounded-md border border-border/50 bg-background p-2 text-xs" data-testid={`purchase-document-add-item-form-${document.id}`}>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <Input
+                  placeholder={t('purchases.items.itemName', 'Назва товару')}
+                  value={itemName}
+                  onChange={(event) => setItemName(event.target.value)}
+                  data-testid={`purchase-document-add-item-name-${document.id}`}
+                />
+                <Input
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  value={itemQuantity}
+                  onChange={(event) => setItemQuantity(event.target.value)}
+                  data-testid={`purchase-document-add-item-quantity-${document.id}`}
+                />
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={itemUnitPrice}
+                  onChange={(event) => setItemUnitPrice(event.target.value)}
+                  data-testid={`purchase-document-add-item-unit-price-${document.id}`}
+                />
               </div>
-            ))}
+              <div className="flex justify-end">
+                <Button type="button" size="sm" variant="secondary" onClick={handleAddItem} disabled={isPending} data-testid={`purchase-document-add-item-submit-${document.id}`}>
+                  {t('purchases.items.addItem', 'Додати позицію')}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-date-${document.id}`}>{t('purchases.documentDate', 'Дата документа')}</Label>
+            <Input
+              id={`purchase-document-date-${document.id}`}
+              type="date"
+              value={documentDate}
+              onChange={(event) => setDocumentDate(event.target.value)}
+              data-testid={`purchase-document-date-input-${document.id}`}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-amount-${document.id}`}>{t('purchases.documentAmount', 'Сума документа (₴)')}</Label>
+            <Input
+              id={`purchase-document-amount-${document.id}`}
+              type="number"
+              step="0.01"
+              min="0"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              data-testid={`purchase-document-amount-input-${document.id}`}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-counterparty-${document.id}`}>{t('purchases.counterparty', 'Контрагент')}</Label>
+            <Input
+              id={`purchase-document-counterparty-${document.id}`}
+              value={counterpartyName}
+              onChange={(event) => setCounterpartyName(event.target.value)}
+              data-testid={`purchase-document-counterparty-input-${document.id}`}
+            />
           </div>
         </div>
+
         <div className="flex justify-end mt-2">
           <Button type="button" variant="outline" size="sm" onClick={handleSave} disabled={isPending} data-testid={`purchase-document-save-metadata-${document.id}`}>
             <Save className="h-4 w-4 mr-2" />
@@ -199,15 +296,22 @@ function DocumentMetadataForm({
 
 export default function OrganizationPurchaseDetailPage() {
   const { t } = useTranslation();
-  const { orgId, purchaseId } = useParams<{ orgId: string; purchaseId: string }>();
+  const { orgId, purchaseId } = useParams<{ orgId: string; purchaseId?: string }>();
   const navigate = useNavigate();
+  const isNew = !purchaseId || purchaseId === 'new';
+
+  const { data: campaigns = [] } = useCampaigns(orgId);
+  const activeCampaigns = campaigns.filter((campaign) => campaign.status === CampaignStatus.Active);
 
   const { data: purchase, isLoading: isPurchaseLoading } = usePurchaseDetailShort(
     orgId!,
     purchaseId ?? '',
-    Boolean(purchaseId)
+    Boolean(purchaseId) && !isNew
   );
 
+  const createDraftPurchase = useCreateDraftPurchase();
+  const attachPurchaseToCampaign = useAttachPurchaseToCampaign();
+  const addWaybillItem = useAddWaybillItem();
   const updatePurchase = useUpdatePurchaseShort();
   const deletePurchase = useDeletePurchaseShort();
   const uploadDocument = useUploadPurchaseDocumentShort();
@@ -228,6 +332,8 @@ export default function OrganizationPurchaseDetailPage() {
   const [transferUploadFile, setTransferUploadFile] = useState<File | null>(null);
   const [waybillUploadType, setWaybillUploadType] = useState<DocumentType>(DocumentType.Waybill);
   const [activeUploadHoverZone, setActiveUploadHoverZone] = useState<string | null>(null);
+  const [isAttachDialogOpen, setIsAttachDialogOpen] = useState(false);
+  const [selectedAttachCampaignId, setSelectedAttachCampaignId] = useState<string>('');
 
   useEffect(() => {
     if (purchase) {
@@ -243,12 +349,22 @@ export default function OrganizationPurchaseDetailPage() {
     const totalAmount = Math.round(Number(data.totalAmountStr.replace(',', '.')) * 100);
 
     try {
-      await updatePurchase.mutateAsync({
-        organizationId: orgId!,
-        purchaseId: purchaseId!,
-        payload: { title: data.title, totalAmount, status: Number(data.status) as PurchaseStatusType },
-      });
-      toast.success(t('purchases.updateSuccess', 'Закупівлю оновлено'));
+      if (isNew) {
+        const created = await createDraftPurchase.mutateAsync({
+          organizationId: orgId!,
+          title: data.title,
+          description: null,
+        });
+        toast.success(t('purchases.createSuccess', 'Закупівлю створено'));
+        navigate(`/dashboard/${orgId}/purchases/${created.id}`);
+      } else {
+        await updatePurchase.mutateAsync({
+          organizationId: orgId!,
+          purchaseId: purchaseId!,
+          payload: { title: data.title, totalAmount, status: Number(data.status) as PurchaseStatusType },
+        });
+        toast.success(t('purchases.updateSuccess', 'Закупівлю оновлено'));
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('common.error'));
     }
@@ -340,7 +456,7 @@ export default function OrganizationPurchaseDetailPage() {
   };
 
   const handleDeletePurchase = async () => {
-    if (!purchaseId || !confirm(t('purchases.deleteConfirm', 'Видалити цю закупівлю та всі прив\'язані документи?'))) return;
+    if (!purchaseId || isNew || !confirm(t('purchases.deleteConfirm', 'Видалити цю закупівлю та всі прив\'язані документи?'))) return;
     
     try {
       await deletePurchase.mutateAsync({
@@ -354,6 +470,37 @@ export default function OrganizationPurchaseDetailPage() {
     }
   };
 
+  const handleAttachPurchase = async () => {
+    if (!purchaseId || !selectedAttachCampaignId) {
+      toast.error(t('purchases.toasts.selectCampaignFirst', 'Спершу оберіть збір'));
+      return;
+    }
+
+    try {
+      await attachPurchaseToCampaign.mutateAsync({
+        purchaseId,
+        payload: { campaignId: selectedAttachCampaignId },
+      });
+      setIsAttachDialogOpen(false);
+      setSelectedAttachCampaignId('');
+      toast.success(t('purchases.attachSuccess', 'Закупівлю прикріплено до збору'));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('common.error'));
+    }
+  };
+
+  const handleAddWaybillItem = async (
+    documentId: string,
+    payload: { name: string; quantity: number; unitPrice: number },
+  ) => {
+    try {
+      await addWaybillItem.mutateAsync({ documentId, payload });
+      toast.success(t('purchases.items.addSuccess', 'Позицію додано'));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('common.error'));
+    }
+  };
+
   if (isPurchaseLoading) {
     return (
       <div className="space-y-6 max-w-3xl mx-auto">
@@ -363,7 +510,7 @@ export default function OrganizationPurchaseDetailPage() {
     );
   }
 
-  if (!purchase) {
+  if (!isNew && !purchase) {
     return (
       <div className="mx-auto max-w-4xl space-y-6">
         <Button variant="ghost" size="sm" onClick={() => navigate(`/dashboard/${orgId}/purchases`)} className="-ml-3">
@@ -379,9 +526,9 @@ export default function OrganizationPurchaseDetailPage() {
     );
   }
 
-  const receiptDocuments = purchase.documents.filter((document) => document.type === DocumentType.BankReceipt);
-  const waybillDocuments = purchase.documents.filter((document) => document.type === DocumentType.Waybill || document.type === DocumentType.Invoice);
-  const transferDocuments = purchase.documents.filter((document) => document.type === DocumentType.TransferAct);
+  const receiptDocuments = purchase?.documents.filter((document) => document.type === DocumentType.BankReceipt) ?? [];
+  const waybillDocuments = purchase?.documents.filter((document) => document.type === DocumentType.Waybill || document.type === DocumentType.Invoice) ?? [];
+  const transferDocuments = purchase?.documents.filter((document) => document.type === DocumentType.TransferAct) ?? [];
 
   return (
     <div className="mx-auto max-w-4xl space-y-6" data-testid="purchase-detail-page">
@@ -394,7 +541,7 @@ export default function OrganizationPurchaseDetailPage() {
         {/* Main Form */}
         <Card className="border border-border bg-card/60 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle>{t('purchases.editPurchase', 'Редагувати закупівлю')}</CardTitle>
+            <CardTitle>{isNew ? t('purchases.createNew', 'Нова закупівля') : t('purchases.editPurchase', 'Редагувати закупівлю')}</CardTitle>
           </CardHeader>
           <CardContent>
             <form id="purchase-form" onSubmit={handleSubmit(onSubmit)} className="grid gap-4 grid-cols-1 md:grid-cols-3">
@@ -410,7 +557,7 @@ export default function OrganizationPurchaseDetailPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="status">{t('purchases.statusFields', 'Статус')}</Label>
-                <Select onValueChange={(val) => setValue('status', val)} defaultValue={String(purchase.status)}>
+                <Select onValueChange={(val) => setValue('status', val)} defaultValue={String(purchase?.status ?? PurchaseStatus.PaymentSent)}>
                   <SelectTrigger data-testid="purchase-detail-status-trigger">
                     <SelectValue placeholder="Оберіть статус" />
                   </SelectTrigger>
@@ -425,16 +572,32 @@ export default function OrganizationPurchaseDetailPage() {
             </form>
           </CardContent>
           <CardFooter className="flex justify-between border-t border-border/50 pt-4">
-            <Button type="button" variant="default" className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeletePurchase} disabled={deletePurchase.isPending} data-testid="purchase-detail-delete-button">
+            <Button type="button" variant="default" className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeletePurchase} disabled={isNew || deletePurchase.isPending} data-testid="purchase-detail-delete-button">
               <Trash2 className="h-4 w-4 mr-2" />
               {t('common.delete')}
             </Button>
-            <Button type="submit" form="purchase-form" disabled={isSubmitting} data-testid="purchase-detail-save-button">
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" form="purchase-form" disabled={isSubmitting || createDraftPurchase.isPending} data-testid="purchase-detail-save-button">
+              {(isSubmitting || createDraftPurchase.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('common.save')}
             </Button>
           </CardFooter>
         </Card>
+
+        {!isNew && purchase && !purchase.campaignId ? (
+          <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="purchase-detail-draft-attach-card">
+            <CardHeader>
+              <CardTitle>{t('purchases.draftTitle', 'Draft закупівля')}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground" data-testid="purchase-detail-draft-message">
+                {t('purchases.draftDescription', 'Ця закупівля ще не прикріплена до збору. Прикріпіть її, щоб відображати в межах кампанії.')}
+              </p>
+              <Button type="button" onClick={() => setIsAttachDialogOpen(true)} data-testid="purchase-detail-open-attach-campaign-dialog">
+                {t('purchases.attachToCampaign', 'Прикріпити до збору')}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {/* Documents Panel */}
         <div className="space-y-6">
@@ -506,7 +669,7 @@ export default function OrganizationPurchaseDetailPage() {
                           </Button>
                         </div>
                       </div>
-                      <DocumentMetadataForm document={doc} onSubmit={handleSaveDocumentMetadata} isPending={updateDocumentMetadata.isPending} t={t} />
+                      <DocumentMetadataForm document={doc} onSubmit={handleSaveDocumentMetadata} onAddWaybillItem={handleAddWaybillItem} isPending={updateDocumentMetadata.isPending || addWaybillItem.isPending} t={t} />
                     </div>
                   ))
                 )}
@@ -520,7 +683,7 @@ export default function OrganizationPurchaseDetailPage() {
 
                 <div className="space-y-2">
                   <Label>{t('purchases.docType', 'Тип документу')}</Label>
-                  <Select value={String(waybillUploadType)} onValueChange={(value) => setWaybillUploadType(Number(value) as DocumentTypeType)}>
+                  <Select value={String(waybillUploadType)} onValueChange={(value) => setWaybillUploadType(Number(value) as DocumentType)}>
                     <SelectTrigger data-testid="purchase-documents-waybills-type-trigger">
                       <SelectValue />
                     </SelectTrigger>
@@ -666,13 +829,42 @@ export default function OrganizationPurchaseDetailPage() {
                 )}
               </section>
 
-              {!purchase.documents.length ? (
+              {!(purchase?.documents.length ?? 0) ? (
                 <p className="border-t border-border/50 pt-4 text-center text-sm text-muted-foreground">{t('purchases.noDocuments', 'Документів ще немає')}</p>
               ) : null}
             </CardContent>
           </Card>
         </div>
       </div>
+
+      <Dialog open={isAttachDialogOpen} onOpenChange={setIsAttachDialogOpen}>
+        <DialogContent data-testid="purchase-detail-attach-campaign-dialog">
+          <DialogHeader>
+            <DialogTitle>{t('purchases.attachToCampaign', 'Прикріпити до збору')}</DialogTitle>
+            <DialogDescription>{t('purchases.attachDescription', 'Оберіть активний збір, до якого потрібно прикріпити закупівлю.')}</DialogDescription>
+          </DialogHeader>
+
+          <Select value={selectedAttachCampaignId} onValueChange={setSelectedAttachCampaignId}>
+            <SelectTrigger data-testid="purchase-detail-attach-campaign-select-trigger">
+              <SelectValue placeholder={t('purchases.filters.selectCampaign', 'Оберіть збір')} />
+            </SelectTrigger>
+            <SelectContent>
+              {activeCampaigns.map((campaign) => (
+                <SelectItem key={campaign.id} value={campaign.id} data-testid={`purchase-detail-attach-campaign-option-${campaign.id}`}>
+                  {campaign.titleUk}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <div className="flex justify-end">
+            <Button type="button" onClick={handleAttachPurchase} disabled={attachPurchaseToCampaign.isPending} data-testid="purchase-detail-attach-campaign-submit-button">
+              {attachPurchaseToCampaign.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {t('common.save')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

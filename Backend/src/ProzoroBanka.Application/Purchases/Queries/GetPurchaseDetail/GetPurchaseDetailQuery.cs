@@ -7,5 +7,5 @@ namespace ProzoroBanka.Application.Purchases.Queries.GetPurchaseDetail;
 public record GetPurchaseDetailQuery(
 	Guid CallerDomainUserId,
 	Guid OrganizationId,
-	Guid CampaignId,
+	Guid? CampaignId,
 	Guid PurchaseId) : IRequest<ServiceResponse<PurchaseDetailDto>>;

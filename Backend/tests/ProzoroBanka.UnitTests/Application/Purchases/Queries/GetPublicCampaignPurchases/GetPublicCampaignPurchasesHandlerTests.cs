@@ -37,6 +37,7 @@ public class GetPublicCampaignPurchasesHandlerTests
 			new CampaignPurchase
 			{
 				Id = purchaseId,
+				OrganizationId = orgId,
 				CampaignId = campaignId,
 				CreatedByUserId = userId,
 				Title = "Normal",
@@ -46,6 +47,7 @@ public class GetPublicCampaignPurchasesHandlerTests
 			new CampaignPurchase
 			{
 				Id = cancelledId,
+				OrganizationId = orgId,
 				CampaignId = campaignId,
 				CreatedByUserId = userId,
 				Title = "Cancelled",

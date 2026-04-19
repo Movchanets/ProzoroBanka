@@ -8,7 +8,7 @@ namespace ProzoroBanka.Application.Purchases.Commands.UploadDocument;
 public record UploadDocumentCommand(
 	Guid CallerDomainUserId,
 	Guid OrganizationId,
-	Guid CampaignId,
+	Guid? CampaignId,
 	Guid PurchaseId,
 	Stream FileStream,
 	string FileName,

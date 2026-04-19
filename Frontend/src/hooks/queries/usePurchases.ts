@@ -2,6 +2,9 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { purchaseService } from '@/services/purchaseService';
 import { queryClient } from '@/services/queryClient';
 import type {
+  CreateDraftPurchaseRequest,
+  AttachPurchaseToCampaignRequest,
+  AddItemToWaybillRequest,
   CreatePurchaseRequest,
   UpdatePurchaseRequest,
   UpdateDocumentMetadataRequest,
@@ -72,6 +75,30 @@ export function useCreatePurchase() {
     }) => purchaseService.create(organizationId, campaignId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchaseKeys.lists() });
+    },
+  });
+}
+
+export function useCreateDraftPurchase() {
+  return useMutation({
+    mutationFn: (payload: CreateDraftPurchaseRequest) => purchaseService.createDraft(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: purchaseKeys.all });
+    },
+  });
+}
+
+export function useAttachPurchaseToCampaign() {
+  return useMutation({
+    mutationFn: ({
+      purchaseId,
+      payload,
+    }: {
+      purchaseId: string;
+      payload: AttachPurchaseToCampaignRequest;
+    }) => purchaseService.attachToCampaign(purchaseId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: purchaseKeys.all });
     },
   });
 }
@@ -211,6 +238,21 @@ export function useProcessPurchaseDocumentOcr() {
       queryClient.invalidateQueries({
         queryKey: purchaseKeys.detail(variables.organizationId, variables.campaignId, variables.purchaseId),
       });
+    },
+  });
+}
+
+export function useAddWaybillItem() {
+  return useMutation({
+    mutationFn: ({
+      documentId,
+      payload,
+    }: {
+      documentId: string;
+      payload: AddItemToWaybillRequest;
+    }) => purchaseService.addItemToWaybill(documentId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: purchaseKeys.all });
     },
   });
 }
