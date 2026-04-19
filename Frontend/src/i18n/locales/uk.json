@@ -132,6 +132,7 @@
   "nav": {
     "dashboard": "Дашборд",
     "campaigns": "Збори",
+    "purchases": "Закупівлі",
     "receipts": "Чеки",
     "team": "Команда",
     "settings": "Налаштування",
@@ -528,6 +529,13 @@
       "receiptMerchantFallback": "Без назви мерчанта",
       "receiptDateFallback": "Дата не вказана",
       "fullReceipt": "Повний чек",
+      "spending": {
+        "title": "Витрати",
+        "total": "Разом: {{amount}}",
+        "empty": "Поки що немає публічних витрат",
+        "documentsCount": "Документів: {{count}}",
+        "transferActSecured": "Є захищені Transfer Act документи"
+      },
       "moreReceiptsNote": "Ще {{count}} чек(ів) доступно через повні сторінки чеків.",
       "daysRemaining": "До завершення кампанії: {{count}} днів."
     }
@@ -811,6 +819,86 @@
       "receiptIdLabel": "ID чека",
       "merchantLabel": "Магазин",
       "taxVerificationLabel": "Перевірка ДПС"
+    }
+  },
+  "purchases": {
+    "listTitle": "Закупівлі",
+    "hubHint": "Акти прийому-передачі та видаткові накладні",
+    "createNew": "Нова закупівля",
+    "editPurchase": "Редагувати закупівлю",
+    "empty": "Ще немає закупівель",
+    "emptyDescription": "Закупівлі дозволяють групувати документи для фінансової звітності кампанії.",
+    "documentsCount": "Документів",
+    "titleFields": "Назва (опис)",
+    "titlePlaceholder": "Напр. 5 Мавіків",
+    "amountFields": "Загальна сума (₴)",
+    "statusFields": "Статус",
+    "documentsPanel": "Документи закупівлі",
+    "docType": "Тип документу",
+    "upload": "Завантажити",
+    "uploadDropHint": "Перетягніть файл сюди або оберіть вручну",
+    "noDocuments": "Документів ще немає",
+    "deleteConfirm": "Видалити цю закупівлю та всі прив'язані документи?",
+    "documentDate": "Дата документа",
+    "documentAmount": "Сума документа (₴)",
+    "counterparty": "Контрагент",
+    "saveMetadata": "Зберегти метадані",
+    "metadataSaved": "Метадані документа оновлено",
+    "ocrRestricted": "OCR заборонено для цього типу",
+    "ocrStarted": "OCR запущено",
+    "createSuccess": "Закупівлю створено",
+    "updateSuccess": "Закупівлю оновлено",
+    "uploadSuccess": "Документ завантажено",
+    "deleteDocSuccess": "Документ видалено",
+    "deleteSuccess": "Закупівлю видалено",
+    "filters": {
+      "statusAll": "Усі статуси"
+    },
+    "createDialog": {
+      "title": "Створити закупівлю",
+      "description": "Після створення відкриється сторінка деталей для документів та OCR."
+    },
+    "blocks": {
+      "receiptsTitle": "Блок квитанцій",
+      "receiptsDescription": "Банківські квитанції з OCR-розпізнаванням.",
+      "waybillsTitle": "Блок накладних",
+      "waybillsDescription": "Видаткові накладні та рахунки з OCR.",
+      "transferTitle": "Блок передачі (optional)",
+      "transferDescription": "Акти прийому-передачі. OCR обмежено з міркувань безпеки.",
+      "runOcr": "Запустити OCR",
+      "empty": "Документи ще не додані"
+    },
+    "toasts": {
+      "selectCampaignFirst": "Спершу оберіть збір",
+      "titleRequired": "Вкажіть назву закупівлі",
+      "amountInvalid": "Вкажіть коректну суму"
+    },
+    "status": {
+      "paymentSent": "Оплату проведено",
+      "partiallyReceived": "Частково отримано",
+      "completed": "Завершено",
+      "cancelled": "Скасовано",
+      "fallback": "Статус {{status}}"
+    },
+    "documentTypes": {
+      "bankReceipt": "Банківська квитанція",
+      "waybill": "Видаткова накладна",
+      "invoice": "Рахунок",
+      "transferAct": "Акт прийому-передачі",
+      "other": "Інше"
+    },
+    "ocrStatus": {
+      "notRequired": "OCR не потрібен",
+      "notProcessed": "OCR не запускали",
+      "processing": "OCR у процесі",
+      "success": "OCR успішно",
+      "failed": "OCR помилка",
+      "fallback": "OCR статус {{status}}"
+    },
+    "aiExtract": {
+      "title": "Auto-Extract via AI",
+      "description": "Доступно після підключення серверного endpoint для ручного запуску OCR.",
+      "button": "Auto-Extract via AI"
     }
   },
   "imageCrop": {

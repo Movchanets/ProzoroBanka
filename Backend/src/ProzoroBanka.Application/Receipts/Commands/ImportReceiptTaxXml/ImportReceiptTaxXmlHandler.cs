@@ -53,21 +53,25 @@ public class ImportReceiptTaxXmlHandler : IRequestHandler<ImportReceiptTaxXmlCom
         receipt.StateVerifiedAtUtc = null;
 
         foreach (var photo in receipt.ItemPhotos.Where(photo => !photo.IsDeleted))
-            photo.ReceiptItemId = null;
+        {
+            photo.CampaignItemId = null;
+        }
 
         var existingItems = receipt.Items.Where(item => !item.IsDeleted).ToList();
-        if (existingItems.Count > 0)
-            _db.ReceiptItems.RemoveRange(existingItems);
+        if (existingItems.Any())
+        {
+            _db.CampaignItems.RemoveRange(existingItems);
+        }
 
         var newItems = parsed.Items
             .OrderBy(item => item.SortOrder)
-            .Select((item, index) => new ReceiptItem
+            .Select((item, index) => new CampaignItem
             {
                 ReceiptId = receipt.Id,
                 Name = item.Name,
-                Quantity = item.Quantity,
-                UnitPrice = item.UnitPrice,
-                TotalPrice = item.TotalPrice,
+                Quantity = item.Quantity ?? 0m,
+                UnitPrice = (long)((item.UnitPrice ?? 0m) * 100),
+                TotalPrice = (long)((item.TotalPrice ?? 0m) * 100),
                 Barcode = item.Barcode,
                 VatRate = item.VatRate,
                 VatAmount = item.VatAmount,
@@ -76,7 +80,7 @@ public class ImportReceiptTaxXmlHandler : IRequestHandler<ImportReceiptTaxXmlCom
             .ToList();
 
         if (newItems.Count > 0)
-            _db.ReceiptItems.AddRange(newItems);
+            _db.CampaignItems.AddRange(newItems);
 
         receipt.OcrStructuredPayloadJson = BuildStructuredPayloadJson(parsed.Items);
         receipt.RawOcrJson = parsed.RawXml;

@@ -34,20 +34,20 @@ public class AddReceiptItemHandler : IRequestHandler<AddReceiptItemCommand, Serv
             ? maxSortOrder + 1
             : 0;
 
-        var item = new ReceiptItem
+        var item = new CampaignItem
         {
             ReceiptId = receipt.Id,
             Name = request.Name.Trim(),
-            Quantity = request.Quantity,
-            UnitPrice = request.UnitPrice,
-            TotalPrice = request.TotalPrice,
+            Quantity = request.Quantity ?? 0m,
+            UnitPrice = (long)((request.UnitPrice ?? 0m) * 100),
+            TotalPrice = (long)((request.TotalPrice ?? 0m) * 100),
             Barcode = string.IsNullOrWhiteSpace(request.Barcode) ? null : request.Barcode.Trim(),
             VatRate = request.VatRate,
             VatAmount = request.VatAmount,
             SortOrder = nextSortOrder,
         };
 
-        _db.ReceiptItems.Add(item);
+        _db.CampaignItems.Add(item);
 
         if (request.PhotoIds is not null && request.PhotoIds.Count > 0)
         {
@@ -56,7 +56,7 @@ public class AddReceiptItemHandler : IRequestHandler<AddReceiptItemCommand, Serv
                 .ToList();
 
             foreach (var photo in photos)
-                photo.ReceiptItemId = item.Id;
+                photo.CampaignItemId = item.Id;
         }
 
         await _db.SaveChangesAsync(ct);

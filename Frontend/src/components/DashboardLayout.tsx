@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   Receipt,
+  FileText,
   Megaphone,
   Settings,
   Users,
@@ -33,6 +34,7 @@ import {
 const navItems = [
   { labelKey: 'nav.dashboard', icon: LayoutDashboard, path: '' },
   { labelKey: 'nav.campaigns', icon: Megaphone, path: 'campaigns' },
+  { labelKey: 'nav.purchases', icon: FileText, path: 'purchases' },
   { labelKey: 'nav.receipts', icon: Receipt, path: 'receipts' },
   { labelKey: 'nav.team', icon: Users, path: 'team' },
   { labelKey: 'nav.settings', icon: Settings, path: 'settings' },

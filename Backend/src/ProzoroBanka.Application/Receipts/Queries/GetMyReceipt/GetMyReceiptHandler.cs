@@ -63,7 +63,7 @@ public class GetMyReceiptHandler : IRequestHandler<GetMyReceiptQuery, ServiceRes
 						photo.OriginalFileName,
 						_fileStorage.ResolvePublicUrl(photo.StorageKey) ?? string.Empty,
 						photo.SortOrder,
-						photo.ReceiptItemId))
+						photo.CampaignItemId))
 					.ToList(),
 				r.OcrStructuredPayloadJson,
 				r.RawOcrJson,

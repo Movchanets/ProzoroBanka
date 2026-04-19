@@ -15,7 +15,7 @@ public interface IApplicationDbContext
     DbSet<OrganizationStateRegistryCredential> OrganizationStateRegistryCredentials { get; }
     DbSet<Invitation> Invitations { get; }
     DbSet<Receipt> Receipts { get; }
-    DbSet<ReceiptItem> ReceiptItems { get; }
+    DbSet<CampaignItem> CampaignItems { get; }
     DbSet<ReceiptItemPhoto> ReceiptItemPhotos { get; }
     DbSet<MonobankTransaction> MonobankTransactions { get; }
     DbSet<MatchResult> MatchResults { get; }
@@ -27,6 +27,8 @@ public interface IApplicationDbContext
     DbSet<CampaignPost> CampaignPosts { get; }
     DbSet<CampaignPostImage> CampaignPostImages { get; }
     DbSet<OcrModelConfig> OcrModelConfigs { get; }
+    DbSet<CampaignPurchase> CampaignPurchases { get; }
+    DbSet<CampaignDocument> CampaignDocuments { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
 

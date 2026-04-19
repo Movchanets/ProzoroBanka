@@ -1,0 +1,70 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Application.Purchases.DTOs;
+using ProzoroBanka.Domain.Enums;
+
+namespace ProzoroBanka.Application.Purchases.Commands.UpdateDocumentMetadata;
+
+public class UpdateDocumentMetadataHandler : IRequestHandler<UpdateDocumentMetadataCommand, ServiceResponse<DocumentDto>>
+{
+	private readonly IApplicationDbContext _db;
+	private readonly IFileStorage _fileStorage;
+	private readonly IOrganizationAuthorizationService _orgAuth;
+
+	public UpdateDocumentMetadataHandler(
+		IApplicationDbContext db,
+		IFileStorage fileStorage,
+		IOrganizationAuthorizationService orgAuth)
+	{
+		_db = db;
+		_fileStorage = fileStorage;
+		_orgAuth = orgAuth;
+	}
+
+	public async Task<ServiceResponse<DocumentDto>> Handle(UpdateDocumentMetadataCommand request, CancellationToken ct)
+	{
+		var authResult = await _orgAuth.EnsureOrganizationAccessAsync(
+			request.OrganizationId,
+			request.CallerDomainUserId,
+			OrganizationPermissions.ManagePurchases,
+			ct: ct);
+
+		if (!authResult.IsSuccess)
+			return ServiceResponse<DocumentDto>.Failure(authResult.Message);
+
+		var campaignExists = await _db.Campaigns.AnyAsync(
+			c => c.Id == request.CampaignId && c.OrganizationId == request.OrganizationId,
+			ct);
+
+		if (!campaignExists)
+			return ServiceResponse<DocumentDto>.Failure("Збір не знайдено в цій організації");
+
+		var document = await _db.CampaignDocuments
+			.Include(d => d.Purchase)
+			.FirstOrDefaultAsync(
+				d => d.Id == request.DocumentId
+				     && d.PurchaseId == request.PurchaseId
+				     && d.Purchase.CampaignId == request.CampaignId,
+				ct);
+
+		if (document is null)
+			return ServiceResponse<DocumentDto>.Failure("Документ не знайдено");
+
+		if (request.Amount.HasValue)
+			document.Amount = request.Amount.Value;
+
+		if (request.CounterpartyName is not null)
+			document.CounterpartyName = request.CounterpartyName;
+
+		if (request.DocumentDate.HasValue)
+			document.DocumentDate = request.DocumentDate.Value;
+
+		document.IsDataVerifiedByUser = true;
+
+		await _db.SaveChangesAsync(ct);
+
+		return ServiceResponse<DocumentDto>.Success(PurchaseDtoMapper.ToDocumentDto(_fileStorage, document));
+	}
+}

@@ -30,7 +30,7 @@ public class ApplicationDbContext
 	public DbSet<OrganizationStateRegistryCredential> OrganizationStateRegistryCredentials => Set<OrganizationStateRegistryCredential>();
 	public DbSet<Invitation> Invitations => Set<Invitation>();
 	public DbSet<Receipt> Receipts => Set<Receipt>();
-	public DbSet<ReceiptItem> ReceiptItems => Set<ReceiptItem>();
+	public DbSet<CampaignItem> CampaignItems => Set<CampaignItem>();
 	public DbSet<ReceiptItemPhoto> ReceiptItemPhotos => Set<ReceiptItemPhoto>();
 	public DbSet<MonobankTransaction> MonobankTransactions => Set<MonobankTransaction>();
 	public DbSet<MatchResult> MatchResults => Set<MatchResult>();
@@ -42,6 +42,8 @@ public class ApplicationDbContext
 	public DbSet<CampaignPost> CampaignPosts => Set<CampaignPost>();
 	public DbSet<CampaignPostImage> CampaignPostImages => Set<CampaignPostImage>();
 	public DbSet<OcrModelConfig> OcrModelConfigs => Set<OcrModelConfig>();
+	public DbSet<CampaignPurchase> CampaignPurchases => Set<CampaignPurchase>();
+	public DbSet<CampaignDocument> CampaignDocuments => Set<CampaignDocument>();
 
 	// ── IApplicationDbContext explicit implementation ──
 	DbSet<User> IApplicationDbContext.Users => DomainUsers;
@@ -51,7 +53,7 @@ public class ApplicationDbContext
 	DbSet<OrganizationStateRegistryCredential> IApplicationDbContext.OrganizationStateRegistryCredentials => OrganizationStateRegistryCredentials;
 	DbSet<Invitation> IApplicationDbContext.Invitations => Invitations;
 	DbSet<Receipt> IApplicationDbContext.Receipts => Receipts;
-	DbSet<ReceiptItem> IApplicationDbContext.ReceiptItems => ReceiptItems;
+	DbSet<CampaignItem> IApplicationDbContext.CampaignItems => CampaignItems;
 	DbSet<ReceiptItemPhoto> IApplicationDbContext.ReceiptItemPhotos => ReceiptItemPhotos;
 	DbSet<MonobankTransaction> IApplicationDbContext.MonobankTransactions => MonobankTransactions;
 	DbSet<MatchResult> IApplicationDbContext.MatchResults => MatchResults;
@@ -63,6 +65,8 @@ public class ApplicationDbContext
 	DbSet<CampaignPost> IApplicationDbContext.CampaignPosts => CampaignPosts;
 	DbSet<CampaignPostImage> IApplicationDbContext.CampaignPostImages => CampaignPostImages;
 	DbSet<OcrModelConfig> IApplicationDbContext.OcrModelConfigs => OcrModelConfigs;
+	DbSet<CampaignPurchase> IApplicationDbContext.CampaignPurchases => CampaignPurchases;
+	DbSet<CampaignDocument> IApplicationDbContext.CampaignDocuments => CampaignDocuments;
 
 	protected override void OnModelCreating(ModelBuilder builder)
 	{
@@ -263,20 +267,33 @@ public class ApplicationDbContext
 				.OnDelete(DeleteBehavior.Cascade);
 		});
 
-		builder.Entity<ReceiptItem>(b =>
+		builder.Entity<CampaignItem>(b =>
 		{
-			b.ToTable("ReceiptItems");
+			b.ToTable("CampaignItems");
 			b.HasKey(e => e.Id);
 			b.Property(e => e.Name).HasMaxLength(512).IsRequired();
 			b.Property(e => e.Quantity).HasPrecision(18, 3);
 			b.Property(e => e.UnitPrice).HasPrecision(18, 2);
 			b.Property(e => e.TotalPrice).HasPrecision(18, 2);
-			b.Property(e => e.Barcode).HasMaxLength(128);
-			b.Property(e => e.VatRate).HasPrecision(8, 3);
-			b.Property(e => e.VatAmount).HasPrecision(18, 2);
 			b.HasIndex(e => e.ReceiptId);
-			b.HasIndex(e => new { e.ReceiptId, e.SortOrder });
+			b.HasIndex(e => e.CampaignDocumentId);
+			b.HasIndex(e => e.CampaignId);
 			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(x => x.Campaign)
+				.WithMany()
+				.HasForeignKey(x => x.CampaignId)
+				.OnDelete(DeleteBehavior.SetNull);
+
+			b.HasOne(x => x.Receipt)
+				.WithMany(r => r.Items)
+				.HasForeignKey(x => x.ReceiptId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasOne(x => x.CampaignDocument)
+				.WithMany()
+				.HasForeignKey(x => x.CampaignDocumentId)
+				.OnDelete(DeleteBehavior.Cascade);
 		});
 
 		builder.Entity<ReceiptItemPhoto>(b =>
@@ -286,11 +303,11 @@ public class ApplicationDbContext
 			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
 			b.Property(e => e.OriginalFileName).HasMaxLength(256).IsRequired();
 			b.HasIndex(e => e.ReceiptId);
-			b.HasIndex(e => e.ReceiptItemId);
+			b.HasIndex(e => e.CampaignItemId);
 			b.HasIndex(e => new { e.ReceiptId, e.SortOrder });
-			b.HasOne(e => e.ReceiptItem)
-				.WithMany(i => i.Photos)
-				.HasForeignKey(e => e.ReceiptItemId)
+			b.HasOne(e => e.CampaignItem)
+				.WithMany()
+				.HasForeignKey(e => e.CampaignItemId)
 				.OnDelete(DeleteBehavior.SetNull);
 			b.HasQueryFilter(e => !e.IsDeleted);
 		});
@@ -472,6 +489,64 @@ public class ApplicationDbContext
 				.WithMany(p => p.Images)
 				.HasForeignKey(e => e.CampaignPostId)
 				.OnDelete(DeleteBehavior.Cascade);
+		});
+
+		builder.Entity<CampaignPurchase>(b =>
+		{
+			b.ToTable("CampaignPurchases");
+			b.HasKey(e => e.Id);
+			b.Property(e => e.Title).HasMaxLength(500).IsRequired();
+			b.Property(e => e.Status).HasConversion<int>();
+			b.HasIndex(e => e.OrganizationId);
+			b.HasIndex(e => e.CampaignId);
+			b.HasIndex(e => e.CreatedByUserId);
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.Organization)
+				.WithMany(o => o.Purchases)
+				.HasForeignKey(e => e.OrganizationId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasOne(e => e.Campaign)
+				.WithMany(c => c.Purchases)
+				.HasForeignKey(e => e.CampaignId)
+				.OnDelete(DeleteBehavior.SetNull);
+
+			b.HasOne(e => e.CreatedBy)
+				.WithMany()
+				.HasForeignKey(e => e.CreatedByUserId)
+				.OnDelete(DeleteBehavior.Restrict);
+		});
+
+		builder.Entity<CampaignDocument>(b =>
+		{
+			b.ToTable("CampaignDocuments");
+			b.HasKey(e => e.Id);
+
+			b.HasDiscriminator(x => x.Type)
+				.HasValue<OtherDocument>(DocumentType.Other)
+				.HasValue<BankReceiptDocument>(DocumentType.BankReceipt)
+				.HasValue<WaybillDocument>(DocumentType.Waybill)
+				.HasValue<InvoiceDocument>(DocumentType.Invoice)
+				.HasValue<TransferActDocument>(DocumentType.TransferAct);
+
+			b.Property(e => e.StorageKey).HasMaxLength(512).IsRequired();
+			b.Property(e => e.OriginalFileName).HasMaxLength(256).IsRequired();
+			b.Property(e => e.CounterpartyName).HasMaxLength(500);
+			b.Property(e => e.OcrProcessingStatus).HasConversion<int>();
+			b.HasIndex(e => e.PurchaseId);
+			b.HasIndex(e => e.UploadedByUserId);
+			b.HasQueryFilter(e => !e.IsDeleted);
+
+			b.HasOne(e => e.Purchase)
+				.WithMany(p => p.Documents)
+				.HasForeignKey(e => e.PurchaseId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			b.HasOne(e => e.UploadedBy)
+				.WithMany()
+				.HasForeignKey(e => e.UploadedByUserId)
+				.OnDelete(DeleteBehavior.Restrict);
 		});
 	}
 

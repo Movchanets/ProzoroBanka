@@ -30,6 +30,7 @@ public class Organization : BaseEntity
 	public ICollection<OrganizationMember> Members { get; set; } = new List<OrganizationMember>();
 	public ICollection<Invitation> Invitations { get; set; } = new List<Invitation>();
 	public ICollection<Campaign> Campaigns { get; set; } = new List<Campaign>();
+	public ICollection<CampaignPurchase> Purchases { get; set; } = new List<CampaignPurchase>();
 	public ICollection<Receipt> Receipts { get; set; } = new List<Receipt>();
 	public ICollection<OrganizationStateRegistryCredential> StateRegistryCredentials { get; set; } = new List<OrganizationStateRegistryCredential>();
 }

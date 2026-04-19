@@ -349,7 +349,8 @@ public class AcceptInvitationHandlerTests
 			| OrganizationPermissions.ManageReceipts
 			| OrganizationPermissions.ViewReports
 			| OrganizationPermissions.UploadLogo
-			| OrganizationPermissions.ManageCampaigns;
+			| OrganizationPermissions.ManageCampaigns
+			| OrganizationPermissions.ManagePurchases;
 		Assert.Equal(expectedAdminPermissions, restored.PermissionsFlags);
 	}
 

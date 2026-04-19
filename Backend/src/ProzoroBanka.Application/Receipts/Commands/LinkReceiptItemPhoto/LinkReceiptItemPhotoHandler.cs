@@ -37,7 +37,7 @@ public class LinkReceiptItemPhotoHandler : IRequestHandler<LinkReceiptItemPhotoC
                 return ServiceResponse<ReceiptPipelineDto>.Failure("Позицію товару не знайдено");
         }
 
-        photo.ReceiptItemId = request.ReceiptItemId;
+        photo.CampaignItemId = request.ReceiptItemId;
         await _db.SaveChangesAsync(ct);
 
         return ServiceResponse<ReceiptPipelineDto>.Success(ReceiptDtoMapper.ToPipelineDto(_fileStorage, receipt));

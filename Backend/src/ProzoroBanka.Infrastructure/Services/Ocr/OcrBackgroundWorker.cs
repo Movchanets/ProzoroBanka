@@ -118,8 +118,8 @@ public class OcrBackgroundWorker : BackgroundService
 				{
 					var existingItems = receipt.Items.Where(i => !i.IsDeleted).ToList();
 					if (existingItems.Count > 0)
-						db.ReceiptItems.RemoveRange(existingItems);
-					db.ReceiptItems.AddRange(extractedItems);
+						db.CampaignItems.RemoveRange(existingItems);
+					db.CampaignItems.AddRange(extractedItems);
 				}
 
 				receipt.Status = ReceiptStatus.OcrExtracted;
@@ -153,9 +153,9 @@ public class OcrBackgroundWorker : BackgroundService
 		}
 	}
 
-	private static List<Domain.Entities.ReceiptItem> ParseItemsFromStructuredPayload(string? structuredPayloadJson, Guid receiptId)
+	private static List<Domain.Entities.CampaignItem> ParseItemsFromStructuredPayload(string? structuredPayloadJson, Guid receiptId)
 	{
-		var items = new List<Domain.Entities.ReceiptItem>();
+		var items = new List<Domain.Entities.CampaignItem>();
 		if (string.IsNullOrWhiteSpace(structuredPayloadJson))
 			return items;
 
@@ -178,13 +178,13 @@ public class OcrBackgroundWorker : BackgroundService
 				var vatRate = GetDecimal(itemElement, "vat_rate") ?? GetDecimal(itemElement, "vatRate");
 				var vatAmount = NormalizeToKopecks(GetDecimal(itemElement, "vat_amount") ?? GetDecimal(itemElement, "vatAmount"));
 
-				items.Add(new Domain.Entities.ReceiptItem
+				items.Add(new Domain.Entities.CampaignItem
 				{
 					ReceiptId = receiptId,
 					Name = name.Trim(),
-					Quantity = quantity,
-					UnitPrice = unitPrice,
-					TotalPrice = totalPrice,
+					Quantity = quantity ?? 0m,
+					UnitPrice = (long)(unitPrice ?? 0m),
+					TotalPrice = (long)(totalPrice ?? 0m),
 					Barcode = GetString(itemElement, "barcode")?.Trim(),
 					VatRate = vatRate,
 					VatAmount = vatAmount,
@@ -196,7 +196,7 @@ public class OcrBackgroundWorker : BackgroundService
 		}
 		catch
 		{
-			return new List<Domain.Entities.ReceiptItem>();
+			return new List<Domain.Entities.CampaignItem>();
 		}
 
 		return items;

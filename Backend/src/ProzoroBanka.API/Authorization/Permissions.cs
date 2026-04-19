@@ -39,6 +39,9 @@ public static class Permissions
 	public const string CampaignsManage = "campaigns.manage";
 	public const string CampaignsLogsRead = "campaigns.logs.read";
 
+	// ── Purchases ──
+	public const string PurchasesManage = "purchases.manage";
+
 	// ── System ──
 	public const string SystemSettings = "system.settings";
 }

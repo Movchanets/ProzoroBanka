@@ -132,6 +132,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "campaigns": "Campaigns",
+    "purchases": "Purchases",
     "receipts": "Receipts",
     "team": "Team",
     "settings": "Settings",
@@ -528,6 +529,13 @@
       "receiptMerchantFallback": "Merchant name is unavailable",
       "receiptDateFallback": "Date is unavailable",
       "fullReceipt": "Full receipt",
+      "spending": {
+        "title": "Spending",
+        "total": "Total: {{amount}}",
+        "empty": "No public spending records yet",
+        "documentsCount": "Documents: {{count}}",
+        "transferActSecured": "Contains secured Transfer Act documents"
+      },
       "moreReceiptsNote": "{{count}} more receipt(s) are available via full receipt pages.",
       "daysRemaining": "Days until campaign end: {{count}}."
     }
@@ -811,6 +819,86 @@
       "receiptIdLabel": "Receipt ID",
       "merchantLabel": "Merchant",
       "taxVerificationLabel": "Tax verification"
+    }
+  },
+  "purchases": {
+    "listTitle": "Purchases",
+    "hubHint": "Transfer acts and waybills",
+    "createNew": "New purchase",
+    "editPurchase": "Edit purchase",
+    "empty": "No purchases yet",
+    "emptyDescription": "Purchases let you group documents for campaign financial reporting.",
+    "documentsCount": "Documents",
+    "titleFields": "Title (description)",
+    "titlePlaceholder": "For example: 5 Mavics",
+    "amountFields": "Total amount (₴)",
+    "statusFields": "Status",
+    "documentsPanel": "Purchase documents",
+    "docType": "Document type",
+    "upload": "Upload",
+    "uploadDropHint": "Drag and drop a file here or choose manually",
+    "noDocuments": "No documents yet",
+    "deleteConfirm": "Delete this purchase and all linked documents?",
+    "documentDate": "Document date",
+    "documentAmount": "Document amount (₴)",
+    "counterparty": "Counterparty",
+    "saveMetadata": "Save metadata",
+    "metadataSaved": "Document metadata updated",
+    "ocrRestricted": "OCR is restricted for this type",
+    "ocrStarted": "OCR started",
+    "createSuccess": "Purchase created",
+    "updateSuccess": "Purchase updated",
+    "uploadSuccess": "Document uploaded",
+    "deleteDocSuccess": "Document deleted",
+    "deleteSuccess": "Purchase deleted",
+    "filters": {
+      "statusAll": "All statuses"
+    },
+    "createDialog": {
+      "title": "Create purchase",
+      "description": "After creation, the details page opens for document upload and OCR review."
+    },
+    "blocks": {
+      "receiptsTitle": "Receipts block",
+      "receiptsDescription": "Bank receipts with OCR processing.",
+      "waybillsTitle": "Waybills block",
+      "waybillsDescription": "Waybills and invoices with OCR.",
+      "transferTitle": "Transfer block (optional)",
+      "transferDescription": "Transfer acts. OCR is restricted for safety reasons.",
+      "runOcr": "Run OCR",
+      "empty": "No documents added yet"
+    },
+    "toasts": {
+      "selectCampaignFirst": "Select a campaign first",
+      "titleRequired": "Purchase title is required",
+      "amountInvalid": "Enter a valid amount"
+    },
+    "status": {
+      "paymentSent": "Payment sent",
+      "partiallyReceived": "Partially received",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "fallback": "Status {{status}}"
+    },
+    "documentTypes": {
+      "bankReceipt": "Bank receipt",
+      "waybill": "Waybill",
+      "invoice": "Invoice",
+      "transferAct": "Transfer act",
+      "other": "Other"
+    },
+    "ocrStatus": {
+      "notRequired": "OCR not required",
+      "notProcessed": "OCR not processed",
+      "processing": "OCR processing",
+      "success": "OCR success",
+      "failed": "OCR failed",
+      "fallback": "OCR status {{status}}"
+    },
+    "aiExtract": {
+      "title": "Auto-Extract via AI",
+      "description": "Available after backend endpoint is connected for manual OCR trigger.",
+      "button": "Auto-Extract via AI"
     }
   },
   "imageCrop": {

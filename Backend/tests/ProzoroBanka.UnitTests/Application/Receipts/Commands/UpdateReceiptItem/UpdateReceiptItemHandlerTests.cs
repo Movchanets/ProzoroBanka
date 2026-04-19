@@ -45,7 +45,7 @@ public class UpdateReceiptItemHandlerTests
 			PublicationStatus = ReceiptPublicationStatus.Draft,
 			Items =
 			[
-				new ReceiptItem
+				new CampaignItem
 				{
 					Id = itemId,
 					ReceiptId = receiptId,
@@ -81,12 +81,12 @@ public class UpdateReceiptItemHandlerTests
 				CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
-		var updatedItem = await db.ReceiptItems.FindAsync(itemId);
+		var updatedItem = await db.CampaignItems.FindAsync(itemId);
 		Assert.NotNull(updatedItem);
 		Assert.Equal("Updated item", updatedItem!.Name);
 		Assert.Equal(2, updatedItem.Quantity);
-		Assert.Equal(2699, updatedItem.UnitPrice);
-		Assert.Equal(5398, updatedItem.TotalPrice);
+		Assert.Equal(269900, updatedItem.UnitPrice);
+		Assert.Equal(539800, updatedItem.TotalPrice);
 		Assert.Equal("4823096005591", updatedItem.Barcode);
 		Assert.Equal(20, updatedItem.VatRate);
 		Assert.Equal(540, updatedItem.VatAmount);
