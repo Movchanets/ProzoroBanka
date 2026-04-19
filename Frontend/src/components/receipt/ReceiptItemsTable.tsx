@@ -83,7 +83,7 @@ function parseMoneyInput(value: string) {
   const parsed = Number(normalized);
   if (!Number.isFinite(parsed)) return undefined;
 
-  return Math.round(parsed * 100);
+  return parsed;
 }
 
 function parsePlainNumber(value: string) {

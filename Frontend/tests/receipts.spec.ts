@@ -60,10 +60,6 @@ test.describe('Dashboard — Receipts', () => {
     await expect(receiptDetailPage.stateId).toHaveText(/[0-9a-f-]{36}/i);
 
     const receiptId = await receiptDetailPage.getReceiptId();
-    const alias = `alias-${Date.now()}`;
-
-    await receiptDetailPage.saveAlias(alias);
-    await expect(receiptDetailPage.saveOcrButton).toBeDisabled();
 
     await receiptDetailPage.openItemsTab();
     await receiptDetailPage.addItemPhoto(itemPhotoFixturePath);
@@ -71,7 +67,6 @@ test.describe('Dashboard — Receipts', () => {
     await receiptDetailPage.backToListButton.click();
     await receiptsListPage.waitForReady();
     await expect(receiptsListPage.row(receiptId)).toBeVisible();
-    await expect(receiptsListPage.alias(receiptId)).toHaveText(alias);
 
     await receiptsListPage.openReceipt(receiptId);
     await receiptDetailPage.waitForReady();

@@ -65,6 +65,7 @@ test.describe('Public pages', () => {
     await expect(campaignPublicPage.header).toBeVisible();
     await expect(campaignPublicPage.progressPanel).toBeVisible();
     await expect(campaignPublicPage.description).toBeVisible();
+    await campaignPublicPage.page.getByTestId('public-campaign-tab-receipts').click();
     await expect(campaignPublicPage.receiptsList).toBeVisible();
     await expect(campaignPublicPage.receiptLink).toBeVisible();
   });
@@ -72,6 +73,7 @@ test.describe('Public pages', () => {
   test('TC-04A: navigation from campaign receipt to receipt page works', async ({ page, campaignPublicPage, receiptPublicPage }) => {
     await campaignPublicPage.goto('camp-1');
 
+    await campaignPublicPage.page.getByTestId('public-campaign-tab-receipts').click();
     await expect(campaignPublicPage.receiptLink).toBeVisible();
     await campaignPublicPage.clickFirstReceipt();
 

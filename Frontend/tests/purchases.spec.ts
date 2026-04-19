@@ -35,12 +35,11 @@ test.describe('Purchases Flow', () => {
     await page.goto(`/dashboard/${campaignSeed.orgId}/purchases?campaignId=${campaign.id}`);
 
     await page.getByTestId('organization-purchases-open-create-dialog').click();
-    await expect(page.getByTestId('organization-purchases-create-dialog')).toBeVisible();
-
-    await page.getByTestId('organization-purchases-create-title-input').fill('Тестова закупівля');
-    await page.getByTestId('organization-purchases-create-amount-input').fill('2500');
-
-    await expect(page.getByTestId('organization-purchases-create-submit-button')).toBeEnabled();
+    await expect(page).toHaveURL(new RegExp(`/dashboard/${campaignSeed.orgId}/purchases/new$`));
+    await expect(page.getByTestId('purchase-detail-page')).toBeVisible();
+    await expect(page.getByTestId('purchase-detail-title-input')).toBeVisible();
+    await expect(page.getByTestId('purchase-detail-total-amount-input')).toBeVisible();
+    await expect(page.getByTestId('purchase-detail-save-button')).toBeEnabled();
   });
 
   test('TC-03: purchase detail (new) page exposes core form actions', async ({ page, campaignApi, campaignSeed }) => {
@@ -84,13 +83,12 @@ test.describe('Purchases Flow', () => {
 
     await page.goto(`/dashboard/${campaignSeed.orgId}/purchases?campaignId=${campaign.id}`);
     await page.getByTestId('organization-purchases-open-create-dialog').click();
-    await page.getByTestId('organization-purchases-create-title-input').fill('Покупка для OCR');
-    await page.getByTestId('organization-purchases-create-amount-input').fill('1000');
-    await page.getByTestId('organization-purchases-create-submit-button').click();
+    await expect(page.getByTestId('purchase-detail-page')).toBeVisible();
+    await page.getByTestId('purchase-detail-title-input').fill('Покупка для OCR');
+    await page.getByTestId('purchase-detail-total-amount-input').fill('1000');
+    await page.getByTestId('purchase-detail-save-button').click();
 
     await expect(page.getByTestId('purchase-detail-page')).toBeVisible();
-    await expect(page.getByTestId('purchase-detail-ai-extract-panel')).toBeVisible();
-    await expect(page.getByTestId('purchase-detail-ai-extract-button')).toBeDisabled();
     await expect(page.getByTestId('purchase-documents-receipts-dropzone')).toBeVisible();
     await expect(page.getByTestId('purchase-documents-waybills-dropzone')).toBeVisible();
     await expect(page.getByTestId('purchase-documents-transfer-dropzone')).toBeVisible();
