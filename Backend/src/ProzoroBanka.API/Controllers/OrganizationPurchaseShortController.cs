@@ -150,7 +150,9 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 		var result = await _sender.Send(
 			new UpdateDocumentMetadataCommand(
 				userId.Value, organizationId, null, purchaseId, documentId,
-				request.Amount, request.CounterpartyName, request.DocumentDate),
+				request.Amount, request.CounterpartyName, request.DocumentDate,
+				request.SenderIbanOrCard, request.Edrpou, request.PayerFullName,
+				request.ReceiptCode, request.PaymentPurpose, request.SenderIban, request.ReceiverIban),
 			ct);
 
 		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });

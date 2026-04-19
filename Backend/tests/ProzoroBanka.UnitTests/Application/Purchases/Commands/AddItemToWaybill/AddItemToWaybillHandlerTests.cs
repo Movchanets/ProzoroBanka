@@ -1,4 +1,5 @@
 using Moq;
+using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Purchases.Commands.AddItemToWaybill;
@@ -69,6 +70,12 @@ public class AddItemToWaybillHandlerTests
         Assert.Equal(2, item.Quantity);
         Assert.Equal(150000, item.UnitPrice);
         Assert.Equal(300000, item.TotalPrice);
-        Assert.Equal(documentId, item.CampaignDocumentId);
+
+        var reloadedWaybill = await db.CampaignDocuments
+            .OfType<WaybillDocument>()
+            .Include(x => x.Items)
+            .FirstAsync(x => x.Id == documentId);
+
+        Assert.Single(reloadedWaybill.Items, x => !x.IsDeleted);
     }
 }

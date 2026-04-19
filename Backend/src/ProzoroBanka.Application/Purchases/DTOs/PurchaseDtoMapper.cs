@@ -47,7 +47,15 @@ public static class PurchaseDtoMapper
 			document.OcrProcessingStatus,
 			document.IsDataVerifiedByUser,
 			ToDocumentItems(document),
-			document.CreatedAt);
+			document.CreatedAt,
+			GetBankReceiptSenderIbanOrCard(document),
+			GetBankReceiptEdrpou(document),
+			GetBankReceiptPayerFullName(document),
+			GetBankReceiptTotalItemsAmount(document),
+			GetBankReceiptReceiptCode(document),
+			GetBankReceiptPaymentPurpose(document),
+			GetBankReceiptSenderIban(document),
+			GetBankReceiptReceiverIban(document));
 
 	/// <summary>
 	/// Публічний DTO — без FileUrl для TransferAct (безпекове обмеження).
@@ -66,7 +74,15 @@ public static class PurchaseDtoMapper
 			document.OcrProcessingStatus,
 			document.IsDataVerifiedByUser,
 			ToDocumentItems(document),
-			document.CreatedAt);
+			document.CreatedAt,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null);
 
 	private static IReadOnlyList<DocumentItemDto>? ToDocumentItems(CampaignDocument document)
 	{
@@ -90,4 +106,28 @@ public static class PurchaseDtoMapper
 					item.TotalPrice))
 				.ToList();
 	}
+
+	private static string? GetBankReceiptSenderIbanOrCard(CampaignDocument document) =>
+		document is BankReceiptDocument bankReceipt ? bankReceipt.SenderIbanOrCard : null;
+
+	private static string? GetBankReceiptEdrpou(CampaignDocument document) =>
+		document is BankReceiptDocument bankReceipt ? bankReceipt.Edrpou : null;
+
+	private static string? GetBankReceiptPayerFullName(CampaignDocument document) =>
+		document is BankReceiptDocument bankReceipt ? bankReceipt.PayerFullName : null;
+
+	private static long? GetBankReceiptTotalItemsAmount(CampaignDocument document) =>
+		document is BankReceiptDocument bankReceipt ? bankReceipt.TotalItemsAmount : null;
+
+	private static string? GetBankReceiptReceiptCode(CampaignDocument document) =>
+		document is BankReceiptDocument bankReceipt ? bankReceipt.ReceiptCode : null;
+
+	private static string? GetBankReceiptPaymentPurpose(CampaignDocument document) =>
+		document is BankReceiptDocument bankReceipt ? bankReceipt.PaymentPurpose : null;
+
+	private static string? GetBankReceiptSenderIban(CampaignDocument document) =>
+		document is BankReceiptDocument bankReceipt ? bankReceipt.SenderIban : null;
+
+	private static string? GetBankReceiptReceiverIban(CampaignDocument document) =>
+		document is BankReceiptDocument bankReceipt ? bankReceipt.ReceiverIban : null;
 }

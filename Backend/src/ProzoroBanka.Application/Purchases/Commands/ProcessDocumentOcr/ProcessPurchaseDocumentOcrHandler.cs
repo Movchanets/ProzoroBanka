@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Application.Purchases.Common;
 using ProzoroBanka.Application.Purchases.DTOs;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
@@ -14,17 +15,20 @@ public class ProcessPurchaseDocumentOcrHandler : IRequestHandler<ProcessPurchase
 	private readonly IFileStorage _fileStorage;
 	private readonly IOrganizationAuthorizationService _orgAuth;
 	private readonly IDocumentOcrService _ocrService;
+	private readonly IPurchaseDocumentOcrDispatcher _ocrDispatcher;
 
 	public ProcessPurchaseDocumentOcrHandler(
 		IApplicationDbContext db,
 		IFileStorage fileStorage,
 		IOrganizationAuthorizationService orgAuth,
-		IDocumentOcrService ocrService)
+		IDocumentOcrService ocrService,
+		IPurchaseDocumentOcrDispatcher ocrDispatcher)
 	{
 		_db = db;
 		_fileStorage = fileStorage;
 		_orgAuth = orgAuth;
 		_ocrService = ocrService;
+		_ocrDispatcher = ocrDispatcher;
 	}
 
 	public async Task<ServiceResponse<DocumentDto>> Handle(ProcessPurchaseDocumentOcrCommand request, CancellationToken ct)
@@ -78,7 +82,7 @@ public class ProcessPurchaseDocumentOcrHandler : IRequestHandler<ProcessPurchase
 			if (ocrResult.Success)
 			{
 				document.OcrProcessingStatus = OcrProcessingStatus.Success;
-				await ApplyOcrResult(document, ocrResult, ct);
+				await _ocrDispatcher.ApplyAsync(document, ocrResult, ct);
 			}
 			else
 			{
@@ -94,76 +98,4 @@ public class ProcessPurchaseDocumentOcrHandler : IRequestHandler<ProcessPurchase
 
 		return ServiceResponse<DocumentDto>.Success(PurchaseDtoMapper.ToDocumentDto(_fileStorage, document));
 	}
-
-	private async Task ApplyOcrResult(CampaignDocument document, DocumentOcrResult ocrResult, CancellationToken ct)
-	{
-		document.IsDataVerifiedByUser = false;
-		document.OcrRawResult = ocrResult.RawJson;
-		document.CounterpartyName = string.IsNullOrWhiteSpace(ocrResult.CounterpartyName)
-			? null
-			: ocrResult.CounterpartyName.Trim();
-		document.Amount = ocrResult.TotalAmount.HasValue
-			? (long)Math.Round(ocrResult.TotalAmount.Value * 100m, 0, MidpointRounding.AwayFromZero)
-			: null;
-		document.DocumentDate = ocrResult.DocumentDate.HasValue
-			? DateTime.SpecifyKind(ocrResult.DocumentDate.Value, DateTimeKind.Utc)
-			: null;
-
-		switch (document)
-		{
-			case BankReceiptDocument bankReceipt:
-				ApplyBankReceiptOcr(bankReceipt, ocrResult);
-				break;
-			case WaybillDocument waybill:
-				await ApplyWaybillOcr(waybill, ocrResult, ct);
-				break;
-			case InvoiceDocument invoice:
-				await ApplyWaybillOcr(invoice, ocrResult, ct);
-				break;
-		}
-	}
-
-	private static void ApplyBankReceiptOcr(BankReceiptDocument bankReceipt, DocumentOcrResult ocrResult)
-	{
-		bankReceipt.TotalItemsAmount = ocrResult.Items.Sum(item => ToKopecks(item.TotalPrice));
-	}
-
-	private async Task ApplyWaybillOcr(CampaignDocument document, DocumentOcrResult ocrResult, CancellationToken ct)
-	{
-		var documentItems = document switch
-		{
-			WaybillDocument waybill => waybill.Items,
-			InvoiceDocument invoice => invoice.Items,
-			_ => throw new InvalidOperationException("OCR item mapping is only supported for waybill-like documents")
-		};
-
-		await _db.CampaignItems
-			.Where(item => item.CampaignDocumentId == document.Id)
-			.LoadAsync(ct);
-
-		foreach (var existingItem in documentItems.Where(item => !item.IsDeleted))
-		{
-			existingItem.IsDeleted = true;
-		}
-
-		var nextSortOrder = 0;
-		foreach (var parsedItem in ocrResult.Items)
-		{
-			var item = new CampaignItem
-			{
-				CampaignId = document.Purchase.CampaignId,
-				CampaignDocumentId = document.Id,
-				Name = parsedItem.Name,
-				Quantity = parsedItem.Quantity,
-				UnitPrice = ToKopecks(parsedItem.UnitPrice),
-				TotalPrice = ToKopecks(parsedItem.TotalPrice),
-				SortOrder = nextSortOrder++
-			};
-
-			_db.CampaignItems.Add(item);
-		}
-	}
-
-	private static long ToKopecks(decimal value) =>
-		(long)Math.Round(value * 100m, 0, MidpointRounding.AwayFromZero);
 }

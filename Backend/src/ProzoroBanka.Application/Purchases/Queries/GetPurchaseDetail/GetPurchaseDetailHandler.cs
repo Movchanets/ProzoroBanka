@@ -76,7 +76,10 @@ public class GetPurchaseDetailHandler
 			return;
 
 		await _db.CampaignItems
-			.Where(item => item.CampaignDocumentId.HasValue && documentIds.Contains(item.CampaignDocumentId.Value))
+			.Where(item =>
+				(item.CampaignDocumentId.HasValue && documentIds.Contains(item.CampaignDocumentId.Value))
+				|| (EF.Property<Guid?>(item, "WaybillDocumentId").HasValue && documentIds.Contains(EF.Property<Guid?>(item, "WaybillDocumentId")!.Value))
+				|| (EF.Property<Guid?>(item, "InvoiceDocumentId").HasValue && documentIds.Contains(EF.Property<Guid?>(item, "InvoiceDocumentId")!.Value)))
 			.LoadAsync(ct);
 	}
 }

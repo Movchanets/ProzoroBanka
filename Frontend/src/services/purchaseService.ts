@@ -6,6 +6,7 @@ import type {
   CreateDraftPurchaseRequest,
   AttachPurchaseToCampaignRequest,
   AddItemToWaybillRequest,
+  UpdateWaybillItemRequest,
   CreatePurchaseRequest,
   UpdatePurchaseRequest,
   UpdateDocumentMetadataRequest,
@@ -53,6 +54,17 @@ export const purchaseService = {
     apiFetch<{ id: string }>(`/api/purchases/documents/${documentId}/items`, {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+
+  updateWaybillItem: (documentId: string, itemId: string, payload: UpdateWaybillItemRequest) =>
+    apiFetch<DocumentDto>(`/api/purchases/documents/${documentId}/items/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteWaybillItem: (documentId: string, itemId: string) =>
+    apiFetch<DocumentDto>(`/api/purchases/documents/${documentId}/items/${itemId}`, {
+      method: 'DELETE',
     }),
 
   update: (organizationId: string, campaignId: string, purchaseId: string, payload: UpdatePurchaseRequest) =>

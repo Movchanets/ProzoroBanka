@@ -12,4 +12,11 @@ public record UpdateDocumentMetadataCommand(
 	Guid DocumentId,
 	long? Amount,
 	string? CounterpartyName,
-	DateTime? DocumentDate) : IRequest<ServiceResponse<DocumentDto>>;
+	DateTime? DocumentDate,
+	string? SenderIbanOrCard = null,
+	string? Edrpou = null,
+	string? PayerFullName = null,
+	string? ReceiptCode = null,
+	string? PaymentPurpose = null,
+	string? SenderIban = null,
+	string? ReceiverIban = null) : IRequest<ServiceResponse<DocumentDto>>;

@@ -22,8 +22,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Loader2, Trash2, UploadCloud, Download, Sparkles, Save } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash2, UploadCloud, Download, Sparkles, Save, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import { DocumentPreviewDialog } from '@/components/ui/document-preview-dialog';
 
 function getPurchaseStatusLabel(status: PurchaseStatus, t: TFunction) {
   switch (status) {
@@ -233,6 +234,15 @@ export default function CampaignPurchaseDetailPage() {
   const [transferUploadFile, setTransferUploadFile] = useState<File | null>(null);
   const [waybillUploadType, setWaybillUploadType] = useState<DocumentType>(DocumentType.Waybill);
   const [activeUploadHoverZone, setActiveUploadHoverZone] = useState<string | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<{ src: string; title: string; fileName?: string; mimeType?: string } | null>(null);
+
+  const openDocumentPreview = (fileUrl: string | null, originalFileName: string) => {
+    if (!fileUrl) {
+      return;
+    }
+
+    setPreviewDocument({ src: fileUrl, title: originalFileName, fileName: originalFileName });
+  };
 
   useEffect(() => {
     if (purchase) {
@@ -505,6 +515,11 @@ export default function CampaignPurchaseDetailPage() {
                               {t('purchases.blocks.runOcr', 'Запустити OCR')}
                             </Button>
                             {doc.fileUrl ? (
+                              <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                            {doc.fileUrl ? (
                               <Button variant="ghost" size="icon" asChild data-testid={`purchase-document-download-${doc.id}`}>
                                 <a href={doc.fileUrl} target="_blank" rel="noreferrer">
                                   <Download className="h-4 w-4" />
@@ -587,6 +602,11 @@ export default function CampaignPurchaseDetailPage() {
                               {t('purchases.blocks.runOcr', 'Запустити OCR')}
                             </Button>
                             {doc.fileUrl ? (
+                              <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                            {doc.fileUrl ? (
                               <Button variant="ghost" size="icon" asChild data-testid={`purchase-document-download-${doc.id}`}>
                                 <a href={doc.fileUrl} target="_blank" rel="noreferrer">
                                   <Download className="h-4 w-4" />
@@ -659,6 +679,11 @@ export default function CampaignPurchaseDetailPage() {
                               {t('purchases.blocks.runOcr', 'Запустити OCR')}
                             </Button>
                             {doc.fileUrl ? (
+                              <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                            {doc.fileUrl ? (
                               <Button variant="ghost" size="icon" asChild data-testid={`purchase-document-download-${doc.id}`}>
                                 <a href={doc.fileUrl} target="_blank" rel="noreferrer">
                                   <Download className="h-4 w-4" />
@@ -681,6 +706,20 @@ export default function CampaignPurchaseDetailPage() {
                 ) : null}
               </CardContent>
             </Card>
+            <DocumentPreviewDialog
+              open={Boolean(previewDocument)}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setPreviewDocument(null);
+                }
+              }}
+              src={previewDocument?.src ?? null}
+              title={previewDocument?.title ?? ''}
+              fileName={previewDocument?.fileName}
+              mimeType={previewDocument?.mimeType}
+              description={previewDocument?.fileName}
+              testIdPrefix="purchase-document-preview"
+            />
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
-import type { ChangeEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Crop, FileDigit, FileImage, Loader2 } from 'lucide-react';
+import { Crop, Eye, FileDigit, FileImage, FileText, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DocumentPreviewDialog } from '@/components/ui/document-preview-dialog';
 
 interface ReceiptUploadCardProps {
   selectedFile: File | null;
@@ -39,6 +40,28 @@ export function ReceiptUploadCard({
   onRecropReceipt,
 }: ReceiptUploadCardProps) {
   const { t } = useTranslation();
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const selectedFilePreviewUrl = useMemo(() => {
+    if (!selectedFile || selectedFile.type !== 'application/pdf') {
+      return null;
+    }
+
+    return URL.createObjectURL(selectedFile);
+  }, [selectedFile]);
+
+  useEffect(() => {
+    return () => {
+      if (selectedFilePreviewUrl) {
+        URL.revokeObjectURL(selectedFilePreviewUrl);
+      }
+    };
+  }, [selectedFilePreviewUrl]);
+
+  const previewSrc = displayedReceiptPreview ?? selectedFilePreviewUrl;
+  const previewMimeType = selectedFile?.type ?? (displayedReceiptPreview ? 'image/*' : undefined);
+  const canOpenPreview = Boolean(previewSrc);
+
+  const previewTitle = selectedFile?.name || displayedReceiptFileName || t('receipts.detail.receiptFile.previewAlt');
 
   return (
     <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="dashboard-receipts-upload-card">
@@ -65,17 +88,36 @@ export function ReceiptUploadCard({
             {displayedReceiptPreview ? (
               <div className="space-y-3">
                 <div className="overflow-hidden rounded-xl border border-border/60 bg-background" data-testid="dashboard-receipts-upload-preview">
-                  <img src={displayedReceiptPreview} alt={t('receipts.detail.receiptFile.previewAlt')} className="max-h-80 w-full object-contain" />
+                  <button
+                    type="button"
+                    className="block w-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => setIsPreviewOpen(true)}
+                    data-testid="dashboard-receipts-upload-preview-open-button"
+                  >
+                    <img src={displayedReceiptPreview} alt={t('receipts.detail.receiptFile.previewAlt')} className="max-h-80 w-full object-contain" />
+                  </button>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <span className="break-all font-medium">{displayedReceiptFileName}</span>
                   <Badge variant="outline">{selectedFileWasCropped ? t('receipts.detail.receiptFile.croppedBadge') : t('receipts.detail.receiptFile.originalBadge')}</Badge>
+                  {canOpenPreview ? (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setIsPreviewOpen(true)} data-testid="dashboard-receipts-upload-preview-button">
+                      <Eye className="mr-2 h-4 w-4" />
+                      {t('common.preview', 'Переглянути')}
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             ) : (
               <div className="flex items-center gap-3 text-sm">
-                <FileImage className="h-5 w-5 text-primary" />
-                <span>{displayedReceiptFileName}</span>
+                {selectedFilePreviewUrl ? <FileText className="h-5 w-5 text-primary" /> : <FileImage className="h-5 w-5 text-primary" />}
+                <span className="break-all">{displayedReceiptFileName}</span>
+                {canOpenPreview ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setIsPreviewOpen(true)} data-testid="dashboard-receipts-upload-preview-button">
+                    <Eye className="mr-2 h-4 w-4" />
+                    {t('common.preview', 'Переглянути')}
+                  </Button>
+                ) : null}
               </div>
             )}
           </div>
@@ -83,11 +125,22 @@ export function ReceiptUploadCard({
           <div className="min-w-0 rounded-2xl border border-border/70 bg-muted/10 p-3">
             <div className="space-y-3">
               <div className="overflow-hidden rounded-xl border border-border/60 bg-background" data-testid="dashboard-receipts-upload-preview">
-                <img src={displayedReceiptPreview} alt={t('receipts.detail.receiptFile.serverPreviewAlt')} className="max-h-80 w-full object-contain" />
+                <button
+                  type="button"
+                  className="block w-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => setIsPreviewOpen(true)}
+                  data-testid="dashboard-receipts-upload-preview-open-button"
+                >
+                  <img src={displayedReceiptPreview} alt={t('receipts.detail.receiptFile.serverPreviewAlt')} className="max-h-80 w-full object-contain" />
+                </button>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="break-all font-medium">{displayedReceiptFileName}</span>
                 <Badge variant="outline">{t('receipts.detail.receiptFile.backendBadge')}</Badge>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setIsPreviewOpen(true)} data-testid="dashboard-receipts-upload-preview-button">
+                  <Eye className="mr-2 h-4 w-4" />
+                  {t('common.preview', 'Переглянути')}
+                </Button>
               </div>
             </div>
           </div>
@@ -112,6 +165,16 @@ export function ReceiptUploadCard({
             {t('receipts.detail.receiptFile.recrop')}
           </Button>
         </div>
+        <DocumentPreviewDialog
+          open={isPreviewOpen}
+          onOpenChange={setIsPreviewOpen}
+          src={previewSrc}
+          title={previewTitle}
+          fileName={displayedReceiptFileName || selectedFile?.name}
+          mimeType={previewMimeType}
+          description={selectedFileWasCropped ? t('receipts.detail.receiptFile.croppedBadge') : t('receipts.detail.receiptFile.previewAlt')}
+          testIdPrefix="dashboard-receipts-upload-preview"
+        />
       </CardContent>
     </Card>
   );

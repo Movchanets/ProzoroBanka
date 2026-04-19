@@ -5,6 +5,7 @@ import type {
   CreateDraftPurchaseRequest,
   AttachPurchaseToCampaignRequest,
   AddItemToWaybillRequest,
+  UpdateWaybillItemRequest,
   CreatePurchaseRequest,
   UpdatePurchaseRequest,
   UpdateDocumentMetadataRequest,
@@ -251,6 +252,38 @@ export function useAddWaybillItem() {
       documentId: string;
       payload: AddItemToWaybillRequest;
     }) => purchaseService.addItemToWaybill(documentId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: purchaseKeys.all });
+    },
+  });
+}
+
+export function useUpdateWaybillItem() {
+  return useMutation({
+    mutationFn: ({
+      documentId,
+      itemId,
+      payload,
+    }: {
+      documentId: string;
+      itemId: string;
+      payload: UpdateWaybillItemRequest;
+    }) => purchaseService.updateWaybillItem(documentId, itemId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: purchaseKeys.all });
+    },
+  });
+}
+
+export function useDeleteWaybillItem() {
+  return useMutation({
+    mutationFn: ({
+      documentId,
+      itemId,
+    }: {
+      documentId: string;
+      itemId: string;
+    }) => purchaseService.deleteWaybillItem(documentId, itemId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchaseKeys.all });
     },

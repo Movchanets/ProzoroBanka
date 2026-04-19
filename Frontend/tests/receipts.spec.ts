@@ -52,6 +52,11 @@ test.describe('Dashboard — Receipts', () => {
     await receiptDetailPage.waitForReady();
     await receiptDetailPage.uploadDraft(receiptFixturePath);
     await expect(receiptDetailPage.uploadPreview).toBeVisible();
+    await expect(receiptDetailPage.uploadPreviewButton).toBeVisible();
+    await receiptDetailPage.uploadPreviewButton.click();
+    await expect(receiptDetailPage.uploadPreviewDialog).toBeVisible();
+    await receiptDetailPage.uploadPreviewDialog.getByRole('button', { name: /close|закрити/i }).click();
+    await expect(receiptDetailPage.uploadPreviewDialog).toBeHidden();
     await expect(receiptDetailPage.stateId).toHaveText(/[0-9a-f-]{36}/i);
 
     const receiptId = await receiptDetailPage.getReceiptId();

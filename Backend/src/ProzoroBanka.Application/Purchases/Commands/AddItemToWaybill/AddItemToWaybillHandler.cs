@@ -63,6 +63,10 @@ public class AddItemToWaybillHandler : IRequestHandler<AddItemToWaybillCommand, 
 		};
 
 		_db.CampaignItems.Add(item);
+		if (_db is DbContext efContext)
+		{
+			efContext.Entry(item).Property("WaybillDocumentId").CurrentValue = document.Id;
+		}
 		await _db.SaveChangesAsync(ct);
 
 		return ServiceResponse<Guid>.Success(item.Id);

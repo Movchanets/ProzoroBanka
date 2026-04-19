@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using ProzoroBanka.Application.Contracts.Email;
 using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Application.Purchases.Common;
 using ProzoroBanka.Domain.Interfaces;
 using ProzoroBanka.Infrastructure.Data;
 using ProzoroBanka.Infrastructure.Identity;
@@ -82,6 +83,7 @@ public static class DependencyInjection
         }
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
         services.AddScoped<IOrganizationPlanLimitService, OrganizationPlanLimitService>();
+        services.AddScoped<IPurchaseDocumentOcrDispatcher, PurchaseDocumentOcrDispatcher>();
         var useOcrExtractionStub = configuration.GetValue<bool?>("Ocr:UseExtractionStub") ?? true; // consistent with OcrOptions binding
         if (useOcrExtractionStub)
         {

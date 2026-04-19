@@ -15,6 +15,8 @@ import {
   useUpdatePurchaseDocumentMetadataShort,
   useDeletePurchaseDocumentShort,
   useProcessPurchaseDocumentOcrShort,
+  useUpdateWaybillItem,
+  useDeleteWaybillItem,
 } from '@/hooks/queries/usePurchases';
 import { CampaignStatus, PurchaseStatus, DocumentType, OcrProcessingStatus, type DocumentDto } from '@/types';
 import type { PurchaseStatus as PurchaseStatusType } from '@/types';
@@ -26,8 +28,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Loader2, Trash2, UploadCloud, Download, Sparkles, Save } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash2, UploadCloud, Download, Sparkles, Save, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import { DocumentPreviewDialog } from '@/components/ui/document-preview-dialog';
 
 function getPurchaseStatusLabel(status: PurchaseStatus, t: TFunction) {
   switch (status) {
@@ -95,21 +98,52 @@ function DocumentMetadataForm({
   document,
   onSubmit,
   onAddWaybillItem,
+  onUpdateWaybillItem,
+  onDeleteWaybillItem,
   isPending,
   t,
 }: {
   document: DocumentDto;
-  onSubmit: (documentId: string, payload: { amount?: number; counterpartyName?: string; documentDate?: string }) => Promise<void>;
+  onSubmit: (documentId: string, payload: {
+    amount?: number;
+    counterpartyName?: string;
+    documentDate?: string;
+    senderIbanOrCard?: string;
+    edrpou?: string;
+    payerFullName?: string;
+    receiptCode?: string;
+    paymentPurpose?: string;
+    senderIban?: string;
+    receiverIban?: string;
+  }) => Promise<void>;
   onAddWaybillItem?: (documentId: string, payload: { name: string; quantity: number; unitPrice: number }) => Promise<void>;
+  onUpdateWaybillItem?: (documentId: string, itemId: string, payload: { name: string; quantity: number; unitPrice: number }) => Promise<void>;
+  onDeleteWaybillItem?: (documentId: string, itemId: string) => Promise<void>;
   isPending: boolean;
   t: TFunction;
 }) {
   const [amount, setAmount] = useState(document.amount ? (document.amount / 100).toFixed(2) : '');
   const [counterpartyName, setCounterpartyName] = useState(document.counterpartyName ?? '');
   const [documentDate, setDocumentDate] = useState(document.documentDate ? document.documentDate.slice(0, 10) : '');
+  const [senderIbanOrCard, setSenderIbanOrCard] = useState(document.senderIbanOrCard ?? '');
+  const [edrpou, setEdrpou] = useState(document.edrpou ?? '');
+  const [payerFullName, setPayerFullName] = useState(document.payerFullName ?? '');
+  const [receiptCode, setReceiptCode] = useState(document.receiptCode ?? '');
+  const [paymentPurpose, setPaymentPurpose] = useState(document.paymentPurpose ?? '');
+  const [senderIban, setSenderIban] = useState(document.senderIban ?? '');
+  const [receiverIban, setReceiverIban] = useState(document.receiverIban ?? '');
   const [itemName, setItemName] = useState('');
   const [itemQuantity, setItemQuantity] = useState('1');
   const [itemUnitPrice, setItemUnitPrice] = useState('0');
+  const [editableItems, setEditableItems] = useState(
+    (document.items ?? []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      quantity: String(item.quantity),
+      unitPrice: String(item.unitPrice / 100),
+    })),
+  );
+  const documentItems = document.items ?? [];
 
   const handleSave = async () => {
     const normalizedAmount = amount.trim().length > 0 ? Number(amount.replace(',', '.')) : undefined;
@@ -118,10 +152,21 @@ function DocumentMetadataForm({
       amount: Number.isFinite(normalizedAmount) ? Math.round((normalizedAmount ?? 0) * 100) : undefined,
       counterpartyName: counterpartyName.trim() || undefined,
       documentDate: documentDate || undefined,
+      senderIbanOrCard: document.type === DocumentType.BankReceipt ? senderIbanOrCard.trim() : undefined,
+      edrpou: document.type === DocumentType.BankReceipt ? edrpou.trim() : undefined,
+      payerFullName: document.type === DocumentType.BankReceipt ? payerFullName.trim() : undefined,
+      receiptCode: document.type === DocumentType.BankReceipt ? receiptCode.trim() : undefined,
+      paymentPurpose: document.type === DocumentType.BankReceipt ? paymentPurpose.trim() : undefined,
+      senderIban: document.type === DocumentType.BankReceipt ? senderIban.trim() : undefined,
+      receiverIban: document.type === DocumentType.BankReceipt ? receiverIban.trim() : undefined,
     });
   };
 
-  if (document.type === DocumentType.Waybill || document.type === DocumentType.Invoice) {
+  const isBankReceipt = document.type === DocumentType.BankReceipt;
+  const isWaybill = document.type === DocumentType.Waybill;
+  const isWaybillLike = document.type === DocumentType.Waybill || document.type === DocumentType.Invoice;
+
+  if (isWaybillLike) {
     const handleAddItem = async () => {
       if (!onAddWaybillItem) {
         return;
@@ -146,15 +191,53 @@ function DocumentMetadataForm({
       setItemUnitPrice('0');
     };
 
+    const handleUpdateItem = async (itemId: string) => {
+      if (!onUpdateWaybillItem) {
+        return;
+      }
+
+      const targetItem = editableItems.find((item) => item.id === itemId);
+      if (!targetItem) {
+        return;
+      }
+
+      const quantity = Number(targetItem.quantity.replace(',', '.'));
+      const unitPriceHryvnia = Number(targetItem.unitPrice.replace(',', '.'));
+
+      if (!targetItem.name.trim() || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPriceHryvnia) || unitPriceHryvnia < 0) {
+        toast.error(t('purchases.invalidWaybillItem', 'Некоректні дані позиції'));
+        return;
+      }
+
+      await onUpdateWaybillItem(document.id, itemId, {
+        name: targetItem.name.trim(),
+        quantity,
+        unitPrice: Math.round(unitPriceHryvnia * 100),
+      });
+    };
+
+    const handleDeleteItem = async (itemId: string) => {
+      if (!onDeleteWaybillItem) {
+        return;
+      }
+
+      const confirmed = window.confirm(t('receipts.detail.dialogs.confirmDeleteItem'));
+      if (!confirmed) {
+        return;
+      }
+
+      await onDeleteWaybillItem(document.id, itemId);
+    };
+
     return (
       <div className="grid gap-3 rounded-xl border border-border/60 bg-muted/20 p-3" data-testid={`purchase-document-metadata-form-${document.id}`}>
         <div className="space-y-3">
           <p className="text-sm font-semibold">{t('purchases.items.listTitle', 'Позиції з документа')}</p>
           <div className="space-y-2 max-h-48 overflow-y-auto pr-2" data-testid={`purchase-document-items-list-${document.id}`}>
-            {(document.items ?? []).length === 0 ? (
+            {documentItems.length === 0 ? (
               <p className="text-xs text-muted-foreground" data-testid={`purchase-document-items-empty-${document.id}`}>{t('purchases.items.empty', 'Позиції ще не додані')}</p>
-            ) : (
-              (document.items ?? []).map((item) => (
+            ) : !isWaybill || editableItems.length === 0 ? (
+              documentItems.map((item) => (
                 <div key={item.id} className="grid grid-cols-12 items-center gap-2 rounded-md border border-border/50 bg-background p-2 text-xs" data-testid={`purchase-document-item-row-${item.id}`}>
                   <p className="col-span-6 truncate font-medium">{item.name}</p>
                   <p className="col-span-2 text-muted-foreground">{item.quantity}</p>
@@ -162,10 +245,40 @@ function DocumentMetadataForm({
                   <p className="col-span-2 text-right font-semibold">{(item.totalPrice / 100).toFixed(2)} ₴</p>
                 </div>
               ))
+            ) : (
+              editableItems.map((editableItem) => {
+                const item = documentItems.find((candidate) => candidate.id === editableItem.id);
+                if (!item) {
+                  return null;
+                }
+
+                return (
+                  <div key={item.id} className="grid grid-cols-12 items-center gap-2 rounded-md border border-border/50 bg-background p-2 text-xs" data-testid={`purchase-document-item-row-${item.id}`}>
+                    <div className="col-span-4">
+                      <Input value={editableItem.name} onChange={(event) => setEditableItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, name: event.target.value } : candidate))} data-testid={`purchase-document-item-name-${item.id}`} />
+                    </div>
+                    <div className="col-span-2">
+                      <Input type="number" step="0.001" min="0" value={editableItem.quantity} onChange={(event) => setEditableItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, quantity: event.target.value } : candidate))} data-testid={`purchase-document-item-quantity-${item.id}`} />
+                    </div>
+                    <div className="col-span-2">
+                      <Input type="number" step="0.01" min="0" value={editableItem.unitPrice} onChange={(event) => setEditableItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, unitPrice: event.target.value } : candidate))} data-testid={`purchase-document-item-unit-price-${item.id}`} />
+                    </div>
+                    <p className="col-span-2 text-right font-semibold">{(Math.round(Number(editableItem.quantity.replace(',', '.')) * Number(editableItem.unitPrice.replace(',', '.')) * 100) / 100).toFixed(2)} ₴</p>
+                    <div className="col-span-2 flex justify-end gap-2">
+                      <Button type="button" size="sm" variant="outline" onClick={() => void handleUpdateItem(item.id)} data-testid={`purchase-document-item-save-${item.id}`}>
+                        {t('common.save', 'Зберегти')}
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => void handleDeleteItem(item.id)} data-testid={`purchase-document-item-delete-${item.id}`}>
+                        {t('common.delete', 'Видалити')}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
 
-          {document.type === DocumentType.Waybill ? (
+          {isWaybill ? (
             <div className="grid gap-2 rounded-md border border-border/50 bg-background p-2 text-xs" data-testid={`purchase-document-add-item-form-${document.id}`}>
               <div className="grid gap-2 sm:grid-cols-3">
                 <Input
@@ -199,6 +312,39 @@ function DocumentMetadataForm({
             </div>
           ) : null}
         </div>
+
+        {isBankReceipt ? (
+          <div className="grid gap-3 sm:grid-cols-2" data-testid={`purchase-document-bank-fields-${document.id}`}>
+            <div className="space-y-1.5">
+              <Label htmlFor={`purchase-document-sender-iban-or-card-${document.id}`}>{t('purchases.bankReceipt.senderIbanOrCard', 'Рахунок / картка відправника')}</Label>
+              <Input id={`purchase-document-sender-iban-or-card-${document.id}`} value={senderIbanOrCard} onChange={(event) => setSenderIbanOrCard(event.target.value)} data-testid={`purchase-document-sender-iban-or-card-input-${document.id}`} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`purchase-document-edrpou-${document.id}`}>{t('purchases.bankReceipt.edrpou', 'ЄДРПОУ')}</Label>
+              <Input id={`purchase-document-edrpou-${document.id}`} value={edrpou} onChange={(event) => setEdrpou(event.target.value)} data-testid={`purchase-document-edrpou-input-${document.id}`} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`purchase-document-payer-full-name-${document.id}`}>{t('purchases.bankReceipt.payerFullName', 'Платник')}</Label>
+              <Input id={`purchase-document-payer-full-name-${document.id}`} value={payerFullName} onChange={(event) => setPayerFullName(event.target.value)} data-testid={`purchase-document-payer-full-name-input-${document.id}`} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`purchase-document-receipt-code-${document.id}`}>{t('purchases.bankReceipt.receiptCode', 'Код квитанції')}</Label>
+              <Input id={`purchase-document-receipt-code-${document.id}`} value={receiptCode} onChange={(event) => setReceiptCode(event.target.value)} data-testid={`purchase-document-receipt-code-input-${document.id}`} />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor={`purchase-document-payment-purpose-${document.id}`}>{t('purchases.bankReceipt.paymentPurpose', 'Призначення платежу')}</Label>
+              <Input id={`purchase-document-payment-purpose-${document.id}`} value={paymentPurpose} onChange={(event) => setPaymentPurpose(event.target.value)} data-testid={`purchase-document-payment-purpose-input-${document.id}`} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`purchase-document-sender-iban-${document.id}`}>{t('purchases.bankReceipt.senderIban', 'IBAN відправника')}</Label>
+              <Input id={`purchase-document-sender-iban-${document.id}`} value={senderIban} onChange={(event) => setSenderIban(event.target.value)} data-testid={`purchase-document-sender-iban-input-${document.id}`} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`purchase-document-receiver-iban-${document.id}`}>{t('purchases.bankReceipt.receiverIban', 'IBAN отримувача')}</Label>
+              <Input id={`purchase-document-receiver-iban-${document.id}`} value={receiverIban} onChange={(event) => setReceiverIban(event.target.value)} data-testid={`purchase-document-receiver-iban-input-${document.id}`} />
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="space-y-1.5">
@@ -312,6 +458,8 @@ export default function OrganizationPurchaseDetailPage() {
   const createDraftPurchase = useCreateDraftPurchase();
   const attachPurchaseToCampaign = useAttachPurchaseToCampaign();
   const addWaybillItem = useAddWaybillItem();
+  const updateWaybillItem = useUpdateWaybillItem();
+  const deleteWaybillItem = useDeleteWaybillItem();
   const updatePurchase = useUpdatePurchaseShort();
   const deletePurchase = useDeletePurchaseShort();
   const uploadDocument = useUploadPurchaseDocumentShort();
@@ -332,8 +480,17 @@ export default function OrganizationPurchaseDetailPage() {
   const [transferUploadFile, setTransferUploadFile] = useState<File | null>(null);
   const [waybillUploadType, setWaybillUploadType] = useState<DocumentType>(DocumentType.Waybill);
   const [activeUploadHoverZone, setActiveUploadHoverZone] = useState<string | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<{ src: string; title: string; fileName?: string; mimeType?: string } | null>(null);
   const [isAttachDialogOpen, setIsAttachDialogOpen] = useState(false);
   const [selectedAttachCampaignId, setSelectedAttachCampaignId] = useState<string>('');
+
+  const openDocumentPreview = (fileUrl: string | null, originalFileName: string) => {
+    if (!fileUrl) {
+      return;
+    }
+
+    setPreviewDocument({ src: fileUrl, title: originalFileName, fileName: originalFileName });
+  };
 
   useEffect(() => {
     if (purchase) {
@@ -501,6 +658,28 @@ export default function OrganizationPurchaseDetailPage() {
     }
   };
 
+  const handleUpdateWaybillItem = async (
+    documentId: string,
+    itemId: string,
+    payload: { name: string; quantity: number; unitPrice: number },
+  ) => {
+    try {
+      await updateWaybillItem.mutateAsync({ documentId, itemId, payload });
+      toast.success(t('purchases.items.updateSuccess', 'Позицію оновлено'));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('common.error'));
+    }
+  };
+
+  const handleDeleteWaybillItem = async (documentId: string, itemId: string) => {
+    try {
+      await deleteWaybillItem.mutateAsync({ documentId, itemId });
+      toast.success(t('purchases.items.deleteSuccess', 'Позицію видалено'));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('common.error'));
+    }
+  };
+
   if (isPurchaseLoading) {
     return (
       <div className="space-y-6 max-w-3xl mx-auto">
@@ -658,6 +837,11 @@ export default function OrganizationPurchaseDetailPage() {
                             {t('purchases.blocks.runOcr', 'Запустити OCR')}
                           </Button>
                           {doc.fileUrl ? (
+                            <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                          {doc.fileUrl ? (
                             <Button variant="ghost" size="icon" asChild data-testid={`purchase-document-download-${doc.id}`}>
                               <a href={doc.fileUrl} target="_blank" rel="noreferrer">
                                 <Download className="h-4 w-4" />
@@ -669,7 +853,16 @@ export default function OrganizationPurchaseDetailPage() {
                           </Button>
                         </div>
                       </div>
-                      <DocumentMetadataForm document={doc} onSubmit={handleSaveDocumentMetadata} onAddWaybillItem={handleAddWaybillItem} isPending={updateDocumentMetadata.isPending || addWaybillItem.isPending} t={t} />
+                      <DocumentMetadataForm
+                        key={`${doc.id}-${doc.amount ?? 'n'}-${doc.counterpartyName ?? 'n'}-${doc.documentDate ?? 'n'}-${doc.items?.length ?? 0}-${doc.senderIbanOrCard ?? 'n'}-${doc.edrpou ?? 'n'}-${doc.payerFullName ?? 'n'}-${doc.receiptCode ?? 'n'}-${doc.paymentPurpose ?? 'n'}-${doc.senderIban ?? 'n'}-${doc.receiverIban ?? 'n'}`}
+                        document={doc}
+                        onSubmit={handleSaveDocumentMetadata}
+                        onAddWaybillItem={handleAddWaybillItem}
+                        onUpdateWaybillItem={handleUpdateWaybillItem}
+                        onDeleteWaybillItem={handleDeleteWaybillItem}
+                        isPending={updateDocumentMetadata.isPending || addWaybillItem.isPending || updateWaybillItem.isPending || deleteWaybillItem.isPending}
+                        t={t}
+                      />
                     </div>
                   ))
                 )}
@@ -739,6 +932,11 @@ export default function OrganizationPurchaseDetailPage() {
                             <Sparkles className="h-4 w-4" />
                             {t('purchases.blocks.runOcr', 'Запустити OCR')}
                           </Button>
+                          {doc.fileUrl ? (
+                            <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          ) : null}
                           {doc.fileUrl ? (
                             <Button variant="ghost" size="icon" asChild data-testid={`purchase-document-download-${doc.id}`}>
                               <a href={doc.fileUrl} target="_blank" rel="noreferrer">
@@ -812,6 +1010,11 @@ export default function OrganizationPurchaseDetailPage() {
                             {t('purchases.blocks.runOcr', 'Запустити OCR')}
                           </Button>
                           {doc.fileUrl ? (
+                            <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                          {doc.fileUrl ? (
                             <Button variant="ghost" size="icon" asChild data-testid={`purchase-document-download-${doc.id}`}>
                               <a href={doc.fileUrl} target="_blank" rel="noreferrer">
                                 <Download className="h-4 w-4" />
@@ -836,6 +1039,21 @@ export default function OrganizationPurchaseDetailPage() {
           </Card>
         </div>
       </div>
+
+      <DocumentPreviewDialog
+        open={Boolean(previewDocument)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewDocument(null);
+          }
+        }}
+        src={previewDocument?.src ?? null}
+        title={previewDocument?.title ?? ''}
+        fileName={previewDocument?.fileName}
+        mimeType={previewDocument?.mimeType}
+        description={previewDocument?.fileName}
+        testIdPrefix="purchase-document-preview"
+      />
 
       <Dialog open={isAttachDialogOpen} onOpenChange={setIsAttachDialogOpen}>
         <DialogContent data-testid="purchase-detail-attach-campaign-dialog">

@@ -66,6 +66,30 @@ public class UpdateDocumentMetadataHandler : IRequestHandler<UpdateDocumentMetad
 		if (request.DocumentDate.HasValue)
 			document.DocumentDate = request.DocumentDate.Value;
 
+		if (document is BankReceiptDocument bankReceipt)
+		{
+			if (request.SenderIbanOrCard is not null)
+				bankReceipt.SenderIbanOrCard = request.SenderIbanOrCard;
+
+			if (request.Edrpou is not null)
+				bankReceipt.Edrpou = request.Edrpou;
+
+			if (request.PayerFullName is not null)
+				bankReceipt.PayerFullName = request.PayerFullName;
+
+			if (request.ReceiptCode is not null)
+				bankReceipt.ReceiptCode = request.ReceiptCode;
+
+			if (request.PaymentPurpose is not null)
+				bankReceipt.PaymentPurpose = request.PaymentPurpose;
+
+			if (request.SenderIban is not null)
+				bankReceipt.SenderIban = request.SenderIban;
+
+			if (request.ReceiverIban is not null)
+				bankReceipt.ReceiverIban = request.ReceiverIban;
+		}
+
 		document.IsDataVerifiedByUser = true;
 
 		await _db.SaveChangesAsync(ct);

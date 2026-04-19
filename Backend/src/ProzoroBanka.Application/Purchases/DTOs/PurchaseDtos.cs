@@ -42,7 +42,15 @@ public record DocumentDto(
 	OcrProcessingStatus OcrProcessingStatus,
 	bool IsDataVerifiedByUser,
 	IReadOnlyList<DocumentItemDto>? Items,
-	DateTime CreatedAt);
+	DateTime CreatedAt,
+	string? SenderIbanOrCard = null,
+	string? Edrpou = null,
+	string? PayerFullName = null,
+	long? TotalItemsAmount = null,
+	string? ReceiptCode = null,
+	string? PaymentPurpose = null,
+	string? SenderIban = null,
+	string? ReceiverIban = null);
 
 // ── Request DTOs ──
 
@@ -59,6 +67,11 @@ public record AddItemToWaybillRequest(
 	decimal Quantity,
 	long UnitPrice);
 
+public record UpdateWaybillItemRequest(
+	string Name,
+	decimal Quantity,
+	long UnitPrice);
+
 public record CreatePurchaseRequest(
 	string Title,
 	long TotalAmount);
@@ -71,4 +84,11 @@ public record UpdatePurchaseRequest(
 public record UpdateDocumentMetadataRequest(
 	long? Amount,
 	string? CounterpartyName,
-	DateTime? DocumentDate);
+	DateTime? DocumentDate,
+	string? SenderIbanOrCard = null,
+	string? Edrpou = null,
+	string? PayerFullName = null,
+	string? ReceiptCode = null,
+	string? PaymentPurpose = null,
+	string? SenderIban = null,
+	string? ReceiverIban = null);

@@ -51,6 +51,14 @@ export interface DocumentDto {
   isDataVerifiedByUser: boolean;
   items?: DocumentItemDto[] | null;
   createdAt: string;
+  senderIbanOrCard?: string | null;
+  edrpou?: string | null;
+  payerFullName?: string | null;
+  totalItemsAmount?: number | null;
+  receiptCode?: string | null;
+  paymentPurpose?: string | null;
+  senderIban?: string | null;
+  receiverIban?: string | null;
 }
 
 export interface PurchaseDetailDto {
@@ -89,6 +97,12 @@ export interface AddItemToWaybillRequest {
   unitPrice: number;
 }
 
+export interface UpdateWaybillItemRequest {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export interface CreatePurchaseRequest {
   title: string;
   totalAmount: number;
@@ -104,4 +118,11 @@ export interface UpdateDocumentMetadataRequest {
   amount?: number;
   counterpartyName?: string;
   documentDate?: string;
+  senderIbanOrCard?: string | null;
+  edrpou?: string | null;
+  payerFullName?: string | null;
+  receiptCode?: string | null;
+  paymentPurpose?: string | null;
+  senderIban?: string | null;
+  receiverIban?: string | null;
 }

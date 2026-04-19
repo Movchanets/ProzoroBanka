@@ -5,7 +5,9 @@ using ProzoroBanka.API.Authorization;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Purchases.Commands.AddItemToWaybill;
 using ProzoroBanka.Application.Purchases.Commands.AttachPurchaseToCampaign;
+using ProzoroBanka.Application.Purchases.Commands.DeleteWaybillItem;
 using ProzoroBanka.Application.Purchases.Commands.CreateDraftPurchase;
+using ProzoroBanka.Application.Purchases.Commands.UpdateWaybillItem;
 using ProzoroBanka.Application.Purchases.DTOs;
 
 namespace ProzoroBanka.API.Controllers;
@@ -84,5 +86,46 @@ public class PurchasesOperationsController : ApiControllerBase
 		return result.IsSuccess
 			? Created($"/api/purchases/documents/{documentId}/items/{result.Payload}", new { id = result.Payload })
 			: BadRequest(new { Error = result.Message });
+	}
+
+	[HttpPatch("documents/{documentId:guid}/items/{itemId:guid}")]
+	[HasPermission(Permissions.PurchasesManage)]
+	[ProducesResponseType(typeof(DocumentDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> UpdateWaybillItem(
+		Guid documentId,
+		Guid itemId,
+		[FromBody] UpdateWaybillItemRequest request,
+		CancellationToken ct)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(
+			new UpdateWaybillItemCommand(userId.Value, documentId, itemId, request.Name, request.Quantity, request.UnitPrice),
+			ct);
+
+		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
+	}
+
+	[HttpDelete("documents/{documentId:guid}/items/{itemId:guid}")]
+	[HasPermission(Permissions.PurchasesManage)]
+	[ProducesResponseType(typeof(DocumentDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> DeleteWaybillItem(
+		Guid documentId,
+		Guid itemId,
+		CancellationToken ct)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(
+			new DeleteWaybillItemCommand(userId.Value, documentId, itemId),
+			ct);
+
+		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
 	}
 }
