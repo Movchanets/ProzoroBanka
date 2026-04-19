@@ -122,6 +122,12 @@ public class MistralPurchaseDocumentOcrService : IDocumentOcrService
 			var counterparty = GetString(root, "counterparty_name") ?? GetString(root, "supplier_name") ?? GetString(root, "receiver_name");
 			var dateStr = GetString(root, "date") ?? GetString(root, "document_date");
 			var amount = GetDecimal(root, "total_amount") ?? GetDecimal(root, "amount");
+			var edrpou = GetString(root, "edrpou") ?? GetString(root, "receiver_edrpou");
+			var payerFullName = GetString(root, "payer_full_name") ?? GetString(root, "payer_name") ?? GetString(root, "sender_name");
+			var receiptCode = GetString(root, "receipt_code") ?? GetString(root, "receipt_number") ?? GetString(root, "transaction_id");
+			var paymentPurpose = GetString(root, "payment_purpose") ?? GetString(root, "purpose");
+			var senderIban = GetString(root, "sender_iban") ?? GetString(root, "payer_iban");
+			var receiverIban = GetString(root, "receiver_iban") ?? GetString(root, "iban");
 
 			DateTime? documentDate = null;
 			if (!string.IsNullOrWhiteSpace(dateStr) && DateTime.TryParse(dateStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var dt))
@@ -155,7 +161,13 @@ public class MistralPurchaseDocumentOcrService : IDocumentOcrService
 				TotalAmount: amount,
 				Items: itemsList,
 				RawJson: json,
-				ErrorMessage: null
+				ErrorMessage: null,
+				Edrpou: edrpou,
+				PayerFullName: payerFullName,
+				ReceiptCode: receiptCode,
+				PaymentPurpose: paymentPurpose,
+				SenderIban: senderIban,
+				ReceiverIban: receiverIban
 			);
 		}
 		catch (Exception ex)
@@ -360,9 +372,13 @@ internal static class DocumentSchemas
 			{
 				date = new { type = "string", description = "Дата транзакції СУВОРО у форматі YYYY-MM-DD" },
 				receiver_name = new { type = "string", description = "Отримувач коштів / ПІБ або назва організації" },
+				payer_full_name = new { type = "string", description = "ПІБ або назва платника" },
+				edrpou = new { type = "string", description = "ЄДРПОУ отримувача або контрагента, якщо вказано" },
+				receipt_code = new { type = "string", description = "Код/номер квитанції або ідентифікатор платежу" },
 				total_amount = new { type = "number", description = "Сума платежу" },
 				payment_purpose = new { type = "string", description = "Призначення платежу" },
-                iban = new { type = "string", description = "IBAN отримувача" }
+				sender_iban = new { type = "string", description = "IBAN відправника" },
+				receiver_iban = new { type = "string", description = "IBAN отримувача" }
 			},
 			required = new[] { "date", "receiver_name", "total_amount" },
 			additionalProperties = false

@@ -51,10 +51,8 @@ export interface DocumentDto {
   isDataVerifiedByUser: boolean;
   items?: DocumentItemDto[] | null;
   createdAt: string;
-  senderIbanOrCard?: string | null;
   edrpou?: string | null;
   payerFullName?: string | null;
-  totalItemsAmount?: number | null;
   receiptCode?: string | null;
   paymentPurpose?: string | null;
   senderIban?: string | null;
@@ -118,11 +116,14 @@ export interface UpdateDocumentMetadataRequest {
   amount?: number;
   counterpartyName?: string;
   documentDate?: string;
-  senderIbanOrCard?: string | null;
   edrpou?: string | null;
   payerFullName?: string | null;
   receiptCode?: string | null;
   paymentPurpose?: string | null;
   senderIban?: string | null;
   receiverIban?: string | null;
+}
+
+export interface ProcessDocumentOcrRequest {
+  confirmReprocess?: boolean;
 }

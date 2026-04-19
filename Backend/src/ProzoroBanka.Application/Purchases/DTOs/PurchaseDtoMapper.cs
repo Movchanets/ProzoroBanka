@@ -48,10 +48,8 @@ public static class PurchaseDtoMapper
 			document.IsDataVerifiedByUser,
 			ToDocumentItems(document),
 			document.CreatedAt,
-			GetBankReceiptSenderIbanOrCard(document),
 			GetBankReceiptEdrpou(document),
 			GetBankReceiptPayerFullName(document),
-			GetBankReceiptTotalItemsAmount(document),
 			GetBankReceiptReceiptCode(document),
 			GetBankReceiptPaymentPurpose(document),
 			GetBankReceiptSenderIban(document),
@@ -75,8 +73,6 @@ public static class PurchaseDtoMapper
 			document.IsDataVerifiedByUser,
 			ToDocumentItems(document),
 			document.CreatedAt,
-			null,
-			null,
 			null,
 			null,
 			null,
@@ -107,17 +103,11 @@ public static class PurchaseDtoMapper
 				.ToList();
 	}
 
-	private static string? GetBankReceiptSenderIbanOrCard(CampaignDocument document) =>
-		document is BankReceiptDocument bankReceipt ? bankReceipt.SenderIbanOrCard : null;
-
 	private static string? GetBankReceiptEdrpou(CampaignDocument document) =>
 		document is BankReceiptDocument bankReceipt ? bankReceipt.Edrpou : null;
 
 	private static string? GetBankReceiptPayerFullName(CampaignDocument document) =>
 		document is BankReceiptDocument bankReceipt ? bankReceipt.PayerFullName : null;
-
-	private static long? GetBankReceiptTotalItemsAmount(CampaignDocument document) =>
-		document is BankReceiptDocument bankReceipt ? bankReceipt.TotalItemsAmount : null;
 
 	private static string? GetBankReceiptReceiptCode(CampaignDocument document) =>
 		document is BankReceiptDocument bankReceipt ? bankReceipt.ReceiptCode : null;

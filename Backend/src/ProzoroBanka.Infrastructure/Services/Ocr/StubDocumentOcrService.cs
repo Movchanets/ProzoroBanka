@@ -22,7 +22,7 @@ public class StubDocumentOcrService : IDocumentOcrService
 			"OCR Stub Counterparty",
 			new DateTime(2026, 4, 18, 0, 0, 0, DateTimeKind.Utc),
 			123.45m,
-			null,
+			Array.Empty<OcrParsedItem>(),
 			rawJson,
 			null));
 	}

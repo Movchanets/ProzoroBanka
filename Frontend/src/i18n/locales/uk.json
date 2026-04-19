@@ -534,7 +534,28 @@
         "total": "Разом: {{amount}}",
         "empty": "Поки що немає публічних витрат",
         "documentsCount": "Документів: {{count}}",
-        "transferActSecured": "Є захищені Transfer Act документи"
+        "transferActSecured": "Є захищені Transfer Act документи",
+        "noVisibleDocuments": "Для цієї витрати доступні лише захищені документи.",
+        "itemsCount": "Позицій: {{count}}",
+        "counterpartyFallback": "Контрагент не вказаний",
+        "documentFallbackName": "Документ без назви",
+        "openDocument": "Переглянути",
+        "viewFullExpense": "Повна сторінка витрати",
+        "loading": "Завантажуємо деталі витрати...",
+        "notFoundTitle": "Витрату не знайдено",
+        "notFoundDescription": "Схоже, ця витрата недоступна або була прихована.",
+        "fullPageDescription": "Прозорий перегляд витрати: документи, суми й ключові деталі.",
+        "fullPageSummaryTitle": "Зведення витрати",
+        "documentsTitle": "Документи витрати",
+        "detailsTitle": "Деталі витрати",
+        "backToCampaign": "До сторінки збору",
+        "purchaseIdLabel": "ID витрати",
+        "statusLabel": "Статус",
+        "totalLabel": "Загальна сума",
+        "createdAtLabel": "Створено",
+        "totalAmountKpi": "Сума витрати",
+        "documentsCountKpi": "Документів",
+        "createdAtKpi": "Дата"
       },
       "moreReceiptsNote": "Ще {{count}} чек(ів) доступно через повні сторінки чеків.",
       "daysRemaining": "До завершення кампанії: {{count}} днів."
@@ -851,6 +872,8 @@
     "uploadSuccess": "Документ завантажено",
     "deleteDocSuccess": "Документ видалено",
     "deleteSuccess": "Закупівлю видалено",
+    "invalidWaybillItem": "Некоректні дані позиції",
+    "confirmRerunOcr": "Документ вже розпізнано. Запустити OCR повторно?",
     "filters": {
       "statusAll": "Усі статуси"
     },
@@ -866,7 +889,26 @@
       "transferTitle": "Блок передачі (optional)",
       "transferDescription": "Акти прийому-передачі. OCR обмежено з міркувань безпеки.",
       "runOcr": "Запустити OCR",
+      "rerunOcr": "Повторити OCR",
       "empty": "Документи ще не додані"
+    },
+    "items": {
+      "listTitle": "Позиції з документа",
+      "itemName": "Назва товару",
+      "qty": "Кількість",
+      "price": "Ціна (₴)",
+      "total": "Сума (₴)",
+      "actions": "Дії",
+      "empty": "Позиції ще не додані",
+      "addItem": "Додати позицію"
+    },
+    "bankReceipt": {
+      "edrpou": "ЄДРПОУ",
+      "payerFullName": "Платник",
+      "receiptCode": "Код квитанції",
+      "paymentPurpose": "Призначення платежу",
+      "senderIban": "IBAN відправника",
+      "receiverIban": "IBAN отримувача"
     },
     "toasts": {
       "selectCampaignFirst": "Спершу оберіть збір",

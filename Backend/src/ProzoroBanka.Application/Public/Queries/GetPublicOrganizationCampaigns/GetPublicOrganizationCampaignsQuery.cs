@@ -72,6 +72,11 @@ public class GetPublicOrganizationCampaignsHandler
 					.Where(r => r.Status == ReceiptStatus.StateVerified)
 					.Where(r => r.PublicationStatus == ReceiptPublicationStatus.Active)
 					.Sum(r => (decimal?)r.TotalAmount) ?? 0m,
+				DocumentedExpenses = _db.CampaignPurchases
+					.Where(p => p.CampaignId == c.Id)
+					.Where(p => p.Status != PurchaseStatus.Cancelled)
+					.Where(p => p.Documents.Any(d => !d.IsDeleted && d.Type != DocumentType.TransferAct))
+					.Sum(p => (long?)p.TotalAmount) ?? 0,
 				c.Status,
 				c.StartDate,
 				c.Deadline,
@@ -94,7 +99,7 @@ public class GetPublicOrganizationCampaignsHandler
 		var campaigns = campaignRows.Select(c =>
 			{
 				var documentedAmount = CampaignDocumentationMetrics.BoundToCollectedAmount(
-					CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(c.DocumentedAmountRaw),
+					CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(c.DocumentedAmountRaw) + c.DocumentedExpenses,
 					c.CurrentAmount);
 				var documentationPercent = CampaignDocumentationMetrics.CalculateDocumentedSharePercent(
 					documentedAmount,

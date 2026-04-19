@@ -95,13 +95,29 @@ function DocumentMetadataForm({
   t,
 }: {
   document: DocumentDto;
-  onSubmit: (documentId: string, payload: { amount?: number; counterpartyName?: string; documentDate?: string }) => Promise<void>;
+  onSubmit: (documentId: string, payload: {
+    amount?: number;
+    counterpartyName?: string;
+    documentDate?: string;
+    edrpou?: string;
+    payerFullName?: string;
+    receiptCode?: string;
+    paymentPurpose?: string;
+    senderIban?: string;
+    receiverIban?: string;
+  }) => Promise<void>;
   isPending: boolean;
   t: TFunction;
 }) {
   const [amount, setAmount] = useState(document.amount ? (document.amount / 100).toFixed(2) : '');
   const [counterpartyName, setCounterpartyName] = useState(document.counterpartyName ?? '');
   const [documentDate, setDocumentDate] = useState(document.documentDate ? document.documentDate.slice(0, 10) : '');
+  const [edrpou, setEdrpou] = useState(document.edrpou ?? '');
+  const [payerFullName, setPayerFullName] = useState(document.payerFullName ?? '');
+  const [receiptCode, setReceiptCode] = useState(document.receiptCode ?? '');
+  const [paymentPurpose, setPaymentPurpose] = useState(document.paymentPurpose ?? '');
+  const [senderIban, setSenderIban] = useState(document.senderIban ?? '');
+  const [receiverIban, setReceiverIban] = useState(document.receiverIban ?? '');
 
   const handleSave = async () => {
     const normalizedAmount = amount.trim().length > 0 ? Number(amount.replace(',', '.')) : undefined;
@@ -110,6 +126,12 @@ function DocumentMetadataForm({
       amount: Number.isFinite(normalizedAmount) ? Math.round((normalizedAmount ?? 0) * 100) : undefined,
       counterpartyName: counterpartyName.trim() || undefined,
       documentDate: documentDate || undefined,
+      edrpou: document.type === DocumentType.BankReceipt ? edrpou.trim() : undefined,
+      payerFullName: document.type === DocumentType.BankReceipt ? payerFullName.trim() : undefined,
+      receiptCode: document.type === DocumentType.BankReceipt ? receiptCode.trim() : undefined,
+      paymentPurpose: document.type === DocumentType.BankReceipt ? paymentPurpose.trim() : undefined,
+      senderIban: document.type === DocumentType.BankReceipt ? senderIban.trim() : undefined,
+      receiverIban: document.type === DocumentType.BankReceipt ? receiverIban.trim() : undefined,
     });
   };
 
@@ -151,8 +173,39 @@ function DocumentMetadataForm({
     );
   }
 
+  const isBankReceipt = document.type === DocumentType.BankReceipt;
+
   return (
     <div className="grid gap-3 rounded-xl border border-border/60 bg-muted/20 p-3" data-testid={`purchase-document-metadata-form-${document.id}`}>
+      {isBankReceipt ? (
+        <div className="grid gap-3 sm:grid-cols-2" data-testid={`purchase-document-bank-fields-${document.id}`}>
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-edrpou-${document.id}`}>{t('purchases.bankReceipt.edrpou', 'ЄДРПОУ')}</Label>
+            <Input id={`purchase-document-edrpou-${document.id}`} value={edrpou} onChange={(event) => setEdrpou(event.target.value)} data-testid={`purchase-document-edrpou-input-${document.id}`} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-payer-full-name-${document.id}`}>{t('purchases.bankReceipt.payerFullName', 'Платник')}</Label>
+            <Input id={`purchase-document-payer-full-name-${document.id}`} value={payerFullName} onChange={(event) => setPayerFullName(event.target.value)} data-testid={`purchase-document-payer-full-name-input-${document.id}`} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-receipt-code-${document.id}`}>{t('purchases.bankReceipt.receiptCode', 'Код квитанції')}</Label>
+            <Input id={`purchase-document-receipt-code-${document.id}`} value={receiptCode} onChange={(event) => setReceiptCode(event.target.value)} data-testid={`purchase-document-receipt-code-input-${document.id}`} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor={`purchase-document-payment-purpose-${document.id}`}>{t('purchases.bankReceipt.paymentPurpose', 'Призначення платежу')}</Label>
+            <Input id={`purchase-document-payment-purpose-${document.id}`} value={paymentPurpose} onChange={(event) => setPaymentPurpose(event.target.value)} data-testid={`purchase-document-payment-purpose-input-${document.id}`} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-sender-iban-${document.id}`}>{t('purchases.bankReceipt.senderIban', 'IBAN відправника')}</Label>
+            <Input id={`purchase-document-sender-iban-${document.id}`} value={senderIban} onChange={(event) => setSenderIban(event.target.value)} data-testid={`purchase-document-sender-iban-input-${document.id}`} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-receiver-iban-${document.id}`}>{t('purchases.bankReceipt.receiverIban', 'IBAN отримувача')}</Label>
+            <Input id={`purchase-document-receiver-iban-${document.id}`} value={receiverIban} onChange={(event) => setReceiverIban(event.target.value)} data-testid={`purchase-document-receiver-iban-input-${document.id}`} />
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor={`purchase-document-date-${document.id}`}>{t('purchases.documentDate', 'Дата документа')}</Label>
@@ -326,7 +379,17 @@ export default function CampaignPurchaseDetailPage() {
 
   const handleSaveDocumentMetadata = async (
     documentId: string,
-    payload: { amount?: number; counterpartyName?: string; documentDate?: string },
+    payload: {
+      amount?: number;
+      counterpartyName?: string;
+      documentDate?: string;
+      edrpou?: string;
+      payerFullName?: string;
+      receiptCode?: string;
+      paymentPurpose?: string;
+      senderIban?: string;
+      receiverIban?: string;
+    },
   ) => {
     if (!purchaseId) {
       return;
@@ -346,7 +409,11 @@ export default function CampaignPurchaseDetailPage() {
     }
   };
 
-  const handleRunDocumentOcr = async (documentId: string, isRestricted: boolean) => {
+  const handleRunDocumentOcr = async (
+    documentId: string,
+    isRestricted: boolean,
+    status: OcrProcessingStatus,
+  ) => {
     if (!purchaseId) {
       return;
     }
@@ -356,12 +423,21 @@ export default function CampaignPurchaseDetailPage() {
       return;
     }
 
+    const confirmReprocess = status === OcrProcessingStatus.Success
+      ? window.confirm(t('purchases.confirmRerunOcr', 'Документ вже розпізнано. Запустити OCR повторно?'))
+      : false;
+
+    if (status === OcrProcessingStatus.Success && !confirmReprocess) {
+      return;
+    }
+
     try {
       await processDocumentOcr.mutateAsync({
         organizationId: orgId!,
         campaignId: campaignId!,
         purchaseId,
         documentId,
+        confirmReprocess,
       });
       toast.success(t('purchases.ocrStarted', 'OCR запущено'));
     } catch (error) {
@@ -510,9 +586,11 @@ export default function CampaignPurchaseDetailPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <Button type="button" variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false)} disabled={processDocumentOcr.isPending} data-testid={`purchase-document-ocr-button-${doc.id}`}>
+                            <Button type="button" variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={processDocumentOcr.isPending} data-testid={`purchase-document-ocr-button-${doc.id}`}>
                               <Sparkles className="h-4 w-4" />
-                              {t('purchases.blocks.runOcr', 'Запустити OCR')}
+                              {doc.ocrProcessingStatus === OcrProcessingStatus.Success
+                                ? t('purchases.blocks.rerunOcr', 'Повторити OCR')
+                                : t('purchases.blocks.runOcr', 'Запустити OCR')}
                             </Button>
                             {doc.fileUrl ? (
                               <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>
@@ -597,9 +675,11 @@ export default function CampaignPurchaseDetailPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <Button type="button" variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false)} disabled={processDocumentOcr.isPending} data-testid={`purchase-document-ocr-button-${doc.id}`}>
+                            <Button type="button" variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={processDocumentOcr.isPending} data-testid={`purchase-document-ocr-button-${doc.id}`}>
                               <Sparkles className="h-4 w-4" />
-                              {t('purchases.blocks.runOcr', 'Запустити OCR')}
+                              {doc.ocrProcessingStatus === OcrProcessingStatus.Success
+                                ? t('purchases.blocks.rerunOcr', 'Повторити OCR')
+                                : t('purchases.blocks.runOcr', 'Запустити OCR')}
                             </Button>
                             {doc.fileUrl ? (
                               <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>

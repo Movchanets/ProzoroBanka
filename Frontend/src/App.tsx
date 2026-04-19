@@ -7,6 +7,7 @@ import { useAuthStore } from './stores/authStore';
 import { AppRoles, hasAppRole } from './constants/appRoles';
 import { Toaster } from './components/ui/sonner';
 import { RouteSeoSync } from './hooks/useRouteSeo';
+import PublicSpendingPage from './pages/PublicSpending/PublicSpendingPage';
 
 const LoginPage = lazy(() => import('./pages/Login/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/Register/RegisterPage'));
@@ -104,6 +105,7 @@ function App() {
             <Route path="/o/:slug" element={<PublicOrganizationPage />} />
             <Route path="/c/:id" element={<PublicCampaignPage />} />
             <Route path="/receipt/:id" element={<PublicReceiptPlaceholderPage />} />
+            <Route path="/spending/:id" element={<PublicSpendingPage />} />
 
             {/* Onboarding — redirect to dashboard if has orgs */}
             <Route

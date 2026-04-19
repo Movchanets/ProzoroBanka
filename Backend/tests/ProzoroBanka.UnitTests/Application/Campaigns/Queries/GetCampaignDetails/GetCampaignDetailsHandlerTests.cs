@@ -18,7 +18,7 @@ public class GetCampaignDetailsHandlerTests
 	}
 
 	[Fact]
-	public async Task Handle_CountsOnlyActiveVerifiedReceipts_AsDocumentedAmount()
+	public async Task Handle_IncludesDocumentedExpensesInDocumentedAmount()
 	{
 		await using var db = _fixture.CreateContext();
 
@@ -49,8 +49,30 @@ public class GetCampaignDetailsHandlerTests
 			CreatedByUserId = ownerId,
 			Title = "Campaign",
 			GoalAmount = 100000,
-			CurrentAmount = 60300,
+			CurrentAmount = 61613,
 			Status = CampaignStatus.Active,
+		});
+
+		db.CampaignPurchases.Add(new CampaignPurchase
+		{
+			Id = Guid.NewGuid(),
+			OrganizationId = organizationId,
+			CampaignId = campaignId,
+			CreatedByUserId = ownerId,
+			Title = "Purchase",
+			TotalAmount = 1000,
+			Status = PurchaseStatus.PaymentSent,
+			Documents =
+			[
+				new InvoiceDocument
+				{
+					Id = Guid.NewGuid(),
+					UploadedByUserId = ownerId,
+					Type = DocumentType.Invoice,
+					StorageKey = "invoice.pdf",
+					OriginalFileName = "invoice.pdf",
+				}
+			]
 		});
 
 		db.Receipts.AddRange(
@@ -94,7 +116,7 @@ public class GetCampaignDetailsHandlerTests
 		var result = await handler.Handle(new GetCampaignDetailsQuery(ownerId, campaignId), CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
-		Assert.Equal(60300, result.Payload!.DocumentedAmount);
+		Assert.Equal(61613, result.Payload!.DocumentedAmount);
 		Assert.Equal(100, result.Payload.DocumentationPercent, 3);
 	}
 }

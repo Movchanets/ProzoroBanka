@@ -49,6 +49,21 @@ function formatPublicAmount(value: number | undefined, locale: string, emptyText
   }).format(value);
 }
 
+function getPublicDocumentTypeLabel(type: number, t: (key: string, options?: Record<string, unknown>) => string) {
+  switch (type) {
+    case DocumentType.BankReceipt:
+      return t('purchases.documentTypes.bankReceipt');
+    case DocumentType.Waybill:
+      return t('purchases.documentTypes.waybill');
+    case DocumentType.Invoice:
+      return t('purchases.documentTypes.invoice');
+    case DocumentType.TransferAct:
+      return t('purchases.documentTypes.transferAct');
+    default:
+      return t('purchases.documentTypes.other');
+  }
+}
+
 export default function PublicCampaignPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US';
@@ -245,7 +260,7 @@ export default function PublicCampaignPage() {
               </div>
             </div>
 
-            <div className="relative h-[220px] overflow-hidden border-t border-border/80 bg-muted/15 sm:h-[280px] lg:h-[360px] lg:border-t-0 lg:border-l" data-testid="public-campaign-cover">
+            <div className="relative h-55 overflow-hidden border-t border-border/80 bg-muted/15 sm:h-70 lg:h-90 lg:border-t-0 lg:border-l" data-testid="public-campaign-cover">
               {campaign.coverImageUrl ? (
                 <button
                   type="button"
@@ -425,6 +440,7 @@ export default function PublicCampaignPage() {
 
                   {publicPurchasesSorted.map((purchase, index) => {
                     const restrictedDocuments = purchase.documents.filter((document) => document.type === DocumentType.TransferAct).length;
+                    const visibleDocuments = purchase.documents.filter((document) => document.type !== DocumentType.TransferAct);
                     const visibleCounterparties = purchase.documents
                       .filter((document) => document.type !== DocumentType.TransferAct)
                       .map((document) => document.counterpartyName)
@@ -458,6 +474,76 @@ export default function PublicCampaignPage() {
                               {t('campaigns.public.spending.transferActSecured', 'Є захищені Transfer Act документи')}
                             </Badge>
                           ) : null}
+                        </div>
+
+                        {visibleDocuments.length === 0 ? (
+                          <div className="mt-3 rounded-xl border border-dashed border-border p-3 text-xs text-muted-foreground" data-testid={`public-campaign-spending-no-visible-docs-${index}`}>
+                            {t('campaigns.public.spending.noVisibleDocuments', 'Для цієї витрати доступні лише захищені документи.')}
+                          </div>
+                        ) : (
+                          <div className="mt-3 space-y-2" data-testid={`public-campaign-spending-documents-${index}`}>
+                            {visibleDocuments.map((document, documentIndex) => {
+                              const documentAmount = document.amount === null ? undefined : document.amount / 100;
+                              const documentDateLabel = document.documentDate
+                                ? new Date(document.documentDate).toLocaleDateString(locale)
+                                : t('campaigns.public.receiptDateFallback');
+                              const documentName = document.originalFileName || t('campaigns.public.spending.documentFallbackName', 'Документ без назви');
+
+                              return (
+                                <div
+                                  key={document.id}
+                                  className="rounded-xl border border-border/70 bg-background/70 p-3 shadow-[0_8px_18px_var(--shadow-soft)]"
+                                  data-testid={`public-campaign-spending-document-${index}-${documentIndex}`}
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0 space-y-1">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="outline" data-testid={`public-campaign-spending-document-type-${index}-${documentIndex}`}>
+                                          {getPublicDocumentTypeLabel(document.type, t)}
+                                        </Badge>
+                                        {document.items?.length ? (
+                                          <Badge variant="secondary" data-testid={`public-campaign-spending-document-items-count-${index}-${documentIndex}`}>
+                                            {t('campaigns.public.spending.itemsCount', 'Позицій: {{count}}', { count: document.items.length })}
+                                          </Badge>
+                                        ) : null}
+                                      </div>
+                                      <p className="truncate text-sm font-semibold text-foreground" data-testid={`public-campaign-spending-document-name-${index}-${documentIndex}`}>
+                                        {documentName}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground" data-testid={`public-campaign-spending-document-counterparty-${index}-${documentIndex}`}>
+                                        {document.counterpartyName || t('campaigns.public.spending.counterpartyFallback', 'Контрагент не вказаний')}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground" data-testid={`public-campaign-spending-document-date-${index}-${documentIndex}`}>
+                                        {documentDateLabel}
+                                      </p>
+                                    </div>
+                                    <div className="flex shrink-0 flex-col items-end gap-2">
+                                      <p className="text-sm font-semibold" data-testid={`public-campaign-spending-document-amount-${index}-${documentIndex}`}>
+                                        {formatPublicAmount(documentAmount, locale, t('common.na'))}
+                                      </p>
+                                      {document.fileUrl ? (
+                                        <Button asChild variant="outline" size="sm" data-testid={`public-campaign-spending-document-open-${index}-${documentIndex}`}>
+                                          <a href={document.fileUrl} target="_blank" rel="noopener noreferrer">
+                                            <Eye className="h-4 w-4" />
+                                            {t('campaigns.public.spending.openDocument', 'Переглянути')}
+                                          </a>
+                                        </Button>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <div className="mt-3 flex justify-end">
+                          <Button asChild variant="outline" size="sm" data-testid={`public-campaign-spending-open-full-${index}`}>
+                            <Link to={`/spending/${purchase.id}`}>
+                              <Eye className="h-4 w-4" />
+                              {t('campaigns.public.spending.viewFullExpense', 'Повна сторінка витрати')}
+                            </Link>
+                          </Button>
                         </div>
                       </article>
                     );

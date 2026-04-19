@@ -43,10 +43,8 @@ public record DocumentDto(
 	bool IsDataVerifiedByUser,
 	IReadOnlyList<DocumentItemDto>? Items,
 	DateTime CreatedAt,
-	string? SenderIbanOrCard = null,
 	string? Edrpou = null,
 	string? PayerFullName = null,
-	long? TotalItemsAmount = null,
 	string? ReceiptCode = null,
 	string? PaymentPurpose = null,
 	string? SenderIban = null,
@@ -85,10 +83,12 @@ public record UpdateDocumentMetadataRequest(
 	long? Amount,
 	string? CounterpartyName,
 	DateTime? DocumentDate,
-	string? SenderIbanOrCard = null,
 	string? Edrpou = null,
 	string? PayerFullName = null,
 	string? ReceiptCode = null,
 	string? PaymentPurpose = null,
 	string? SenderIban = null,
 	string? ReceiverIban = null);
+
+public record ProcessDocumentOcrRequest(
+	bool ConfirmReprocess = false);

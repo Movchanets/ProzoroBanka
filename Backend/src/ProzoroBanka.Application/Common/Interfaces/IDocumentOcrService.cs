@@ -16,7 +16,13 @@ public record DocumentOcrResult(
     decimal? TotalAmount,
     IReadOnlyList<OcrParsedItem> Items,
     string? RawJson,
-    string? ErrorMessage
+    string? ErrorMessage,
+    string? Edrpou = null,
+    string? PayerFullName = null,
+    string? ReceiptCode = null,
+    string? PaymentPurpose = null,
+    string? SenderIban = null,
+    string? ReceiverIban = null
 );
 
 public interface IDocumentOcrService

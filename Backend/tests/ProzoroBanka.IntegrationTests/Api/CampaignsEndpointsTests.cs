@@ -43,19 +43,19 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 	}
 
 	[Fact]
-	public async Task GetCampaignDetails_UsesOnlyActiveVerifiedReceiptsForDocumentedAmount()
+	public async Task GetCampaignDetails_IncludesDocumentedExpensesInDocumentedAmount()
 	{
 		await AuthenticateAsAdminAsync();
 		var orgId = await CreateOrganizationAsync($"Detail Org {Guid.NewGuid():N}");
 		var campaignId = await CreateCampaignAsync(orgId, $"Detail Campaign {Guid.NewGuid():N}");
 
-		await SeedCampaignReceiptsAsync(orgId, campaignId);
+		await SeedCampaignReceiptsAndExpensesAsync(orgId, campaignId);
 
 		var response = await _client.GetAsync($"/api/campaigns/{campaignId}");
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
 		var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
-		Assert.Equal(60300, payload.GetProperty("documentedAmount").GetInt64());
+		Assert.Equal(61613, payload.GetProperty("documentedAmount").GetInt64());
 		Assert.Equal(100, payload.GetProperty("documentationPercent").GetDouble());
 	}
 
@@ -121,7 +121,7 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		return json.GetProperty("id").GetGuid();
 	}
 
-	private async Task SeedCampaignReceiptsAsync(Guid organizationId, Guid campaignId)
+	private async Task SeedCampaignReceiptsAndExpensesAsync(Guid organizationId, Guid campaignId)
 	{
 		using var scope = _factory.Services.CreateScope();
 		var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -131,7 +131,7 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 			.SingleAsync();
 
 		var campaign = await db.Campaigns.SingleAsync(c => c.Id == campaignId);
-		campaign.CurrentAmount = 60300;
+		campaign.CurrentAmount = 61613;
 
 		db.Receipts.AddRange(
 			new Receipt
@@ -160,6 +160,28 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 				TotalAmount = 193.87m,
 				CreatedAt = DateTime.UtcNow,
 			});
+
+		var purchaseId = Guid.NewGuid();
+		db.CampaignPurchases.Add(new CampaignPurchase
+		{
+			Id = purchaseId,
+			OrganizationId = organizationId,
+			CampaignId = campaignId,
+			CreatedByUserId = ownerUserId,
+			Title = "Purchase",
+			TotalAmount = 1000,
+			Status = PurchaseStatus.PaymentSent,
+		});
+
+		db.CampaignDocuments.Add(new InvoiceDocument
+		{
+			Id = Guid.NewGuid(),
+			PurchaseId = purchaseId,
+			UploadedByUserId = ownerUserId,
+			Type = DocumentType.Invoice,
+			StorageKey = "invoice.pdf",
+			OriginalFileName = "invoice.pdf",
+		});
 
 		await db.SaveChangesAsync();
 	}

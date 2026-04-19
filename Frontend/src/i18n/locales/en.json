@@ -534,7 +534,28 @@
         "total": "Total: {{amount}}",
         "empty": "No public spending records yet",
         "documentsCount": "Documents: {{count}}",
-        "transferActSecured": "Contains secured Transfer Act documents"
+        "transferActSecured": "Contains secured Transfer Act documents",
+        "noVisibleDocuments": "Only secured documents are available for this expense.",
+        "itemsCount": "Items: {{count}}",
+        "counterpartyFallback": "Counterparty is unavailable",
+        "documentFallbackName": "Unnamed document",
+        "openDocument": "Open",
+        "viewFullExpense": "Full spending page",
+        "loading": "Loading spending details...",
+        "notFoundTitle": "Spending record not found",
+        "notFoundDescription": "This spending record is unavailable or no longer public.",
+        "fullPageDescription": "Transparent spending view with documents, totals, and key details.",
+        "fullPageSummaryTitle": "Spending summary",
+        "documentsTitle": "Spending documents",
+        "detailsTitle": "Spending details",
+        "backToCampaign": "Back to campaign",
+        "purchaseIdLabel": "Spending ID",
+        "statusLabel": "Status",
+        "totalLabel": "Total amount",
+        "createdAtLabel": "Created at",
+        "totalAmountKpi": "Spending amount",
+        "documentsCountKpi": "Documents",
+        "createdAtKpi": "Date"
       },
       "moreReceiptsNote": "{{count}} more receipt(s) are available via full receipt pages.",
       "daysRemaining": "Days until campaign end: {{count}}."
@@ -851,6 +872,8 @@
     "uploadSuccess": "Document uploaded",
     "deleteDocSuccess": "Document deleted",
     "deleteSuccess": "Purchase deleted",
+    "invalidWaybillItem": "Invalid item data",
+    "confirmRerunOcr": "This document is already recognized. Run OCR again?",
     "filters": {
       "statusAll": "All statuses"
     },
@@ -866,7 +889,26 @@
       "transferTitle": "Transfer block (optional)",
       "transferDescription": "Transfer acts. OCR is restricted for safety reasons.",
       "runOcr": "Run OCR",
+      "rerunOcr": "Run OCR Again",
       "empty": "No documents added yet"
+    },
+    "items": {
+      "listTitle": "Document items",
+      "itemName": "Item name",
+      "qty": "Quantity",
+      "price": "Price (₴)",
+      "total": "Total (₴)",
+      "actions": "Actions",
+      "empty": "No items added yet",
+      "addItem": "Add item"
+    },
+    "bankReceipt": {
+      "edrpou": "EDRPOU",
+      "payerFullName": "Payer",
+      "receiptCode": "Receipt code",
+      "paymentPurpose": "Payment purpose",
+      "senderIban": "Sender IBAN",
+      "receiverIban": "Receiver IBAN"
     },
     "toasts": {
       "selectCampaignFirst": "Select a campaign first",

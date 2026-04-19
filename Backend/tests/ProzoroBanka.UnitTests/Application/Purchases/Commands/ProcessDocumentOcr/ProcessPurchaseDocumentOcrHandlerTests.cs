@@ -16,14 +16,19 @@ public class ProcessPurchaseDocumentOcrHandlerTests
 	private readonly PostgreSqlUnitTestFixture _fixture;
 	private readonly Mock<IFileStorage> _fileStorageMock;
 	private readonly Mock<IOrganizationAuthorizationService> _orgAuthMock;
+	private readonly Mock<IOcrMonthlyQuotaService> _ocrQuotaServiceMock;
 
 	public ProcessPurchaseDocumentOcrHandlerTests(PostgreSqlUnitTestFixture fixture)
 	{
 		_fixture = fixture;
 		_fileStorageMock = new Mock<IFileStorage>();
 		_orgAuthMock = new Mock<IOrganizationAuthorizationService>();
+		_ocrQuotaServiceMock = new Mock<IOcrMonthlyQuotaService>();
 		_fileStorageMock.Setup(x => x.GetPublicUrl(It.IsAny<string>()))
 			.Returns((string key) => $"https://test.com/{key}");
+		_ocrQuotaServiceMock
+			.Setup(x => x.TryConsumeAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new QuotaDecision(true, null));
 	}
 
 	[Fact]
@@ -48,7 +53,7 @@ public class ProcessPurchaseDocumentOcrHandlerTests
 			Id = Guid.NewGuid(),
 			PurchaseId = purchase.Id,
 			UploadedByUserId = callerId,
-			Type = DocumentType.Waybill,
+			Type = DocumentType.BankReceipt,
 			StorageKey = "test.jpg",
 			OriginalFileName = "test.jpg",
 			OcrProcessingStatus = OcrProcessingStatus.NotProcessed
@@ -69,11 +74,24 @@ public class ProcessPurchaseDocumentOcrHandlerTests
 			.ReturnsAsync(stubStream);
 
 		var ocrDate = new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc);
-		var ocrStub = new StubDocumentOcrService(new DocumentOcrResult(true, "Rozetka", ocrDate, 500.50m, [], "{}", null));
+		var ocrStub = new StubDocumentOcrService(new DocumentOcrResult(
+			Success: true,
+			CounterpartyName: "Rozetka",
+			DocumentDate: ocrDate,
+			TotalAmount: 500.50m,
+			Items: [],
+			RawJson: "{}",
+			ErrorMessage: null,
+			Edrpou: "12345678",
+			PayerFullName: "Іваненко Іван Іванович",
+			ReceiptCode: "RCP-2026-001",
+			PaymentPurpose: "Оплата за товари",
+			SenderIban: "UA111111111111111111111111111",
+			ReceiverIban: "UA222222222222222222222222222"));
 		var ocrDispatcher = new PurchaseDocumentOcrDispatcher(db);
 
 		var command = new ProcessPurchaseDocumentOcrCommand(orgId, campaignId, purchase.Id, document.Id, callerId);
-		var handler = new ProcessPurchaseDocumentOcrHandler(db, _fileStorageMock.Object, _orgAuthMock.Object, ocrStub, ocrDispatcher);
+		var handler = new ProcessPurchaseDocumentOcrHandler(db, _fileStorageMock.Object, _orgAuthMock.Object, _ocrQuotaServiceMock.Object, ocrStub, ocrDispatcher);
 
 		// Act
 		var result = await handler.Handle(command, CancellationToken.None);
@@ -84,6 +102,12 @@ public class ProcessPurchaseDocumentOcrHandlerTests
 		Assert.Equal("Rozetka", result.Payload.CounterpartyName);
 		Assert.Equal(50050, result.Payload.Amount);
 		Assert.Equal(ocrDate, result.Payload.DocumentDate);
+		Assert.Equal("12345678", result.Payload.Edrpou);
+		Assert.Equal("Іваненко Іван Іванович", result.Payload.PayerFullName);
+		Assert.Equal("RCP-2026-001", result.Payload.ReceiptCode);
+		Assert.Equal("Оплата за товари", result.Payload.PaymentPurpose);
+		Assert.Equal("UA111111111111111111111111111", result.Payload.SenderIban);
+		Assert.Equal("UA222222222222222222222222222", result.Payload.ReceiverIban);
 		Assert.Single(ocrStub.Calls);
 	}
 
@@ -128,7 +152,7 @@ public class ProcessPurchaseDocumentOcrHandlerTests
 		var ocrStub = new StubDocumentOcrService();
 		var ocrDispatcher = new PurchaseDocumentOcrDispatcher(db);
 		var command = new ProcessPurchaseDocumentOcrCommand(orgId, campaignId, purchase.Id, document.Id, callerId);
-		var handler = new ProcessPurchaseDocumentOcrHandler(db, _fileStorageMock.Object, _orgAuthMock.Object, ocrStub, ocrDispatcher);
+		var handler = new ProcessPurchaseDocumentOcrHandler(db, _fileStorageMock.Object, _orgAuthMock.Object, _ocrQuotaServiceMock.Object, ocrStub, ocrDispatcher);
 
 		// Act
 		var result = await handler.Handle(command, CancellationToken.None);
@@ -193,7 +217,7 @@ public class ProcessPurchaseDocumentOcrHandlerTests
 		var ocrDispatcher = new PurchaseDocumentOcrDispatcher(db);
 
 		var command = new ProcessPurchaseDocumentOcrCommand(orgId, campaignId, purchase.Id, document.Id, callerId);
-		var handler = new ProcessPurchaseDocumentOcrHandler(db, _fileStorageMock.Object, _orgAuthMock.Object, ocrStub, ocrDispatcher);
+		var handler = new ProcessPurchaseDocumentOcrHandler(db, _fileStorageMock.Object, _orgAuthMock.Object, _ocrQuotaServiceMock.Object, ocrStub, ocrDispatcher);
 
 		var result = await handler.Handle(command, CancellationToken.None);
 
@@ -203,6 +227,110 @@ public class ProcessPurchaseDocumentOcrHandlerTests
 		Assert.Equal(2, result.Payload.Items!.Count);
 		Assert.Contains(result.Payload.Items, x => x.Name == "Кеди Nike Court Vision" && x.UnitPrice == 254500 && x.TotalPrice == 254500);
 		Assert.Contains(result.Payload.Items, x => x.Name == "Доставка" && x.UnitPrice == 9000 && x.TotalPrice == 9000);
+	}
+
+	[Fact]
+	public async Task Handle_AlreadyProcessed_RequiresConfirmation()
+	{
+		await using var db = _fixture.CreateContext();
+		var orgId = Guid.NewGuid();
+		var campaignId = Guid.NewGuid();
+		var callerId = Guid.NewGuid();
+
+		var purchase = new CampaignPurchase
+		{
+			Id = Guid.NewGuid(),
+			OrganizationId = orgId,
+			CampaignId = campaignId,
+			CreatedByUserId = callerId,
+			Title = "Processed",
+			TotalAmount = 1000
+		};
+
+		var document = new BankReceiptDocument
+		{
+			Id = Guid.NewGuid(),
+			PurchaseId = purchase.Id,
+			UploadedByUserId = callerId,
+			Type = DocumentType.BankReceipt,
+			StorageKey = "processed.jpg",
+			OriginalFileName = "processed.jpg",
+			OcrProcessingStatus = OcrProcessingStatus.Success
+		};
+
+		db.DomainUsers.Add(new User { Id = callerId, Email = $"u-{callerId:N}@t.com", FirstName = "F", LastName = "L" });
+		db.Organizations.Add(new Organization { Id = orgId, OwnerUserId = callerId, Name = "Org", Slug = $"org-{orgId}" });
+		db.Campaigns.Add(new Campaign { Id = campaignId, OrganizationId = orgId, CreatedByUserId = callerId, Title = "C", Description = "D" });
+		db.CampaignPurchases.Add(purchase);
+		db.CampaignDocuments.Add(document);
+		await db.SaveChangesAsync();
+
+		_orgAuthMock.Setup(x => x.EnsureOrganizationAccessAsync(orgId, callerId, OrganizationPermissions.ManagePurchases, null, default))
+			.ReturnsAsync(ServiceResponse<OrganizationAccessContext>.Success(null!));
+
+		var ocrStub = new StubDocumentOcrService(new DocumentOcrResult(true, "C", DateTime.UtcNow, 1m, [], "{}", null));
+		var ocrDispatcher = new PurchaseDocumentOcrDispatcher(db);
+		var command = new ProcessPurchaseDocumentOcrCommand(orgId, campaignId, purchase.Id, document.Id, callerId);
+		var handler = new ProcessPurchaseDocumentOcrHandler(db, _fileStorageMock.Object, _orgAuthMock.Object, _ocrQuotaServiceMock.Object, ocrStub, ocrDispatcher);
+
+		var result = await handler.Handle(command, CancellationToken.None);
+
+		Assert.False(result.IsSuccess);
+		Assert.Contains("Підтвердіть повторне розпізнавання", result.Message);
+		Assert.Empty(ocrStub.Calls);
+	}
+
+	[Fact]
+	public async Task Handle_AlreadyProcessed_WithConfirmation_AllowsReprocess()
+	{
+		await using var db = _fixture.CreateContext();
+		var orgId = Guid.NewGuid();
+		var campaignId = Guid.NewGuid();
+		var callerId = Guid.NewGuid();
+
+		var purchase = new CampaignPurchase
+		{
+			Id = Guid.NewGuid(),
+			OrganizationId = orgId,
+			CampaignId = campaignId,
+			CreatedByUserId = callerId,
+			Title = "Reprocess",
+			TotalAmount = 1000
+		};
+
+		var document = new BankReceiptDocument
+		{
+			Id = Guid.NewGuid(),
+			PurchaseId = purchase.Id,
+			UploadedByUserId = callerId,
+			Type = DocumentType.BankReceipt,
+			StorageKey = "reprocess.jpg",
+			OriginalFileName = "reprocess.jpg",
+			OcrProcessingStatus = OcrProcessingStatus.Success
+		};
+
+		db.DomainUsers.Add(new User { Id = callerId, Email = $"u-{callerId:N}@t.com", FirstName = "F", LastName = "L" });
+		db.Organizations.Add(new Organization { Id = orgId, OwnerUserId = callerId, Name = "Org", Slug = $"org-{orgId}" });
+		db.Campaigns.Add(new Campaign { Id = campaignId, OrganizationId = orgId, CreatedByUserId = callerId, Title = "C", Description = "D" });
+		db.CampaignPurchases.Add(purchase);
+		db.CampaignDocuments.Add(document);
+		await db.SaveChangesAsync();
+
+		_orgAuthMock.Setup(x => x.EnsureOrganizationAccessAsync(orgId, callerId, OrganizationPermissions.ManagePurchases, null, default))
+			.ReturnsAsync(ServiceResponse<OrganizationAccessContext>.Success(null!));
+
+		_fileStorageMock.Setup(x => x.OpenReadAsync(document.StorageKey, default))
+			.ReturnsAsync(new MemoryStream(new byte[] { 1, 2, 3 }));
+
+		var ocrStub = new StubDocumentOcrService(new DocumentOcrResult(true, "Updated", DateTime.UtcNow, 123m, [], "{}", null));
+		var ocrDispatcher = new PurchaseDocumentOcrDispatcher(db);
+		var command = new ProcessPurchaseDocumentOcrCommand(orgId, campaignId, purchase.Id, document.Id, callerId, ConfirmReprocess: true);
+		var handler = new ProcessPurchaseDocumentOcrHandler(db, _fileStorageMock.Object, _orgAuthMock.Object, _ocrQuotaServiceMock.Object, ocrStub, ocrDispatcher);
+
+		var result = await handler.Handle(command, CancellationToken.None);
+
+		Assert.True(result.IsSuccess);
+		Assert.Single(ocrStub.Calls);
 	}
 
 	private sealed class StubDocumentOcrService : IDocumentOcrService

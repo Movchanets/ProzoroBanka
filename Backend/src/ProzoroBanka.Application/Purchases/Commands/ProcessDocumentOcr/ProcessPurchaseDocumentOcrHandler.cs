@@ -14,6 +14,7 @@ public class ProcessPurchaseDocumentOcrHandler : IRequestHandler<ProcessPurchase
 	private readonly IApplicationDbContext _db;
 	private readonly IFileStorage _fileStorage;
 	private readonly IOrganizationAuthorizationService _orgAuth;
+	private readonly IOcrMonthlyQuotaService _ocrQuotaService;
 	private readonly IDocumentOcrService _ocrService;
 	private readonly IPurchaseDocumentOcrDispatcher _ocrDispatcher;
 
@@ -21,12 +22,14 @@ public class ProcessPurchaseDocumentOcrHandler : IRequestHandler<ProcessPurchase
 		IApplicationDbContext db,
 		IFileStorage fileStorage,
 		IOrganizationAuthorizationService orgAuth,
+		IOcrMonthlyQuotaService ocrQuotaService,
 		IDocumentOcrService ocrService,
 		IPurchaseDocumentOcrDispatcher ocrDispatcher)
 	{
 		_db = db;
 		_fileStorage = fileStorage;
 		_orgAuth = orgAuth;
+		_ocrQuotaService = ocrQuotaService;
 		_ocrService = ocrService;
 		_ocrDispatcher = ocrDispatcher;
 	}
@@ -67,8 +70,12 @@ public class ProcessPurchaseDocumentOcrHandler : IRequestHandler<ProcessPurchase
 		if (document.Type == DocumentType.TransferAct)
 			return ServiceResponse<DocumentDto>.Failure("OCR не підтримується для Актів прийому-передачі.");
 
-		if (document.OcrProcessingStatus == OcrProcessingStatus.Success)
-			return ServiceResponse<DocumentDto>.Failure("Документ вже розпізнано.");
+		if (document.OcrProcessingStatus == OcrProcessingStatus.Success && !request.ConfirmReprocess)
+			return ServiceResponse<DocumentDto>.Failure("Документ вже розпізнано. Підтвердіть повторне розпізнавання.");
+
+		var quota = await _ocrQuotaService.TryConsumeAsync(request.OrganizationId, DateTime.UtcNow, ct);
+		if (!quota.Allowed)
+			return ServiceResponse<DocumentDto>.Failure(quota.Reason ?? "Місячний ліміт OCR вичерпано");
 
 		try
 		{

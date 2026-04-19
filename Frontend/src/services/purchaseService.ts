@@ -10,6 +10,7 @@ import type {
   CreatePurchaseRequest,
   UpdatePurchaseRequest,
   UpdateDocumentMetadataRequest,
+  ProcessDocumentOcrRequest,
   PurchaseStatus,
   DocumentType,
 } from '@/types';
@@ -145,11 +146,13 @@ export const purchaseService = {
     campaignId: string,
     purchaseId: string,
     documentId: string,
+    payload: ProcessDocumentOcrRequest,
   ) =>
     apiFetch<DocumentDto>(
       `/api/organizations/${organizationId}/campaigns/${campaignId}/purchases/${purchaseId}/documents/${documentId}/ocr`,
       {
         method: 'POST',
+        body: JSON.stringify(payload),
       }
     ),
 
@@ -233,15 +236,20 @@ export const purchaseService = {
     organizationId: string,
     purchaseId: string,
     documentId: string,
+    payload: ProcessDocumentOcrRequest,
   ) =>
     apiFetch<DocumentDto>(
       `/api/organizations/${organizationId}/purchases/${purchaseId}/documents/${documentId}/ocr`,
       {
         method: 'POST',
+        body: JSON.stringify(payload),
       }
     ),
 
   // ── Public ──
   publicList: (campaignId: string) =>
     apiFetch<PurchaseDetailDto[]>(`/api/public/campaigns/${campaignId}/purchases`),
+
+  publicGetById: (purchaseId: string) =>
+    apiFetch<PurchaseDetailDto>(`/api/public/purchases/${purchaseId}`),
 };

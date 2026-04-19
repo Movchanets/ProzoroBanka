@@ -228,12 +228,14 @@ export function useProcessPurchaseDocumentOcr() {
       campaignId,
       purchaseId,
       documentId,
+      confirmReprocess,
     }: {
       organizationId: string;
       campaignId: string;
       purchaseId: string;
       documentId: string;
-    }) => purchaseService.processDocumentOcr(organizationId, campaignId, purchaseId, documentId),
+      confirmReprocess?: boolean;
+    }) => purchaseService.processDocumentOcr(organizationId, campaignId, purchaseId, documentId, { confirmReprocess }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: purchaseKeys.lists() });
       queryClient.invalidateQueries({
@@ -420,11 +422,13 @@ export function useProcessPurchaseDocumentOcrShort() {
       organizationId,
       purchaseId,
       documentId,
+      confirmReprocess,
     }: {
       organizationId: string;
       purchaseId: string;
       documentId: string;
-    }) => purchaseService.processDocumentOcrShort(organizationId, purchaseId, documentId),
+      confirmReprocess?: boolean;
+    }) => purchaseService.processDocumentOcrShort(organizationId, purchaseId, documentId, { confirmReprocess }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: purchaseKeys.lists() });
       queryClient.invalidateQueries({
@@ -441,5 +445,13 @@ export function usePublicPurchases(campaignId: string, enabled = true) {
     queryKey: ['publicPurchases', campaignId],
     queryFn: () => purchaseService.publicList(campaignId),
     enabled: enabled && Boolean(campaignId),
+  });
+}
+
+export function usePublicPurchaseById(purchaseId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['publicPurchase', purchaseId],
+    queryFn: () => purchaseService.publicGetById(purchaseId),
+    enabled: enabled && Boolean(purchaseId),
   });
 }

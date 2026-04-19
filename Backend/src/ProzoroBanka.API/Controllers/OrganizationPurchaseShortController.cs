@@ -151,7 +151,7 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 			new UpdateDocumentMetadataCommand(
 				userId.Value, organizationId, null, purchaseId, documentId,
 				request.Amount, request.CounterpartyName, request.DocumentDate,
-				request.SenderIbanOrCard, request.Edrpou, request.PayerFullName,
+				request.Edrpou, request.PayerFullName,
 				request.ReceiptCode, request.PaymentPurpose, request.SenderIban, request.ReceiverIban),
 			ct);
 
@@ -187,13 +187,21 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 		Guid organizationId,
 		Guid purchaseId,
 		Guid documentId,
+		[FromBody] ProcessDocumentOcrRequest? request,
 		CancellationToken ct)
 	{
 		var userId = _currentUser.DomainUserId;
 		if (userId is null) return Unauthorized();
 
 		var result = await _sender.Send(
-			new ProcessPurchaseDocumentOcrCommand(organizationId, null, purchaseId, documentId, userId.Value), ct);
+			new ProcessPurchaseDocumentOcrCommand(
+				organizationId,
+				null,
+				purchaseId,
+				documentId,
+				userId.Value,
+				request?.ConfirmReprocess ?? false),
+			ct);
 
 		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
 	}

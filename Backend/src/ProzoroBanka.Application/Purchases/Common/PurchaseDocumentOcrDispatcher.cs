@@ -46,8 +46,16 @@ public class PurchaseDocumentOcrDispatcher : IPurchaseDocumentOcrDispatcher
 
 	private static void ApplyBankReceiptOcr(BankReceiptDocument bankReceipt, DocumentOcrResult ocrResult)
 	{
-		bankReceipt.TotalItemsAmount = ocrResult.Items.Sum(item => ToKopecks(item.TotalPrice));
+		bankReceipt.Edrpou = Normalize(ocrResult.Edrpou);
+		bankReceipt.PayerFullName = Normalize(ocrResult.PayerFullName);
+		bankReceipt.ReceiptCode = Normalize(ocrResult.ReceiptCode);
+		bankReceipt.PaymentPurpose = Normalize(ocrResult.PaymentPurpose);
+		bankReceipt.SenderIban = Normalize(ocrResult.SenderIban);
+		bankReceipt.ReceiverIban = Normalize(ocrResult.ReceiverIban);
 	}
+
+	private static string? Normalize(string? value) =>
+		string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
 	private async Task ApplyWaybillLikeOcr(CampaignDocument document, DocumentOcrResult ocrResult, CancellationToken ct)
 	{

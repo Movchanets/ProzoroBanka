@@ -9,5 +9,6 @@ public record ProcessPurchaseDocumentOcrCommand(
 	Guid? CampaignId,
 	Guid PurchaseId,
 	Guid DocumentId,
-	Guid CallerDomainUserId
+	Guid CallerDomainUserId,
+	bool ConfirmReprocess = false
 ) : IRequest<ServiceResponse<DocumentDto>>;

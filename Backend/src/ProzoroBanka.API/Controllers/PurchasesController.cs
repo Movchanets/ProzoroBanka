@@ -14,6 +14,7 @@ using ProzoroBanka.Application.Purchases.DTOs;
 using ProzoroBanka.Application.Purchases.Queries.GetCampaignPurchases;
 using ProzoroBanka.Application.Purchases.Queries.GetPurchaseDetail;
 using ProzoroBanka.Application.Purchases.Queries.GetPublicCampaignPurchases;
+using ProzoroBanka.Application.Purchases.Queries.GetPublicPurchaseById;
 using ProzoroBanka.Domain.Enums;
 
 namespace ProzoroBanka.API.Controllers;
@@ -203,7 +204,7 @@ public class PurchasesController : ApiControllerBase
 			new UpdateDocumentMetadataCommand(
 				userId.Value, organizationId, campaignId, purchaseId, documentId,
 				request.Amount, request.CounterpartyName, request.DocumentDate,
-				request.SenderIbanOrCard, request.Edrpou, request.PayerFullName,
+				request.Edrpou, request.PayerFullName,
 				request.ReceiptCode, request.PaymentPurpose, request.SenderIban, request.ReceiverIban),
 			ct);
 
@@ -242,6 +243,7 @@ public class PurchasesController : ApiControllerBase
 		Guid campaignId,
 		Guid purchaseId,
 		Guid documentId,
+		[FromBody] ProcessDocumentOcrRequest? request,
 		CancellationToken ct)
 	{
 		var userId = _currentUser.DomainUserId;
@@ -249,7 +251,14 @@ public class PurchasesController : ApiControllerBase
 			return Unauthorized();
 
 		var result = await _sender.Send(
-			new ProcessPurchaseDocumentOcrCommand(organizationId, campaignId, purchaseId, documentId, userId.Value), ct);
+			new ProcessPurchaseDocumentOcrCommand(
+				organizationId,
+				campaignId,
+				purchaseId,
+				documentId,
+				userId.Value,
+				request?.ConfirmReprocess ?? false),
+			ct);
 
 		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
 	}
@@ -265,5 +274,18 @@ public class PurchasesController : ApiControllerBase
 		var result = await _sender.Send(new GetPublicCampaignPurchasesQuery(campaignId), ct);
 
 		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
+	}
+
+	[AllowAnonymous]
+	[HttpGet("/api/public/purchases/{purchaseId:guid}")]
+	[ProducesResponseType(typeof(PurchaseDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> PublicGetById(Guid purchaseId, CancellationToken ct)
+	{
+		var result = await _sender.Send(new GetPublicPurchaseByIdQuery(purchaseId), ct);
+		if (!result.IsSuccess)
+			return NotFound(new { Error = result.Message });
+
+		return Ok(result.Payload);
 	}
 }

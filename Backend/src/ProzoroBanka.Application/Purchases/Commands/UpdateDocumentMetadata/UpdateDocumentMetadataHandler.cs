@@ -68,9 +68,6 @@ public class UpdateDocumentMetadataHandler : IRequestHandler<UpdateDocumentMetad
 
 		if (document is BankReceiptDocument bankReceipt)
 		{
-			if (request.SenderIbanOrCard is not null)
-				bankReceipt.SenderIbanOrCard = request.SenderIbanOrCard;
-
 			if (request.Edrpou is not null)
 				bankReceipt.Edrpou = request.Edrpou;
 

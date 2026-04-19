@@ -1,4 +1,4 @@
-import { useState, useEffect, type DragEvent } from 'react';
+import { useState, useEffect, useMemo, type DragEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -108,7 +108,6 @@ function DocumentMetadataForm({
     amount?: number;
     counterpartyName?: string;
     documentDate?: string;
-    senderIbanOrCard?: string;
     edrpou?: string;
     payerFullName?: string;
     receiptCode?: string;
@@ -122,10 +121,9 @@ function DocumentMetadataForm({
   isPending: boolean;
   t: TFunction;
 }) {
-  const [amount, setAmount] = useState(document.amount ? (document.amount / 100).toFixed(2) : '');
+  const [amountInput, setAmountInput] = useState(document.amount ? (document.amount / 100).toFixed(2) : '');
   const [counterpartyName, setCounterpartyName] = useState(document.counterpartyName ?? '');
   const [documentDate, setDocumentDate] = useState(document.documentDate ? document.documentDate.slice(0, 10) : '');
-  const [senderIbanOrCard, setSenderIbanOrCard] = useState(document.senderIbanOrCard ?? '');
   const [edrpou, setEdrpou] = useState(document.edrpou ?? '');
   const [payerFullName, setPayerFullName] = useState(document.payerFullName ?? '');
   const [receiptCode, setReceiptCode] = useState(document.receiptCode ?? '');
@@ -135,24 +133,67 @@ function DocumentMetadataForm({
   const [itemName, setItemName] = useState('');
   const [itemQuantity, setItemQuantity] = useState('1');
   const [itemUnitPrice, setItemUnitPrice] = useState('0');
+  const documentItems = useMemo(() => document.items ?? [], [document.items]);
   const [editableItems, setEditableItems] = useState(
-    (document.items ?? []).map((item) => ({
+    documentItems.map((item) => ({
       id: item.id,
       name: item.name,
       quantity: String(item.quantity),
       unitPrice: String(item.unitPrice / 100),
     })),
   );
-  const documentItems = document.items ?? [];
+
+  const parseEditableItemForSave = (editableItem: { id: string; name: string; quantity: string; unitPrice: string }) => {
+    const quantity = Number(editableItem.quantity.replace(',', '.'));
+    const unitPriceHryvnia = Number(editableItem.unitPrice.replace(',', '.'));
+
+    if (!editableItem.name.trim() || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPriceHryvnia) || unitPriceHryvnia < 0) {
+      return null;
+    }
+
+    return {
+      name: editableItem.name.trim(),
+      quantity,
+      unitPrice: Math.round(unitPriceHryvnia * 100),
+    };
+  };
+
+  const isItemChanged = (editableItem: { id: string; name: string; quantity: string; unitPrice: string }) => {
+    const sourceItem = documentItems.find((candidate) => candidate.id === editableItem.id);
+    if (!sourceItem) {
+      return false;
+    }
+
+    const parsed = parseEditableItemForSave(editableItem);
+    if (!parsed) {
+      return true;
+    }
+
+    return sourceItem.name !== parsed.name
+      || sourceItem.quantity !== parsed.quantity
+      || sourceItem.unitPrice !== parsed.unitPrice;
+  };
 
   const handleSave = async () => {
-    const normalizedAmount = amount.trim().length > 0 ? Number(amount.replace(',', '.')) : undefined;
+    if (isWaybill && onUpdateWaybillItem) {
+      const changedItems = editableItems.filter(isItemChanged);
+      for (const editableItem of changedItems) {
+        const parsed = parseEditableItemForSave(editableItem);
+        if (!parsed) {
+          toast.error(t('purchases.invalidWaybillItem'));
+          return;
+        }
+
+        await onUpdateWaybillItem(document.id, editableItem.id, parsed);
+      }
+    }
+
+    const normalizedAmount = amountValue.trim().length > 0 ? Number(amountValue.replace(',', '.')) : undefined;
 
     await onSubmit(document.id, {
       amount: Number.isFinite(normalizedAmount) ? Math.round((normalizedAmount ?? 0) * 100) : undefined,
       counterpartyName: counterpartyName.trim() || undefined,
       documentDate: documentDate || undefined,
-      senderIbanOrCard: document.type === DocumentType.BankReceipt ? senderIbanOrCard.trim() : undefined,
       edrpou: document.type === DocumentType.BankReceipt ? edrpou.trim() : undefined,
       payerFullName: document.type === DocumentType.BankReceipt ? payerFullName.trim() : undefined,
       receiptCode: document.type === DocumentType.BankReceipt ? receiptCode.trim() : undefined,
@@ -166,6 +207,30 @@ function DocumentMetadataForm({
   const isWaybill = document.type === DocumentType.Waybill;
   const isWaybillLike = document.type === DocumentType.Waybill || document.type === DocumentType.Invoice;
 
+  const calculatedWaybillAmount = (() => {
+    if (!isWaybillLike) {
+      return null;
+    }
+
+    if (isWaybill && editableItems.length > 0) {
+      return editableItems.reduce((sum, item) => {
+        const qty = Number(item.quantity.replace(',', '.'));
+        const unit = Number(item.unitPrice.replace(',', '.'));
+        if (!Number.isFinite(qty) || !Number.isFinite(unit) || qty < 0 || unit < 0) {
+          return sum;
+        }
+
+        return sum + (qty * unit);
+      }, 0);
+    }
+
+    return documentItems.reduce((sum, item) => sum + (item.totalPrice / 100), 0);
+  })();
+
+  const amountValue = calculatedWaybillAmount !== null
+    ? calculatedWaybillAmount.toFixed(2)
+    : amountInput;
+
   if (isWaybillLike) {
     const handleAddItem = async () => {
       if (!onAddWaybillItem) {
@@ -176,7 +241,7 @@ function DocumentMetadataForm({
       const unitPriceHryvnia = Number(itemUnitPrice.replace(',', '.'));
 
       if (!itemName.trim() || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPriceHryvnia) || unitPriceHryvnia < 0) {
-        toast.error(t('purchases.invalidWaybillItem', 'Некоректні дані позиції'));
+        toast.error(t('purchases.invalidWaybillItem'));
         return;
       }
 
@@ -201,19 +266,13 @@ function DocumentMetadataForm({
         return;
       }
 
-      const quantity = Number(targetItem.quantity.replace(',', '.'));
-      const unitPriceHryvnia = Number(targetItem.unitPrice.replace(',', '.'));
-
-      if (!targetItem.name.trim() || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPriceHryvnia) || unitPriceHryvnia < 0) {
-        toast.error(t('purchases.invalidWaybillItem', 'Некоректні дані позиції'));
+      const parsed = parseEditableItemForSave(targetItem);
+      if (!parsed) {
+        toast.error(t('purchases.invalidWaybillItem'));
         return;
       }
 
-      await onUpdateWaybillItem(document.id, itemId, {
-        name: targetItem.name.trim(),
-        quantity,
-        unitPrice: Math.round(unitPriceHryvnia * 100),
-      });
+      await onUpdateWaybillItem(document.id, itemId, parsed);
     };
 
     const handleDeleteItem = async (itemId: string) => {
@@ -232,17 +291,24 @@ function DocumentMetadataForm({
     return (
       <div className="grid gap-3 rounded-xl border border-border/60 bg-muted/20 p-3" data-testid={`purchase-document-metadata-form-${document.id}`}>
         <div className="space-y-3">
-          <p className="text-sm font-semibold">{t('purchases.items.listTitle', 'Позиції з документа')}</p>
+          <p className="text-sm font-semibold">{t('purchases.items.listTitle')}</p>
+          <div className="hidden md:grid md:grid-cols-14 md:gap-2 px-2 text-[11px] font-medium text-muted-foreground" data-testid={`purchase-document-items-header-${document.id}`}>
+            <p className="md:col-span-5">{t('purchases.items.itemName')}</p>
+            <p className="md:col-span-2">{t('purchases.items.qty')}</p>
+            <p className="md:col-span-2">{t('purchases.items.price')}</p>
+            <p className="md:col-span-2 text-right">{t('purchases.items.total')}</p>
+            <p className="md:col-span-3 text-right">{t('purchases.items.actions')}</p>
+          </div>
           <div className="space-y-2 max-h-48 overflow-y-auto pr-2" data-testid={`purchase-document-items-list-${document.id}`}>
             {documentItems.length === 0 ? (
-              <p className="text-xs text-muted-foreground" data-testid={`purchase-document-items-empty-${document.id}`}>{t('purchases.items.empty', 'Позиції ще не додані')}</p>
+              <p className="text-xs text-muted-foreground" data-testid={`purchase-document-items-empty-${document.id}`}>{t('purchases.items.empty')}</p>
             ) : !isWaybill || editableItems.length === 0 ? (
               documentItems.map((item) => (
-                <div key={item.id} className="grid grid-cols-12 items-center gap-2 rounded-md border border-border/50 bg-background p-2 text-xs" data-testid={`purchase-document-item-row-${item.id}`}>
-                  <p className="col-span-6 truncate font-medium">{item.name}</p>
-                  <p className="col-span-2 text-muted-foreground">{item.quantity}</p>
-                  <p className="col-span-2 text-muted-foreground">{(item.unitPrice / 100).toFixed(2)} ₴</p>
-                  <p className="col-span-2 text-right font-semibold">{(item.totalPrice / 100).toFixed(2)} ₴</p>
+                <div key={item.id} className="grid grid-cols-1 md:grid-cols-14 items-center gap-2 rounded-md border border-border/50 bg-background p-2 text-xs" data-testid={`purchase-document-item-row-${item.id}`}>
+                  <p className="md:col-span-5 truncate font-medium">{item.name}</p>
+                  <p className="md:col-span-2 text-muted-foreground">{item.quantity}</p>
+                  <p className="md:col-span-2 text-muted-foreground">{(item.unitPrice / 100).toFixed(2)} ₴</p>
+                  <p className="md:col-span-2 md:text-right font-semibold">{(item.totalPrice / 100).toFixed(2)} ₴</p>
                 </div>
               ))
             ) : (
@@ -253,23 +319,23 @@ function DocumentMetadataForm({
                 }
 
                 return (
-                  <div key={item.id} className="grid grid-cols-12 items-center gap-2 rounded-md border border-border/50 bg-background p-2 text-xs" data-testid={`purchase-document-item-row-${item.id}`}>
-                    <div className="col-span-4">
+                  <div key={item.id} className="grid grid-cols-1 md:grid-cols-14 items-center gap-2 rounded-md border border-border/50 bg-background p-2 text-xs" data-testid={`purchase-document-item-row-${item.id}`}>
+                    <div className="md:col-span-5">
                       <Input value={editableItem.name} onChange={(event) => setEditableItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, name: event.target.value } : candidate))} data-testid={`purchase-document-item-name-${item.id}`} />
                     </div>
-                    <div className="col-span-2">
+                    <div className="md:col-span-2">
                       <Input type="number" step="0.001" min="0" value={editableItem.quantity} onChange={(event) => setEditableItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, quantity: event.target.value } : candidate))} data-testid={`purchase-document-item-quantity-${item.id}`} />
                     </div>
-                    <div className="col-span-2">
+                    <div className="md:col-span-2">
                       <Input type="number" step="0.01" min="0" value={editableItem.unitPrice} onChange={(event) => setEditableItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, unitPrice: event.target.value } : candidate))} data-testid={`purchase-document-item-unit-price-${item.id}`} />
                     </div>
-                    <p className="col-span-2 text-right font-semibold">{(Math.round(Number(editableItem.quantity.replace(',', '.')) * Number(editableItem.unitPrice.replace(',', '.')) * 100) / 100).toFixed(2)} ₴</p>
-                    <div className="col-span-2 flex justify-end gap-2">
+                    <p className="md:col-span-2 md:text-right font-semibold">{(Math.round(Number(editableItem.quantity.replace(',', '.')) * Number(editableItem.unitPrice.replace(',', '.')) * 100) / 100).toFixed(2)} ₴</p>
+                    <div className="md:col-span-3 flex flex-wrap justify-end gap-2">
                       <Button type="button" size="sm" variant="outline" onClick={() => void handleUpdateItem(item.id)} data-testid={`purchase-document-item-save-${item.id}`}>
-                        {t('common.save', 'Зберегти')}
+                        {t('common.save')}
                       </Button>
                       <Button type="button" size="sm" variant="outline" className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => void handleDeleteItem(item.id)} data-testid={`purchase-document-item-delete-${item.id}`}>
-                        {t('common.delete', 'Видалити')}
+                        {t('common.delete')}
                       </Button>
                     </div>
                   </div>
@@ -282,7 +348,7 @@ function DocumentMetadataForm({
             <div className="grid gap-2 rounded-md border border-border/50 bg-background p-2 text-xs" data-testid={`purchase-document-add-item-form-${document.id}`}>
               <div className="grid gap-2 sm:grid-cols-3">
                 <Input
-                  placeholder={t('purchases.items.itemName', 'Назва товару')}
+                  placeholder={t('purchases.items.itemName')}
                   value={itemName}
                   onChange={(event) => setItemName(event.target.value)}
                   data-testid={`purchase-document-add-item-name-${document.id}`}
@@ -306,45 +372,12 @@ function DocumentMetadataForm({
               </div>
               <div className="flex justify-end">
                 <Button type="button" size="sm" variant="secondary" onClick={handleAddItem} disabled={isPending} data-testid={`purchase-document-add-item-submit-${document.id}`}>
-                  {t('purchases.items.addItem', 'Додати позицію')}
+                  {t('purchases.items.addItem')}
                 </Button>
               </div>
             </div>
           ) : null}
         </div>
-
-        {isBankReceipt ? (
-          <div className="grid gap-3 sm:grid-cols-2" data-testid={`purchase-document-bank-fields-${document.id}`}>
-            <div className="space-y-1.5">
-              <Label htmlFor={`purchase-document-sender-iban-or-card-${document.id}`}>{t('purchases.bankReceipt.senderIbanOrCard', 'Рахунок / картка відправника')}</Label>
-              <Input id={`purchase-document-sender-iban-or-card-${document.id}`} value={senderIbanOrCard} onChange={(event) => setSenderIbanOrCard(event.target.value)} data-testid={`purchase-document-sender-iban-or-card-input-${document.id}`} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`purchase-document-edrpou-${document.id}`}>{t('purchases.bankReceipt.edrpou', 'ЄДРПОУ')}</Label>
-              <Input id={`purchase-document-edrpou-${document.id}`} value={edrpou} onChange={(event) => setEdrpou(event.target.value)} data-testid={`purchase-document-edrpou-input-${document.id}`} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`purchase-document-payer-full-name-${document.id}`}>{t('purchases.bankReceipt.payerFullName', 'Платник')}</Label>
-              <Input id={`purchase-document-payer-full-name-${document.id}`} value={payerFullName} onChange={(event) => setPayerFullName(event.target.value)} data-testid={`purchase-document-payer-full-name-input-${document.id}`} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`purchase-document-receipt-code-${document.id}`}>{t('purchases.bankReceipt.receiptCode', 'Код квитанції')}</Label>
-              <Input id={`purchase-document-receipt-code-${document.id}`} value={receiptCode} onChange={(event) => setReceiptCode(event.target.value)} data-testid={`purchase-document-receipt-code-input-${document.id}`} />
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor={`purchase-document-payment-purpose-${document.id}`}>{t('purchases.bankReceipt.paymentPurpose', 'Призначення платежу')}</Label>
-              <Input id={`purchase-document-payment-purpose-${document.id}`} value={paymentPurpose} onChange={(event) => setPaymentPurpose(event.target.value)} data-testid={`purchase-document-payment-purpose-input-${document.id}`} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`purchase-document-sender-iban-${document.id}`}>{t('purchases.bankReceipt.senderIban', 'IBAN відправника')}</Label>
-              <Input id={`purchase-document-sender-iban-${document.id}`} value={senderIban} onChange={(event) => setSenderIban(event.target.value)} data-testid={`purchase-document-sender-iban-input-${document.id}`} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`purchase-document-receiver-iban-${document.id}`}>{t('purchases.bankReceipt.receiverIban', 'IBAN отримувача')}</Label>
-              <Input id={`purchase-document-receiver-iban-${document.id}`} value={receiverIban} onChange={(event) => setReceiverIban(event.target.value)} data-testid={`purchase-document-receiver-iban-input-${document.id}`} />
-            </div>
-          </div>
-        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="space-y-1.5">
@@ -365,8 +398,12 @@ function DocumentMetadataForm({
               type="number"
               step="0.01"
               min="0"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              value={amountValue}
+              onChange={(event) => {
+                if (!isWaybillLike) {
+                  setAmountInput(event.target.value);
+                }
+              }}
               data-testid={`purchase-document-amount-input-${document.id}`}
             />
           </div>
@@ -394,6 +431,35 @@ function DocumentMetadataForm({
 
   return (
     <div className="grid gap-3 rounded-xl border border-border/60 bg-muted/20 p-3" data-testid={`purchase-document-metadata-form-${document.id}`}>
+      {isBankReceipt ? (
+        <div className="grid gap-3 sm:grid-cols-2" data-testid={`purchase-document-bank-fields-${document.id}`}>
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-edrpou-${document.id}`}>{t('purchases.bankReceipt.edrpou', 'ЄДРПОУ')}</Label>
+            <Input id={`purchase-document-edrpou-${document.id}`} value={edrpou} onChange={(event) => setEdrpou(event.target.value)} data-testid={`purchase-document-edrpou-input-${document.id}`} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-payer-full-name-${document.id}`}>{t('purchases.bankReceipt.payerFullName', 'Платник')}</Label>
+            <Input id={`purchase-document-payer-full-name-${document.id}`} value={payerFullName} onChange={(event) => setPayerFullName(event.target.value)} data-testid={`purchase-document-payer-full-name-input-${document.id}`} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-receipt-code-${document.id}`}>{t('purchases.bankReceipt.receiptCode', 'Код квитанції')}</Label>
+            <Input id={`purchase-document-receipt-code-${document.id}`} value={receiptCode} onChange={(event) => setReceiptCode(event.target.value)} data-testid={`purchase-document-receipt-code-input-${document.id}`} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor={`purchase-document-payment-purpose-${document.id}`}>{t('purchases.bankReceipt.paymentPurpose', 'Призначення платежу')}</Label>
+            <Input id={`purchase-document-payment-purpose-${document.id}`} value={paymentPurpose} onChange={(event) => setPaymentPurpose(event.target.value)} data-testid={`purchase-document-payment-purpose-input-${document.id}`} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-sender-iban-${document.id}`}>{t('purchases.bankReceipt.senderIban', 'IBAN відправника')}</Label>
+            <Input id={`purchase-document-sender-iban-${document.id}`} value={senderIban} onChange={(event) => setSenderIban(event.target.value)} data-testid={`purchase-document-sender-iban-input-${document.id}`} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`purchase-document-receiver-iban-${document.id}`}>{t('purchases.bankReceipt.receiverIban', 'IBAN отримувача')}</Label>
+            <Input id={`purchase-document-receiver-iban-${document.id}`} value={receiverIban} onChange={(event) => setReceiverIban(event.target.value)} data-testid={`purchase-document-receiver-iban-input-${document.id}`} />
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor={`purchase-document-date-${document.id}`}>{t('purchases.documentDate', 'Дата документа')}</Label>
@@ -413,8 +479,12 @@ function DocumentMetadataForm({
             type="number"
             step="0.01"
             min="0"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
+            value={amountValue}
+            onChange={(event) => {
+              if (!isWaybillLike) {
+                setAmountInput(event.target.value);
+              }
+            }}
             data-testid={`purchase-document-amount-input-${document.id}`}
           />
         </div>
@@ -571,7 +641,17 @@ export default function OrganizationPurchaseDetailPage() {
 
   const handleSaveDocumentMetadata = async (
     documentId: string,
-    payload: { amount?: number; counterpartyName?: string; documentDate?: string },
+    payload: {
+      amount?: number;
+      counterpartyName?: string;
+      documentDate?: string;
+      edrpou?: string;
+      payerFullName?: string;
+      receiptCode?: string;
+      paymentPurpose?: string;
+      senderIban?: string;
+      receiverIban?: string;
+    },
   ) => {
     if (!purchaseId) {
       return;
@@ -590,7 +670,11 @@ export default function OrganizationPurchaseDetailPage() {
     }
   };
 
-  const handleRunDocumentOcr = async (documentId: string, isRestricted: boolean) => {
+  const handleRunDocumentOcr = async (
+    documentId: string,
+    isRestricted: boolean,
+    status: OcrProcessingStatus,
+  ) => {
     if (!purchaseId) {
       return;
     }
@@ -600,11 +684,20 @@ export default function OrganizationPurchaseDetailPage() {
       return;
     }
 
+    const confirmReprocess = status === OcrProcessingStatus.Success
+      ? window.confirm(t('purchases.confirmRerunOcr', 'Документ вже розпізнано. Запустити OCR повторно?'))
+      : false;
+
+    if (status === OcrProcessingStatus.Success && !confirmReprocess) {
+      return;
+    }
+
     try {
       await processDocumentOcr.mutateAsync({
         organizationId: orgId!,
         purchaseId,
         documentId,
+        confirmReprocess,
       });
       toast.success(t('purchases.ocrStarted', 'OCR запущено'));
     } catch (error) {
@@ -832,9 +925,11 @@ export default function OrganizationPurchaseDetailPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          <Button type="button" variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false)} disabled={processDocumentOcr.isPending} data-testid={`purchase-document-ocr-button-${doc.id}`}>
+                          <Button type="button" variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={processDocumentOcr.isPending} data-testid={`purchase-document-ocr-button-${doc.id}`}>
                             <Sparkles className="h-4 w-4" />
-                            {t('purchases.blocks.runOcr', 'Запустити OCR')}
+                            {doc.ocrProcessingStatus === OcrProcessingStatus.Success
+                              ? t('purchases.blocks.rerunOcr', 'Повторити OCR')
+                              : t('purchases.blocks.runOcr', 'Запустити OCR')}
                           </Button>
                           {doc.fileUrl ? (
                             <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>
@@ -854,7 +949,7 @@ export default function OrganizationPurchaseDetailPage() {
                         </div>
                       </div>
                       <DocumentMetadataForm
-                        key={`${doc.id}-${doc.amount ?? 'n'}-${doc.counterpartyName ?? 'n'}-${doc.documentDate ?? 'n'}-${doc.items?.length ?? 0}-${doc.senderIbanOrCard ?? 'n'}-${doc.edrpou ?? 'n'}-${doc.payerFullName ?? 'n'}-${doc.receiptCode ?? 'n'}-${doc.paymentPurpose ?? 'n'}-${doc.senderIban ?? 'n'}-${doc.receiverIban ?? 'n'}`}
+                        key={`${doc.id}-${doc.amount ?? 'n'}-${doc.counterpartyName ?? 'n'}-${doc.documentDate ?? 'n'}-${doc.items?.map((item) => `${item.id}:${item.name}:${item.quantity}:${item.unitPrice}`).join('|') ?? 'n'}-${doc.edrpou ?? 'n'}-${doc.payerFullName ?? 'n'}-${doc.receiptCode ?? 'n'}-${doc.paymentPurpose ?? 'n'}-${doc.senderIban ?? 'n'}-${doc.receiverIban ?? 'n'}`}
                         document={doc}
                         onSubmit={handleSaveDocumentMetadata}
                         onAddWaybillItem={handleAddWaybillItem}
@@ -928,9 +1023,11 @@ export default function OrganizationPurchaseDetailPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          <Button type="button" variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false)} disabled={processDocumentOcr.isPending} data-testid={`purchase-document-ocr-button-${doc.id}`}>
+                          <Button type="button" variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={processDocumentOcr.isPending} data-testid={`purchase-document-ocr-button-${doc.id}`}>
                             <Sparkles className="h-4 w-4" />
-                            {t('purchases.blocks.runOcr', 'Запустити OCR')}
+                            {doc.ocrProcessingStatus === OcrProcessingStatus.Success
+                              ? t('purchases.blocks.rerunOcr', 'Повторити OCR')
+                              : t('purchases.blocks.runOcr', 'Запустити OCR')}
                           </Button>
                           {doc.fileUrl ? (
                             <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>
@@ -949,7 +1046,16 @@ export default function OrganizationPurchaseDetailPage() {
                           </Button>
                         </div>
                       </div>
-                      <DocumentMetadataForm document={doc} onSubmit={handleSaveDocumentMetadata} isPending={updateDocumentMetadata.isPending} t={t} />
+                      <DocumentMetadataForm
+                        key={`${doc.id}-${doc.amount ?? 'n'}-${doc.counterpartyName ?? 'n'}-${doc.documentDate ?? 'n'}-${doc.items?.map((item) => `${item.id}:${item.name}:${item.quantity}:${item.unitPrice}`).join('|') ?? 'n'}-${doc.edrpou ?? 'n'}-${doc.payerFullName ?? 'n'}-${doc.receiptCode ?? 'n'}-${doc.paymentPurpose ?? 'n'}-${doc.senderIban ?? 'n'}-${doc.receiverIban ?? 'n'}`}
+                        document={doc}
+                        onSubmit={handleSaveDocumentMetadata}
+                        onAddWaybillItem={handleAddWaybillItem}
+                        onUpdateWaybillItem={handleUpdateWaybillItem}
+                        onDeleteWaybillItem={handleDeleteWaybillItem}
+                        isPending={updateDocumentMetadata.isPending || addWaybillItem.isPending || updateWaybillItem.isPending || deleteWaybillItem.isPending}
+                        t={t}
+                      />
                     </div>
                   ))
                 )}

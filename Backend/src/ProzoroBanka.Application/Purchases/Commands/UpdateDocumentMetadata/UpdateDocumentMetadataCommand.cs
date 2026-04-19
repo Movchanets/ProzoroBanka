@@ -13,7 +13,6 @@ public record UpdateDocumentMetadataCommand(
 	long? Amount,
 	string? CounterpartyName,
 	DateTime? DocumentDate,
-	string? SenderIbanOrCard = null,
 	string? Edrpou = null,
 	string? PayerFullName = null,
 	string? ReceiptCode = null,
