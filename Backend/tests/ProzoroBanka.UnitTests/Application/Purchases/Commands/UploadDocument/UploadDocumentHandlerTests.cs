@@ -1,4 +1,5 @@
 using Moq;
+using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Purchases.Commands.UploadDocument;
@@ -119,5 +120,60 @@ public class UploadDocumentHandlerTests
 		var document = db.CampaignDocuments.FirstOrDefault(d => d.Id == result.Payload!.Id);
 		Assert.NotNull(document);
 		Assert.Equal(OcrProcessingStatus.NotProcessed, document.OcrProcessingStatus);
+	}
+
+	[Fact]
+	public async Task Handle_BankReceiptUpload_RecalculatesPurchaseTotalFromReceipts()
+	{
+		await using var db = _fixture.CreateContext();
+		var userId = Guid.NewGuid();
+		var orgId = Guid.NewGuid();
+		var campaignId = Guid.NewGuid();
+		var purchaseId = Guid.NewGuid();
+
+		db.DomainUsers.Add(new User { Id = userId, Email = $"user3-{userId:N}@test.com", FirstName = "U", LastName = "Ser" });
+		db.Organizations.Add(new Organization { Id = orgId, OwnerUserId = userId, Name = "Org", Slug = $"org-{orgId}" });
+		db.Campaigns.Add(new Campaign { Id = campaignId, OrganizationId = orgId, CreatedByUserId = userId, Title = "C", Description = "D" });
+		db.CampaignPurchases.Add(new CampaignPurchase
+		{
+			Id = purchaseId,
+			OrganizationId = orgId,
+			CampaignId = campaignId,
+			CreatedByUserId = userId,
+			Title = "Test",
+			TotalAmount = 0,
+			Status = PurchaseStatus.PaymentSent
+		});
+		await db.SaveChangesAsync();
+
+		var fileStorageMock = new Mock<IFileStorage>();
+		fileStorageMock.Setup(x => x.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("uploads/receipt.pdf");
+		fileStorageMock.Setup(x => x.GetPublicUrl(It.IsAny<string>())).Returns("https://cdn/doc.pdf");
+
+		var orgAuthMock = new Mock<IOrganizationAuthorizationService>();
+		orgAuthMock.Setup(x => x.EnsureOrganizationAccessAsync(orgId, userId, OrganizationPermissions.ManagePurchases, null, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(ServiceResponse<OrganizationAccessContext>.Success(null!));
+
+		var handler = new UploadDocumentHandler(db, fileStorageMock.Object, orgAuthMock.Object);
+		using var stream = new MemoryStream("dummy data"u8.ToArray());
+
+		var command = new UploadDocumentCommand(
+			userId,
+			orgId,
+			campaignId,
+			purchaseId,
+			stream,
+			"receipt.pdf",
+			"application/pdf",
+			DocumentType.BankReceipt,
+			DateTime.UtcNow,
+			32100,
+			"Nova Poshta");
+
+		var result = await handler.Handle(command, CancellationToken.None);
+
+		Assert.True(result.IsSuccess);
+		var reloadedPurchase = await db.CampaignPurchases.FirstAsync(p => p.Id == purchaseId);
+		Assert.Equal(32100, reloadedPurchase.TotalAmount);
 	}
 }

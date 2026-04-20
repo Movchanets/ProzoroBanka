@@ -488,15 +488,15 @@ export default function CampaignDetailPage() {
               <div className="grid gap-2 sm:grid-cols-3">
                 <div className="rounded-2xl border border-border/70 bg-background/40 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{t('campaigns.detail.activeReceiptsMetric', 'Публічні')}</p>
-                  <p className="mt-1 text-lg font-semibold">{activeReceiptsCount}</p>
+                  <p className="mt-1 text-base font-semibold truncate sm:text-sm">{activeReceiptsCount}</p>
                 </div>
                 <div className="rounded-2xl border border-border/70 bg-background/40 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{t('campaigns.detail.verifiedReceiptsMetric', 'Підтверджені')}</p>
-                  <p className="mt-1 text-lg font-semibold">{verifiedReceiptsCount}</p>
+                  <p className="mt-1 text-base font-semibold truncate sm:text-sm">{verifiedReceiptsCount}</p>
                 </div>
                 <div className="rounded-2xl border border-border/70 bg-background/40 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{t('campaigns.detail.documentedReceiptsMetric', 'На чеках')}</p>
-                  <p className="mt-1 text-lg font-semibold">{formatCampaignMoney(documentedAmountMinor, locale)}</p>
+                  <p className="mt-1 text-base font-semibold truncate sm:text-sm">{formatCampaignMoney(documentedAmountMinor, locale)}</p>
                 </div>
               </div>
 
@@ -622,15 +622,15 @@ export default function CampaignDetailPage() {
               <div className="grid gap-2 sm:grid-cols-3">
                 <div className="rounded-2xl border border-border/70 bg-background/40 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{t('campaigns.feed.pageMetric', 'Сторінка')}</p>
-                  <p className="mt-1 text-lg font-semibold">{transactionsPage}</p>
+                  <p className="mt-1 text-base font-semibold truncate sm:text-sm">{transactionsPage}</p>
                 </div>
                 <div className="rounded-2xl border border-border/70 bg-background/40 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{t('campaigns.feed.loadedMetric', 'Записів')}</p>
-                  <p className="mt-1 text-lg font-semibold">{transactions?.length ?? 0}</p>
+                  <p className="mt-1 text-base font-semibold truncate sm:text-sm">{transactions?.length ?? 0}</p>
                 </div>
                 <div className="rounded-2xl border border-border/70 bg-background/40 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{t('campaigns.feed.amountMetric', 'На сторінці')}</p>
-                  <p className="mt-1 text-lg font-semibold">{formatCampaignMoney(transactionsPageTotalAmount, locale)}</p>
+                  <p className="mt-1 text-base font-semibold truncate sm:text-sm">{formatCampaignMoney(transactionsPageTotalAmount, locale)}</p>
                 </div>
               </div>
 

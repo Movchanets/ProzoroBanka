@@ -77,5 +77,8 @@ public class AddItemToWaybillHandlerTests
             .FirstAsync(x => x.Id == documentId);
 
         Assert.Single(reloadedWaybill.Items, x => !x.IsDeleted);
+
+        var reloadedPurchase = await db.CampaignPurchases.FirstAsync(x => x.Id == purchaseId);
+        Assert.Equal(300000, reloadedPurchase.TotalAmount);
     }
 }

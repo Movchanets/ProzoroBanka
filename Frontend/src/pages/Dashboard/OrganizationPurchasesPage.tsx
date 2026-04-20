@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useCampaigns } from '@/hooks/queries/useCampaigns';
-import { usePurchases } from '@/hooks/queries/usePurchases';
+import { useOrganizationPurchases, usePurchases } from '@/hooks/queries/usePurchases';
 import { PurchaseStatus } from '@/types';
 import { resolveLocalizedText } from '@/lib/localizedText';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,6 +71,13 @@ export default function OrganizationPurchasesPage() {
     selectedCampaignId,
     selectedStatus,
     Boolean(orgId && selectedCampaignId),
+  );
+
+  const { data: unattachedPurchases, isLoading: isUnattachedLoading } = useOrganizationPurchases(
+    orgId ?? '',
+    undefined,
+    true,
+    Boolean(orgId),
   );
 
   const activeCampaign = campaigns?.find((campaign) => campaign.id === selectedCampaignId);
@@ -162,6 +169,56 @@ export default function OrganizationPurchasesPage() {
               </Link>
             </Button>
           ) : null}
+        </CardContent>
+      </Card>
+
+      <Card data-testid="organization-purchases-unattached-section" className="border-border/70 bg-card/90">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">{t('purchases.unattachedTitle', 'Неприкріплені закупівлі')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isUnattachedLoading ? (
+            <div className="space-y-3" data-testid="organization-purchases-unattached-loading">
+              <Skeleton className="h-20 w-full rounded-xl" />
+              <Skeleton className="h-20 w-full rounded-xl" />
+            </div>
+          ) : unattachedPurchases && unattachedPurchases.length > 0 ? (
+            <div className="grid gap-3" data-testid="organization-purchases-unattached-list">
+              {unattachedPurchases.map((purchase) => (
+                <Link
+                  key={purchase.id}
+                  to={`/dashboard/${orgId}/purchases/${purchase.id}`}
+                  data-testid={`organization-purchases-unattached-item-link-${purchase.id}`}
+                >
+                  <Card className="border-border/70 bg-background/80 transition hover:border-primary/35 hover:bg-card">
+                    <CardContent className="flex items-center justify-between p-4 sm:p-5">
+                      <div className="min-w-0 space-y-1">
+                        <h3 className="truncate font-semibold text-base">{purchase.title}</h3>
+                        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <FileText className="h-3.5 w-3.5" />
+                          {t('purchases.documentsCount', 'Документів')}: {purchase.documentCount}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <p className="font-semibold">
+                          {new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'UAH' }).format(
+                            purchase.totalAmount / 100,
+                          )}
+                        </p>
+                        <Badge variant="outline" data-testid={`organization-purchases-unattached-badge-${purchase.id}`}>
+                          {t('purchases.unattachedBadge', 'Неприкріплена')}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground" data-testid="organization-purchases-unattached-empty">
+              {t('purchases.unattachedEmpty', 'Неприкріплених закупівель немає.')}
+            </p>
+          )}
         </CardContent>
       </Card>
 

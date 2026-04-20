@@ -253,7 +253,7 @@ function DocumentMetadataForm({
 }
 
 export default function CampaignPurchaseDetailPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { orgId, campaignId, purchaseId } = useParams<{ orgId: string; campaignId: string; purchaseId?: string }>();
   const navigate = useNavigate();
 
@@ -277,7 +277,6 @@ export default function CampaignPurchaseDetailPage() {
   const { register, handleSubmit, reset, setValue, formState: { isSubmitting } } = useForm({
     defaultValues: {
       title: '',
-      totalAmountStr: '',
       status: String(PurchaseStatus.PaymentSent),
     },
   });
@@ -301,21 +300,18 @@ export default function CampaignPurchaseDetailPage() {
     if (purchase) {
       reset({
         title: purchase.title,
-        totalAmountStr: (purchase.totalAmount / 100).toFixed(2),
         status: String(purchase.status),
       });
     }
   }, [purchase, reset]);
 
-  const onSubmit = async (data: { title: string; totalAmountStr: string; status: string }) => {
-    const totalAmount = Math.round(Number(data.totalAmountStr.replace(',', '.')) * 100);
-
+  const onSubmit = async (data: { title: string; status: string }) => {
     try {
       if (isNew) {
         await createPurchase.mutateAsync({
           organizationId: orgId!,
           campaignId: campaignId!,
-          payload: { title: data.title, totalAmount },
+          payload: { title: data.title, totalAmount: 0 },
         });
         toast.success(t('purchases.createSuccess', 'Закупівлю створено'));
         navigate(`/dashboard/${orgId}/purchases?campaignId=${campaignId}`);
@@ -324,7 +320,7 @@ export default function CampaignPurchaseDetailPage() {
           organizationId: orgId!,
           campaignId: campaignId!,
           purchaseId: purchaseId!,
-          payload: { title: data.title, totalAmount, status: Number(data.status) as PurchaseStatusType },
+          payload: { title: data.title, status: Number(data.status) as PurchaseStatusType },
         });
         toast.success(t('purchases.updateSuccess', 'Закупівлю оновлено'));
       }
@@ -488,15 +484,10 @@ export default function CampaignPurchaseDetailPage() {
             <CardTitle>{isNew ? t('purchases.createNew', 'Нова закупівля') : t('purchases.editPurchase', 'Редагувати закупівлю')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form id="purchase-form" onSubmit={handleSubmit(onSubmit)} className={`grid gap-4 ${isNew ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
+            <form id="purchase-form" onSubmit={handleSubmit(onSubmit)} className={`grid gap-4 ${isNew ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
               <div className="space-y-2">
                 <Label htmlFor="title">{t('purchases.titleFields', 'Назва (опис)')}</Label>
                 <Input id="title" {...register('title', { required: true })} placeholder={t('purchases.titlePlaceholder', 'Напр. 5 Мавіків')} data-testid="purchase-detail-title-input" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="totalAmountStr">{t('purchases.amountFields', 'Загальна сума (₴)')}</Label>
-                <Input id="totalAmountStr" type="number" step="0.01" {...register('totalAmountStr', { required: true })} data-testid="purchase-detail-total-amount-input" />
               </div>
 
               {!isNew && (
@@ -515,6 +506,16 @@ export default function CampaignPurchaseDetailPage() {
                   </Select>
                 </div>
               )}
+
+              <div className={`space-y-2 ${isNew ? '' : 'md:col-span-2'}`} data-testid="purchase-detail-total-amount-display">
+                <Label>{t('purchases.computedAmount', 'Загальна сума закупівлі')}</Label>
+                <div className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm font-semibold">
+                  {new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'UAH' }).format((purchase?.totalAmount ?? 0) / 100)}
+                </div>
+                <p className="text-xs text-muted-foreground" data-testid="purchase-detail-total-amount-hint">
+                  {t('purchases.computedAmountHint', 'Сума обчислюється автоматично: накладні (позиції) → квитанції → 0.')}
+                </p>
+              </div>
             </form>
           </CardContent>
           <CardFooter className="flex justify-between border-t border-border/50 pt-4">

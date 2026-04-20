@@ -72,7 +72,7 @@ public class CreatePurchaseHandlerTests
 		Assert.True(result.IsSuccess);
 		Assert.NotNull(result.Payload);
 		Assert.Equal("Drones", result.Payload.Title);
-		Assert.Equal(15000, result.Payload.TotalAmount);
+		Assert.Equal(0, result.Payload.TotalAmount);
 		Assert.Equal(PurchaseStatus.PaymentSent, result.Payload.Status);
 
 		var savedPurchase = db.CampaignPurchases.FirstOrDefault(p => p.Id == result.Payload.Id);

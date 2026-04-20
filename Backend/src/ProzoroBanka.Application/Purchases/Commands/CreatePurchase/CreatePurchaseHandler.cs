@@ -47,7 +47,7 @@ public class CreatePurchaseHandler : IRequestHandler<CreatePurchaseCommand, Serv
 			CampaignId = request.CampaignId,
 			CreatedByUserId = request.CallerDomainUserId,
 			Title = request.Title,
-			TotalAmount = request.TotalAmount,
+			TotalAmount = 0,
 			Status = PurchaseStatus.PaymentSent
 		};
 

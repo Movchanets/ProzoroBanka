@@ -1,7 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.API.Authorization;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Purchases.Commands.DeleteDocument;
@@ -11,6 +10,7 @@ using ProzoroBanka.Application.Purchases.Commands.UpdateDocumentMetadata;
 using ProzoroBanka.Application.Purchases.Commands.UpdatePurchase;
 using ProzoroBanka.Application.Purchases.Commands.UploadDocument;
 using ProzoroBanka.Application.Purchases.DTOs;
+using ProzoroBanka.Application.Purchases.Queries.GetOrganizationPurchases;
 using ProzoroBanka.Application.Purchases.Queries.GetPurchaseDetail;
 using ProzoroBanka.Domain.Enums;
 
@@ -26,16 +26,34 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 {
 	private readonly ISender _sender;
 	private readonly ICurrentUserService _currentUser;
-	private readonly IApplicationDbContext _db;
 
 	public OrganizationPurchaseShortController(
 		ISender sender,
-		ICurrentUserService currentUser,
-		IApplicationDbContext db)
+		ICurrentUserService currentUser)
 	{
 		_sender = sender;
 		_currentUser = currentUser;
-		_db = db;
+	}
+
+	[HttpGet]
+	[HasPermission(Permissions.PurchasesManage)]
+	[ProducesResponseType(typeof(IReadOnlyList<PurchaseListItemDto>), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<IActionResult> List(
+		Guid organizationId,
+		[FromQuery] PurchaseStatus? status,
+		[FromQuery] bool onlyUnattached = false,
+		CancellationToken ct = default)
+	{
+		var userId = _currentUser.DomainUserId;
+		if (userId is null)
+			return Unauthorized();
+
+		var result = await _sender.Send(
+			new GetOrganizationPurchasesQuery(userId.Value, organizationId, status, onlyUnattached),
+			ct);
+
+		return result.IsSuccess ? Ok(result.Payload) : BadRequest(new { Error = result.Message });
 	}
 
 	[HttpGet("{purchaseId:guid}")]

@@ -511,10 +511,11 @@ function DocumentMetadataForm({
 }
 
 export default function OrganizationPurchaseDetailPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { orgId, purchaseId } = useParams<{ orgId: string; purchaseId?: string }>();
   const navigate = useNavigate();
   const isNew = !purchaseId || purchaseId === 'new';
+  const isDocumentsLocked = isNew || !purchaseId || purchaseId === 'new';
 
   const { data: campaigns = [] } = useCampaigns(orgId);
   const activeCampaigns = campaigns.filter((campaign) => campaign.status === CampaignStatus.Active);
@@ -540,7 +541,6 @@ export default function OrganizationPurchaseDetailPage() {
   const { register, handleSubmit, reset, setValue, formState: { isSubmitting } } = useForm({
     defaultValues: {
       title: '',
-      totalAmountStr: '',
       status: String(PurchaseStatus.PaymentSent),
     },
   });
@@ -566,15 +566,12 @@ export default function OrganizationPurchaseDetailPage() {
     if (purchase) {
       reset({
         title: purchase.title,
-        totalAmountStr: (purchase.totalAmount / 100).toFixed(2),
         status: String(purchase.status),
       });
     }
   }, [purchase, reset]);
 
-  const onSubmit = async (data: { title: string; totalAmountStr: string; status: string }) => {
-    const totalAmount = Math.round(Number(data.totalAmountStr.replace(',', '.')) * 100);
-
+  const onSubmit = async (data: { title: string; status: string }) => {
     try {
       if (isNew) {
         const created = await createDraftPurchase.mutateAsync({
@@ -588,7 +585,7 @@ export default function OrganizationPurchaseDetailPage() {
         await updatePurchase.mutateAsync({
           organizationId: orgId!,
           purchaseId: purchaseId!,
-          payload: { title: data.title, totalAmount, status: Number(data.status) as PurchaseStatusType },
+          payload: { title: data.title, status: Number(data.status) as PurchaseStatusType },
         });
         toast.success(t('purchases.updateSuccess', 'Закупівлю оновлено'));
       }
@@ -598,7 +595,12 @@ export default function OrganizationPurchaseDetailPage() {
   };
 
   const handleUpload = async (file: File | null, type: DocumentType, clearFile: () => void) => {
-    if (!file || !purchaseId) return;
+    if (!file || !purchaseId || isDocumentsLocked) {
+      if (isDocumentsLocked) {
+        toast.error(t('purchases.documentsLockedBeforeCreate', 'Спочатку збережіть закупівлю, а потім завантажуйте документи.'));
+      }
+      return;
+    }
 
     try {
       await uploadDocument.mutateAsync({
@@ -617,6 +619,12 @@ export default function OrganizationPurchaseDetailPage() {
   const handleUploadDrop = (event: DragEvent<HTMLDivElement>, setFile: (file: File | null) => void) => {
     event.preventDefault();
     setActiveUploadHoverZone(null);
+
+    if (isDocumentsLocked) {
+      toast.error(t('purchases.documentsLockedBeforeCreate', 'Спочатку збережіть закупівлю, а потім завантажуйте документи.'));
+      return;
+    }
+
     const file = event.dataTransfer.files?.[0];
     if (!file) {
       return;
@@ -816,15 +824,10 @@ export default function OrganizationPurchaseDetailPage() {
             <CardTitle>{isNew ? t('purchases.createNew', 'Нова закупівля') : t('purchases.editPurchase', 'Редагувати закупівлю')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form id="purchase-form" onSubmit={handleSubmit(onSubmit)} className="grid gap-4 grid-cols-1 md:grid-cols-3">
+            <form id="purchase-form" onSubmit={handleSubmit(onSubmit)} className="grid gap-4 grid-cols-1 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="title">{t('purchases.titleFields', 'Назва (опис)')}</Label>
                 <Input id="title" {...register('title', { required: true })} placeholder={t('purchases.titlePlaceholder', 'Напр. 5 Мавіків')} data-testid="purchase-detail-title-input" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="totalAmountStr">{t('purchases.amountFields', 'Загальна сума (₴)')}</Label>
-                <Input id="totalAmountStr" type="number" step="0.01" {...register('totalAmountStr', { required: true })} data-testid="purchase-detail-total-amount-input" />
               </div>
 
               <div className="space-y-2">
@@ -840,6 +843,16 @@ export default function OrganizationPurchaseDetailPage() {
                     <SelectItem value={String(PurchaseStatus.Cancelled)}>{getPurchaseStatusLabel(PurchaseStatus.Cancelled, t)}</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2 md:col-span-2" data-testid="purchase-detail-total-amount-display">
+                <Label>{t('purchases.computedAmount', 'Загальна сума закупівлі')}</Label>
+                <div className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm font-semibold">
+                  {new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'UAH' }).format((purchase?.totalAmount ?? 0) / 100)}
+                </div>
+                <p className="text-xs text-muted-foreground" data-testid="purchase-detail-total-amount-hint">
+                  {t('purchases.computedAmountHint', 'Сума обчислюється автоматично: накладні (позиції) → квитанції → 0.')}
+                </p>
               </div>
             </form>
           </CardContent>
@@ -873,6 +886,14 @@ export default function OrganizationPurchaseDetailPage() {
 
         {/* Documents Panel */}
         <div className="space-y-6">
+          {isDocumentsLocked ? (
+            <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="purchase-documents-locked-card">
+              <CardContent className="py-5 text-sm text-muted-foreground" data-testid="purchase-documents-locked-message">
+                {t('purchases.documentsLockedBeforeCreate', 'Спочатку збережіть закупівлю, а потім завантажуйте документи.')}
+              </CardContent>
+            </Card>
+          ) : null}
+
           <Card className="border border-border bg-card/60 backdrop-blur-sm">
             <CardHeader>
               <CardTitle>{t('purchases.documentsPanel', 'Документи закупівлі')}</CardTitle>
@@ -887,6 +908,9 @@ export default function OrganizationPurchaseDetailPage() {
                 <div
                   className={`rounded-xl border border-dashed px-3 py-2 transition-colors ${activeUploadHoverZone === 'receipts' ? 'border-primary bg-primary/5' : 'border-border/70 bg-background/60'}`}
                   onDragOver={(event) => {
+                    if (isDocumentsLocked) {
+                      return;
+                    }
                     event.preventDefault();
                     setActiveUploadHoverZone('receipts');
                   }}
@@ -895,14 +919,14 @@ export default function OrganizationPurchaseDetailPage() {
                   data-testid="purchase-documents-receipts-dropzone"
                 >
                   <p className="mb-2 text-xs text-muted-foreground">{t('purchases.uploadDropHint', 'Перетягніть файл сюди або оберіть вручну')}</p>
-                  <Input type="file" onChange={(event) => setReceiptUploadFile(event.target.files?.[0] ?? null)} data-testid="purchase-documents-receipts-file-input" />
+                  <Input type="file" disabled={isDocumentsLocked} onChange={(event) => setReceiptUploadFile(event.target.files?.[0] ?? null)} data-testid="purchase-documents-receipts-file-input" />
                   {receiptUploadFile ? <p className="mt-2 truncate text-xs text-foreground">{receiptUploadFile.name}</p> : null}
                 </div>
 
                 <Button
                   type="button"
                   onClick={() => handleUpload(receiptUploadFile, DocumentType.BankReceipt, () => setReceiptUploadFile(null))}
-                  disabled={!receiptUploadFile || uploadDocument.isPending}
+                  disabled={isDocumentsLocked || !receiptUploadFile || uploadDocument.isPending}
                   data-testid="purchase-documents-receipts-upload-button"
                 >
                   {uploadDocument.isPending ? <Loader2 className="h-4 w-4 animate-spin md:mr-2" /> : <UploadCloud className="h-4 w-4 md:mr-2" />}
@@ -971,7 +995,7 @@ export default function OrganizationPurchaseDetailPage() {
 
                 <div className="space-y-2">
                   <Label>{t('purchases.docType', 'Тип документу')}</Label>
-                  <Select value={String(waybillUploadType)} onValueChange={(value) => setWaybillUploadType(Number(value) as DocumentType)}>
+                  <Select value={String(waybillUploadType)} onValueChange={(value) => setWaybillUploadType(Number(value) as DocumentType)} disabled={isDocumentsLocked}>
                     <SelectTrigger data-testid="purchase-documents-waybills-type-trigger">
                       <SelectValue />
                     </SelectTrigger>
@@ -985,6 +1009,9 @@ export default function OrganizationPurchaseDetailPage() {
                 <div
                   className={`rounded-xl border border-dashed px-3 py-2 transition-colors ${activeUploadHoverZone === 'waybills' ? 'border-primary bg-primary/5' : 'border-border/70 bg-background/60'}`}
                   onDragOver={(event) => {
+                    if (isDocumentsLocked) {
+                      return;
+                    }
                     event.preventDefault();
                     setActiveUploadHoverZone('waybills');
                   }}
@@ -993,14 +1020,14 @@ export default function OrganizationPurchaseDetailPage() {
                   data-testid="purchase-documents-waybills-dropzone"
                 >
                   <p className="mb-2 text-xs text-muted-foreground">{t('purchases.uploadDropHint', 'Перетягніть файл сюди або оберіть вручну')}</p>
-                  <Input type="file" onChange={(event) => setWaybillUploadFile(event.target.files?.[0] ?? null)} data-testid="purchase-documents-waybills-file-input" />
+                  <Input type="file" disabled={isDocumentsLocked} onChange={(event) => setWaybillUploadFile(event.target.files?.[0] ?? null)} data-testid="purchase-documents-waybills-file-input" />
                   {waybillUploadFile ? <p className="mt-2 truncate text-xs text-foreground">{waybillUploadFile.name}</p> : null}
                 </div>
 
                 <Button
                   type="button"
                   onClick={() => handleUpload(waybillUploadFile, waybillUploadType, () => setWaybillUploadFile(null))}
-                  disabled={!waybillUploadFile || uploadDocument.isPending}
+                  disabled={isDocumentsLocked || !waybillUploadFile || uploadDocument.isPending}
                   data-testid="purchase-documents-waybills-upload-button"
                 >
                   {uploadDocument.isPending ? <Loader2 className="h-4 w-4 animate-spin md:mr-2" /> : <UploadCloud className="h-4 w-4 md:mr-2" />}
@@ -1070,6 +1097,9 @@ export default function OrganizationPurchaseDetailPage() {
                 <div
                   className={`rounded-xl border border-dashed px-3 py-2 transition-colors ${activeUploadHoverZone === 'transfer' ? 'border-primary bg-primary/5' : 'border-border/70 bg-background/60'}`}
                   onDragOver={(event) => {
+                    if (isDocumentsLocked) {
+                      return;
+                    }
                     event.preventDefault();
                     setActiveUploadHoverZone('transfer');
                   }}
@@ -1078,14 +1108,14 @@ export default function OrganizationPurchaseDetailPage() {
                   data-testid="purchase-documents-transfer-dropzone"
                 >
                   <p className="mb-2 text-xs text-muted-foreground">{t('purchases.uploadDropHint', 'Перетягніть файл сюди або оберіть вручну')}</p>
-                  <Input type="file" onChange={(event) => setTransferUploadFile(event.target.files?.[0] ?? null)} data-testid="purchase-documents-transfer-file-input" />
+                  <Input type="file" disabled={isDocumentsLocked} onChange={(event) => setTransferUploadFile(event.target.files?.[0] ?? null)} data-testid="purchase-documents-transfer-file-input" />
                   {transferUploadFile ? <p className="mt-2 truncate text-xs text-foreground">{transferUploadFile.name}</p> : null}
                 </div>
 
                 <Button
                   type="button"
                   onClick={() => handleUpload(transferUploadFile, DocumentType.TransferAct, () => setTransferUploadFile(null))}
-                  disabled={!transferUploadFile || uploadDocument.isPending}
+                  disabled={isDocumentsLocked || !transferUploadFile || uploadDocument.isPending}
                   data-testid="purchase-documents-transfer-upload-button"
                 >
                   {uploadDocument.isPending ? <Loader2 className="h-4 w-4 animate-spin md:mr-2" /> : <UploadCloud className="h-4 w-4 md:mr-2" />}

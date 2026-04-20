@@ -25,16 +25,16 @@ public class UpdatePurchaseValidatorTests
 	}
 
 	[Fact]
-	public void Validate_ReturnsInvalid_WhenTotalAmountIsNotPositive()
+	public void Validate_ReturnsInvalid_WhenOnlyTotalAmountProvided()
 	{
 		var command = new UpdatePurchaseCommand(
 			Guid.NewGuid(),
 			Guid.NewGuid(),
 			Guid.NewGuid(),
 			Guid.NewGuid(),
-			"Updated",
-			0,
-			PurchaseStatus.Completed);
+			null,
+			123,
+			null);
 
 		var result = _validator.Validate(command);
 

@@ -84,18 +84,18 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         </div>
       </CardContent>
 
-      <CardFooter className="flex flex-wrap items-center justify-between gap-3 pt-1">
+      <CardFooter className="flex flex-wrap items-end justify-between gap-3 pt-1">
         <Link
           data-testid="home-campaign-org-link"
           to={`/o/${campaign.organizationSlug}`}
-          className="inline-flex rounded-lg bg-secondary/15 px-2.5 py-1.5 text-sm font-semibold text-secondary transition-colors duration-200 hover:bg-secondary/25"
+          className="inline-flex h-9 rounded-lg bg-secondary/15 px-2.5 py-1.5 text-sm font-semibold text-secondary transition-colors duration-200 hover:bg-secondary/25 items-center"
         >
           {campaign.organizationName}
         </Link>
         <Link
           data-testid="home-campaign-card-link"
           to={`/c/${campaign.id}`}
-          className="inline-flex rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-[0_8px_20px_hsl(var(--primary)/0.36)] transition-opacity duration-200 hover:opacity-95"
+          className="inline-flex h-9 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-[0_8px_20px_hsl(var(--primary)/0.36)] transition-opacity duration-200 hover:opacity-95 items-center"
         >
           Переглянути збір
         </Link>

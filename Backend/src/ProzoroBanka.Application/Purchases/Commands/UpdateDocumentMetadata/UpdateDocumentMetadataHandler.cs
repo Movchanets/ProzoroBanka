@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Application.Purchases.Common;
 using ProzoroBanka.Application.Purchases.DTOs;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
@@ -89,6 +90,8 @@ public class UpdateDocumentMetadataHandler : IRequestHandler<UpdateDocumentMetad
 
 		document.IsDataVerifiedByUser = true;
 
+		await _db.SaveChangesAsync(ct);
+		await PurchaseTotalAmountCalculator.RecalculateAndApplyAsync(_db, request.PurchaseId, ct);
 		await _db.SaveChangesAsync(ct);
 
 		return ServiceResponse<DocumentDto>.Success(PurchaseDtoMapper.ToDocumentDto(_fileStorage, document));
