@@ -31,9 +31,9 @@ public class UpdateReceiptItemHandler : IRequestHandler<UpdateReceiptItemCommand
 			return ServiceResponse<ReceiptPipelineDto>.Failure("Позицію товару не знайдено");
 
 		item.Name = request.Name.Trim();
-		item.Quantity = request.Quantity;
-		item.UnitPrice = request.UnitPrice;
-		item.TotalPrice = request.TotalPrice;
+		item.Quantity = request.Quantity ?? 0m;
+		item.UnitPrice = (long)((request.UnitPrice ?? 0m) * 100);
+		item.TotalPrice = (long)((request.TotalPrice ?? 0m) * 100);
 		item.Barcode = string.IsNullOrWhiteSpace(request.Barcode) ? null : request.Barcode.Trim();
 		item.VatRate = request.VatRate;
 		item.VatAmount = request.VatAmount;

@@ -45,7 +45,7 @@ public class DeleteReceiptItemHandlerTests
 			PublicationStatus = ReceiptPublicationStatus.Draft,
 			Items =
 			[
-				new ReceiptItem
+				new CampaignItem
 				{
 					Id = itemId,
 					ReceiptId = receiptId,
@@ -62,7 +62,7 @@ public class DeleteReceiptItemHandlerTests
 					StorageKey = "uploads/photo.png",
 					OriginalFileName = "photo.png",
 					SortOrder = 0,
-					ReceiptItemId = itemId,
+					CampaignItemId = itemId,
 				},
 			],
 		});
@@ -80,13 +80,13 @@ public class DeleteReceiptItemHandlerTests
 			CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
-		var updatedItem = await db.ReceiptItems.FindAsync(itemId);
+		var updatedItem = await db.CampaignItems.FindAsync(itemId);
 		Assert.NotNull(updatedItem);
 		Assert.True(updatedItem!.IsDeleted);
 
 		var updatedPhoto = await db.ReceiptItemPhotos.FindAsync(photoId);
 		Assert.NotNull(updatedPhoto);
-		Assert.Null(updatedPhoto!.ReceiptItemId);
+		Assert.Null(updatedPhoto!.CampaignItemId);
 
 		Assert.NotNull(result.Payload);
 		Assert.Empty(result.Payload.Items ?? []);

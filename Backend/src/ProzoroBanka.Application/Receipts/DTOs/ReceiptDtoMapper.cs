@@ -48,7 +48,7 @@ public static class ReceiptDtoMapper
 					photo.OriginalFileName,
 					fileStorage.ResolvePublicUrl(photo.StorageKey) ?? string.Empty,
 					photo.SortOrder,
-					photo.ReceiptItemId))
+					photo.CampaignItemId))
 				.ToList(),
 			receipt.OcrStructuredPayloadJson,
 			receipt.RawOcrJson,

@@ -59,4 +59,5 @@ public class Campaign : BaseEntity
 	public ICollection<CampaignPhoto> Photos { get; set; } = new List<CampaignPhoto>();
 	public ICollection<CampaignPost> Posts { get; set; } = new List<CampaignPost>();
 	public ICollection<CampaignCategoryMapping> CategoryMappings { get; set; } = new List<CampaignCategoryMapping>();
+	public ICollection<CampaignPurchase> Purchases { get; set; } = new List<CampaignPurchase>();
 }

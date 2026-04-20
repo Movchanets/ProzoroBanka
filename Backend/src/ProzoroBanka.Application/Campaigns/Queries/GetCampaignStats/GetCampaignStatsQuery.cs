@@ -54,7 +54,14 @@ public class GetCampaignStatsHandler
 				&& campaignIds.Contains(r.CampaignId.Value))
 			.WhereActiveVerifiedForDocumentation()
 			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
-		var totalDocumentedMinorUnits = CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(totalDocumented);
+		var documentedExpenses = await _db.CampaignPurchases
+			.AsNoTracking()
+			.Where(p => p.CampaignId.HasValue
+				&& campaignIds.Contains(p.CampaignId.Value))
+			.Where(p => p.Status != PurchaseStatus.Cancelled)
+			.Where(p => p.Documents.Any(d => !d.IsDeleted && d.Type != DocumentType.TransferAct))
+			.SumAsync(p => (long?)p.TotalAmount, cancellationToken) ?? 0;
+		var totalDocumentedMinorUnits = CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(totalDocumented) + documentedExpenses;
 
 		var stats = await _db.Campaigns
 			.AsNoTracking()

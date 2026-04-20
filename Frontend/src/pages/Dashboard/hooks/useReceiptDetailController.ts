@@ -952,8 +952,8 @@ export function useReceiptDetailController({
         payload: {
           name,
           quantity: parseOptionalNumber(itemDraft.quantity),
-          unitPrice: parsedUnitPrice === undefined ? undefined : Math.round(parsedUnitPrice * 100),
-          totalPrice: parsedTotalPrice === undefined ? undefined : Math.round(parsedTotalPrice * 100),
+          unitPrice: parsedUnitPrice,
+          totalPrice: parsedTotalPrice,
           barcode: itemDraft.barcode.trim() || undefined,
         },
       });

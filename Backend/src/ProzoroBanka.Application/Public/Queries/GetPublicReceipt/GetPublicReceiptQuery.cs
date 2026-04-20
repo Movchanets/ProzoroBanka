@@ -70,7 +70,7 @@ public class GetPublicReceiptHandler : IRequestHandler<GetPublicReceiptQuery, Se
 			.OrderBy(photo => photo.SortOrder)
 			.Select(photo => new PublicReceiptItemPhotoDto(
 				photo.Id,
-				photo.ReceiptItemId,
+				photo.CampaignItemId,
 				photo.OriginalFileName,
 				_fileStorage.ResolvePublicUrl(photo.StorageKey) ?? string.Empty,
 				photo.SortOrder))

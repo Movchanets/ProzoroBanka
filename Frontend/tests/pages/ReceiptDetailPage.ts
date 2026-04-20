@@ -7,6 +7,8 @@ export class ReceiptDetailPage {
   readonly uploadFileInput: Locator;
   readonly uploadButton: Locator;
   readonly uploadPreview: Locator;
+  readonly uploadPreviewButton: Locator;
+  readonly uploadPreviewDialog: Locator;
   readonly itemsTab: Locator;
   readonly itemsCard: Locator;
   readonly itemPhotosInput: Locator;
@@ -36,6 +38,8 @@ export class ReceiptDetailPage {
     this.uploadFileInput = page.getByTestId('dashboard-receipts-upload-file-input');
     this.uploadButton = page.getByTestId('dashboard-receipts-upload-button');
     this.uploadPreview = page.getByTestId('dashboard-receipts-upload-preview');
+    this.uploadPreviewButton = page.getByTestId('dashboard-receipts-upload-preview-button');
+    this.uploadPreviewDialog = page.getByTestId('dashboard-receipts-upload-preview-dialog');
     this.itemsTab = page.getByTestId('dashboard-receipts-upload-tab-items');
     this.itemsCard = page.getByTestId('dashboard-receipts-items-card');
     this.itemPhotosInput = page.getByTestId('dashboard-receipts-items-files-input');

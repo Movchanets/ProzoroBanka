@@ -32,8 +32,8 @@ public class DeleteReceiptItemHandler : IRequestHandler<DeleteReceiptItemCommand
 
 		item.IsDeleted = true;
 
-		foreach (var photo in receipt.ItemPhotos.Where(photo => !photo.IsDeleted && photo.ReceiptItemId == item.Id))
-			photo.ReceiptItemId = null;
+		foreach (var photo in receipt.ItemPhotos.Where(photo => !photo.IsDeleted && photo.CampaignItemId == item.Id))
+			photo.CampaignItemId = null;
 
 		await _db.SaveChangesAsync(ct);
 

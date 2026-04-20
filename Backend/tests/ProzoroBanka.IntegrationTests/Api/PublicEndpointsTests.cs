@@ -128,7 +128,7 @@ public class PublicEndpointsTests : IClassFixture<TestWebApplicationFactory>
 				PublicationStatus = ReceiptPublicationStatus.Active,
 			};
 
-			var item = new ReceiptItem
+			var item = new CampaignItem
 			{
 				Id = Guid.NewGuid(),
 				ReceiptId = receipt.Id,
@@ -143,7 +143,7 @@ public class PublicEndpointsTests : IClassFixture<TestWebApplicationFactory>
 			{
 				Id = Guid.NewGuid(),
 				ReceiptId = receipt.Id,
-				ReceiptItemId = item.Id,
+				CampaignItemId = item.Id,
 				StorageKey = "public-item-photo.png",
 				OriginalFileName = "public-item-photo.png",
 				SortOrder = 0,
@@ -153,7 +153,7 @@ public class PublicEndpointsTests : IClassFixture<TestWebApplicationFactory>
 			itemId = item.Id;
 
 			db.Receipts.Add(receipt);
-			db.ReceiptItems.Add(item);
+			db.CampaignItems.Add(item);
 			db.ReceiptItemPhotos.Add(itemPhoto);
 			await db.SaveChangesAsync();
 		}

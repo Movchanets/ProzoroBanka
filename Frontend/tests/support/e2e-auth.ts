@@ -279,10 +279,10 @@ export async function loginViaUi(
     await page.goto(options?.gotoPath ?? '/login');
   }
 
-  await ensureTurnstileTokenForE2E(page, { timeoutMs: turnstileTimeoutMs });
+  await waitForTurnstileToken(page, { timeoutMs: turnstileTimeoutMs });
   await page.getByTestId('login-email-input').fill(email);
   await page.getByTestId('login-password-input').fill(password);
-  await ensureTurnstileTokenForE2E(page, { timeoutMs: turnstileTimeoutMs });
+  await waitForTurnstileToken(page, { timeoutMs: turnstileTimeoutMs });
   await page.getByTestId('login-submit-button').click();
 
   if (options?.expectedUrlPattern) {
@@ -310,7 +310,7 @@ export async function createOrganizationForCurrentSession(page: Page, name: stri
   return createOrganizationViaApi(page.request, token, name);
 }
 
-export async function ensureTurnstileTokenForE2E(
+export async function waitForTurnstileToken(
   page: Page,
   options?: { timeoutMs?: number },
 ): Promise<void> {
@@ -318,21 +318,4 @@ export async function ensureTurnstileTokenForE2E(
   const tokenInput = page.locator('input[name="cf-turnstile-response"]').first();
 
   await expect(tokenInput).toHaveValue(/.+/, { timeout: timeoutMs });
-
-  const currentToken = (await tokenInput.inputValue()).trim();
-  if (currentToken === E2E_TURNSTILE_TEST_TOKEN) {
-    return;
-  }
-
-  await tokenInput.evaluate((element, token) => {
-    const input = element as {
-      value: string;
-      dispatchEvent: (event: Event) => boolean;
-    };
-    input.value = token;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  }, E2E_TURNSTILE_TEST_TOKEN);
-
-  await expect(tokenInput).toHaveValue(E2E_TURNSTILE_TEST_TOKEN);
 }

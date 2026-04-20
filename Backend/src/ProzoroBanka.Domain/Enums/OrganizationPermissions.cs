@@ -11,5 +11,6 @@ public enum OrganizationPermissions
 	ViewReports = 1 << 4,
 	UploadLogo = 1 << 5,
 	ManageCampaigns = 1 << 6,
-	All = ManageOrganization | ManageMembers | ManageInvitations | ManageReceipts | ViewReports | UploadLogo | ManageCampaigns
+	ManagePurchases = 1 << 7,
+	All = ManageOrganization | ManageMembers | ManageInvitations | ManageReceipts | ViewReports | UploadLogo | ManageCampaigns | ManagePurchases
 }

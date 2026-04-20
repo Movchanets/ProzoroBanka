@@ -236,6 +236,146 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.ToTable("CampaignCategoryMappings", (string)null);
                 });
 
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("CounterpartyName")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DocumentDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDataVerifiedByUser")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("OcrProcessingStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OcrRawResult")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("PurchaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PurchaseId");
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.ToTable("CampaignDocuments", (string)null);
+
+                    b.HasDiscriminator<int>("Type");
+
+                    b.UseTphMappingStrategy();
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Barcode")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("CampaignDocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("InvoiceDocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)");
+
+                    b.Property<Guid?>("ReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("TotalPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("VatAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("VatRate")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid?>("WaybillDocumentId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignDocumentId");
+
+                    b.HasIndex("CampaignId");
+
+                    b.HasIndex("InvoiceDocumentId");
+
+                    b.HasIndex("ReceiptId");
+
+                    b.HasIndex("WaybillDocumentId");
+
+                    b.ToTable("CampaignItems", (string)null);
+                });
+
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignPhoto", b =>
                 {
                     b.Property<Guid>("Id")
@@ -356,6 +496,56 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.HasIndex("CampaignPostId", "SortOrder");
 
                     b.ToTable("CampaignPostImages", (string)null);
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignPurchase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<long>("TotalAmount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("CampaignPurchases", (string)null);
                 });
 
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignTransaction", b =>
@@ -890,69 +1080,13 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.ToTable("Receipts", (string)null);
                 });
 
-            modelBuilder.Entity("ProzoroBanka.Domain.Entities.ReceiptItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Barcode")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<decimal?>("Quantity")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("numeric(18,3)");
-
-                    b.Property<Guid>("ReceiptId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("TotalPrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal?>("UnitPrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal?>("VatAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal?>("VatRate")
-                        .HasPrecision(8, 3)
-                        .HasColumnType("numeric(8,3)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReceiptId");
-
-                    b.HasIndex("ReceiptId", "SortOrder");
-
-                    b.ToTable("ReceiptItems", (string)null);
-                });
-
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.ReceiptItemPhoto", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CampaignItemId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -969,9 +1103,6 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.Property<Guid>("ReceiptId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ReceiptItemId")
-                        .HasColumnType("uuid");
-
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
 
@@ -985,9 +1116,9 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ReceiptId");
+                    b.HasIndex("CampaignItemId");
 
-                    b.HasIndex("ReceiptItemId");
+                    b.HasIndex("ReceiptId");
 
                     b.HasIndex("ReceiptId", "SortOrder");
 
@@ -1235,6 +1366,62 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.ToTable("AspNetRoles", (string)null);
                 });
 
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.BankReceiptDocument", b =>
+                {
+                    b.HasBaseType("ProzoroBanka.Domain.Entities.CampaignDocument");
+
+                    b.Property<string>("Edrpou")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PayerFullName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PaymentPurpose")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReceiptCode")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReceiverIban")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SenderIban")
+                        .HasColumnType("text");
+
+                    b.HasDiscriminator().HasValue(0);
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.InvoiceDocument", b =>
+                {
+                    b.HasBaseType("ProzoroBanka.Domain.Entities.CampaignDocument");
+
+                    b.HasDiscriminator().HasValue(2);
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.OtherDocument", b =>
+                {
+                    b.HasBaseType("ProzoroBanka.Domain.Entities.CampaignDocument");
+
+                    b.HasDiscriminator().HasValue(4);
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.TransferActDocument", b =>
+                {
+                    b.HasBaseType("ProzoroBanka.Domain.Entities.CampaignDocument");
+
+                    b.Property<bool>("IsRedacted")
+                        .HasColumnType("boolean");
+
+                    b.HasDiscriminator().HasValue(3);
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.WaybillDocument", b =>
+                {
+                    b.HasBaseType("ProzoroBanka.Domain.Entities.CampaignDocument");
+
+                    b.HasDiscriminator().HasValue(1);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
                     b.HasOne("ProzoroBanka.Infrastructure.Identity.ApplicationUser", null)
@@ -1300,6 +1487,57 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignDocument", b =>
+                {
+                    b.HasOne("ProzoroBanka.Domain.Entities.CampaignPurchase", "Purchase")
+                        .WithMany("Documents")
+                        .HasForeignKey("PurchaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ProzoroBanka.Domain.Entities.User", "UploadedBy")
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Purchase");
+
+                    b.Navigation("UploadedBy");
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignItem", b =>
+                {
+                    b.HasOne("ProzoroBanka.Domain.Entities.CampaignDocument", "CampaignDocument")
+                        .WithMany()
+                        .HasForeignKey("CampaignDocumentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("ProzoroBanka.Domain.Entities.Campaign", "Campaign")
+                        .WithMany()
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProzoroBanka.Domain.Entities.InvoiceDocument", null)
+                        .WithMany("Items")
+                        .HasForeignKey("InvoiceDocumentId");
+
+                    b.HasOne("ProzoroBanka.Domain.Entities.Receipt", "Receipt")
+                        .WithMany("Items")
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("ProzoroBanka.Domain.Entities.WaybillDocument", null)
+                        .WithMany("Items")
+                        .HasForeignKey("WaybillDocumentId");
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("CampaignDocument");
+
+                    b.Navigation("Receipt");
+                });
+
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignPhoto", b =>
                 {
                     b.HasOne("ProzoroBanka.Domain.Entities.Campaign", "Campaign")
@@ -1347,6 +1585,32 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("CampaignPost");
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignPurchase", b =>
+                {
+                    b.HasOne("ProzoroBanka.Domain.Entities.Campaign", "Campaign")
+                        .WithMany("Purchases")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ProzoroBanka.Domain.Entities.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ProzoroBanka.Domain.Entities.Organization", "Organization")
+                        .WithMany("Purchases")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignTransaction", b =>
@@ -1483,33 +1747,22 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("ProzoroBanka.Domain.Entities.ReceiptItem", b =>
-                {
-                    b.HasOne("ProzoroBanka.Domain.Entities.Receipt", "Receipt")
-                        .WithMany("Items")
-                        .HasForeignKey("ReceiptId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Receipt");
-                });
-
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.ReceiptItemPhoto", b =>
                 {
+                    b.HasOne("ProzoroBanka.Domain.Entities.CampaignItem", "CampaignItem")
+                        .WithMany()
+                        .HasForeignKey("CampaignItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ProzoroBanka.Domain.Entities.Receipt", "Receipt")
                         .WithMany("ItemPhotos")
                         .HasForeignKey("ReceiptId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("ProzoroBanka.Domain.Entities.ReceiptItem", "ReceiptItem")
-                        .WithMany("Photos")
-                        .HasForeignKey("ReceiptItemId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                    b.Navigation("CampaignItem");
 
                     b.Navigation("Receipt");
-
-                    b.Navigation("ReceiptItem");
                 });
 
             modelBuilder.Entity("ProzoroBanka.Infrastructure.Identity.ApplicationRoleClaim", b =>
@@ -1560,6 +1813,8 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
 
                     b.Navigation("Posts");
 
+                    b.Navigation("Purchases");
+
                     b.Navigation("Receipts");
 
                     b.Navigation("Transactions");
@@ -1575,6 +1830,11 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.Navigation("Images");
                 });
 
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.CampaignPurchase", b =>
+                {
+                    b.Navigation("Documents");
+                });
+
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.Organization", b =>
                 {
                     b.Navigation("Campaigns");
@@ -1582,6 +1842,8 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.Navigation("Invitations");
 
                     b.Navigation("Members");
+
+                    b.Navigation("Purchases");
 
                     b.Navigation("Receipts");
 
@@ -1593,11 +1855,6 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.Navigation("ItemPhotos");
 
                     b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("ProzoroBanka.Domain.Entities.ReceiptItem", b =>
-                {
-                    b.Navigation("Photos");
                 });
 
             modelBuilder.Entity("ProzoroBanka.Domain.Entities.User", b =>
@@ -1623,6 +1880,16 @@ namespace ProzoroBanka.Infrastructure.Data.Migrations
                     b.Navigation("RoleClaims");
 
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.InvoiceDocument", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("ProzoroBanka.Domain.Entities.WaybillDocument", b =>
+                {
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

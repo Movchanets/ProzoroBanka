@@ -85,8 +85,13 @@ public class GetPublicCampaignHandler : IRequestHandler<GetPublicCampaignQuery, 
 			.Where(r => r.CampaignId == campaign.Id)
 			.WhereActiveVerifiedForDocumentation()
 			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
+		var documentedExpenses = await _db.CampaignPurchases
+			.AsNoTracking()
+			.Where(p => p.CampaignId == campaign.Id && p.Status != PurchaseStatus.Cancelled)
+			.Where(p => p.Documents.Any(d => !d.IsDeleted && d.Type != DocumentType.TransferAct))
+			.SumAsync(p => (long?)p.TotalAmount, cancellationToken) ?? 0;
 		var documentedAmount = CampaignDocumentationMetrics.BoundToCollectedAmount(
-			CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(totalDocumented),
+			CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(totalDocumented) + documentedExpenses,
 			campaign.CurrentAmount);
 
 		var documentationPercent = CampaignDocumentationMetrics.CalculateDocumentedSharePercent(

@@ -22,7 +22,8 @@ internal static class InvitationRules
 				| OrganizationPermissions.ManageReceipts
 				| OrganizationPermissions.ViewReports
 				| OrganizationPermissions.UploadLogo
-				| OrganizationPermissions.ManageCampaigns,
+				| OrganizationPermissions.ManageCampaigns
+				| OrganizationPermissions.ManagePurchases,
 			OrganizationRole.Reporter => OrganizationPermissions.ManageReceipts,
 			_ => OrganizationPermissions.None
 		};

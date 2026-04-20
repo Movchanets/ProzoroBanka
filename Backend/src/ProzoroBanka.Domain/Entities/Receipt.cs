@@ -55,6 +55,6 @@ public class Receipt : BaseEntity
     public User User { get; set; } = null!;
     public Organization? Organization { get; set; }
     public Campaign? Campaign { get; set; }
-    public ICollection<ReceiptItem> Items { get; set; } = new List<ReceiptItem>();
+    public ICollection<CampaignItem> Items { get; set; } = new List<CampaignItem>();
     public ICollection<ReceiptItemPhoto> ItemPhotos { get; set; } = new List<ReceiptItemPhoto>();
 }

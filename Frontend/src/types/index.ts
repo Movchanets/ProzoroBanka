@@ -5,4 +5,5 @@ export * from './domains/invitations';
 export * from './domains/organizations';
 export * from './domains/public';
 export * from './domains/receipts';
+export * from './domains/purchases';
 export * from './admin';

@@ -29,7 +29,7 @@ public static class OcrRegistration
 			}, "OCR configuration must have at least one valid provider (Mistral or OpenRouter) if UseExtractionStub is false.")
 			.ValidateOnStart();
 
-		// ── Mistral HTTP client ──
+		// ── Mistral HTTP client (Receipts) ──
 		services.AddHttpClient<MistralOcrService>((sp, client) =>
 		{
 			var options = sp.GetRequiredService<IOptions<OcrOptions>>().Value;
@@ -40,6 +40,25 @@ public static class OcrRegistration
 				client.DefaultRequestHeaders.Authorization = new("Bearer", options.Mistral.ApiKey);
 		})
 		.AddPolicyHandler(GetRetryPolicy());
+
+		// ── Mistral HTTP client (Purchase Documents) ──
+		if (configuration.GetValue<bool?>("Ocr:UseExtractionStub") ?? true)
+		{
+			services.AddScoped<IDocumentOcrService, StubDocumentOcrService>();
+		}
+		else
+		{
+			services.AddHttpClient<IDocumentOcrService, MistralPurchaseDocumentOcrService>((sp, client) =>
+			{
+				var options = sp.GetRequiredService<IOptions<OcrOptions>>().Value;
+				client.BaseAddress = new Uri(options.Mistral.BaseUrl);
+				client.Timeout = TimeSpan.FromSeconds(options.Mistral.TimeoutSeconds);
+
+				if (!string.IsNullOrEmpty(options.Mistral.ApiKey))
+					client.DefaultRequestHeaders.Authorization = new("Bearer", options.Mistral.ApiKey);
+			})
+			.AddPolicyHandler(GetRetryPolicy());
+		}
 
 		// ── OpenRouter HTTP client ──
 		services.AddHttpClient<OpenRouterOcrService>((sp, client) =>

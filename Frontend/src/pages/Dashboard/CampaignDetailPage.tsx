@@ -436,13 +436,29 @@ export default function CampaignDetailPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="secondary">{transactions?.length ?? 0}</Badge>
+                       <Badge variant="secondary">{transactions?.length ?? 0}</Badge>
+                       <ArrowUpRight className="h-4 w-4 text-muted-foreground transition group-hover:text-foreground" />
+                     </div>
+                   </button>
+                   
+                   <button
+                    type="button"
+                    onClick={() => navigate(`/dashboard/${orgId}/purchases?campaignId=${campaignId}`)}
+                    className="group flex w-full items-start justify-between rounded-2xl border border-border/70 bg-background/55 px-4 py-3 text-left transition hover:border-primary/40 hover:bg-background/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                  >
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-foreground">{t('purchases.listTitle', 'Закупівлі (Звіти)')}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t('purchases.hubHint', 'Акти прийому-передачі та видаткові накладні')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <ArrowUpRight className="h-4 w-4 text-muted-foreground transition group-hover:text-foreground" />
                     </div>
                   </button>
-                </div>
-              </div>
-            </CardContent>
+                 </div>
+               </div>
+             </CardContent>
           </Card>
 
           <Card className="overflow-hidden border border-border bg-card/60 backdrop-blur-sm">

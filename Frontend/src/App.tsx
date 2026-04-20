@@ -7,6 +7,7 @@ import { useAuthStore } from './stores/authStore';
 import { AppRoles, hasAppRole } from './constants/appRoles';
 import { Toaster } from './components/ui/sonner';
 import { RouteSeoSync } from './hooks/useRouteSeo';
+import PublicSpendingPage from './pages/PublicSpending/PublicSpendingPage';
 
 const LoginPage = lazy(() => import('./pages/Login/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/Register/RegisterPage'));
@@ -23,6 +24,10 @@ const CampaignsListPage = lazy(() => import('./pages/Dashboard/CampaignsListPage
 const CampaignCreatePage = lazy(() => import('./pages/Dashboard/CampaignCreatePage'));
 const CampaignEditPage = lazy(() => import('./pages/Dashboard/CampaignEditPage'));
 const CampaignDetailPage = lazy(() => import('./pages/Dashboard/CampaignDetailPage'));
+const CampaignPurchasesListPage = lazy(() => import('./pages/Dashboard/CampaignPurchasesListPage'));
+const CampaignPurchaseDetailPage = lazy(() => import('./pages/Dashboard/CampaignPurchaseDetailPage'));
+const OrganizationPurchasesPage = lazy(() => import('./pages/Dashboard/OrganizationPurchasesPage'));
+const OrganizationPurchaseDetailPage = lazy(() => import('./pages/Dashboard/OrganizationPurchaseDetailPage'));
 const ReceiptsListPage = lazy(() => import('./pages/Dashboard/ReceiptsListPage'));
 const ReceiptDetailPage = lazy(() => import('./pages/Dashboard/ReceiptDetailPage'));
 const InvitePage = lazy(() => import('./pages/Invite/InvitePage'));
@@ -100,6 +105,7 @@ function App() {
             <Route path="/o/:slug" element={<PublicOrganizationPage />} />
             <Route path="/c/:id" element={<PublicCampaignPage />} />
             <Route path="/receipt/:id" element={<PublicReceiptPlaceholderPage />} />
+            <Route path="/spending/:id" element={<PublicSpendingPage />} />
 
             {/* Onboarding — redirect to dashboard if has orgs */}
             <Route
@@ -144,10 +150,15 @@ function App() {
               <Route index element={<DashboardHomePage />} />
               <Route path="settings" element={<OrgSettingsPage />} />
               <Route path="team" element={<TeamPage />} />
+              <Route path="purchases" element={<OrganizationPurchasesPage />} />
+              <Route path="purchases/:purchaseId" element={<OrganizationPurchaseDetailPage />} />
               <Route path="campaigns" element={<CampaignsListPage />} />
               <Route path="campaigns/new" element={<CampaignCreatePage />} />
               <Route path="campaigns/:campaignId" element={<CampaignDetailPage />} />
               <Route path="campaigns/:campaignId/edit" element={<CampaignEditPage />} />
+              <Route path="campaigns/:campaignId/purchases" element={<CampaignPurchasesListPage />} />
+              <Route path="campaigns/:campaignId/purchases/new" element={<CampaignPurchaseDetailPage />} />
+              <Route path="campaigns/:campaignId/purchases/:purchaseId" element={<CampaignPurchaseDetailPage />} />
               <Route path="receipts" element={<ReceiptsListPage />} />
               <Route path="receipts/new" element={<ReceiptDetailPage />} />
               <Route path="receipts/:receiptId" element={<ReceiptDetailPage />} />

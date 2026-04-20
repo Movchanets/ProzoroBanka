@@ -5,6 +5,7 @@ using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Domain.Enums;
 
 namespace ProzoroBanka.Application.Campaigns.Queries.GetCampaignDetails;
 
@@ -85,8 +86,13 @@ public class GetCampaignDetailsHandler
 			.Where(r => r.CampaignId == campaign.Id)
 			.WhereActiveVerifiedForDocumentation()
 			.SumAsync(r => r.TotalAmount ?? 0, cancellationToken);
+		var documentedExpenses = await _db.CampaignPurchases
+			.AsNoTracking()
+			.Where(p => p.CampaignId == campaign.Id && p.Status != PurchaseStatus.Cancelled)
+			.Where(p => p.Documents.Any(d => !d.IsDeleted && d.Type != DocumentType.TransferAct))
+			.SumAsync(p => (long?)p.TotalAmount, cancellationToken) ?? 0;
 		var documentedAmount = CampaignDocumentationMetrics.BoundToCollectedAmount(
-			CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(documentedAmountRaw),
+			CampaignDocumentationMetrics.ToMinorUnitsFromStoredAmount(documentedAmountRaw) + documentedExpenses,
 			campaign.CurrentAmount);
 		var receiptCount = await _db.Receipts
 			.AsNoTracking()

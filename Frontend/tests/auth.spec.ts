@@ -1,5 +1,5 @@
 import { test, expect } from './support/fixtures';
-import { E2E_TURNSTILE_TEST_TOKEN, ensureTurnstileTokenForE2E } from './support/e2e-auth';
+import { E2E_TURNSTILE_TEST_TOKEN, waitForTurnstileToken } from './support/e2e-auth';
 import { applyLocale, TEST_LOCALES } from './support/locale-matrix';
 
 import en from '../src/i18n/locales/en.json' with { type: 'json' };
@@ -26,7 +26,7 @@ for (const localeConfig of TEST_LOCALES) {
       
       await loginPage.goto();
       await expect(loginPage.getHeading(localeDictionary.auth.login.title)).toBeVisible();
-      await ensureTurnstileTokenForE2E(page, { timeoutMs: 20_000 });
+      await waitForTurnstileToken(page, { timeoutMs: 20_000 });
     });
 
     test('TC-01: Successful login with valid credentials', async ({ page, loginPage }) => {
@@ -34,7 +34,7 @@ for (const localeConfig of TEST_LOCALES) {
 
       await loginPage.fillEmail(VALID_EMAIL);
       await loginPage.fillPassword(VALID_PASSWORD);
-      await ensureTurnstileTokenForE2E(page, { timeoutMs: 20_000 });
+      await waitForTurnstileToken(page, { timeoutMs: 20_000 });
 
       const loginResponsePromise = loginPage.waitForLoginResponse();
       await loginPage.submit();
@@ -56,7 +56,7 @@ for (const localeConfig of TEST_LOCALES) {
 
       await loginPage.fillEmail(VALID_EMAIL);
       await loginPage.fillPassword('WrongPassword-123');
-      await ensureTurnstileTokenForE2E(page, { timeoutMs: 20_000 });
+      await waitForTurnstileToken(page, { timeoutMs: 20_000 });
       await loginPage.submit();
 
       await expect(loginPage.errorAlert).toBeVisible();
@@ -68,7 +68,7 @@ for (const localeConfig of TEST_LOCALES) {
 
       await loginPage.fillEmail('plainaddress');
       await loginPage.fillPassword(VALID_PASSWORD);
-      await ensureTurnstileTokenForE2E(page, { timeoutMs: 20_000 });
+      await waitForTurnstileToken(page, { timeoutMs: 20_000 });
       await loginPage.submit();
 
       await expect(loginPage.getValidationMessage(localeDictionary.validation.emailInvalid)).toBeVisible();
@@ -80,7 +80,7 @@ for (const localeConfig of TEST_LOCALES) {
 
       await loginPage.fillEmail('doesnotexist@example.com');
       await loginPage.fillPassword(VALID_PASSWORD);
-      await ensureTurnstileTokenForE2E(page, { timeoutMs: 20_000 });
+      await waitForTurnstileToken(page, { timeoutMs: 20_000 });
       await loginPage.submit();
 
       await expect(loginPage.errorAlert).toBeVisible();
