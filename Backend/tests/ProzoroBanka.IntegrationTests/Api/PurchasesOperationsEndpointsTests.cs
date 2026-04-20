@@ -116,6 +116,73 @@ public class PurchasesOperationsEndpointsTests : IClassFixture<TestWebApplicatio
     }
 
     [Fact]
+    public async Task CreatePurchase_AsOrganizationOwnerWithoutAdminRole_ReturnsCreated()
+    {
+        var email = $"purchase-owner-{Guid.NewGuid():N}@example.com";
+        const string password = "Owner123!Test";
+
+        await RegisterAsync(email, password);
+        await AuthenticateAsync(email, password);
+
+        Guid ownerId;
+        var organizationId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+
+        await using (var setupScope = _factory.Services.CreateAsyncScope())
+        {
+            var db = setupScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            ownerId = await db.DomainUsers
+                .Where(user => user.Email == email)
+                .Select(user => user.Id)
+                .SingleAsync();
+
+            db.Organizations.Add(new Organization
+            {
+                Id = organizationId,
+                Name = $"Owner purchase org {Guid.NewGuid():N}",
+                Slug = $"owner-purchase-org-{Guid.NewGuid():N}",
+                OwnerUserId = ownerId
+            });
+
+            db.Campaigns.Add(new Campaign
+            {
+                Id = campaignId,
+                OrganizationId = organizationId,
+                CreatedByUserId = ownerId,
+                Title = $"Owner campaign {Guid.NewGuid():N}",
+                Description = "Campaign for owner purchase authorization regression",
+                GoalAmount = 100000,
+                Status = CampaignStatus.Active
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        var response = await _client.PostAsJsonAsync(
+            $"/api/organizations/{organizationId}/campaigns/{campaignId}/purchases",
+            new
+            {
+                title = "Owner purchase",
+                totalAmount = 0
+            });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var purchaseId = payload.GetProperty("id").GetGuid();
+
+        await using var assertScope = _factory.Services.CreateAsyncScope();
+        var assertDb = assertScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var purchase = await assertDb.CampaignPurchases.SingleOrDefaultAsync(p => p.Id == purchaseId);
+
+        Assert.NotNull(purchase);
+        Assert.Equal(ownerId, purchase!.CreatedByUserId);
+        Assert.Equal(organizationId, purchase.OrganizationId);
+        Assert.Equal(campaignId, purchase.CampaignId);
+    }
+
+    [Fact]
     public async Task OrganizationPurchasesList_WithOnlyUnattached_ReturnsDraftsOrderedByNewestFirst()
     {
         await AuthenticateAsAdminAsync();
@@ -254,6 +321,37 @@ public class PurchasesOperationsEndpointsTests : IClassFixture<TestWebApplicatio
         {
             email = "admin@example.com",
             password = "Admin123!ChangeMe",
+            turnstileToken = "test-token"
+        });
+
+        loginResponse.EnsureSuccessStatusCode();
+
+        var loginJson = await loginResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var accessToken = loginJson.GetProperty("accessToken").GetString();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+    }
+
+    private async Task RegisterAsync(string email, string password)
+    {
+        var response = await _client.PostAsJsonAsync("/api/auth/register", new
+        {
+            email,
+            password,
+            confirmPassword = password,
+            firstName = "Purchase",
+            lastName = "Owner",
+            turnstileToken = "test-token"
+        });
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    private async Task AuthenticateAsync(string email, string password)
+    {
+        var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email,
+            password,
             turnstileToken = "test-token"
         });
 

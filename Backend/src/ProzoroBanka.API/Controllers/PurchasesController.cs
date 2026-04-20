@@ -73,7 +73,6 @@ public class PurchasesController : ApiControllerBase
 	}
 
 	[HttpPost]
-	[HasPermission(Permissions.PurchasesManage)]
 	[ProducesResponseType(typeof(PurchaseDetailDto), StatusCodes.Status201Created)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> Create(
