@@ -24,6 +24,14 @@ export const purchaseKeys = {
     campaignId,
     status ?? 'all',
   ] as const,
+
+  organizationList: (organizationId: string, status?: PurchaseStatus, onlyUnattached = false) => [
+    ...purchaseKeys.lists(),
+    organizationId,
+    'organization',
+    status ?? 'all',
+    onlyUnattached ? 'unattached' : 'attached-and-unattached',
+  ] as const,
   
   detail: (organizationId: string, campaignId: string, purchaseId: string) => [
     ...purchaseKeys.details(),
@@ -45,6 +53,19 @@ export function usePurchases(
     queryKey: purchaseKeys.list(organizationId, campaignId, status),
     queryFn: () => purchaseService.list(organizationId, campaignId, status),
     enabled: enabled && Boolean(organizationId) && Boolean(campaignId),
+  });
+}
+
+export function useOrganizationPurchases(
+  organizationId: string,
+  status?: PurchaseStatus,
+  onlyUnattached = false,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: purchaseKeys.organizationList(organizationId, status, onlyUnattached),
+    queryFn: () => purchaseService.listOrganization(organizationId, status, onlyUnattached),
+    enabled: enabled && Boolean(organizationId),
   });
 }
 

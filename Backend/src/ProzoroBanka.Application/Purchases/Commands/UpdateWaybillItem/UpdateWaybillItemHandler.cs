@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Application.Purchases.Common;
 using ProzoroBanka.Application.Purchases.DTOs;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
@@ -50,6 +51,8 @@ public class UpdateWaybillItemHandler : IRequestHandler<UpdateWaybillItemCommand
 		item.UnitPrice = request.UnitPrice;
 		item.TotalPrice = checked((long)decimal.Round(request.Quantity * request.UnitPrice, 0, MidpointRounding.AwayFromZero));
 
+		await _db.SaveChangesAsync(ct);
+		await PurchaseTotalAmountCalculator.RecalculateAndApplyAsync(_db, document.PurchaseId, ct);
 		await _db.SaveChangesAsync(ct);
 
 		return ServiceResponse<DocumentDto>.Success(PurchaseDtoMapper.ToDocumentDto(_fileStorage, document));

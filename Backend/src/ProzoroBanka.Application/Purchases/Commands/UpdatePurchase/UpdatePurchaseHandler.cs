@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Application.Purchases.Common;
 using ProzoroBanka.Application.Purchases.DTOs;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
@@ -61,11 +62,11 @@ public class UpdatePurchaseHandler : IRequestHandler<UpdatePurchaseCommand, Serv
 		if (request.Title is not null)
 			purchase.Title = request.Title;
 
-		if (request.TotalAmount.HasValue)
-			purchase.TotalAmount = request.TotalAmount.Value;
-
 		if (request.Status.HasValue)
 			purchase.Status = request.Status.Value;
+
+		await _db.SaveChangesAsync(ct);
+		await PurchaseTotalAmountCalculator.RecalculateAndApplyAsync(_db, purchase.Id, ct);
 
 		await _db.SaveChangesAsync(ct);
 

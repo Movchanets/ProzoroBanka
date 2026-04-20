@@ -20,16 +20,12 @@ public class UpdatePurchaseValidator : AbstractValidator<UpdatePurchaseCommand>
 			.MaximumLength(500).WithMessage("Назва не може перевищувати 500 символів")
 			.When(x => x.Title is not null);
 
-		RuleFor(x => x.TotalAmount)
-			.GreaterThan(0).WithMessage("Сума має бути більше 0")
-			.When(x => x.TotalAmount.HasValue);
-
 		RuleFor(x => x.Status)
 			.IsInEnum().WithMessage("Невірний статус закупівлі")
 			.When(x => x.Status.HasValue);
 
 		RuleFor(x => x)
-			.Must(x => x.Title is not null || x.TotalAmount.HasValue || x.Status.HasValue)
+			.Must(x => x.Title is not null || x.Status.HasValue)
 			.WithMessage("Потрібно передати хоча б одне поле для оновлення");
 	}
 }

@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Application.Purchases.Common;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
 
@@ -61,6 +62,8 @@ public class DeleteDocumentHandler : IRequestHandler<DeleteDocumentCommand, Serv
 		if (!string.IsNullOrEmpty(document.StorageKey))
 			await _fileStorage.DeleteAsync(document.StorageKey, ct);
 
+		await _db.SaveChangesAsync(ct);
+		await PurchaseTotalAmountCalculator.RecalculateAndApplyAsync(_db, request.PurchaseId, ct);
 		await _db.SaveChangesAsync(ct);
 
 		return ServiceResponse.Success("Документ видалено");

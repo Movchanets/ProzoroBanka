@@ -28,6 +28,21 @@ export const purchaseService = {
     );
   },
 
+  listOrganization: (organizationId: string, status?: PurchaseStatus, onlyUnattached = false) => {
+    const searchParams = new URLSearchParams();
+    if (status !== undefined) {
+      searchParams.set('status', String(status));
+    }
+    if (onlyUnattached) {
+      searchParams.set('onlyUnattached', 'true');
+    }
+
+    const query = searchParams.toString();
+    return apiFetch<PurchaseListItemDto[]>(
+      `/api/organizations/${organizationId}/purchases${query ? `?${query}` : ''}`
+    );
+  },
+
   getById: (organizationId: string, campaignId: string, purchaseId: string) =>
     apiFetch<PurchaseDetailDto>(
       `/api/organizations/${organizationId}/campaigns/${campaignId}/purchases/${purchaseId}`

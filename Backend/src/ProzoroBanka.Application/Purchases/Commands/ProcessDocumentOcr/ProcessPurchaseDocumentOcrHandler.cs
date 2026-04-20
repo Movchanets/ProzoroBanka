@@ -103,6 +103,12 @@ public class ProcessPurchaseDocumentOcrHandler : IRequestHandler<ProcessPurchase
 
 		await _db.SaveChangesAsync(ct);
 
+		if (document.OcrProcessingStatus == OcrProcessingStatus.Success)
+		{
+			await PurchaseTotalAmountCalculator.RecalculateAndApplyAsync(_db, request.PurchaseId, ct);
+			await _db.SaveChangesAsync(ct);
+		}
+
 		return ServiceResponse<DocumentDto>.Success(PurchaseDtoMapper.ToDocumentDto(_fileStorage, document));
 	}
 }

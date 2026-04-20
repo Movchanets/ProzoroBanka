@@ -115,6 +115,58 @@ public class PurchasesOperationsEndpointsTests : IClassFixture<TestWebApplicatio
         Assert.Equal(documentId, item.CampaignDocumentId);
     }
 
+    [Fact]
+    public async Task OrganizationPurchasesList_WithOnlyUnattached_ReturnsDraftsOrderedByNewestFirst()
+    {
+        await AuthenticateAsAdminAsync();
+        var orgId = await CreateOrganizationAsync($"List Org {Guid.NewGuid():N}");
+        var campaignId = await CreateCampaignAsync(orgId, $"List Campaign {Guid.NewGuid():N}");
+        await SetCampaignStatusAsync(campaignId, CampaignStatus.Active);
+
+        var firstDraftResponse = await _client.PostAsJsonAsync("/api/purchases/draft", new
+        {
+            organizationId = orgId,
+            title = "Draft A",
+            description = "Old"
+        });
+        firstDraftResponse.EnsureSuccessStatusCode();
+        var firstDraftId = (await firstDraftResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        var secondDraftResponse = await _client.PostAsJsonAsync("/api/purchases/draft", new
+        {
+            organizationId = orgId,
+            title = "Draft B",
+            description = "New"
+        });
+        secondDraftResponse.EnsureSuccessStatusCode();
+        var secondDraftId = (await secondDraftResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        var attachedDraftResponse = await _client.PostAsJsonAsync("/api/purchases/draft", new
+        {
+            organizationId = orgId,
+            title = "Draft C",
+            description = "Attached"
+        });
+        attachedDraftResponse.EnsureSuccessStatusCode();
+        var attachedDraftId = (await attachedDraftResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        var attachResponse = await _client.PostAsJsonAsync($"/api/purchases/{attachedDraftId}/attach", new { campaignId });
+        attachResponse.EnsureSuccessStatusCode();
+
+        var listResponse = await _client.GetAsync($"/api/organizations/{orgId}/purchases?onlyUnattached=true");
+        listResponse.EnsureSuccessStatusCode();
+
+        var items = await listResponse.Content.ReadFromJsonAsync<List<JsonElement>>();
+        Assert.NotNull(items);
+        Assert.Equal(2, items!.Count);
+
+        var firstId = items[0].GetProperty("id").GetGuid();
+        var secondId = items[1].GetProperty("id").GetGuid();
+
+        Assert.Equal(secondDraftId, firstId);
+        Assert.Equal(firstDraftId, secondId);
+    }
+
     private async Task<Guid> CreateOrganizationAsync(string name)
     {
         var response = await _client.PostAsJsonAsync("/api/organizations", new

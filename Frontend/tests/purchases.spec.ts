@@ -38,7 +38,7 @@ test.describe('Purchases Flow', () => {
     await expect(page).toHaveURL(new RegExp(`/dashboard/${campaignSeed.orgId}/purchases/new$`));
     await expect(page.getByTestId('purchase-detail-page')).toBeVisible();
     await expect(page.getByTestId('purchase-detail-title-input')).toBeVisible();
-    await expect(page.getByTestId('purchase-detail-total-amount-input')).toBeVisible();
+    await expect(page.getByTestId('purchase-detail-total-amount-display')).toBeVisible();
     await expect(page.getByTestId('purchase-detail-save-button')).toBeEnabled();
   });
 
@@ -53,7 +53,7 @@ test.describe('Purchases Flow', () => {
 
     await expect(page.getByTestId('purchase-detail-page')).toBeVisible();
     await expect(page.getByTestId('purchase-detail-title-input')).toBeVisible();
-    await expect(page.getByTestId('purchase-detail-total-amount-input')).toBeVisible();
+    await expect(page.getByTestId('purchase-detail-total-amount-display')).toBeVisible();
     await expect(page.getByTestId('purchase-detail-save-button')).toBeVisible();
   });
 
@@ -85,7 +85,6 @@ test.describe('Purchases Flow', () => {
     await page.getByTestId('organization-purchases-open-create-dialog').click();
     await expect(page.getByTestId('purchase-detail-page')).toBeVisible();
     await page.getByTestId('purchase-detail-title-input').fill('Покупка для OCR');
-    await page.getByTestId('purchase-detail-total-amount-input').fill('1000');
     await page.getByTestId('purchase-detail-save-button').click();
 
     await expect(page.getByTestId('purchase-detail-page')).toBeVisible();

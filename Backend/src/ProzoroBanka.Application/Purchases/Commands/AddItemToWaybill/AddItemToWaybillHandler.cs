@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.Application.Purchases.Common;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
 
@@ -67,6 +68,8 @@ public class AddItemToWaybillHandler : IRequestHandler<AddItemToWaybillCommand, 
 		{
 			efContext.Entry(item).Property("WaybillDocumentId").CurrentValue = document.Id;
 		}
+		await _db.SaveChangesAsync(ct);
+		await PurchaseTotalAmountCalculator.RecalculateAndApplyAsync(_db, document.PurchaseId, ct);
 		await _db.SaveChangesAsync(ct);
 
 		return ServiceResponse<Guid>.Success(item.Id);
