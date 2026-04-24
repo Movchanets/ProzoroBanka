@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -100,6 +100,19 @@ export default function HomePage() {
     }
   }, [location.hash, location.pathname, location.search, navigate]);
 
+  useEffect(() => {
+    if (!parseHomeTabFromHash(location.hash)) {
+      return;
+    }
+
+    const target = document.getElementById('home-main-tabs-anchor');
+    if (!target) {
+      return;
+    }
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [location.hash]);
+
   return (
     <>
       <SeoHelmet
@@ -180,7 +193,7 @@ export default function HomePage() {
         </p>
       </section>
 
-      <Tabs value={tab} onValueChange={handleTabChange} data-testid="home-main-tabs" className="gap-4">
+      <Tabs id="home-main-tabs-anchor" value={tab} onValueChange={handleTabChange} data-testid="home-main-tabs" className="gap-4 scroll-mt-24">
         <TabsList data-testid="home-main-tabs-list" className="w-full justify-start rounded-2xl border border-border/80 bg-card/92 p-1 shadow-[0_10px_24px_var(--shadow-soft)] scroll-mt-24">
           <TabsTrigger id="campaigns" data-testid="home-main-tab-campaigns" value="campaigns" className="rounded-xl px-4 scroll-mt-24">{t('home.tabs.campaigns')}</TabsTrigger>
           <TabsTrigger id="organizations" data-testid="home-main-tab-organizations" value="organizations" className="rounded-xl px-4 scroll-mt-24">{t('home.tabs.organizations')}</TabsTrigger>
