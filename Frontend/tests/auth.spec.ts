@@ -32,6 +32,13 @@ for (const localeConfig of TEST_LOCALES) {
     test('TC-01: Successful login with valid credentials', async ({ page, loginPage }) => {
       test.info().annotations.push({ type: 'description', description: 'Verifies that a user with correct credentials can successfully log in and is redirected to the dashboard/home screen.' });
 
+      const visitedUrls: string[] = [];
+      page.on('framenavigated', (frame) => {
+        if (frame === page.mainFrame()) {
+          visitedUrls.push(frame.url());
+        }
+      });
+
       await loginPage.fillEmail(VALID_EMAIL);
       await loginPage.fillPassword(VALID_PASSWORD);
       await waitForTurnstileToken(page, { timeoutMs: 20_000 });
@@ -48,6 +55,7 @@ for (const localeConfig of TEST_LOCALES) {
       expect(loginRequestPayload.turnstileToken).toBe(E2E_TURNSTILE_TEST_TOKEN);
 
       await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10000 });
+      expect(visitedUrls.some((url) => /\/onboarding(?:$|[/?#])/.test(url))).toBeFalsy();
       await expect(loginPage.errorAlert).not.toBeVisible();
     });
 

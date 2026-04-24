@@ -16,10 +16,11 @@ export const orgKeys = {
   stateRegistrySettings: (id: string) => [...orgKeys.all, 'state-registry-settings', id] as const,
 };
 
-export function useMyOrganizations() {
+export function useMyOrganizations(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: orgKeys.my(),
-    queryFn: organizationService.getMyOrganizations,
+    queryFn: () => organizationService.getMyOrganizations(),
+    enabled: options?.enabled,
   });
 }
 
