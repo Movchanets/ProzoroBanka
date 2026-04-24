@@ -771,11 +771,21 @@ public class UserService : IUserService
 		}
 
 		var existingClaims = await _roleManager.GetClaimsAsync(role);
-		foreach (var permission in roleDefinition.Permissions)
-		{
-			if (existingClaims.Any(claim => claim.Type == "permission" && claim.Value == permission))
-				continue;
+		var existingPermissions = existingClaims
+			.Where(claim => claim.Type == "permission" && !string.IsNullOrWhiteSpace(claim.Value))
+			.Select(claim => claim.Value!)
+			.ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var expectedPermissions = roleDefinition.Permissions
+			.Where(permission => !string.IsNullOrWhiteSpace(permission))
+			.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+		foreach (var obsoletePermission in existingPermissions.Except(expectedPermissions).ToList())
+		{
+			await _roleManager.RemoveClaimAsync(role, new System.Security.Claims.Claim("permission", obsoletePermission));
+		}
+
+		foreach (var permission in expectedPermissions.Except(existingPermissions))
+		{
 			await _roleManager.AddClaimAsync(role, new System.Security.Claims.Claim("permission", permission));
 		}
 

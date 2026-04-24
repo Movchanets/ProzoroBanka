@@ -13,6 +13,11 @@ public interface ITokenService
 	Task<TokenResponse> GenerateTokensAsync(Guid applicationUserId, string email, IList<string> roles, IList<string> permissions, CancellationToken ct = default);
 
 	/// <summary>
+	/// Генерує токени для вже існуючого користувача, збираючи ролі та permissions з БД.
+	/// </summary>
+	Task<TokenResponse> GenerateTokensForUserAsync(Guid applicationUserId, CancellationToken ct = default);
+
+	/// <summary>
 	/// Оновлює токени за допомогою refresh token.
 	/// </summary>
 	Task<TokenResponse> RefreshTokensAsync(string accessToken, string refreshToken, CancellationToken ct = default);

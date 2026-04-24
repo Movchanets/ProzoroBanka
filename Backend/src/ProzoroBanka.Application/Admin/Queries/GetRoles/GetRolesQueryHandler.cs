@@ -12,17 +12,19 @@ public class GetRolesQueryHandler : IRequestHandler<GetRolesQuery, ServiceRespon
 		{
 			new("Volunteer", "Волонтер", new[]
 			{
-				"receipts.read", "receipts.create", "receipts.update", "receipts.delete", "receipts.verify", "monobank.read"
+				"users.self", "invitation.accept"
+			}),
+			new("Moderator", "Модератор", new[]
+			{
+				"users.self", "invitation.accept", "users.read", "users.update", "users.delete", "users.manage_roles", "users.impersonate"
 			}),
 			new("Accountant", "Бухгалтер", new[]
 			{
-				"receipts.read", "receipts.verify", "reports.read", "reports.export", "monobank.read", "monobank.sync"
+				"users.self", "invitation.accept"
 			}),
 			new("Admin", "Адміністратор", new[]
 			{
-				"receipts.read", "receipts.create", "receipts.update", "receipts.delete", "receipts.verify",
-				"users.read", "users.update", "users.delete", "users.manage_roles",
-				"reports.read", "reports.export", "monobank.sync", "monobank.read", "system.settings"
+				"users.self", "invitation.accept", "system.settings", "organizations.manage", "organizations.plan.manage"
 			})
 		};
 

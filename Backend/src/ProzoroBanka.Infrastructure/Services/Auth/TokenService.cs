@@ -2,12 +2,14 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Domain.Entities;
+using ProzoroBanka.Domain.Enums;
 using ProzoroBanka.Infrastructure.Data;
 using ProzoroBanka.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +21,11 @@ namespace ProzoroBanka.Infrastructure.Services.Auth;
 /// </summary>
 public class TokenService : ITokenService
 {
+	private const string PermissionClaimType = "permission";
+	private const string OrganizationPermissionsClaimType = "org_permissions";
+	private const string UsersSelfPermission = "users.self";
+	private const string InvitationAcceptPermission = "invitation.accept";
+
 	private readonly IConfiguration _configuration;
 	private readonly ApplicationDbContext _dbContext;
 	private readonly IFileStorage _fileStorage;
@@ -58,12 +65,19 @@ public class TokenService : ITokenService
 			.FirstOrDefaultAsync(u => u.Id == applicationUserId, ct);
 
 		AddDomainClaims(claims, appUser?.DomainUser);
+		await AddOrganizationPermissionsClaimAsync(claims, appUser?.DomainUser?.Id, ct);
 
 		foreach (var role in roles)
 			claims.Add(new Claim(ClaimTypes.Role, role));
 
-		foreach (var permission in permissions)
-			claims.Add(new Claim("permission", permission));
+		var effectivePermissions = new HashSet<string>(permissions, StringComparer.OrdinalIgnoreCase)
+		{
+			UsersSelfPermission,
+			InvitationAcceptPermission
+		};
+
+		foreach (var permission in effectivePermissions)
+			claims.Add(new Claim(PermissionClaimType, permission));
 
 		var accessTokenExpiry = DateTime.UtcNow.AddMinutes(
 			int.Parse(jwtSettings["AccessTokenExpirationMinutes"] ?? "30"));
@@ -93,6 +107,48 @@ public class TokenService : ITokenService
 		_logger.LogInformation("Tokens generated for user {UserId}", applicationUserId);
 
 		return new TokenResponse(accessToken, refreshToken, accessTokenExpiry, refreshTokenExpiry);
+	}
+
+	public async Task<TokenResponse> GenerateTokensForUserAsync(Guid applicationUserId, CancellationToken ct = default)
+	{
+		var user = await _dbContext.Set<ApplicationUser>()
+			.Include(applicationUser => applicationUser.DomainUser)
+			.Include(applicationUser => applicationUser.UserRoles)
+				.ThenInclude(userRole => userRole.Role)
+					.ThenInclude(role => role.RoleClaims)
+				.FirstOrDefaultAsync(applicationUser => applicationUser.Id == applicationUserId, ct)
+			?? throw new SecurityTokenException("User not found");
+
+		var roles = user.UserRoles
+			.Select(userRole => userRole.Role.Name)
+			.Where(roleName => !string.IsNullOrWhiteSpace(roleName))
+			.Select(roleName => roleName!)
+			.Distinct(StringComparer.OrdinalIgnoreCase)
+			.ToList();
+
+		var permissions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		foreach (var role in user.UserRoles.Select(userRole => userRole.Role))
+		{
+			foreach (var claim in role.RoleClaims)
+			{
+				if (claim.ClaimType == PermissionClaimType && !string.IsNullOrWhiteSpace(claim.ClaimValue))
+					permissions.Add(claim.ClaimValue);
+			}
+
+			var predefinedRole = ApplicationRoleDefinitions.FindByName(role.Name ?? string.Empty);
+			if (predefinedRole is null)
+				continue;
+
+			foreach (var permission in predefinedRole.Permissions)
+				permissions.Add(permission);
+		}
+
+		return await GenerateTokensAsync(
+			user.Id,
+			user.Email ?? string.Empty,
+			roles,
+			permissions.ToList(),
+			ct);
 	}
 
 	public async Task<TokenResponse> RefreshTokensAsync(string accessToken, string refreshToken, CancellationToken ct = default)
@@ -126,7 +182,7 @@ public class TokenService : ITokenService
 		{
 			foreach (var claim in role.RoleClaims)
 			{
-				if (claim.ClaimType == "permission" && !string.IsNullOrWhiteSpace(claim.ClaimValue))
+				if (claim.ClaimType == PermissionClaimType && !string.IsNullOrWhiteSpace(claim.ClaimValue))
 					permissions.Add(claim.ClaimValue);
 			}
 
@@ -217,5 +273,37 @@ public class TokenService : ITokenService
 
 		if (!string.IsNullOrWhiteSpace(domainUser.ProfilePhotoStorageKey))
 			claims.Add(new Claim("avatarUrl", _fileStorage.GetPublicUrl(domainUser.ProfilePhotoStorageKey)));
+	}
+
+	private async Task AddOrganizationPermissionsClaimAsync(ICollection<Claim> claims, Guid? domainUserId, CancellationToken ct)
+	{
+		if (domainUserId is null)
+			return;
+
+		var organizationPermissions = await _dbContext.OrganizationMembers
+			.AsNoTracking()
+			.Where(member => member.UserId == domainUserId.Value && !member.IsDeleted && !member.Organization.IsDeleted)
+			.Select(member => new
+			{
+				member.OrganizationId,
+				member.Role,
+				member.PermissionsFlags,
+				member.Organization.IsBlocked
+			})
+			.ToListAsync(ct);
+
+		var claimPayload = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+		foreach (var membership in organizationPermissions)
+		{
+			var permissionsMask = membership.IsBlocked
+				? OrganizationPermissions.None
+				: membership.Role == OrganizationRole.Owner
+					? OrganizationPermissions.All
+					: membership.PermissionsFlags;
+
+			claimPayload[$"org_{membership.OrganizationId:D}"] = (int)permissionsMask;
+		}
+
+		claims.Add(new Claim(OrganizationPermissionsClaimType, JsonSerializer.Serialize(claimPayload)));
 	}
 }

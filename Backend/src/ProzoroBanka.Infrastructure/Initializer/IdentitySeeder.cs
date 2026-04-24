@@ -221,11 +221,21 @@ public static class IdentitySeeder
 		}
 
 		var existingClaims = await roleManager.GetClaimsAsync(role);
-		foreach (var permission in roleDefinition.Permissions)
-		{
-			if (existingClaims.Any(claim => claim.Type == "permission" && claim.Value == permission))
-				continue;
+		var existingPermissions = existingClaims
+			.Where(claim => claim.Type == "permission" && !string.IsNullOrWhiteSpace(claim.Value))
+			.Select(claim => claim.Value!)
+			.ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var expectedPermissions = roleDefinition.Permissions
+			.Where(permission => !string.IsNullOrWhiteSpace(permission))
+			.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+		foreach (var obsoletePermission in existingPermissions.Except(expectedPermissions).ToList())
+		{
+			await roleManager.RemoveClaimAsync(role, new Claim("permission", obsoletePermission));
+		}
+
+		foreach (var permission in expectedPermissions.Except(existingPermissions))
+		{
 			await roleManager.AddClaimAsync(role, new Claim("permission", permission));
 		}
 	}
@@ -363,7 +373,7 @@ public static class IdentitySeeder
 	private static IReadOnlyCollection<string> ParseConfiguredAdminRoles(string? configuredRoles)
 	{
 		if (string.IsNullOrWhiteSpace(configuredRoles))
-			return [ApplicationRoles.Admin];
+			return ApplicationRoleDefinitions.All.Select(role => role.Name).ToArray();
 
 		var roles = configuredRoles
 			.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
@@ -373,7 +383,7 @@ public static class IdentitySeeder
 			.ToList();
 
 		if (roles.Count == 0)
-			return [ApplicationRoles.Admin];
+			return ApplicationRoleDefinitions.All.Select(role => role.Name).ToArray();
 
 		return roles;
 	}

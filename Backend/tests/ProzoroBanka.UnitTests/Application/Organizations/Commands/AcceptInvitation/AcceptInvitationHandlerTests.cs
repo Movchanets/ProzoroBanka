@@ -343,14 +343,7 @@ public class AcceptInvitationHandlerTests
 			.SingleAsync(m => m.OrganizationId == orgId && m.UserId == callerId);
 		Assert.False(restored.IsDeleted);
 		Assert.Equal(OrganizationRole.Admin, restored.Role);
-		var expectedAdminPermissions = OrganizationPermissions.ManageOrganization
-			| OrganizationPermissions.ManageMembers
-			| OrganizationPermissions.ManageInvitations
-			| OrganizationPermissions.ManageReceipts
-			| OrganizationPermissions.ViewReports
-			| OrganizationPermissions.UploadLogo
-			| OrganizationPermissions.ManageCampaigns
-			| OrganizationPermissions.ManagePurchases;
+		var expectedAdminPermissions = OrganizationPermissions.All;
 		Assert.Equal(expectedAdminPermissions, restored.PermissionsFlags);
 	}
 

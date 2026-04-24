@@ -63,6 +63,47 @@ public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFacto
 	}
 
 	[Fact]
+	public async Task OrganizationManagement_WhenOwnerWithoutAdminRole_CanUpdateAndManageInvitations()
+	{
+		var email = $"org-owner-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(email, "Password123!");
+		await AuthenticateAsync(email, "Password123!");
+
+		var createResponse = await _client.PostAsJsonAsync("/api/organizations", new
+		{
+			name = $"Owner Org {Guid.NewGuid():N}",
+			description = "Owner managed org",
+			website = "https://owner.example.org",
+			contactEmail = "owner@example.org"
+		});
+		Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+
+		var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var orgId = created.GetProperty("id").GetGuid();
+
+		var updateResponse = await _client.PutAsJsonAsync($"/api/organizations/{orgId}", new
+		{
+			name = "Owner Org Updated",
+			description = "Updated by volunteer owner",
+			website = "https://owner-updated.example.org",
+			contactEmail = "owner-updated@example.org",
+			phone = "+380 67 000 00 00"
+		});
+		Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+		var inviteResponse = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/invites/link", new
+		{
+			role = 1,
+			expiresInHours = 48
+		});
+		Assert.Equal(HttpStatusCode.OK, inviteResponse.StatusCode);
+
+		var invite = await inviteResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Equal(orgId, invite.GetProperty("organizationId").GetGuid());
+		Assert.Equal(1, invite.GetProperty("role").GetInt32());
+	}
+
+	[Fact]
 	public async Task DeleteOrganization_WhenOwner_ReturnsNoContent()
 	{
 		await AuthenticateAsAdminAsync();

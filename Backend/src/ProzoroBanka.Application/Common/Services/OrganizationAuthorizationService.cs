@@ -50,9 +50,8 @@ public class OrganizationAuthorizationService : IOrganizationAuthorizationServic
 
 		if (membership is null || membership.IsBlocked) return false;
 		if (membership.Role == OrganizationRole.Owner) return true;
-		
-		// Fallback for existing admins that might not have the newly added flag
-		if (membership.Role == OrganizationRole.Admin && permission == OrganizationPermissions.ManageCampaigns) return true;
+
+		if (membership.Role == OrganizationRole.Admin) return true;
 
 		return membership.PermissionsFlags.HasFlag(permission);
 	}
@@ -78,7 +77,7 @@ public class OrganizationAuthorizationService : IOrganizationAuthorizationServic
 		if (minRole.HasValue && (int)data.Role > (int)minRole.Value)
 			return ServiceResponse<OrganizationAccessContext>.Failure("Недостатньо прав.");
 
-		if (requiredPermission.HasValue && data.Role != OrganizationRole.Owner && !(data.Role == OrganizationRole.Admin && requiredPermission == OrganizationPermissions.ManageCampaigns))
+		if (requiredPermission.HasValue && data.Role != OrganizationRole.Owner && data.Role != OrganizationRole.Admin)
 		{
 			if (!data.PermissionsFlags.HasFlag(requiredPermission.Value))
 				return ServiceResponse<OrganizationAccessContext>.Failure("Недостатньо прав.");

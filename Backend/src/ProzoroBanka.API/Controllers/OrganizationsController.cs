@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ProzoroBanka.API.Authorization;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.Commands.CancelInvitation;
@@ -100,6 +101,7 @@ public class OrganizationsController : ApiControllerBase
 
 	/// <summary>Оновити організацію (потрібно мати дозвіл ManageOrganization).</summary>
 	[HttpPut("{id:guid}")]
+	[HasOrganizationPermission(OrganizationPermissions.ManageOrganization)]
 	[ProducesResponseType(typeof(OrganizationDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
 	[ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -125,6 +127,7 @@ public class OrganizationsController : ApiControllerBase
 
 	/// <summary>Видалити організацію (тільки Owner).</summary>
 	[HttpDelete("{id:guid}")]
+	[HasOrganizationPermission(OrganizationPermissions.ManageOrganization)]
 	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
 	[ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -169,6 +172,7 @@ public class OrganizationsController : ApiControllerBase
 
 	/// <summary>Змінити роль учасника організації (потрібно ManageMembers).</summary>
 	[HttpPut("{id:guid}/members/{userId:guid}")]
+	[HasOrganizationPermission(OrganizationPermissions.ManageMembers)]
 	[ProducesResponseType(typeof(OrganizationMemberDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
 	[ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -193,6 +197,7 @@ public class OrganizationsController : ApiControllerBase
 
 	/// <summary>Видалити учасника з організації (потрібно ManageMembers).</summary>
 	[HttpDelete("{id:guid}/members/{userId:guid}")]
+	[HasOrganizationPermission(OrganizationPermissions.ManageMembers)]
 	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
 	[ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -236,6 +241,7 @@ public class OrganizationsController : ApiControllerBase
 	/// <summary>Завантажити логотип організації (потрібно UploadLogo permission).</summary>
 	[HttpPost("{id:guid}/logo")]
 	[Consumes("multipart/form-data")]
+	[HasOrganizationPermission(OrganizationPermissions.UploadLogo)]
 	[ProducesResponseType(typeof(OrganizationDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -266,6 +272,7 @@ public class OrganizationsController : ApiControllerBase
 
 	/// <summary>Отримати налаштування ключів держреєстрів і usage по OCR/state.</summary>
 	[HttpGet("{id:guid}/state-registry-settings")]
+	[HasOrganizationPermission(OrganizationPermissions.ManageOrganization)]
 	[ProducesResponseType(typeof(OrganizationStateRegistrySettingsDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
 	public async Task<IActionResult> GetStateRegistrySettings(Guid id, CancellationToken ct)
@@ -285,6 +292,7 @@ public class OrganizationsController : ApiControllerBase
 
 	/// <summary>Додати або оновити API-ключ для провайдера держреєстру.</summary>
 	[HttpPut("{id:guid}/state-registry-credentials/{provider}")]
+	[HasOrganizationPermission(OrganizationPermissions.ManageOrganization)]
 	[ProducesResponseType(StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -312,6 +320,7 @@ public class OrganizationsController : ApiControllerBase
 
 	/// <summary>Видалити API-ключ для провайдера держреєстру.</summary>
 	[HttpDelete("{id:guid}/state-registry-credentials/{provider}")]
+	[HasOrganizationPermission(OrganizationPermissions.ManageOrganization)]
 	[ProducesResponseType(StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -336,6 +345,7 @@ public class OrganizationsController : ApiControllerBase
 
 	/// <summary>Створити посилання-запрошення до організації (потрібно ManageInvitations).</summary>
 	[HttpPost("{id:guid}/invites/link")]
+	[HasOrganizationPermission(OrganizationPermissions.ManageInvitations)]
 	[ProducesResponseType(typeof(InvitationDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -362,6 +372,7 @@ public class OrganizationsController : ApiControllerBase
 
 	/// <summary>Запросити учасника за email (потрібно ManageInvitations).</summary>
 	[HttpPost("{id:guid}/invites/email")]
+	[HasOrganizationPermission(OrganizationPermissions.ManageInvitations)]
 	[ProducesResponseType(typeof(InvitationDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -388,6 +399,7 @@ public class OrganizationsController : ApiControllerBase
 
 	/// <summary>Переглянути всі запрошення організації (потрібно ManageInvitations).</summary>
 	[HttpGet("{id:guid}/invites")]
+	[HasOrganizationPermission(OrganizationPermissions.ManageInvitations)]
 	[ProducesResponseType(typeof(IReadOnlyList<InvitationDto>), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
 	[ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -409,6 +421,7 @@ public class OrganizationsController : ApiControllerBase
 
 	/// <summary>Скасувати запрошення (потрібно ManageInvitations або бути автором).</summary>
 	[HttpDelete("{id:guid}/invites/{inviteId:guid}")]
+	[HasOrganizationPermission(OrganizationPermissions.ManageInvitations)]
 	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]

@@ -3,6 +3,7 @@ namespace ProzoroBanka.Infrastructure.Identity;
 public static class ApplicationRoles
 {
 	public const string Volunteer = "Volunteer";
+	public const string Moderator = "Moderator";
 	public const string Accountant = "Accountant";
 	public const string Admin = "Admin";
 }
@@ -18,52 +19,46 @@ internal static class ApplicationRoleDefinitions
 		ApplicationRoles.Volunteer,
 		"Волонтер",
 		[
-			"receipts.read",
-			"receipts.create",
-			"receipts.update",
-			"receipts.delete",
-			"receipts.verify",
-			"monobank.read"
+			"users.self",
+			"invitation.accept"
+		]);
+
+	public static ApplicationRoleDefinition Moderator { get; } = new(
+		ApplicationRoles.Moderator,
+		"Модератор",
+		[
+			"users.self",
+			"invitation.accept",
+			"users.read",
+			"users.update",
+			"users.delete",
+			"users.manage_roles",
+			"users.impersonate"
 		]);
 
 	public static ApplicationRoleDefinition Accountant { get; } = new(
 		ApplicationRoles.Accountant,
 		"Бухгалтер",
 		[
-			"receipts.read",
-			"receipts.verify",
-			"reports.read",
-			"reports.export",
-			"monobank.read",
-			"monobank.sync"
+			"users.self",
+			"invitation.accept"
 		]);
 
 	public static ApplicationRoleDefinition Admin { get; } = new(
 		ApplicationRoles.Admin,
 		"Адміністратор",
 		[
-			"receipts.read",
-			"receipts.create",
-			"receipts.update",
-			"receipts.delete",
-			"receipts.verify",
-			"users.read",
-			"users.update",
-			"users.delete",
-			"users.manage_roles",
-			"reports.read",
-			"reports.export",
-			"monobank.sync",
-			"monobank.read",
+			"users.self",
+			"invitation.accept",
 			"system.settings",
 			"organizations.manage",
-			"organizations.plan.manage",
-			"purchases.manage"
+			"organizations.plan.manage"
 		]);
 
 	public static IReadOnlyCollection<ApplicationRoleDefinition> All { get; } =
 		[
 			Volunteer,
+			Moderator,
 			Accountant,
 			Admin
 		];

@@ -36,7 +36,7 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 	}
 
 	[HttpGet]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ReadOnly)]
 	[ProducesResponseType(typeof(IReadOnlyList<PurchaseListItemDto>), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> List(
@@ -57,7 +57,7 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 	}
 
 	[HttpGet("{purchaseId:guid}")]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ReadOnly)]
 	[ProducesResponseType(typeof(PurchaseDetailDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetById(
@@ -75,7 +75,7 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 	}
 
 	[HttpPatch("{purchaseId:guid}")]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ManagePurchases)]
 	[ProducesResponseType(typeof(PurchaseDetailDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> Update(
@@ -97,7 +97,7 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 	}
 
 	[HttpDelete("{purchaseId:guid}")]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ManagePurchases)]
 	[ProducesResponseType(StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> Delete(
@@ -120,7 +120,7 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 
 	[HttpPost("{purchaseId:guid}/documents")]
 	[Consumes("multipart/form-data")]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ManagePurchases)]
 	[ProducesResponseType(typeof(DocumentDto), StatusCodes.Status201Created)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> UploadDocument(
@@ -152,7 +152,7 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 	}
 
 	[HttpPatch("{purchaseId:guid}/documents/{documentId:guid}/metadata")]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ManagePurchases)]
 	[ProducesResponseType(typeof(DocumentDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> UpdateDocumentMetadata(
@@ -177,7 +177,7 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 	}
 
 	[HttpDelete("{purchaseId:guid}/documents/{documentId:guid}")]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ManagePurchases)]
 	[ProducesResponseType(StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> DeleteDocument(
@@ -198,7 +198,7 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 	}
 
 	[HttpPost("{purchaseId:guid}/documents/{documentId:guid}/ocr")]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ManagePurchases)]
 	[ProducesResponseType(typeof(DocumentDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> ProcessOcr(

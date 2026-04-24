@@ -80,6 +80,54 @@ public class ReceiptsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 	}
 
 	[Fact]
+	public async Task OrganizationReceipts_UploadListAndDetail_AsOwnerWithoutAdminRole_Works()
+	{
+		var email = $"receipt-owner-{Guid.NewGuid():N}@example.com";
+		const string password = "Owner123!Test";
+
+		await RegisterAsync(email, password);
+		await AuthenticateAsync(email, password);
+
+		Guid ownerId;
+		var organizationId = Guid.NewGuid();
+
+		using (var setupScope = _factory.Services.CreateScope())
+		{
+			var db = setupScope.ServiceProvider.GetRequiredService<ProzoroBanka.Infrastructure.Data.ApplicationDbContext>();
+
+			ownerId = await db.DomainUsers
+				.Where(user => user.Email == email)
+				.Select(user => user.Id)
+				.SingleAsync();
+
+			db.Organizations.Add(new ProzoroBanka.Domain.Entities.Organization
+			{
+				Id = organizationId,
+				Name = $"Receipt owner org {Guid.NewGuid():N}",
+				Slug = $"receipt-owner-org-{Guid.NewGuid():N}",
+				OwnerUserId = ownerId
+			});
+
+			await db.SaveChangesAsync();
+		}
+
+		var uploadResponse = await UploadOrganizationDraftAsync(organizationId);
+		uploadResponse.EnsureSuccessStatusCode();
+		var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var receiptId = uploadJson.GetProperty("id").GetGuid();
+
+		var listResponse = await _client.GetAsync($"/api/organizations/{organizationId}/receipts");
+		listResponse.EnsureSuccessStatusCode();
+		var listJson = await listResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Contains(listJson.EnumerateArray(), item => item.GetProperty("id").GetGuid() == receiptId);
+
+		var detailResponse = await _client.GetAsync($"/api/organizations/{organizationId}/receipts/{receiptId}");
+		detailResponse.EnsureSuccessStatusCode();
+		var detailJson = await detailResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Equal(receiptId, detailJson.GetProperty("id").GetGuid());
+	}
+
+	[Fact]
 	public async Task Extract_WhenCallerNotMemberOfOrganization_ReturnsBadRequest()
 	{
 		await AuthenticateAsAdminAsync();

@@ -16,15 +16,10 @@ internal static class InvitationRules
 	{
 		return role switch
 		{
-			OrganizationRole.Admin => OrganizationPermissions.ManageOrganization
-				| OrganizationPermissions.ManageMembers
-				| OrganizationPermissions.ManageInvitations
+			OrganizationRole.Admin => OrganizationPermissions.All,
+			OrganizationRole.Reporter => OrganizationPermissions.ReadOnly
 				| OrganizationPermissions.ManageReceipts
-				| OrganizationPermissions.ViewReports
-				| OrganizationPermissions.UploadLogo
-				| OrganizationPermissions.ManageCampaigns
 				| OrganizationPermissions.ManagePurchases,
-			OrganizationRole.Reporter => OrganizationPermissions.ManageReceipts,
 			_ => OrganizationPermissions.None
 		};
 	}
