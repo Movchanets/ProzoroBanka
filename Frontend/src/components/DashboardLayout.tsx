@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Outlet, useParams, useNavigate, NavLink } from 'react-router-dom';
+import { Outlet, useParams, NavLink, Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useOrganization } from '@/hooks/queries/useOrganizations';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -208,7 +208,6 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
 export default function DashboardLayout() {
   const { t } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
-  const navigate = useNavigate();
   const setActiveOrg = useWorkspaceStore((s) => s.setActiveOrg);
   const { data: org, isLoading } = useOrganization(orgId);
 
@@ -223,8 +222,7 @@ export default function DashboardLayout() {
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 
   if (!orgId) {
-    navigate('/onboarding', { replace: true });
-    return null;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (

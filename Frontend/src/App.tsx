@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { queryClient } from './services/queryClient';
@@ -7,6 +7,8 @@ import { useAuthStore } from './stores/authStore';
 import { AppRoles, hasAppRole } from './constants/appRoles';
 import { Toaster } from './components/ui/sonner';
 import { RouteSeoSync } from './hooks/useRouteSeo';
+import { Loader2 } from 'lucide-react';
+import { useAuthNavigation } from './hooks/useAuthNavigation';
 import PublicSpendingPage from './pages/PublicSpending/PublicSpendingPage';
 
 const LoginPage = lazy(() => import('./pages/Login/LoginPage'));
@@ -52,21 +54,57 @@ function RouteFallback() {
   const { t } = useTranslation();
   return (
     <div className="mx-auto flex min-h-screen w-[min(1180px,calc(100%-32px))] items-center justify-center py-8 max-sm:w-[min(1180px,calc(100%-20px))]">
-      <div className="rounded-4xl border border-border bg-card/80 px-6 py-4 text-sm font-semibold text-muted-foreground shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl">
-        {t('common.loadingInterface')}
+      <div className="flex flex-col items-center justify-center gap-4 rounded-4xl border border-border bg-card/80 px-6 py-8 text-sm font-semibold text-muted-foreground shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" aria-hidden="true" />
+        <div>{t('common.loadingInterface')}</div>
       </div>
     </div>
   );
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  const location = useLocation();
+  const { isAuthenticated, isResolvingSession } = useAuthNavigation();
+
+  if (!isAuthenticated) {
+    const next = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
+  }
+
+  if (isResolvingSession) {
+    return <RouteFallback />;
+  }
+
+  return <>{children}</>;
 }
 
 function GuestRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return isAuthenticated ? <Navigate to="/onboarding" replace /> : <>{children}</>;
+  const { isAuthenticated, isResolvingSession, defaultAuthenticatedPath } = useAuthNavigation();
+
+  if (!isAuthenticated) {
+    return <>{children}</>;
+  }
+
+  if (isResolvingSession) {
+    return <RouteFallback />;
+  }
+
+  return <Navigate to={defaultAuthenticatedPath} replace />;
+}
+
+function DashboardEntryRoute() {
+  const { defaultAuthenticatedPath } = useAuthNavigation();
+  return <Navigate to={defaultAuthenticatedPath} replace />;
+}
+
+function OnboardingRoute() {
+  const { hasOrganizations, defaultAuthenticatedPath } = useAuthNavigation();
+
+  if (hasOrganizations) {
+    return <Navigate to={defaultAuthenticatedPath} replace />;
+  }
+
+  return <OnboardingPage />;
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -112,7 +150,7 @@ function App() {
               path="/onboarding"
               element={
                 <ProtectedRoute>
-                  <OnboardingPage />
+                  <OnboardingRoute />
                 </ProtectedRoute>
               }
             />
@@ -134,7 +172,7 @@ function App() {
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <Navigate to="/onboarding" replace />
+                  <DashboardEntryRoute />
                 </ProtectedRoute>
               }
             />

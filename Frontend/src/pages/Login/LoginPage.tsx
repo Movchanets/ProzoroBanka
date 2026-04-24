@@ -49,7 +49,7 @@ export default function LoginPage() {
   const nextPath = useMemo(() => {
     const candidate = searchParams.get('next');
     if (!candidate || !candidate.startsWith('/')) {
-      return '/onboarding';
+      return '/dashboard';
     }
 
     return candidate;

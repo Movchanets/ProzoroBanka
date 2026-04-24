@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../services/api';
 import type { ServiceResponse, CampaignStatus } from '../../types';
+import { profileService } from '../../services/profileService';
+import { useAuthStore } from '../../stores/authStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
 import type {
   AdminOrganizationListResponse,
   AdminCampaignDto,
@@ -16,6 +19,7 @@ import type {
   AdminCampaignCategoryDto,
   AdminCampaignCategoryPayload,
 } from '../../types/admin';
+import type { TokenResponse } from '../../types/domains/auth';
 import { toast } from 'sonner';
 
 export const adminQueryKeys = {
@@ -377,6 +381,38 @@ export function useAdminDeleteUser(userId: string) {
     onSuccess: () => {
       toast.success('Користувача видалено');
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+}
+
+export function useAdminImpersonateUser() {
+  const queryClient = useQueryClient();
+  const setAuth = useAuthStore((state) => state.setAuth);
+  const setTokens = useAuthStore((state) => state.setTokens);
+  const logout = useAuthStore((state) => state.logout);
+
+  return useMutation({
+    mutationFn: (userId: string) =>
+      apiFetch<TokenResponse>(`/api/admin/users/${userId}/impersonate`, {
+        method: 'POST',
+      }),
+    onSuccess: async (tokens) => {
+      setTokens(tokens.accessToken, tokens.refreshToken, tokens.accessTokenExpiry);
+
+      try {
+        const profile = await profileService.getProfile();
+
+        useWorkspaceStore.getState().clearActiveOrg();
+        queryClient.clear();
+        setAuth(tokens.accessToken, tokens.refreshToken, tokens.accessTokenExpiry, profile);
+        toast.success('Сесію переключено. Щоб повернутись до адмін-акаунта, виконайте вихід і увійдіть повторно.');
+      } catch {
+        logout();
+        useWorkspaceStore.getState().clearActiveOrg();
+        queryClient.clear();
+        throw new Error('Не вдалося завантажити профіль після impersonation. Виконайте повторний вхід.');
+      }
     },
     onError: (error) => toast.error(error.message),
   });

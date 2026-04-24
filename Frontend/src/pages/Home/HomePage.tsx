@@ -1,4 +1,4 @@
-import { useDeferredValue, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { useHomeCampaignFeed, usePublicCampaignCategories, useSearchOrganizations } from '@/hooks/queries/usePublic';
 import { useTranslation } from 'react-i18next';
 import { resolveLocalizedText } from '@/lib/localizedText';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 type HomeTab = 'campaigns' | 'organizations';
 type CampaignFilterStatus = 'all' | 'active' | 'completed';
@@ -30,16 +31,30 @@ function resolveSiteBaseUrl(): string {
 
 const SITE_BASE_URL = resolveSiteBaseUrl();
 
+function parseHomeTabFromHash(hash: string): HomeTab | null {
+  if (hash === '#campaigns') {
+    return 'campaigns';
+  }
+
+  if (hash === '#organizations') {
+    return 'organizations';
+  }
+
+  return null;
+}
+
 export default function HomePage() {
   const { t, i18n } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [tab, setTab] = useState<HomeTab>('campaigns');
   const [campaignStatus, setCampaignStatus] = useState<CampaignFilterStatus>('all');
   const [campaignCategorySlug, setCampaignCategorySlug] = useState<string>('all');
   const [campaignVerifiedOnly, setCampaignVerifiedOnly] = useState(true);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [activeOnly, setActiveOnly] = useState(false);
   const deferredQuery = useDeferredValue(query);
+  const tab = parseHomeTabFromHash(location.hash) ?? 'campaigns';
 
   const campaignCategoriesQuery = usePublicCampaignCategories(tab === 'campaigns');
 
@@ -72,6 +87,32 @@ export default function HomePage() {
     : t('home.empty.organizations');
   const inLanguage = i18n.resolvedLanguage?.startsWith('en') ? 'en-US' : 'uk-UA';
 
+  const handleTabChange = useCallback((value: string) => {
+    const nextTab = value as HomeTab;
+
+    const targetHash = `#${nextTab}`;
+    if (location.hash !== targetHash) {
+      navigate({
+        pathname: location.pathname,
+        search: location.search,
+        hash: targetHash,
+      }, { replace: true });
+    }
+  }, [location.hash, location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    if (!parseHomeTabFromHash(location.hash)) {
+      return;
+    }
+
+    const target = document.getElementById('home-main-tabs-anchor');
+    if (!target) {
+      return;
+    }
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [location.hash]);
+
   return (
     <>
       <SeoHelmet
@@ -89,7 +130,7 @@ export default function HomePage() {
       />
 
       <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
-        <PublicPageToolbar />
+        <PublicPageToolbar showHomeAnchors />
 
       <section
         data-testid="home-hero-section"
@@ -152,10 +193,10 @@ export default function HomePage() {
         </p>
       </section>
 
-      <Tabs value={tab} onValueChange={(value) => setTab(value as HomeTab)} data-testid="home-main-tabs" className="gap-4">
-        <TabsList data-testid="home-main-tabs-list" className="w-full justify-start rounded-2xl border border-border/80 bg-card/92 p-1 shadow-[0_10px_24px_var(--shadow-soft)]">
-          <TabsTrigger data-testid="home-main-tab-campaigns" value="campaigns" className="rounded-xl px-4">{t('home.tabs.campaigns')}</TabsTrigger>
-          <TabsTrigger data-testid="home-main-tab-organizations" value="organizations" className="rounded-xl px-4">{t('home.tabs.organizations')}</TabsTrigger>
+      <Tabs id="home-main-tabs-anchor" value={tab} onValueChange={handleTabChange} data-testid="home-main-tabs" className="gap-4 scroll-mt-24">
+        <TabsList data-testid="home-main-tabs-list" className="w-full justify-start rounded-2xl border border-border/80 bg-card/92 p-1 shadow-[0_10px_24px_var(--shadow-soft)] scroll-mt-24">
+          <TabsTrigger id="campaigns" data-testid="home-main-tab-campaigns" value="campaigns" className="rounded-xl px-4 scroll-mt-24">{t('home.tabs.campaigns')}</TabsTrigger>
+          <TabsTrigger id="organizations" data-testid="home-main-tab-organizations" value="organizations" className="rounded-xl px-4 scroll-mt-24">{t('home.tabs.organizations')}</TabsTrigger>
         </TabsList>
 
         <section data-testid="home-search-form" className="rounded-3xl border border-border/80 bg-card/92 p-4 shadow-[0_16px_40px_var(--shadow-soft)] sm:p-5">

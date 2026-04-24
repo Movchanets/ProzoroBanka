@@ -1,31 +1,24 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Sparkles, Users, FileCheck2, ArrowRight, LogOut } from 'lucide-react';
-import { useMyOrganizations } from '@/hooks/queries/useOrganizations';
 import { useLogoutMutation } from '@/hooks/queries/useAuth';
 
 export default function OnboardingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const { data: orgs, isLoading } = useMyOrganizations();
   const logoutMutation = useLogoutMutation();
 
   const handleLogout = async () => {
     await logoutMutation.mutateAsync();
     navigate('/login', { replace: true });
   };
-
-  // If user already has organizations, redirect to the first one
-  if (!isLoading && orgs && orgs.length > 0) {
-    return <Navigate to={`/dashboard/${orgs[0].id}`} replace />;
-  }
 
   return (
     <div className="relative mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-8 px-4 py-12">

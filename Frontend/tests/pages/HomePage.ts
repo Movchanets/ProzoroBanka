@@ -14,6 +14,7 @@ export class HomePage {
   readonly verifiedOrgToggle: Locator;
   readonly campaignStatusSelect: Locator;
   readonly campaignCategorySelect: Locator;
+  readonly tabCampaigns: Locator;
   readonly tabOrganizations: Locator;
   readonly orgGrid: Locator;
   readonly verifiedFilterToggle: Locator;
@@ -33,6 +34,7 @@ export class HomePage {
     this.verifiedOrgToggle = page.getByTestId('home-campaign-verified-org-toggle');
     this.campaignStatusSelect = page.getByTestId('home-campaign-status-select');
     this.campaignCategorySelect = page.getByTestId('home-campaign-category-select');
+    this.tabCampaigns = page.getByTestId('home-main-tab-campaigns');
     this.tabOrganizations = page.getByTestId('home-main-tab-organizations');
     this.orgGrid = page.getByTestId('home-org-grid');
     this.verifiedFilterToggle = page.getByTestId('home-verified-filter-toggle');

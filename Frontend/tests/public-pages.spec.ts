@@ -89,6 +89,8 @@ test.describe('Public pages', () => {
     await homePage.goto();
     await expect(publicLayout.toolbar).toBeVisible();
     await expect(publicLayout.toolbarEntryLink).toBeVisible();
+    await expect(publicLayout.toolbarCampaignsAnchor).toBeVisible();
+    await expect(publicLayout.toolbarOrganizationsAnchor).toBeVisible();
     await expect(publicLayout.languageSwitcher).toBeVisible();
     await expect(publicLayout.themeToggle).toBeVisible();
 
@@ -104,6 +106,20 @@ test.describe('Public pages', () => {
     await expect(receiptPublicPage.image).toBeVisible();
     await expect(receiptPublicPage.itemsCard).toBeVisible();
     await expect(receiptPublicPage.photosGrid).toBeVisible();
+  });
+
+  test('TC-07: toolbar anchors sync hash and active home tab', async ({ page, homePage, publicLayout }) => {
+    await homePage.goto();
+
+    await publicLayout.toolbarOrganizationsAnchor.click();
+    await expect(page).toHaveURL(/#organizations$/);
+    await expect(homePage.tabOrganizations).toHaveAttribute('data-state', 'active');
+    await expect(homePage.orgGrid).toBeVisible();
+
+    await publicLayout.toolbarCampaignsAnchor.click();
+    await expect(page).toHaveURL(/#campaigns$/);
+    await expect(homePage.tabCampaigns).toHaveAttribute('data-state', 'active');
+    await expect(homePage.campaignGrid).toBeVisible();
   });
 
   test('TC-06: login page contains link to public pages', async ({ page, loginPage, homePage }) => {
