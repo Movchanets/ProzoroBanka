@@ -53,11 +53,14 @@ public class OrganizationPermissionAuthorizationHandler : AuthorizationHandler<O
 			return;
 		}
 
+		// Only deny if we found a nonzero mask that explicitly lacks the permission.
+		// For Unknown or ZeroMask (org has zero permissions in claim), fall back to DB.
 		if (claimResult == OrganizationPermissionClaimResult.Denied)
 		{
 			return;
 		}
 
+		// ZeroMask or Unknown: check the database
 		var hasPermission = await _organizationAuthorizationService.HasPermission(
 			organizationId.Value,
 			domainUserId.Value,

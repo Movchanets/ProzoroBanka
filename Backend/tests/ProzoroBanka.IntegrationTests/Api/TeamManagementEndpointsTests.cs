@@ -2,15 +2,21 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using ProzoroBanka.Domain.Enums;
+using ProzoroBanka.Infrastructure.Data;
 
 namespace ProzoroBanka.IntegrationTests.Api;
 
 public class TeamManagementEndpointsTests : IClassFixture<TestWebApplicationFactory>
 {
 	private readonly HttpClient _client;
+	private readonly TestWebApplicationFactory _factory;
 
 	public TeamManagementEndpointsTests(TestWebApplicationFactory factory)
 	{
+		_factory = factory;
 		_client = factory.CreateClient();
 	}
 
@@ -117,6 +123,49 @@ public class TeamManagementEndpointsTests : IClassFixture<TestWebApplicationFact
 		var afterMembers = await _client.GetAsync($"/api/organizations/{orgId}/members");
 		var afterJson = await afterMembers.Content.ReadFromJsonAsync<JsonElement>();
 		Assert.DoesNotContain(afterJson.EnumerateArray(), m => m.GetProperty("email").GetString() == memberEmail);
+	}
+
+	[Fact]
+	public async Task UpdateMemberRole_WhenPermissionsNone_NormalizesToReporterDefaults()
+	{
+		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync();
+		var token = await CreateInviteLinkAsync(orgId);
+
+		var memberEmail = $"normalize-role-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(memberEmail, "Password123!");
+		await AuthenticateAsync(memberEmail, "Password123!");
+		var acceptResponse = await _client.PostAsync($"/api/invitations/{token}/accept", content: null);
+		Assert.Equal(HttpStatusCode.NoContent, acceptResponse.StatusCode);
+
+		await AuthenticateAsAdminAsync();
+		var membersResponse = await _client.GetAsync($"/api/organizations/{orgId}/members");
+		membersResponse.EnsureSuccessStatusCode();
+		var members = await membersResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var targetMember = members.EnumerateArray()
+			.First(m => m.GetProperty("email").GetString() == memberEmail);
+		var targetUserId = targetMember.GetProperty("userId").GetGuid();
+
+		var updateResponse = await _client.PutAsJsonAsync(
+			$"/api/organizations/{orgId}/members/{targetUserId}",
+			new
+			{
+				newRole = (int)OrganizationRole.Reporter,
+				newPermissionsFlags = (int)OrganizationPermissions.None
+			});
+		updateResponse.EnsureSuccessStatusCode();
+
+		var updated = await updateResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var expectedReporterDefaults = (int)OrganizationRolePermissions.GetDefaultPermissions(OrganizationRole.Reporter);
+		Assert.Equal(expectedReporterDefaults, updated.GetProperty("permissionsFlags").GetInt32());
+
+		await using var scope = _factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+		var persistedPermissions = await db.OrganizationMembers
+			.Where(m => m.OrganizationId == orgId && m.UserId == targetUserId && !m.IsDeleted)
+			.Select(m => m.PermissionsFlags)
+			.SingleAsync();
+		Assert.Equal((OrganizationPermissions)expectedReporterDefaults, persistedPermissions);
 	}
 
 	private async Task<Guid> CreateOrganizationAsync()

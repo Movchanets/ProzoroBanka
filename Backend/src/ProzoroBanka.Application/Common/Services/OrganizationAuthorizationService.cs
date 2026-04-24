@@ -53,7 +53,11 @@ public class OrganizationAuthorizationService : IOrganizationAuthorizationServic
 
 		if (membership.Role == OrganizationRole.Admin) return true;
 
-		return membership.PermissionsFlags.HasFlag(permission);
+		var effectivePermissions = OrganizationRolePermissions.GetEffectivePermissions(
+			membership.Role,
+			membership.PermissionsFlags);
+
+		return effectivePermissions.HasFlag(permission);
 	}
 
 	public async Task<ServiceResponse<OrganizationAccessContext>> EnsureOrganizationAccessAsync(
@@ -79,7 +83,11 @@ public class OrganizationAuthorizationService : IOrganizationAuthorizationServic
 
 		if (requiredPermission.HasValue && data.Role != OrganizationRole.Owner && data.Role != OrganizationRole.Admin)
 		{
-			if (!data.PermissionsFlags.HasFlag(requiredPermission.Value))
+			var effectivePermissions = OrganizationRolePermissions.GetEffectivePermissions(
+				data.Role,
+				data.PermissionsFlags);
+
+			if (!effectivePermissions.HasFlag(requiredPermission.Value))
 				return ServiceResponse<OrganizationAccessContext>.Failure("Недостатньо прав.");
 		}
 

@@ -14,14 +14,7 @@ internal static class InvitationRules
 
 	public static OrganizationPermissions GetPermissionsForRole(OrganizationRole role)
 	{
-		return role switch
-		{
-			OrganizationRole.Admin => OrganizationPermissions.All,
-			OrganizationRole.Reporter => OrganizationPermissions.ReadOnly
-				| OrganizationPermissions.ManageReceipts
-				| OrganizationPermissions.ManagePurchases,
-			_ => OrganizationPermissions.None
-		};
+		return OrganizationRolePermissions.GetDefaultPermissions(role);
 	}
 
 	public static string GetInactiveMessage(InvitationStatus status)

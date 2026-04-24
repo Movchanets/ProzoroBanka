@@ -299,7 +299,9 @@ public class TokenService : ITokenService
 				? OrganizationPermissions.None
 				: membership.Role == OrganizationRole.Owner
 					? OrganizationPermissions.All
-					: membership.PermissionsFlags;
+					: OrganizationRolePermissions.GetEffectivePermissions(
+						membership.Role,
+						membership.PermissionsFlags);
 
 			claimPayload[$"org_{membership.OrganizationId:D}"] = (int)permissionsMask;
 		}

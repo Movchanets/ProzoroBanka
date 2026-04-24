@@ -6,9 +6,10 @@ namespace ProzoroBanka.API.Authorization;
 
 internal enum OrganizationPermissionClaimResult
 {
-	Unknown,
-	Granted,
-	Denied
+	Unknown,      // Claim not found or org key not in claim
+	ZeroMask,     // Org found in claim but permission mask is 0 (allow DB fallback)
+	Granted,      // Org found in claim with required permission
+	Denied        // Org found in claim with nonzero mask but lacking required permission
 }
 
 internal static class OrganizationPermissionsClaims
@@ -30,6 +31,13 @@ internal static class OrganizationPermissionsClaims
 
 		if (!TryGetPermissionsMask(permissionsByOrganization, organizationId, out var permissionsMask))
 			return OrganizationPermissionClaimResult.Unknown;
+
+		// Organization is in the claim; check if it has a nonzero mask
+		if (permissionsMask == OrganizationPermissions.None)
+		{
+			// Zero mask found in claim: allow DB fallback to decide
+			return OrganizationPermissionClaimResult.ZeroMask;
+		}
 
 		if (requiredPermission == OrganizationPermissions.None)
 			return OrganizationPermissionClaimResult.Granted;

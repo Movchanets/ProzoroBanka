@@ -42,7 +42,19 @@ public class InvitationsEndpointsTests : IClassFixture<TestWebApplicationFactory
 		Assert.Equal(HttpStatusCode.OK, membersResponse.StatusCode);
 
 		var members = await membersResponse.Content.ReadFromJsonAsync<JsonElement>();
-		Assert.Contains(members.EnumerateArray(), m => m.GetProperty("email").GetString() == email);
+		var joinedMember = members.EnumerateArray().Single(m => m.GetProperty("email").GetString() == email);
+		Assert.Equal(
+			(int)OrganizationRolePermissions.GetDefaultPermissions(OrganizationRole.Reporter),
+			joinedMember.GetProperty("permissionsFlags").GetInt32());
+
+		await using var scope = _factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+		var targetUserId = joinedMember.GetProperty("userId").GetGuid();
+		var persistedPermissions = await db.OrganizationMembers
+			.Where(m => m.OrganizationId == orgId && m.UserId == targetUserId && !m.IsDeleted)
+			.Select(m => m.PermissionsFlags)
+			.SingleAsync();
+		Assert.Equal(OrganizationRolePermissions.GetDefaultPermissions(OrganizationRole.Reporter), persistedPermissions);
 	}
 
 	[Fact]

@@ -272,7 +272,7 @@ public class OrganizationsController : ApiControllerBase
 
 	/// <summary>Отримати налаштування ключів держреєстрів і usage по OCR/state.</summary>
 	[HttpGet("{id:guid}/state-registry-settings")]
-	[HasOrganizationPermission(OrganizationPermissions.ManageOrganization)]
+	[HasOrganizationPermission(OrganizationPermissions.ReadOnly)]
 	[ProducesResponseType(typeof(OrganizationStateRegistrySettingsDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
 	public async Task<IActionResult> GetStateRegistrySettings(Guid id, CancellationToken ct)

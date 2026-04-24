@@ -380,6 +380,69 @@ public class AdminUserManagementEndpointsTests : IClassFixture<TestWebApplicatio
 	}
 
 	[Fact]
+	public async Task UpdateUserOrganizationLink_WhenPermissionsNone_NormalizesToReporterDefaults()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var targetEmail = $"normalize-admin-link-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(targetEmail, "Password123!");
+		var userId = await GetUserIdByEmailAsync(targetEmail);
+
+		Guid targetDomainUserId;
+		Guid organizationId = Guid.NewGuid();
+
+		await using (var setupScope = _factory.Services.CreateAsyncScope())
+		{
+			var db = setupScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			var userManager = setupScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+			var targetIdentityUser = await userManager.FindByEmailAsync(targetEmail);
+			var adminIdentityUser = await userManager.FindByEmailAsync("admin@example.com");
+
+			Assert.NotNull(targetIdentityUser);
+			Assert.NotNull(targetIdentityUser!.DomainUserId);
+			Assert.NotNull(adminIdentityUser);
+			Assert.NotNull(adminIdentityUser!.DomainUserId);
+			targetDomainUserId = targetIdentityUser.DomainUserId!.Value;
+
+			db.Organizations.Add(new Organization
+			{
+				Id = organizationId,
+				Name = $"Normalize Link Org {Guid.NewGuid():N}",
+				Slug = $"normalize-link-org-{Guid.NewGuid():N}",
+				OwnerUserId = adminIdentityUser.DomainUserId!.Value
+			});
+			await db.SaveChangesAsync();
+
+			db.OrganizationMembers.Add(new OrganizationMember
+			{
+				OrganizationId = organizationId,
+				UserId = targetDomainUserId,
+				Role = OrganizationRole.Admin,
+				PermissionsFlags = OrganizationPermissions.All,
+				JoinedAt = DateTime.UtcNow.AddDays(-3)
+			});
+			await db.SaveChangesAsync();
+		}
+
+		var updateResponse = await _client.PutAsJsonAsync($"/api/admin/users/{userId}/organizations/{organizationId}", new
+		{
+			role = OrganizationRole.Reporter,
+			permissions = (int)OrganizationPermissions.None
+		});
+		updateResponse.EnsureSuccessStatusCode();
+
+		var updatedLink = await updateResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var expectedReporterDefaults = OrganizationRolePermissions.GetDefaultPermissions(OrganizationRole.Reporter);
+		Assert.Equal((int)expectedReporterDefaults, updatedLink.GetProperty("permissions").GetInt32());
+
+		await using var assertScope = _factory.Services.CreateAsyncScope();
+		var assertDb = assertScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+		var membership = await assertDb.OrganizationMembers.SingleAsync(entity => entity.OrganizationId == organizationId && entity.UserId == targetDomainUserId);
+		Assert.Equal(OrganizationRole.Reporter, membership.Role);
+		Assert.Equal(expectedReporterDefaults, membership.PermissionsFlags);
+	}
+
+	[Fact]
 	public async Task UpdateUserLimitsSettings_ChangesGlobalNonAdminOrganizationLimit()
 	{
 		await AuthenticateAsAdminAsync();

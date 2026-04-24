@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Admin.DTOs;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Common.Interfaces;
+using ProzoroBanka.Application.Organizations.InvitationSupport;
 using ProzoroBanka.Domain.Enums;
 
 namespace ProzoroBanka.Application.Admin.Commands.UpdateUserOrganizationLink;
@@ -57,7 +58,12 @@ public class UpdateUserOrganizationLinkCommandHandler
 			return ServiceResponse<AdminUserOrganizationLinkDto>.Failure("Неможливо редагувати зв'язок власника організації через цей endpoint");
 
 		membership.Role = request.Role;
-		membership.PermissionsFlags = request.Permissions;
+
+		// Normalize zero permission mask to role defaults
+		var finalPermissions = request.Permissions == OrganizationPermissions.None
+			? InvitationRules.GetPermissionsForRole(request.Role)
+			: request.Permissions;
+		membership.PermissionsFlags = finalPermissions;
 
 		await _db.SaveChangesAsync(cancellationToken);
 

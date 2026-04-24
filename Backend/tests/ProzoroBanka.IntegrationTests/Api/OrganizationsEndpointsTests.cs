@@ -1,16 +1,23 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
+using ProzoroBanka.Domain.Entities;
+using ProzoroBanka.Domain.Enums;
+using ProzoroBanka.Infrastructure.Data;
 
 namespace ProzoroBanka.IntegrationTests.Api;
 
 public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 {
 	private readonly HttpClient _client;
+	private readonly TestWebApplicationFactory _factory;
 
 	public OrganizationsEndpointsTests(TestWebApplicationFactory factory)
 	{
+		_factory = factory;
 		_client = factory.CreateClient();
 	}
 
@@ -256,6 +263,70 @@ public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFacto
 		});
 
 		Assert.Equal(HttpStatusCode.OK, unblockedUpdateResponse.StatusCode);
+	}
+
+	[Fact]
+	public async Task StateRegistrySettings_ReporterMember_CanReadButCannotMutateCredentials()
+	{
+		// Admin creates org and configures state registry
+		await AuthenticateAsAdminAsync();
+		var orgId = await CreateOrganizationAsync($"Reporter Registry Org {Guid.NewGuid():N}");
+
+		var adminUpsertResponse = await _client.PutAsJsonAsync(
+			$"/api/organizations/{orgId}/state-registry-credentials/TaxService",
+			new { apiKey = "admin-configured-key" });
+		Assert.Equal(HttpStatusCode.OK, adminUpsertResponse.StatusCode);
+
+		// Create Reporter member and authenticate
+		var reporterEmail = $"reporter-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(reporterEmail, "Password123!");
+
+		// Admin invites reporter with Reporter role (which has ReadOnly permission)
+		var inviteResponse = await _client.PostAsJsonAsync($"/api/organizations/{orgId}/invites/email", new
+		{
+			email = reporterEmail,
+			role = 2 // Reporter role
+		});
+		Assert.Equal(HttpStatusCode.OK, inviteResponse.StatusCode);
+
+		await using (var scope = _factory.Services.CreateAsyncScope())
+		{
+			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			var reporterUser = await db.DomainUsers.SingleAsync(user => user.Email == reporterEmail);
+
+			db.OrganizationMembers.Add(new OrganizationMember
+			{
+				OrganizationId = orgId,
+				UserId = reporterUser.Id,
+				Role = OrganizationRole.Reporter,
+				PermissionsFlags = OrganizationPermissions.ReadOnly
+					| OrganizationPermissions.ManageReceipts
+					| OrganizationPermissions.ManagePurchases,
+				JoinedAt = DateTime.UtcNow
+			});
+
+			await db.SaveChangesAsync();
+		}
+
+		await AuthenticateAsync(reporterEmail, "Password123!");
+
+		// Reporter CAN read state-registry settings (has ReadOnly permission)
+		var settingsResponse = await _client.GetAsync($"/api/organizations/{orgId}/state-registry-settings");
+		Assert.Equal(HttpStatusCode.OK, settingsResponse.StatusCode);
+
+		var settingsJson = await settingsResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.False(settingsJson.GetProperty("taxService").GetProperty("isConfigured").GetBoolean());
+
+		// Reporter CANNOT mutate credentials (needs ManageOrganization)
+		var mutateResponse = await _client.PutAsJsonAsync(
+			$"/api/organizations/{orgId}/state-registry-credentials/CheckGovUa",
+			new { apiKey = "reporter-attempt-key" });
+		Assert.Equal(HttpStatusCode.Forbidden, mutateResponse.StatusCode);
+
+		// Reporter CANNOT delete credentials (needs ManageOrganization)
+		var deleteResponse = await _client.DeleteAsync(
+			$"/api/organizations/{orgId}/state-registry-credentials/TaxService");
+		Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
 	}
 
 	private async Task<Guid> CreateOrganizationAsync(string name)

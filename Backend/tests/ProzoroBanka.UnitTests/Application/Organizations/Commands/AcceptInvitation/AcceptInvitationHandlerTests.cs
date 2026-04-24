@@ -50,7 +50,10 @@ public class AcceptInvitationHandlerTests
 		var result = await handler.Handle(new AcceptInvitationCommand(callerId, token), CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
-		Assert.True(await db.OrganizationMembers.AnyAsync(m => m.OrganizationId == orgId && m.UserId == callerId));
+		var member = await db.OrganizationMembers.SingleAsync(m => m.OrganizationId == orgId && m.UserId == callerId);
+		Assert.Equal(
+			OrganizationRolePermissions.GetDefaultPermissions(OrganizationRole.Reporter),
+			member.PermissionsFlags);
 		Assert.Equal(
 			InvitationStatus.Accepted,
 			(await db.Invitations.FirstAsync(i => i.Token == token)).Status);
