@@ -96,5 +96,94 @@ for (const localeConfig of TEST_LOCALES) {
       await lockoutButton.click({ force: true });
       await expect(statusBadge).toContainText(/Активний|Active/i);
     });
+
+    test('TC-03: user with impersonation permission can switch session from admin users table', async ({ page, request, adminUsersPage }) => {
+      await applyLocale(page, localeConfig.uiLanguage);
+
+      const createdUser = await registerRandomUserViaApi(request, {
+        firstName: 'Impersonated',
+        lastName: 'Target',
+        emailPrefix: `admin-impersonation-${localeConfig.key}`,
+      });
+
+      let impersonationRequested = false;
+
+      await page.route('**/api/admin/roles', async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              name: 'Admin',
+              description: 'Адміністратор',
+              permissions: ['users.impersonate'],
+            },
+          ]),
+        });
+      });
+
+      await page.route(`**/api/admin/users/${createdUser.auth.user.id}/impersonate`, async (route) => {
+        impersonationRequested = true;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            accessToken: 'impersonated-access-token',
+            refreshToken: 'impersonated-refresh-token',
+            accessTokenExpiry: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            refreshTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          }),
+        });
+      });
+
+      await page.route('**/api/auth/me', async (route) => {
+        if (!impersonationRequested) {
+          await route.fallback();
+          return;
+        }
+
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: createdUser.auth.user.id,
+            email: createdUser.auth.user.email,
+            firstName: createdUser.auth.user.firstName,
+            lastName: createdUser.auth.user.lastName,
+            roles: createdUser.auth.user.roles,
+          }),
+        });
+      });
+
+      await setAuthStorage(page, adminAuth);
+      await page.goto('/admin/users');
+      await expect(adminUsersPage.pageContainer).toBeVisible();
+
+      await adminUsersPage.searchInput.fill(createdUser.auth.user.email);
+      const targetRow = adminUsersPage.getUserRow(createdUser.auth.user.email);
+      await expect(targetRow).toBeVisible();
+
+      const impersonateButton = adminUsersPage.getImpersonateButton(createdUser.auth.user.email);
+      await expect(impersonateButton).toBeVisible();
+
+      await page.once('dialog', async (dialog) => {
+        await dialog.accept();
+      });
+      await impersonateButton.click();
+
+      await expect(page).toHaveURL(/.*\/onboarding.*/);
+
+      const authEmail = await page.evaluate(() => {
+        const raw = localStorage.getItem('auth-storage');
+        if (!raw) {
+          return null;
+        }
+
+        const parsed = JSON.parse(raw) as { state?: { user?: { email?: string } } };
+        return parsed.state?.user?.email ?? null;
+      });
+
+      expect(authEmail).toBe(createdUser.auth.user.email);
+    });
   });
 }

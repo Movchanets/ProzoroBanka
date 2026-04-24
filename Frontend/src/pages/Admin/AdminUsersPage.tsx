@@ -4,13 +4,14 @@ import {
   useAdminRoles,
   useAdminAssignRoles,
   useAdminDeleteUser,
+  useAdminImpersonateUser,
   useAdminSetUserLockout,
   useAdminUserDetails,
   useAdminRemoveUserOrganizationLink,
   useAdminUpdateUserOrganizationLink,
 } from '@/hooks/queries/useAdminQueries';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppRoles } from '@/constants/appRoles';
 import { OrganizationPermissions, OrganizationRole } from '@/types/domains/organizations';
 import type { AdminUserDto, AdminRoleDto, AdminUserOrganizationLinkDto } from '@/types/admin';
+import { useAuthStore } from '@/stores/authStore';
 
 type StatusFilter = 'all' | 'active' | 'locked';
 
@@ -83,8 +85,11 @@ function planLabel(planType: 1 | 2) {
 }
 
 export default function AdminUsersPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const currentUserRoles = useAuthStore((state) => state.user?.roles ?? []);
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
 
   const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
   const statusFilter = parseStatusFilter(searchParams.get('status'));
@@ -173,6 +178,33 @@ export default function AdminUsersPage() {
 
   const { data: users, isLoading } = useAdminUsers(page, filters);
   const { data: roles } = useAdminRoles();
+
+  const canImpersonateUsers = useMemo(() => {
+    if (!roles || currentUserRoles.length === 0) {
+      return false;
+    }
+
+    const normalizedCurrentRoles = new Set(currentUserRoles.map((role) => role.trim().toLowerCase()));
+
+    return roles.some((role) =>
+      normalizedCurrentRoles.has(role.name.trim().toLowerCase())
+      && role.permissions.some((permission) => permission.trim().toLowerCase() === 'users.impersonate'));
+  }, [currentUserRoles, roles]);
+
+  const impersonateMutation = useAdminImpersonateUser();
+
+  const handleImpersonate = useCallback(async (user: AdminUserDto) => {
+    const confirmed = window.confirm(
+      `Ви увійдете в систему як ${user.email}. Щоб повернутись до адмін-акаунта, потрібно виконати вихід і авторизуватись повторно. Продовжити?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    await impersonateMutation.mutateAsync(user.id);
+    navigate('/onboarding', { replace: true });
+  }, [impersonateMutation, navigate]);
 
   const resetFilters = () => {
     setSearchInput('');
@@ -315,6 +347,9 @@ export default function AdminUsersPage() {
                   user={user}
                   onOpenProfile={() => setViewingUserId(user.id)}
                   onEditRoles={() => setEditingUser(user)}
+                  onImpersonate={() => handleImpersonate(user)}
+                  canImpersonate={canImpersonateUsers && currentUserId !== user.id}
+                  isImpersonating={impersonateMutation.isPending && impersonateMutation.variables === user.id}
                 />
               ))
             )}
@@ -374,10 +409,16 @@ function UserRow({
   user,
   onOpenProfile,
   onEditRoles,
+  onImpersonate,
+  canImpersonate,
+  isImpersonating,
 }: {
   user: AdminUserDto;
   onOpenProfile: () => void;
   onEditRoles: () => void;
+  onImpersonate: () => Promise<void>;
+  canImpersonate: boolean;
+  isImpersonating: boolean;
 }) {
   const initials = `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.trim().toUpperCase() || 'U';
   const lockoutMutation = useAdminSetUserLockout(user.id);
@@ -467,17 +508,31 @@ function UserRow({
             variant={user.isActive ? 'outline' : 'secondary'}
             size="sm"
             onClick={handleToggleLockout}
-            disabled={lockoutMutation.isPending || deleteMutation.isPending}
+            disabled={lockoutMutation.isPending || deleteMutation.isPending || isImpersonating}
           >
             {lockoutMutation.isPending ? 'Оновлення...' : user.isActive ? 'Заблокувати (бан)' : 'Зняти локаут'}
           </Button>
+
+          {canImpersonate ? (
+            <Button
+              data-testid={`admin-users-impersonate-${user.id}`}
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void onImpersonate();
+              }}
+              disabled={lockoutMutation.isPending || deleteMutation.isPending || isImpersonating}
+            >
+              {isImpersonating ? 'Перемикання...' : 'Увійти як'}
+            </Button>
+          ) : null}
 
           <Button
             data-testid={`admin-users-delete-${user.id}`}
             variant="soft"
             size="sm"
             onClick={handleDelete}
-            disabled={lockoutMutation.isPending || deleteMutation.isPending}
+            disabled={lockoutMutation.isPending || deleteMutation.isPending || isImpersonating}
             className="text-destructive hover:bg-destructive/10"
           >
             {deleteMutation.isPending ? 'Видалення...' : 'Видалити'}

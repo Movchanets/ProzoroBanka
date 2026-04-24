@@ -18,4 +18,8 @@ export class AdminUsersPage {
   getUserRow(email: string) {
     return this.page.locator('[data-testid^="admin-users-row-"]').filter({ hasText: email }).first();
   }
+
+  getImpersonateButton(email: string) {
+    return this.getUserRow(email).locator('[data-testid^="admin-users-impersonate-"]').first();
+  }
 }
