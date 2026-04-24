@@ -225,4 +225,47 @@ public class OrganizationAuthorizationServiceTests
 		Assert.True(accessResult.IsSuccess);
 		Assert.NotNull(accessResult.Payload);
 	}
+
+	[Fact]
+	public async Task HasPermission_UsesRoleDefaults_ForZeroMaskReporterMembership()
+	{
+		await using var db = _fixture.CreateContext();
+		var ownerId = Guid.NewGuid();
+		var reporterId = Guid.NewGuid();
+		var orgId = Guid.NewGuid();
+
+		db.DomainUsers.AddRange(
+			new User { Id = ownerId, Email = $"own-{ownerId:N}@test.com", FirstName = "O", LastName = "W" },
+			new User { Id = reporterId, Email = $"rep-{reporterId:N}@test.com", FirstName = "R", LastName = "P" }
+		);
+
+		db.Organizations.Add(new Organization
+		{
+			Id = orgId,
+			Name = "Reporter Zero Mask Org",
+			Slug = $"reporter-zero-{orgId:N}",
+			OwnerUserId = ownerId
+		});
+		await db.SaveChangesAsync();
+
+		db.OrganizationMembers.Add(new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = reporterId,
+			Role = OrganizationRole.Reporter,
+			PermissionsFlags = OrganizationPermissions.None,
+			JoinedAt = DateTime.UtcNow
+		});
+		await db.SaveChangesAsync();
+
+		var service = new OrganizationAuthorizationService(db);
+
+		var canManageReceipts = await service.HasPermission(orgId, reporterId, OrganizationPermissions.ManageReceipts, CancellationToken.None);
+		var canManagePurchases = await service.HasPermission(orgId, reporterId, OrganizationPermissions.ManagePurchases, CancellationToken.None);
+		var canManageReceiptVerification = await service.HasPermission(orgId, reporterId, OrganizationPermissions.ManageReceiptVerification, CancellationToken.None);
+
+		Assert.True(canManageReceipts);
+		Assert.True(canManagePurchases);
+		Assert.True(canManageReceiptVerification);
+	}
 }

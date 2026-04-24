@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ProzoroBanka.API.Authorization;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Organizations.Commands.AcceptInvitation;
 using ProzoroBanka.Application.Organizations.Commands.DeclineInvitation;
@@ -61,6 +62,7 @@ public class InvitationsController : ApiControllerBase
 
 	/// <summary>Прийняти запрошення за токеном. Стає учасником організації.</summary>
 	[HttpPost("{token}/accept")]
+	[HasPermission(Permissions.InvitationAccept)]
 	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	[ProducesResponseType(StatusCodes.Status404NotFound)]

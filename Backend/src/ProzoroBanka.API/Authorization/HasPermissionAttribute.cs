@@ -4,7 +4,7 @@ namespace ProzoroBanka.API.Authorization;
 
 /// <summary>
 /// Shortcut-атрибут для permission-based авторизації.
-/// Використання: [HasPermission(Permissions.ReceiptsRead)]
+/// Використання: [HasPermission(Permissions.UsersSelf)]
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
 public class HasPermissionAttribute : AuthorizeAttribute

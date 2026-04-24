@@ -45,7 +45,7 @@ public class ReceiptsController : ApiControllerBase
 
 	[HttpPost("draft")]
 	[Consumes("multipart/form-data")]
-	[HasPermission(Permissions.ReceiptsCreate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> UploadDraft([FromForm] IFormFile? file, CancellationToken ct)
@@ -66,7 +66,7 @@ public class ReceiptsController : ApiControllerBase
 
 	[HttpPost("/api/organizations/{organizationId:guid}/receipts/draft")]
 	[Consumes("multipart/form-data")]
-	[HasPermission(Permissions.ReceiptsCreate)]
+	[HasOrganizationPermission(OrganizationPermissions.ManageReceipts)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> UploadOrganizationDraft(Guid organizationId, [FromForm] IFormFile? file, CancellationToken ct)
@@ -87,7 +87,7 @@ public class ReceiptsController : ApiControllerBase
 
 	[HttpPut("{id:guid}/draft")]
 	[Consumes("multipart/form-data")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> UpdateDraft(Guid id, [FromForm] IFormFile? file, CancellationToken ct)
@@ -108,7 +108,7 @@ public class ReceiptsController : ApiControllerBase
 
 	[HttpPost("{id:guid}/extract")]
 	[Consumes("multipart/form-data")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> Extract(Guid id, [FromForm] Guid organizationId, [FromForm] IFormFile? file, [FromForm] string? modelIdentifier = null, CancellationToken ct = default)
@@ -126,7 +126,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpPost("{id:guid}/verify")]
-	[HasPermission(Permissions.ReceiptsVerify)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> Verify(Guid id, [FromBody] VerifyReceiptRequest request, CancellationToken ct)
@@ -140,7 +140,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpGet]
-	[HasPermission(Permissions.ReceiptsRead)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(IReadOnlyList<ReceiptListItemDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> List(
 		[FromQuery] string? search,
@@ -160,7 +160,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpGet("/api/organizations/{organizationId:guid}/receipts")]
-	[HasPermission(Permissions.ReceiptsRead)]
+	[HasOrganizationPermission(OrganizationPermissions.ManageReceipts)]
 	[ProducesResponseType(typeof(IReadOnlyList<ReceiptListItemDto>), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> ListByOrganization(
@@ -182,7 +182,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpPatch("{id:guid}/ocr-draft")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> UpdateOcrDraft(Guid id, [FromBody] UpdateReceiptOcrDraftRequest request, CancellationToken ct)
@@ -209,7 +209,7 @@ public class ReceiptsController : ApiControllerBase
 
 	[HttpPost("{id:guid}/import-tax-xml")]
 	[Consumes("multipart/form-data")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> ImportTaxXml(Guid id, [FromForm] IFormFile? file, CancellationToken ct)
@@ -226,7 +226,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpPost("{id:guid}/items")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> AddItem(Guid id, [FromBody] AddReceiptItemRequest request, CancellationToken ct)
@@ -251,7 +251,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpPut("{id:guid}/items/{itemId:guid}")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> UpdateItem(Guid id, Guid itemId, [FromBody] UpdateReceiptItemRequest request, CancellationToken ct)
@@ -276,7 +276,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpDelete("{id:guid}/items/{itemId:guid}")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> DeleteItem(Guid id, Guid itemId, CancellationToken ct)
@@ -290,7 +290,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpDelete("{id:guid}")]
-	[HasPermission(Permissions.ReceiptsDelete)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
@@ -304,7 +304,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpPut("{id:guid}/item-photos/{photoId:guid}/link")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> LinkItemPhoto(Guid id, Guid photoId, [FromBody] LinkReceiptItemPhotoRequest request, CancellationToken ct)
@@ -319,7 +319,7 @@ public class ReceiptsController : ApiControllerBase
 
 	[HttpPost("{id:guid}/item-photos")]
 	[Consumes("multipart/form-data")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> AddItemPhotos(Guid id, [FromForm] List<IFormFile>? files, CancellationToken ct)
@@ -354,7 +354,7 @@ public class ReceiptsController : ApiControllerBase
 
 	[HttpPut("{id:guid}/item-photos/{photoId:guid}")]
 	[Consumes("multipart/form-data")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> ReplaceItemPhoto(Guid id, Guid photoId, [FromForm] IFormFile? file, CancellationToken ct)
@@ -378,7 +378,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpPut("{id:guid}/item-photos/order")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> ReorderItemPhotos(Guid id, [FromBody] ReorderReceiptItemPhotosRequest request, CancellationToken ct)
@@ -395,7 +395,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpDelete("{id:guid}/item-photos/{photoId:guid}")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> DeleteItemPhoto(Guid id, Guid photoId, CancellationToken ct)
@@ -409,7 +409,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpPost("{id:guid}/activate")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> Activate(Guid id, CancellationToken ct)
@@ -423,7 +423,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpPost("{id:guid}/retry")]
-	[HasPermission(Permissions.ReceiptsUpdate)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> Retry(Guid id, CancellationToken ct)
@@ -437,7 +437,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpGet("{id:guid}")]
-	[HasPermission(Permissions.ReceiptsRead)]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
@@ -451,7 +451,7 @@ public class ReceiptsController : ApiControllerBase
 	}
 
 	[HttpGet("/api/organizations/{organizationId:guid}/receipts/{id:guid}")]
-	[HasPermission(Permissions.ReceiptsRead)]
+	[HasOrganizationPermission(OrganizationPermissions.ManageReceipts)]
 	[ProducesResponseType(typeof(ReceiptPipelineDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status404NotFound)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]

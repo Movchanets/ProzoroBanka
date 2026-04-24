@@ -50,11 +50,14 @@ public class OrganizationAuthorizationService : IOrganizationAuthorizationServic
 
 		if (membership is null || membership.IsBlocked) return false;
 		if (membership.Role == OrganizationRole.Owner) return true;
-		
-		// Fallback for existing admins that might not have the newly added flag
-		if (membership.Role == OrganizationRole.Admin && permission == OrganizationPermissions.ManageCampaigns) return true;
 
-		return membership.PermissionsFlags.HasFlag(permission);
+		if (membership.Role == OrganizationRole.Admin) return true;
+
+		var effectivePermissions = OrganizationRolePermissions.GetEffectivePermissions(
+			membership.Role,
+			membership.PermissionsFlags);
+
+		return effectivePermissions.HasFlag(permission);
 	}
 
 	public async Task<ServiceResponse<OrganizationAccessContext>> EnsureOrganizationAccessAsync(
@@ -78,9 +81,13 @@ public class OrganizationAuthorizationService : IOrganizationAuthorizationServic
 		if (minRole.HasValue && (int)data.Role > (int)minRole.Value)
 			return ServiceResponse<OrganizationAccessContext>.Failure("Недостатньо прав.");
 
-		if (requiredPermission.HasValue && data.Role != OrganizationRole.Owner && !(data.Role == OrganizationRole.Admin && requiredPermission == OrganizationPermissions.ManageCampaigns))
+		if (requiredPermission.HasValue && data.Role != OrganizationRole.Owner && data.Role != OrganizationRole.Admin)
 		{
-			if (!data.PermissionsFlags.HasFlag(requiredPermission.Value))
+			var effectivePermissions = OrganizationRolePermissions.GetEffectivePermissions(
+				data.Role,
+				data.PermissionsFlags);
+
+			if (!effectivePermissions.HasFlag(requiredPermission.Value))
 				return ServiceResponse<OrganizationAccessContext>.Failure("Недостатньо прав.");
 		}
 

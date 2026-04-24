@@ -31,7 +31,7 @@ public class GetPurchaseDetailHandler
 		var authResult = await _orgAuth.EnsureOrganizationAccessAsync(
 			request.OrganizationId,
 			request.CallerDomainUserId,
-			OrganizationPermissions.ManagePurchases,
+			OrganizationPermissions.ReadOnly,
 			ct: ct);
 
 		if (!authResult.IsSuccess)

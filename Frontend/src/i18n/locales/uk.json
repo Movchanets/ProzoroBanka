@@ -961,6 +961,7 @@
   "systemRoles": {
     "admin": "Адмін",
     "accountant": "Бухгалтер",
+    "moderator": "Модератор",
     "volunteer": "Волонтер"
   },
   "campaignStatus": {

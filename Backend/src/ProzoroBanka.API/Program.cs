@@ -92,6 +92,7 @@ try
     // ── Permission-based Authorization ──
     builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
     builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+    builder.Services.AddScoped<IAuthorizationHandler, OrganizationPermissionAuthorizationHandler>();
 
     // ── Rate Limiting ──
     if (rateLimitingSettings.Enabled)

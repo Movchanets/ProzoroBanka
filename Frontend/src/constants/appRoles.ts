@@ -1,6 +1,7 @@
 export const AppRoles = {
   Volunteer: 'Volunteer',
   Accountant: 'Accountant',
+  Moderator: 'Moderator',
   Admin: 'Admin',
 } as const;
 
@@ -23,6 +24,10 @@ export function getSystemRoleLabelKey(role: string): string {
 
   if (normalized === AppRoles.Accountant.toLowerCase()) {
     return 'systemRoles.accountant';
+  }
+
+  if (normalized === AppRoles.Moderator.toLowerCase()) {
+    return 'systemRoles.moderator';
   }
 
   if (normalized === AppRoles.Volunteer.toLowerCase()) {

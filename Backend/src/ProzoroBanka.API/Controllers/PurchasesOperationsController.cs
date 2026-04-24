@@ -9,6 +9,7 @@ using ProzoroBanka.Application.Purchases.Commands.DeleteWaybillItem;
 using ProzoroBanka.Application.Purchases.Commands.CreateDraftPurchase;
 using ProzoroBanka.Application.Purchases.Commands.UpdateWaybillItem;
 using ProzoroBanka.Application.Purchases.DTOs;
+using ProzoroBanka.Domain.Enums;
 
 namespace ProzoroBanka.API.Controllers;
 
@@ -26,7 +27,7 @@ public class PurchasesOperationsController : ApiControllerBase
 	}
 
 	[HttpPost("draft")]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ManagePurchases, "body.organizationId")]
 	[ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> CreateDraft([FromBody] CreateDraftPurchaseRequest request, CancellationToken ct)
@@ -45,7 +46,7 @@ public class PurchasesOperationsController : ApiControllerBase
 	}
 
 	[HttpPost("{purchaseId:guid}/attach")]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ManagePurchases, "purchaseId")]
 	[ProducesResponseType(StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> AttachToCampaign(
@@ -67,7 +68,7 @@ public class PurchasesOperationsController : ApiControllerBase
 	}
 
 	[HttpPost("documents/{documentId:guid}/items")]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ManagePurchases, "documentId")]
 	[ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> AddWaybillItem(
@@ -89,7 +90,7 @@ public class PurchasesOperationsController : ApiControllerBase
 	}
 
 	[HttpPatch("documents/{documentId:guid}/items/{itemId:guid}")]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ManagePurchases, "documentId")]
 	[ProducesResponseType(typeof(DocumentDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> UpdateWaybillItem(
@@ -110,7 +111,7 @@ public class PurchasesOperationsController : ApiControllerBase
 	}
 
 	[HttpDelete("documents/{documentId:guid}/items/{itemId:guid}")]
-	[HasPermission(Permissions.PurchasesManage)]
+	[HasOrganizationPermission(OrganizationPermissions.ManagePurchases, "documentId")]
 	[ProducesResponseType(typeof(DocumentDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> DeleteWaybillItem(

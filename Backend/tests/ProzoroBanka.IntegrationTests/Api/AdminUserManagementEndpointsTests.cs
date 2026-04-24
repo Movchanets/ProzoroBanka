@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -245,6 +246,75 @@ public class AdminUserManagementEndpointsTests : IClassFixture<TestWebApplicatio
 	}
 
 	[Fact]
+	public async Task GetRoles_IncludesModeratorWithImpersonationPermission()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var response = await _client.GetAsync("/api/admin/roles");
+		response.EnsureSuccessStatusCode();
+
+		var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+		var roles = json.EnumerateArray().ToList();
+
+		var moderator = roles.Single(role => string.Equals(role.GetProperty("name").GetString(), "Moderator", StringComparison.OrdinalIgnoreCase));
+		var moderatorPermissions = moderator.GetProperty("permissions").EnumerateArray().Select(item => item.GetString()).Where(value => value is not null).ToList();
+
+		Assert.Contains("users.impersonate", moderatorPermissions);
+		Assert.Contains("users.read", moderatorPermissions);
+		Assert.Contains("users.update", moderatorPermissions);
+		Assert.Contains("users.delete", moderatorPermissions);
+		Assert.Contains("users.manage_roles", moderatorPermissions);
+
+		var admin = roles.Single(role => string.Equals(role.GetProperty("name").GetString(), "Admin", StringComparison.OrdinalIgnoreCase));
+		var adminPermissions = admin.GetProperty("permissions").EnumerateArray().Select(item => item.GetString()).Where(value => value is not null).ToList();
+
+		Assert.Contains("system.settings", adminPermissions);
+		Assert.Contains("organizations.manage", adminPermissions);
+		Assert.Contains("organizations.plan.manage", adminPermissions);
+		Assert.DoesNotContain("users.impersonate", adminPermissions);
+		Assert.DoesNotContain("users.manage_roles", adminPermissions);
+		Assert.DoesNotContain("reports.export", adminPermissions);
+		Assert.DoesNotContain("monobank.sync", adminPermissions);
+		Assert.DoesNotContain("purchases.manage", adminPermissions);
+	}
+
+	[Fact]
+	public async Task ImpersonateUser_AsModerator_ReturnsTargetUserTokens()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var moderatorEmail = $"moderator-{Guid.NewGuid():N}@example.com";
+		var targetEmail = $"impersonated-{Guid.NewGuid():N}@example.com";
+
+		await RegisterAsync(moderatorEmail, "Password123!");
+		await RegisterAsync(targetEmail, "Password123!");
+
+		var moderatorUserId = await GetUserIdByEmailAsync(moderatorEmail);
+		var targetUserId = await GetUserIdByEmailAsync(targetEmail);
+
+		var assignModeratorResponse = await _client.PutAsJsonAsync($"/api/admin/users/{moderatorUserId}/roles", new
+		{
+			roles = new[] { "Moderator" }
+		});
+		assignModeratorResponse.EnsureSuccessStatusCode();
+
+		await AuthenticateAsAsync(moderatorEmail, "Password123!");
+
+		var impersonateResponse = await _client.PostAsync($"/api/admin/users/{targetUserId}/impersonate", content: null);
+		impersonateResponse.EnsureSuccessStatusCode();
+
+		var tokenJson = await impersonateResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var accessToken = tokenJson.GetProperty("accessToken").GetString();
+		Assert.False(string.IsNullOrWhiteSpace(accessToken));
+
+		var jwt = new JwtSecurityTokenHandler().ReadJwtToken(accessToken!);
+		Assert.Equal(targetEmail, jwt.Claims.Single(claim => claim.Type == System.Security.Claims.ClaimTypes.Email).Value);
+
+		var targetDomainUserId = await GetDomainUserIdByEmailAsync(targetEmail);
+		Assert.Equal(targetDomainUserId.ToString(), jwt.Claims.Single(claim => claim.Type == "domain_user_id").Value);
+	}
+
+	[Fact]
 	public async Task UserDetails_AndMembershipUpdateEndpoints_WorkForAdmin()
 	{
 		await AuthenticateAsAdminAsync();
@@ -307,6 +377,69 @@ public class AdminUserManagementEndpointsTests : IClassFixture<TestWebApplicatio
 		var membership = await assertDb.OrganizationMembers.SingleAsync(entity => entity.OrganizationId == organizationId && entity.UserId == targetDomainUserId);
 		Assert.Equal(OrganizationRole.Admin, membership.Role);
 		Assert.Equal(OrganizationPermissions.ManageOrganization | OrganizationPermissions.ManageMembers, membership.PermissionsFlags);
+	}
+
+	[Fact]
+	public async Task UpdateUserOrganizationLink_WhenPermissionsNone_NormalizesToReporterDefaults()
+	{
+		await AuthenticateAsAdminAsync();
+
+		var targetEmail = $"normalize-admin-link-{Guid.NewGuid():N}@example.com";
+		await RegisterAsync(targetEmail, "Password123!");
+		var userId = await GetUserIdByEmailAsync(targetEmail);
+
+		Guid targetDomainUserId;
+		Guid organizationId = Guid.NewGuid();
+
+		await using (var setupScope = _factory.Services.CreateAsyncScope())
+		{
+			var db = setupScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			var userManager = setupScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+			var targetIdentityUser = await userManager.FindByEmailAsync(targetEmail);
+			var adminIdentityUser = await userManager.FindByEmailAsync("admin@example.com");
+
+			Assert.NotNull(targetIdentityUser);
+			Assert.NotNull(targetIdentityUser!.DomainUserId);
+			Assert.NotNull(adminIdentityUser);
+			Assert.NotNull(adminIdentityUser!.DomainUserId);
+			targetDomainUserId = targetIdentityUser.DomainUserId!.Value;
+
+			db.Organizations.Add(new Organization
+			{
+				Id = organizationId,
+				Name = $"Normalize Link Org {Guid.NewGuid():N}",
+				Slug = $"normalize-link-org-{Guid.NewGuid():N}",
+				OwnerUserId = adminIdentityUser.DomainUserId!.Value
+			});
+			await db.SaveChangesAsync();
+
+			db.OrganizationMembers.Add(new OrganizationMember
+			{
+				OrganizationId = organizationId,
+				UserId = targetDomainUserId,
+				Role = OrganizationRole.Admin,
+				PermissionsFlags = OrganizationPermissions.All,
+				JoinedAt = DateTime.UtcNow.AddDays(-3)
+			});
+			await db.SaveChangesAsync();
+		}
+
+		var updateResponse = await _client.PutAsJsonAsync($"/api/admin/users/{userId}/organizations/{organizationId}", new
+		{
+			role = OrganizationRole.Reporter,
+			permissions = (int)OrganizationPermissions.None
+		});
+		updateResponse.EnsureSuccessStatusCode();
+
+		var updatedLink = await updateResponse.Content.ReadFromJsonAsync<JsonElement>();
+		var expectedReporterDefaults = OrganizationRolePermissions.GetDefaultPermissions(OrganizationRole.Reporter);
+		Assert.Equal((int)expectedReporterDefaults, updatedLink.GetProperty("permissions").GetInt32());
+
+		await using var assertScope = _factory.Services.CreateAsyncScope();
+		var assertDb = assertScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+		var membership = await assertDb.OrganizationMembers.SingleAsync(entity => entity.OrganizationId == organizationId && entity.UserId == targetDomainUserId);
+		Assert.Equal(OrganizationRole.Reporter, membership.Role);
+		Assert.Equal(expectedReporterDefaults, membership.PermissionsFlags);
 	}
 
 	[Fact]
@@ -408,12 +541,28 @@ public class AdminUserManagementEndpointsTests : IClassFixture<TestWebApplicatio
 		return user.GetProperty("id").GetGuid();
 	}
 
+	private async Task<Guid> GetDomainUserIdByEmailAsync(string email)
+	{
+		await using var scope = _factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+		return await db.DomainUsers
+			.Where(user => user.Email == email)
+			.Select(user => user.Id)
+			.SingleAsync();
+	}
+
 	private async Task AuthenticateAsAdminAsync()
+	{
+		await AuthenticateAsAsync("admin@example.com", "Admin123!ChangeMe");
+	}
+
+	private async Task AuthenticateAsAsync(string email, string password)
 	{
 		var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
 		{
-			email = "admin@example.com",
-			password = "Admin123!ChangeMe",
+			email,
+			password,
 			turnstileToken = "test-token"
 		});
 		loginResponse.EnsureSuccessStatusCode();

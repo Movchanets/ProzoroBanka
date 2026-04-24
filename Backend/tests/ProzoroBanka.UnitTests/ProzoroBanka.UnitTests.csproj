@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ProzoroBanka.Application\ProzoroBanka.Application.csproj" />
+    <ProjectReference Include="..\..\src\ProzoroBanka.API\ProzoroBanka.API.csproj" />
     <ProjectReference Include="..\..\src\ProzoroBanka.Domain\ProzoroBanka.Domain.csproj" />
     <ProjectReference Include="..\..\src\ProzoroBanka.Infrastructure\ProzoroBanka.Infrastructure.csproj" />
   </ItemGroup>

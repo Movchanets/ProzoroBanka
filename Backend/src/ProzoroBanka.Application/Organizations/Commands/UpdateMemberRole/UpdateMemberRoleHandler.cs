@@ -4,6 +4,7 @@ using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Extensions;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Organizations.DTOs;
+using ProzoroBanka.Application.Organizations.InvitationSupport;
 using ProzoroBanka.Domain.Enums;
 
 namespace ProzoroBanka.Application.Organizations.Commands.UpdateMemberRole;
@@ -56,7 +57,12 @@ public class UpdateMemberRoleHandler
 			return ServiceResponse<OrganizationMemberDto>.Failure("Роль Owner не можна призначити через цей endpoint");
 
 		target.Role = request.NewRole;
-		target.PermissionsFlags = request.NewPermissionsFlags;
+
+		// Normalize zero permission mask to role defaults
+		var finalPermissions = request.NewPermissionsFlags == OrganizationPermissions.None
+			? InvitationRules.GetPermissionsForRole(request.NewRole)
+			: request.NewPermissionsFlags;
+		target.PermissionsFlags = finalPermissions;
 
 		await _db.SaveChangesAsync(cancellationToken);
 

@@ -5,18 +5,16 @@ namespace ProzoroBanka.API.Authorization;
 /// </summary>
 public static class Permissions
 {
-	// ── Receipts ──
-	public const string ReceiptsRead = "receipts.read";
-	public const string ReceiptsCreate = "receipts.create";
-	public const string ReceiptsUpdate = "receipts.update";
-	public const string ReceiptsDelete = "receipts.delete";
-	public const string ReceiptsVerify = "receipts.verify";
+	// ── Self-service ──
+	public const string UsersSelf = "users.self";
+	public const string InvitationAccept = "invitation.accept";
 
 	// ── Users ──
 	public const string UsersRead = "users.read";
 	public const string UsersUpdate = "users.update";
 	public const string UsersDelete = "users.delete";
 	public const string UsersManageRoles = "users.manage_roles";
+	public const string UsersImpersonate = "users.impersonate";
 
 	// ── Reports ──
 	public const string ReportsRead = "reports.read";
@@ -38,9 +36,6 @@ public static class Permissions
 	// ── Campaigns ──
 	public const string CampaignsManage = "campaigns.manage";
 	public const string CampaignsLogsRead = "campaigns.logs.read";
-
-	// ── Purchases ──
-	public const string PurchasesManage = "purchases.manage";
 
 	// ── System ──
 	public const string SystemSettings = "system.settings";

@@ -183,6 +183,178 @@ public class PurchasesOperationsEndpointsTests : IClassFixture<TestWebApplicatio
     }
 
     [Fact]
+    public async Task CreateDraftPurchase_AsOrganizationOwnerWithoutAdminRole_ReturnsCreated()
+    {
+        var email = $"draft-owner-{Guid.NewGuid():N}@example.com";
+        const string password = "Owner123!Test";
+
+        await RegisterAsync(email, password);
+        await AuthenticateAsync(email, password);
+
+        Guid ownerId;
+        var organizationId = Guid.NewGuid();
+
+        await using (var setupScope = _factory.Services.CreateAsyncScope())
+        {
+            var db = setupScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            ownerId = await db.DomainUsers
+                .Where(user => user.Email == email)
+                .Select(user => user.Id)
+                .SingleAsync();
+
+            db.Organizations.Add(new Organization
+            {
+                Id = organizationId,
+                Name = $"Draft owner org {Guid.NewGuid():N}",
+                Slug = $"draft-owner-org-{Guid.NewGuid():N}",
+                OwnerUserId = ownerId
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        var response = await _client.PostAsJsonAsync("/api/purchases/draft", new
+        {
+            organizationId,
+            title = "Owner draft",
+            description = "Created by owner without global admin role"
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AttachPurchaseToCampaign_AsOrganizationOwnerWithoutAdminRole_ReturnsOk()
+    {
+        var email = $"attach-owner-{Guid.NewGuid():N}@example.com";
+        const string password = "Owner123!Test";
+
+        await RegisterAsync(email, password);
+        await AuthenticateAsync(email, password);
+
+        Guid ownerId;
+        var organizationId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+
+        await using (var setupScope = _factory.Services.CreateAsyncScope())
+        {
+            var db = setupScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            ownerId = await db.DomainUsers
+                .Where(user => user.Email == email)
+                .Select(user => user.Id)
+                .SingleAsync();
+
+            db.Organizations.Add(new Organization
+            {
+                Id = organizationId,
+                Name = $"Attach owner org {Guid.NewGuid():N}",
+                Slug = $"attach-owner-org-{Guid.NewGuid():N}",
+                OwnerUserId = ownerId
+            });
+
+            db.Campaigns.Add(new Campaign
+            {
+                Id = campaignId,
+                OrganizationId = organizationId,
+                CreatedByUserId = ownerId,
+                Title = $"Attach owner campaign {Guid.NewGuid():N}",
+                Description = "Campaign for attach auth",
+                GoalAmount = 100000,
+                Status = CampaignStatus.Active
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        var draftResponse = await _client.PostAsJsonAsync("/api/purchases/draft", new
+        {
+            organizationId,
+            title = "Owner attach draft",
+            description = "Draft before attach"
+        });
+        draftResponse.EnsureSuccessStatusCode();
+
+        var draftPayload = await draftResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var purchaseId = draftPayload.GetProperty("id").GetGuid();
+
+        var attachResponse = await _client.PostAsJsonAsync($"/api/purchases/{purchaseId}/attach", new
+        {
+            campaignId
+        });
+
+        Assert.Equal(HttpStatusCode.OK, attachResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task AddWaybillItem_AsOrganizationOwnerWithoutAdminRole_ReturnsCreated()
+    {
+        var email = $"waybill-owner-{Guid.NewGuid():N}@example.com";
+        const string password = "Owner123!Test";
+
+        await RegisterAsync(email, password);
+        await AuthenticateAsync(email, password);
+
+        Guid ownerId;
+        var organizationId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+
+        await using (var setupScope = _factory.Services.CreateAsyncScope())
+        {
+            var db = setupScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            ownerId = await db.DomainUsers
+                .Where(user => user.Email == email)
+                .Select(user => user.Id)
+                .SingleAsync();
+
+            db.Organizations.Add(new Organization
+            {
+                Id = organizationId,
+                Name = $"Waybill owner org {Guid.NewGuid():N}",
+                Slug = $"waybill-owner-org-{Guid.NewGuid():N}",
+                OwnerUserId = ownerId
+            });
+
+            db.Campaigns.Add(new Campaign
+            {
+                Id = campaignId,
+                OrganizationId = organizationId,
+                CreatedByUserId = ownerId,
+                Title = $"Waybill owner campaign {Guid.NewGuid():N}",
+                Description = "Campaign for waybill auth",
+                GoalAmount = 100000,
+                Status = CampaignStatus.Active
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        var createPurchaseResponse = await _client.PostAsJsonAsync(
+            $"/api/organizations/{organizationId}/campaigns/{campaignId}/purchases",
+            new
+            {
+                title = "Owner waybill purchase",
+                totalAmount = 0
+            });
+        createPurchaseResponse.EnsureSuccessStatusCode();
+
+        var createPurchasePayload = await createPurchaseResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var purchaseId = createPurchasePayload.GetProperty("id").GetGuid();
+        var documentId = await SeedWaybillDocumentAsync(purchaseId);
+
+        var response = await _client.PostAsJsonAsync($"/api/purchases/documents/{documentId}/items", new
+        {
+            name = "Owner scope",
+            quantity = 1m,
+            unitPrice = 50000L
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
     public async Task OrganizationPurchasesList_WithOnlyUnattached_ReturnsDraftsOrderedByNewestFirst()
     {
         await AuthenticateAsAdminAsync();

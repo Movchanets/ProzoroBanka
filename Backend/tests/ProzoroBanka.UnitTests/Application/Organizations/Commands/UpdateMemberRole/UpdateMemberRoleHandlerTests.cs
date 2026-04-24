@@ -1,4 +1,5 @@
 using Moq;
+using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Services;
 using ProzoroBanka.Application.Organizations.Commands.UpdateMemberRole;
@@ -184,5 +185,53 @@ public class UpdateMemberRoleHandlerTests
 
 		Assert.False(result.IsSuccess);
 		Assert.Contains("Owner", result.Message);
+	}
+
+	[Fact]
+	public async Task Handle_NormalizesNonePermissions_ToReporterDefaults()
+	{
+		await using var db = _fixture.CreateContext();
+		var fileStorage = new Mock<IFileStorage>();
+		var ownerId = Guid.NewGuid();
+		var targetId = Guid.NewGuid();
+		var orgId = Guid.NewGuid();
+
+		db.DomainUsers.AddRange(
+			new User { Id = ownerId, Email = $"own-{ownerId:N}@test.com", FirstName = "O", LastName = "W" },
+			new User { Id = targetId, Email = $"tgt-{targetId:N}@test.com", FirstName = "T", LastName = "G" }
+		);
+		db.Organizations.Add(new Organization
+		{
+			Id = orgId,
+			Name = "Role Org E",
+			Slug = $"role-e-{orgId:N}",
+			OwnerUserId = ownerId
+		});
+		await db.SaveChangesAsync();
+
+		db.OrganizationMembers.Add(new OrganizationMember
+		{
+			OrganizationId = orgId,
+			UserId = targetId,
+			Role = OrganizationRole.Admin,
+			PermissionsFlags = OrganizationPermissions.All,
+			JoinedAt = DateTime.UtcNow
+		});
+		await db.SaveChangesAsync();
+
+		var handler = new UpdateMemberRoleHandler(db, new OrganizationAuthorizationService(db), fileStorage.Object);
+		var result = await handler.Handle(
+			new UpdateMemberRoleCommand(ownerId, orgId, targetId, OrganizationRole.Reporter, OrganizationPermissions.None),
+			CancellationToken.None);
+
+		Assert.True(result.IsSuccess);
+		Assert.NotNull(result.Payload);
+
+		var expectedReporterDefaults = OrganizationRolePermissions.GetDefaultPermissions(OrganizationRole.Reporter);
+		Assert.Equal(expectedReporterDefaults, result.Payload!.PermissionsFlags);
+
+		var persistedMember = await db.OrganizationMembers
+			.SingleAsync(m => m.OrganizationId == orgId && m.UserId == targetId);
+		Assert.Equal(expectedReporterDefaults, persistedMember.PermissionsFlags);
 	}
 }

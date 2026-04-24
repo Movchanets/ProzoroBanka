@@ -2,6 +2,7 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ProzoroBanka.API.Authorization;
 using ProzoroBanka.API.Filters;
 using ProzoroBanka.Application.Auth.DTOs;
 using ProzoroBanka.Application.Common.Models;
@@ -176,6 +177,7 @@ public class AuthController : ApiControllerBase
 	/// </summary>
 	[Authorize]
 	[HttpGet("me")]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Me(CancellationToken ct)
 	{
@@ -195,6 +197,7 @@ public class AuthController : ApiControllerBase
 	/// </summary>
 	[Authorize]
 	[HttpPut("me")]
+	[HasPermission(Permissions.UsersSelf)]
 	[ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request, CancellationToken ct)
@@ -220,6 +223,7 @@ public class AuthController : ApiControllerBase
 	/// </summary>
 	[Authorize]
 	[HttpPost("me/avatar")]
+	[HasPermission(Permissions.UsersSelf)]
 	[Consumes("multipart/form-data")]
 	[ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
