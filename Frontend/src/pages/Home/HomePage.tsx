@@ -9,7 +9,6 @@ import { CampaignStatus } from '@/types';
 import { OrganizationCard } from '@/components/public/OrganizationCard';
 import { CampaignCard } from '@/components/public/CampaignCard';
 import { ComingSoonStub } from '@/components/public/ComingSoonStub';
-import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
 import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { useHomeCampaignFeed, usePublicCampaignCategories, useSearchOrganizations } from '@/hooks/queries/usePublic';
 import { useTranslation } from 'react-i18next';
@@ -130,8 +129,7 @@ export default function HomePage() {
       />
 
       <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
-        <PublicPageToolbar showHomeAnchors />
-
+        
       <section
         data-testid="home-hero-section"
         className="relative overflow-hidden rounded-4xl border border-border/80 p-6 text-foreground shadow-[0_24px_80px_var(--shadow-soft)] sm:p-8"

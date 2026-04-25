@@ -36,7 +36,10 @@
     "leave": "Leave",
     "open": "Open",
     "na": "N/A",
-    "home": "Home"
+    "home": "Home",
+    "uah": "UAH",
+    "verified": "Verified",
+    "verifiedHint": "Organization verified by the platform"
   },
   "auth": {
     "login": {
@@ -314,6 +317,35 @@
       "contactEmail": "Contact email",
       "cropTitle": "Crop logo",
       "cropDescription": "Select a square area for the organization logo"
+    },
+    "public": {
+      "card": {
+        "members": "members",
+        "descriptionFallback": "No description provided by the organization yet.",
+        "activeCampaigns": "Active campaigns:",
+        "viewOrganization": "View organization"
+      },
+      "transparency": {
+        "title": "Expense Transparency",
+        "totalSpent": "Total verified:",
+        "empty": "No data available to display expense categories yet.",
+        "monthlyDynamics": "Monthly dynamics"
+      },
+      "teamEmpty": "Team is not displayed yet",
+      "detail": {
+        "errorTitle": "Failed to load organization",
+        "errorDescription": "Check the link or try again later.",
+        "seoTitle": "{{name}}: transparency, reports, campaigns | ProzoroBanka",
+        "seoTitleFallback": "Organization | ProzoroBanka",
+        "seoDescription": "{{name}}. {{description}} Verification, active campaigns and transparent reporting.",
+        "seoDescriptionFallback": "Volunteer organization profile with open transparency metrics and list of campaigns.",
+        "descriptionFallback": "Organization description is not available yet.",
+        "websiteLink": "Organization website",
+        "teamTitle": "Team",
+        "campaignsTitle": "Campaigns",
+        "campaignsEmpty": "This organization has no campaigns in the selected status yet.",
+        "campaignDescriptionFallback": "No description"
+      }
     }
   },
   "campaigns": {
@@ -486,6 +518,22 @@
       "success": "Campaign progress updated",
       "error": "Failed to update campaign progress"
     },
+    "card": {
+      "statusActive": "Active",
+      "statusCompleted": "Completed",
+      "statusPaused": "Paused",
+      "statusDraft": "Draft",
+      "openPhoto": "Open campaign photo",
+      "viewCampaign": "View campaign",
+      "previewDescription": "Campaign photo preview"
+    },
+    "progressBar": {
+      "collected": "Collected",
+      "documented": "Documented",
+      "goal": "goal",
+      "documentedLabel": "Documented:",
+      "documentedShare": "Documented {{percent}}% of raised"
+    },
     "public": {
       "errorTitle": "Failed to load campaign",
       "errorDescription": "Check the link or try again later.",
@@ -495,6 +543,7 @@
       "seoDescriptionFallback": "Public fundraising page with progress and expense details.",
       "topBadge": "Public transparent campaign",
       "descriptionFallback": "Campaign description is not available yet.",
+      "otherActiveCampaigns": "Other active campaigns",
       "supportCampaign": "Support campaign",
       "kpiCollected": "Collected",
       "kpiGoal": "Goal",
@@ -503,6 +552,8 @@
       "coverPlaceholderDescription": "Campaign cover image will appear here after media integration.",
       "updatesTitle": "Campaign updates",
       "postTextFallback": "Update without description",
+      "postsEmpty": "No public updates yet",
+      "openCoverImage": "Open cover image",
       "openPostImage": "Open update image",
       "prevImage": "Previous image",
       "nextImage": "Next image",
@@ -839,7 +890,10 @@
       "detailsTitle": "Receipt details",
       "receiptIdLabel": "Receipt ID",
       "merchantLabel": "Merchant",
-      "taxVerificationLabel": "Tax verification"
+      "taxVerificationLabel": "Tax verification",
+      "dateNotSpecified": "Date not specified",
+      "noMerchantName": "No merchant name",
+      "viewReceipt": "View receipt"
     }
   },
   "purchases": {

@@ -6,6 +6,7 @@ import {
   registerAndSetAuthStorage,
   createOrganizationViaApi,
   setAuthStorage,
+  waitForAppLoaded,
   type AuthResponse,
 } from './support/e2e-auth';
 import type { OnboardingPage } from './pages/OnboardingPage';
@@ -44,9 +45,11 @@ async function openCreateOrgDialogFromOnboarding(page: import('@playwright/test'
   await setTestLanguage(page);
 
   await onboardingPage.goto();
-  await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
+  await waitForAppLoaded(page);
 
-  await onboardingPage.createOrgButton.click({ force: true });
+  // Wait for the button to be visible and stable (onboarding page fully rendered)
+  await expect(onboardingPage.createOrgButton).toBeVisible({ timeout: 10000 });
+  await onboardingPage.createOrgButton.click();
   await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
 }
 
@@ -235,7 +238,7 @@ test.describe('Dashboard — Organization Settings', () => {
 
     await orgSettingsPage.goto(orgId);
     await expect(page).toHaveURL(/.*\/settings/);
-    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
+    await waitForAppLoaded(page);
   });
 
   test('TC-10: Organization settings page displays current organization data', async ({ page, orgSettingsPage }) => {
@@ -464,7 +467,7 @@ test.describe('Dashboard — Home Page', () => {
 
     await dashboardHomePage.goto(orgId);
     await expect(page).toHaveURL(/.*\/dashboard\//);
-    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
+    await waitForAppLoaded(page);
   });
 
   test('TC-20: Dashboard home page displays organization statistics', async ({ page, dashboardHomePage }) => {

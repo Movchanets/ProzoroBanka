@@ -39,6 +39,7 @@ const PublicCampaignPage = lazy(() => import('./pages/PublicCampaign/PublicCampa
 const PublicReceiptPlaceholderPage = lazy(() => import('./pages/PublicReceipt/PublicReceiptPlaceholderPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFound/NotFoundPage'));
 
+const PublicLayout = lazy(() => import('./layouts/PublicLayout'));
 const AdminLayout = lazy(() => import('./pages/Admin/AdminLayout'));
 const AdminOrganizationsPage = lazy(() => import('./pages/Admin/AdminOrganizationsPage'));
 const AdminCampaignsPage = lazy(() => import('./pages/Admin/AdminCampaignsPage'));
@@ -71,8 +72,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
   }
 
+  // Return null instead of <RouteFallback /> to avoid duplicating the loader
+  // text when the outer <Suspense> boundary is also showing its fallback.
   if (isResolvingSession) {
-    return <RouteFallback />;
+    return null;
   }
 
   return <>{children}</>;
@@ -85,8 +88,9 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
+  // Return null instead of <RouteFallback /> — see ProtectedRoute comment.
   if (isResolvingSession) {
-    return <RouteFallback />;
+    return null;
   }
 
   return <Navigate to={defaultAuthenticatedPath} replace />;
@@ -139,11 +143,13 @@ function App() {
             <Route path="/invite/:token" element={<InvitePage />} />
 
             {/* Public pages */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/o/:slug" element={<PublicOrganizationPage />} />
-            <Route path="/c/:id" element={<PublicCampaignPage />} />
-            <Route path="/receipt/:id" element={<PublicReceiptPlaceholderPage />} />
-            <Route path="/spending/:id" element={<PublicSpendingPage />} />
+            <Route element={<PublicLayout />}>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/o/:slug" element={<PublicOrganizationPage />} />
+              <Route path="/c/:id" element={<PublicCampaignPage />} />
+              <Route path="/receipt/:id" element={<PublicReceiptPlaceholderPage />} />
+              <Route path="/spending/:id" element={<PublicSpendingPage />} />
+            </Route>
 
             {/* Onboarding — redirect to dashboard if has orgs */}
             <Route

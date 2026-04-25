@@ -11,10 +11,13 @@ export class PublicLayout {
 
   constructor(page: Page) {
     this.page = page;
-    this.toolbar = page.getByTestId('public-page-toolbar');
-    this.toolbarEntryLink = page.getByTestId('public-page-toolbar-entry-link');
-    this.toolbarCampaignsAnchor = page.getByTestId('public-page-toolbar-campaigns-anchor');
-    this.toolbarOrganizationsAnchor = page.getByTestId('public-page-toolbar-organizations-anchor');
+    // Header / toolbar — <header> element (ARIA banner role)
+    this.toolbar = page.locator('header').first();
+    // Entry link — secondary-variant button linking to /login or /dashboard
+    this.toolbarEntryLink = page.locator('header a[href="/login"], header a[href="/dashboard"]').first();
+    // Nav anchors — links inside the header pointing to home-page hash sections
+    this.toolbarCampaignsAnchor = page.locator('header a[href="/#campaigns"]');
+    this.toolbarOrganizationsAnchor = page.locator('header a[href="/#organizations"]');
     this.languageSwitcher = page.getByTestId('language-switcher-trigger');
     this.themeToggle = page.getByTestId('theme-toggle-trigger');
   }

@@ -1,11 +1,10 @@
 import { Link, useParams } from 'react-router-dom';
-import { CalendarDays, Eye, FileText, Loader2, ReceiptText, ShieldCheck, Wallet } from 'lucide-react';
+import { CalendarDays, ChevronRight, Eye, FileText, Loader2, ReceiptText, ShieldCheck, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
 import { usePublicPurchaseById } from '@/hooks/queries/usePurchases';
 import { DocumentType, PurchaseStatus } from '@/types';
 
@@ -62,7 +61,6 @@ export default function PublicSpendingPage() {
   if (purchaseQuery.isLoading) {
     return (
       <main className="mx-auto flex w-[min(1100px,calc(100%-24px))] flex-col gap-6 py-8 sm:w-[min(1100px,calc(100%-40px))]" data-testid="public-spending-page">
-        <PublicPageToolbar compact />
         <Card className="rounded-4xl border border-border/80 bg-card/92 shadow-[0_16px_40px_var(--shadow-soft)]">
           <CardContent className="flex min-h-56 items-center justify-center gap-3">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -76,7 +74,6 @@ export default function PublicSpendingPage() {
   if (!purchase || purchaseQuery.isError) {
     return (
       <main className="mx-auto flex w-[min(1100px,calc(100%-24px))] flex-col gap-6 py-8 sm:w-[min(1100px,calc(100%-40px))]" data-testid="public-spending-page">
-        <PublicPageToolbar compact />
         <Alert variant="destructive" data-testid="public-spending-not-found-alert">
           <AlertTitle>{t('campaigns.public.spending.notFoundTitle')}</AlertTitle>
           <AlertDescription data-testid="public-spending-not-found">{t('campaigns.public.spending.notFoundDescription')}</AlertDescription>
@@ -91,7 +88,23 @@ export default function PublicSpendingPage() {
 
   return (
     <main className="mx-auto flex w-[min(1100px,calc(100%-24px))] flex-col gap-6 py-8 sm:w-[min(1100px,calc(100%-40px))]" data-testid="public-spending-page">
-      <PublicPageToolbar compact />
+      <nav aria-label="Breadcrumb" className="px-2" data-testid="public-spending-breadcrumbs">
+        <ol className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <li>
+            <Link to="/" className="hover:text-foreground transition-colors">{t('common.home')}</Link>
+          </li>
+          <li><ChevronRight className="h-4 w-4" /></li>
+          {purchase.campaignId ? (
+            <>
+              <li>
+                <Link to={`/c/${purchase.campaignId}`} className="hover:text-foreground transition-colors">{t('campaigns.public.spending.backToCampaign', 'Збір')}</Link>
+              </li>
+              <li><ChevronRight className="h-4 w-4" /></li>
+            </>
+          ) : null}
+          <li className="font-medium text-foreground">{t('campaigns.public.spending.viewFullExpense', 'Повна сторінка витрати')}</li>
+        </ol>
+      </nav>
 
       <section className="overflow-hidden rounded-4xl border border-border/80 bg-card/92 shadow-[0_24px_80px_var(--shadow-soft)]" data-testid="public-spending-hero">
         <div className="grid gap-0 lg:grid-cols-[1.1fr,0.9fr]">
