@@ -12,7 +12,7 @@ export function PublicHeader() {
   const entryLabel = isAuthenticated ? t('common.goToDashboard') : t('common.volunteerSignIn');
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl" data-testid="public-page-toolbar">
       <div className="mx-auto flex h-16 w-[min(1200px,calc(100%-24px))] items-center justify-between sm:w-[min(1200px,calc(100%-40px))]">
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-90">
@@ -21,8 +21,11 @@ export function PublicHeader() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <Button asChild variant="ghost" size="sm" className="hidden sm:flex rounded-full">
+          <Button asChild variant="ghost" size="sm" className="hidden sm:flex rounded-full" data-testid="public-page-toolbar-campaigns-anchor">
             <Link to="/#campaigns">{t('home.tabs.campaigns')}</Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm" className="hidden sm:flex rounded-full" data-testid="public-page-toolbar-organizations-anchor">
+            <Link to="/#organizations">{t('home.tabs.organizations')}</Link>
           </Button>
 
           <LanguageSwitcher />
@@ -33,6 +36,7 @@ export function PublicHeader() {
             variant="secondary"
             size="sm"
             className="touch-manipulation bg-secondary text-white! shadow-[0_4px_14px_hsl(216_66%_28%/0.18)] hover:bg-secondary/90 [&_svg]:text-white! sm:ml-1"
+            data-testid="public-page-toolbar-entry-link"
           >
             <Link to={isAuthenticated ? '/dashboard' : '/login'} aria-label={entryLabel} className="text-white!">
               <Compass className="h-4 w-4" aria-hidden="true" />
