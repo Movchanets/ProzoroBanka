@@ -8,7 +8,7 @@ import { TeamAvatarRow } from '@/components/public/TeamAvatarRow';
 import { CampaignStatus } from '@/types';
 import { CampaignTabFilter } from '@/components/public/CampaignTabFilter';
 import { TransparencyChart } from '@/components/public/TransparencyChart';
-import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
+import { Breadcrumbs } from '@/components/public/Breadcrumbs';
 import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { useOrgTransparency, usePublicOrgCampaigns, usePublicOrganization } from '@/hooks/queries/usePublic';
 import { resolveLocalizedText } from '@/lib/localizedText';
@@ -109,7 +109,11 @@ export default function PublicOrganizationPage() {
       />
 
       <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
-        <PublicPageToolbar compact />
+        <Breadcrumbs items={[
+          { label: 'Головна', href: '/' },
+          { label: 'Організації', href: '/#organizations' },
+          { label: org.name }
+        ]} />
 
       <section data-testid="public-org-header" className="rounded-4xl border border-border/80 bg-card/92 p-6 shadow-[0_24px_80px_var(--shadow-soft)] sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

@@ -14,7 +14,7 @@ export function VerifiedBadge({ isVerified, testId = 'public-org-verified-badge'
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge data-testid={testId} variant="secondary" className="inline-flex items-center gap-1.5 bg-accent/12 text-accent">
+          <Badge data-testid={testId} variant="secondary" className="inline-flex cursor-default items-center gap-1.5 border-emerald-500/20 bg-emerald-500/15 text-emerald-600 transition-colors duration-300 hover:bg-emerald-500/25">
             <CheckCircle2 className="size-4" aria-hidden="true" />
             Verified
           </Badge>

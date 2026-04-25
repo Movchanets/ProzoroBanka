@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { CalendarDays, FileCheck2, Loader2, ReceiptText, ShieldCheck, Store } from 'lucide-react';
+import { CalendarDays, ChevronRight, FileCheck2, Loader2, ReceiptText, ShieldCheck, Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PhotoGalleryDialog } from '@/components/ui/photo-gallery-dialog';
-import { PublicPageToolbar } from '@/components/public/PublicPageToolbar';
 import { usePublicReceipt } from '@/hooks/queries/usePublic';
 import { ReceiptItemsTable } from '@/components/receipt/ReceiptItemsTable';
 import type { ReceiptItem } from '@/types';
@@ -23,7 +22,6 @@ export default function PublicReceiptPlaceholderPage() {
   if (isLoading) {
     return (
       <main className="mx-auto flex w-[min(1100px,calc(100%-24px))] flex-col gap-6 py-8 sm:w-[min(1100px,calc(100%-40px))]" data-testid="public-receipt-page">
-        <PublicPageToolbar compact />
         <Card className="rounded-4xl border border-border/80 bg-card/92 shadow-[0_16px_40px_var(--shadow-soft)]">
           <CardContent className="flex min-h-56 items-center justify-center gap-3">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -37,7 +35,6 @@ export default function PublicReceiptPlaceholderPage() {
   if (!receipt || error) {
     return (
       <main className="mx-auto flex w-[min(1100px,calc(100%-24px))] flex-col gap-6 py-8 sm:w-[min(1100px,calc(100%-40px))]" data-testid="public-receipt-page">
-        <PublicPageToolbar compact />
         <Alert variant="destructive" data-testid="public-receipt-not-found-alert">
           <AlertTitle>{t('receipts.public.notFoundTitle')}</AlertTitle>
           <AlertDescription data-testid="public-receipt-not-found">{t('receipts.public.notFoundDescription')}</AlertDescription>
@@ -89,7 +86,23 @@ export default function PublicReceiptPlaceholderPage() {
 
   return (
     <main className="mx-auto flex w-[min(1100px,calc(100%-24px))] flex-col gap-6 py-8 sm:w-[min(1100px,calc(100%-40px))]" data-testid="public-receipt-page">
-      <PublicPageToolbar compact />
+      <nav aria-label="Breadcrumb" className="px-2" data-testid="public-receipt-breadcrumbs">
+        <ol className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <li>
+            <Link to="/" className="hover:text-foreground transition-colors">{t('common.home')}</Link>
+          </li>
+          <li><ChevronRight className="h-4 w-4" /></li>
+          {receipt.campaignId ? (
+            <>
+              <li>
+                <Link to={`/c/${receipt.campaignId}`} className="hover:text-foreground transition-colors">{t('receipts.public.goToCampaign', 'Збір')}</Link>
+              </li>
+              <li><ChevronRight className="h-4 w-4" /></li>
+            </>
+          ) : null}
+          <li className="font-medium text-foreground">{t('receipts.public.viewFullReceipt', 'Повна сторінка чеку')}</li>
+        </ol>
+      </nav>
 
       <section className="overflow-hidden rounded-4xl border border-border/80 bg-card/92 shadow-[0_24px_80px_var(--shadow-soft)]" data-testid="public-receipt-hero">
         <div className="grid gap-0 lg:grid-cols-[1.1fr,0.9fr]">

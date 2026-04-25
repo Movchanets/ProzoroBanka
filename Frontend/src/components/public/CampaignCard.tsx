@@ -40,8 +40,8 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     : 0;
 
   return (
-    <Card className="h-full overflow-hidden border-border/80 bg-card/95 shadow-[0_16px_40px_var(--shadow-soft)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_var(--shadow-soft)]">
-      <CardHeader className="space-y-3 pb-2">
+    <Card className="group h-full overflow-hidden rounded-3xl border-border/80 bg-card/95 shadow-[0_16px_40px_var(--shadow-soft)] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_24px_60px_var(--shadow-soft)]">
+      <CardHeader className="space-y-4 p-6 pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" data-testid="home-campaign-status-badge">{getStatusLabel(campaign.status)}</Badge>
           <VerifiedBadge isVerified={campaign.organizationVerified} testId="home-campaign-org-verified-badge" />
@@ -56,15 +56,15 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
               setPreviewIndex(0);
               setIsPreviewOpen(true);
             }}
-            className="group relative h-24 w-36 cursor-pointer overflow-hidden rounded-xl border border-border/80 bg-muted/20 shadow-[0_10px_24px_var(--shadow-soft)] transition-opacity duration-200 hover:opacity-95"
+            className="group/preview relative h-24 w-36 cursor-pointer overflow-hidden rounded-2xl border border-border/80 bg-muted/20 shadow-[0_10px_24px_var(--shadow-soft)] transition-opacity duration-200 hover:opacity-95"
           >
             <img
               src={campaign.coverImageUrl}
               alt={campaignTitle}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover/preview:scale-110"
               data-testid="home-campaign-cover-thumbnail-image"
             />
-            <span className="pointer-events-none absolute inset-0 grid place-items-center bg-foreground/20 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+            <span className="pointer-events-none absolute inset-0 grid place-items-center bg-foreground/20 opacity-0 transition-opacity duration-300 group-hover/preview:opacity-100">
               <Expand className="h-4 w-4 text-white" aria-hidden="true" />
             </span>
           </button>
@@ -76,7 +76,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         </p>
       </CardHeader>
 
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 p-6 pt-2">
         <Progress value={progress} className="h-2.5" />
         <div className="flex items-center justify-between text-sm">
           <span className="font-semibold text-foreground">{new Intl.NumberFormat('uk-UA').format(campaign.currentAmount)} грн</span>
@@ -84,7 +84,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         </div>
       </CardContent>
 
-      <CardFooter className="flex flex-wrap items-end justify-between gap-3 pt-1">
+      <CardFooter className="flex flex-wrap items-end justify-between gap-3 p-6 pt-1">
         <Link
           data-testid="home-campaign-org-link"
           to={`/o/${campaign.organizationSlug}`}

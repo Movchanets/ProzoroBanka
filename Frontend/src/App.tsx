@@ -39,6 +39,7 @@ const PublicCampaignPage = lazy(() => import('./pages/PublicCampaign/PublicCampa
 const PublicReceiptPlaceholderPage = lazy(() => import('./pages/PublicReceipt/PublicReceiptPlaceholderPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFound/NotFoundPage'));
 
+const PublicLayout = lazy(() => import('./layouts/PublicLayout'));
 const AdminLayout = lazy(() => import('./pages/Admin/AdminLayout'));
 const AdminOrganizationsPage = lazy(() => import('./pages/Admin/AdminOrganizationsPage'));
 const AdminCampaignsPage = lazy(() => import('./pages/Admin/AdminCampaignsPage'));
@@ -139,11 +140,13 @@ function App() {
             <Route path="/invite/:token" element={<InvitePage />} />
 
             {/* Public pages */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/o/:slug" element={<PublicOrganizationPage />} />
-            <Route path="/c/:id" element={<PublicCampaignPage />} />
-            <Route path="/receipt/:id" element={<PublicReceiptPlaceholderPage />} />
-            <Route path="/spending/:id" element={<PublicSpendingPage />} />
+            <Route element={<PublicLayout />}>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/o/:slug" element={<PublicOrganizationPage />} />
+              <Route path="/c/:id" element={<PublicCampaignPage />} />
+              <Route path="/receipt/:id" element={<PublicReceiptPlaceholderPage />} />
+              <Route path="/spending/:id" element={<PublicSpendingPage />} />
+            </Route>
 
             {/* Onboarding — redirect to dashboard if has orgs */}
             <Route

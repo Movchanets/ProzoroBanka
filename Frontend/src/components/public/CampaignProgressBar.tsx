@@ -26,21 +26,21 @@ export function CampaignProgressBar({
   const formatter = new Intl.NumberFormat('uk-UA');
 
   return (
-    <div data-testid={testId} className="space-y-3 rounded-3xl border border-border bg-card p-5">
+    <div data-testid={testId} className="group space-y-4 rounded-3xl border border-border/80 bg-card p-6 shadow-sm transition-all duration-300 hover:shadow-md">
       <div className="space-y-2">
         <div className="space-y-1">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Зібрано</span>
             <span data-testid={`${testId}-raised-percent`}>{Math.round(raisedProgress)}%</span>
           </div>
-          <Progress value={raisedProgress} className="h-3" data-testid={`${testId}-raised-progress`} />
+          <Progress value={raisedProgress} className="h-3 [&>div]:duration-1000 [&>div]:ease-out group-hover:[&>div]:opacity-90" data-testid={`${testId}-raised-progress`} />
         </div>
         <div className="space-y-1">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Задокументовано</span>
             <span data-testid={`${testId}-documented-percent`}>{Math.round(documentedProgress)}%</span>
           </div>
-          <Progress value={documentedProgress} className="h-3 [&>div]:bg-secondary" data-testid={`${testId}-documented-progress`} />
+          <Progress value={documentedProgress} className="h-3 [&>div]:bg-secondary [&>div]:duration-1000 [&>div]:ease-out group-hover:[&>div]:opacity-90" data-testid={`${testId}-documented-progress`} />
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">

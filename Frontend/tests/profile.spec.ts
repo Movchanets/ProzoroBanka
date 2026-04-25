@@ -1,7 +1,7 @@
 import { test, expect } from './support/fixtures';
 
 import { t } from './support/i18n';
-import { loginViaApi, registerRandomUserViaApi, setAuthStorage, type AuthResponse } from './support/e2e-auth';
+import { loginViaApi, registerRandomUserViaApi, setAuthStorage, waitForAppLoaded, type AuthResponse } from './support/e2e-auth';
 import { applyLocale } from './support/locale-matrix';
 
 let validEmail = process.env.E2E_EMAIL ?? '';
@@ -32,7 +32,7 @@ test.describe('User Profile — Display', () => {
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10_000 });
     await profilePage.goto();
-    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
+    await waitForAppLoaded(page);
   });
 
   test('TC-01: Profile page displays user information correctly', async ({ page }) => {
@@ -92,7 +92,7 @@ test.describe('User Profile — Editing', () => {
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10_000 });
     await profilePage.goto();
-    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
+    await waitForAppLoaded(page);
     await expect(page.getByText(t('profile.loadingProfile'))).not.toBeVisible({ timeout: 10000 });
   });
 
@@ -302,7 +302,7 @@ test.describe('User Profile — Edge Cases', () => {
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10_000 });
     await profilePage.goto();
-    await expect(page.getByText(t('common.loadingInterface'))).not.toBeVisible({ timeout: 15000 });
+    await waitForAppLoaded(page);
     await expect(page.getByText(t('profile.loadingProfile'))).not.toBeVisible({ timeout: 10000 });
 
     await page.route('**/api/auth/me', (route) => {
