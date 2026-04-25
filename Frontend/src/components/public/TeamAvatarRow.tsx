@@ -1,11 +1,14 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { PublicTeamMember } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 interface TeamAvatarRowProps {
   members: PublicTeamMember[];
 }
 
 export function TeamAvatarRow({ members }: TeamAvatarRowProps) {
+  const { t } = useTranslation();
+
   return (
     <div data-testid="public-org-team-row" className="flex flex-wrap gap-3">
       {members.map((member) => {
@@ -20,7 +23,7 @@ export function TeamAvatarRow({ members }: TeamAvatarRowProps) {
           </div>
         );
       })}
-      {members.length === 0 ? <p className="text-sm text-muted-foreground">Команда ще не відображається</p> : null}
+      {members.length === 0 ? <p className="text-sm text-muted-foreground">{t('organizations.public.teamEmpty')}</p> : null}
     </div>
   );
 }

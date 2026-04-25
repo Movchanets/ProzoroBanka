@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { ArrowRight, Users, Megaphone, Wallet } from 'lucide-react';
 import type { PublicOrganization } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { VerifiedBadge } from './VerifiedBadge';
 
@@ -9,8 +11,11 @@ interface OrganizationCardProps {
 }
 
 export function OrganizationCard({ organization }: OrganizationCardProps) {
+  const { t, i18n } = useTranslation();
+  const formatter = new Intl.NumberFormat(i18n.language);
+
   return (
-    <Card className="group h-full overflow-hidden rounded-3xl border-border/80 bg-card/95 shadow-[0_16px_40px_var(--shadow-soft)] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_24px_60px_var(--shadow-soft)]">
+    <Card className="group flex h-full flex-col overflow-hidden rounded-3xl border-border/80 bg-card/95 shadow-[0_16px_40px_var(--shadow-soft)] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_24px_60px_var(--shadow-soft)]">
       <CardHeader className="p-6 pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -20,22 +25,44 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
             </Avatar>
             <div>
               <CardTitle className="text-xl">{organization.name}</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">{organization.memberCount} учасників</p>
             </div>
           </div>
           <VerifiedBadge isVerified={organization.isVerified} testId="home-org-verified-badge" />
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 p-6 pt-0">
-        <p className="line-clamp-3 min-h-16 text-sm leading-6 text-muted-foreground">{organization.description || 'Організація ще не додала опис.'}</p>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Активні збори: {organization.activeCampaignCount}</span>
-          <span className="font-semibold text-foreground">{new Intl.NumberFormat('uk-UA').format(organization.totalRaised)} грн</span>
+
+      <CardContent className="flex-1 space-y-4 p-6 pt-0">
+        <p className="line-clamp-3 min-h-16 text-sm leading-6 text-muted-foreground">{organization.description || t('organizations.public.card.descriptionFallback')}</p>
+
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl border border-border/60 bg-muted/30 p-2.5 text-center">
+            <Users className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
+            <p className="text-base font-semibold text-foreground">{organization.memberCount}</p>
+            <p className="text-[11px] leading-tight text-muted-foreground">{t('organizations.public.card.members')}</p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-muted/30 p-2.5 text-center">
+            <Megaphone className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
+            <p className="text-base font-semibold text-foreground">{organization.activeCampaignCount}</p>
+            <p className="text-[11px] leading-tight text-muted-foreground">{t('organizations.public.card.activeCampaigns')}</p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-muted/30 p-2.5 text-center">
+            <Wallet className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
+            <p className="text-base font-semibold text-foreground">{formatter.format(organization.totalRaised)}</p>
+            <p className="text-[11px] leading-tight text-muted-foreground">{t('common.uah')}</p>
+          </div>
         </div>
-        <Link data-testid="home-org-card-link" className="inline-flex rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-[0_8px_20px_hsl(var(--primary)/0.36)] transition-all duration-300 hover:scale-[1.02] hover:opacity-95" to={`/o/${organization.slug}`}>
-          Переглянути організацію
-        </Link>
       </CardContent>
+
+      <CardFooter className="mt-auto p-0">
+        <Link
+          data-testid="home-org-card-link"
+          className="flex w-full items-center justify-between border-t border-border/60 px-6 py-3.5 text-sm font-medium text-muted-foreground transition-colors duration-200 hover:bg-muted/40 hover:text-foreground"
+          to={`/o/${organization.slug}`}
+        >
+          {t('organizations.public.card.viewOrganization')}
+          <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+        </Link>
+      </CardFooter>
     </Card>
   );
 }

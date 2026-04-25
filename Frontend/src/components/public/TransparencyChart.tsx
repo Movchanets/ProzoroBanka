@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { Transparency } from '@/types';
 
 interface TransparencyChartProps {
@@ -5,12 +6,14 @@ interface TransparencyChartProps {
 }
 
 export function TransparencyChart({ data }: TransparencyChartProps) {
+  const { t, i18n } = useTranslation();
   const maxAmount = data.categories.length > 0 ? Math.max(...data.categories.map((c) => c.amount)) : 1;
+  const formatter = new Intl.NumberFormat(i18n.language);
 
   return (
     <section data-testid="public-org-transparency-panel" className="rounded-3xl border border-border bg-card p-5">
-      <h3 className="text-lg font-semibold text-foreground">Прозорість витрат</h3>
-      <p className="mt-1 text-sm text-muted-foreground">Всього підтверджено: {new Intl.NumberFormat('uk-UA').format(data.totalSpent)} грн</p>
+      <h3 className="text-lg font-semibold text-foreground">{t('organizations.public.transparency.title')}</h3>
+      <p className="mt-1 text-sm text-muted-foreground">{t('organizations.public.transparency.totalSpent')} {formatter.format(data.totalSpent)} {t('common.uah')}</p>
 
       <div className="mt-4 space-y-3">
         {data.categories.map((category) => {
@@ -19,7 +22,7 @@ export function TransparencyChart({ data }: TransparencyChartProps) {
             <div key={category.name} className="space-y-1" data-testid={`public-org-transparency-category-${category.name.toLowerCase().replace(/\s+/g, '-')}`}>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-foreground">{category.name}</span>
-                <span className="text-muted-foreground">{new Intl.NumberFormat('uk-UA').format(category.amount)} грн · {Math.round(category.percentage)}%</span>
+                <span className="text-muted-foreground">{formatter.format(category.amount)} {t('common.uah')} · {Math.round(category.percentage)}%</span>
               </div>
               <div className="h-2 rounded-full bg-muted">
                 <div className="h-2 rounded-full bg-secondary" style={{ width: `${widthPercent}%` }} />
@@ -30,13 +33,13 @@ export function TransparencyChart({ data }: TransparencyChartProps) {
 
         {data.categories.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground" data-testid="public-org-transparency-empty">
-            Ще немає даних для відображення категорій витрат.
+            {t('organizations.public.transparency.empty')}
           </p>
         ) : null}
       </div>
 
       <div className="mt-5 space-y-2" data-testid="public-org-transparency-monthly-list">
-        <h4 className="text-sm font-semibold text-foreground">Динаміка по місяцях</h4>
+        <h4 className="text-sm font-semibold text-foreground">{t('organizations.public.transparency.monthlyDynamics')}</h4>
         {data.monthlySpendings.map((monthly) => (
           <div
             key={monthly.month}
@@ -44,7 +47,7 @@ export function TransparencyChart({ data }: TransparencyChartProps) {
             data-testid={`public-org-transparency-month-${monthly.month}`}
           >
             <span className="text-foreground">{monthly.month}</span>
-            <span className="font-medium text-foreground">{new Intl.NumberFormat('uk-UA').format(monthly.amount)} грн</span>
+            <span className="font-medium text-foreground">{formatter.format(monthly.amount)} {t('common.uah')}</span>
           </div>
         ))}
       </div>

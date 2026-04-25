@@ -132,7 +132,7 @@ export default function PublicCampaignPage() {
 
     setActiveGalleryImages([{ src: campaign.coverImageUrl, alt: campaignTitle, caption: campaignTitle }]);
     setActiveGalleryTitle(campaignTitle);
-    setActiveGalleryDescription(t('campaigns.public.coverGalleryDescription', 'Галерея обкладинки збору'));
+    setActiveGalleryDescription(t('campaigns.public.coverGalleryDescription'));
     openGalleryAt(0);
   };
 
@@ -142,7 +142,7 @@ export default function PublicCampaignPage() {
       return;
     }
 
-    const textContent = extractTextFromTiptapJson(post.postContentJson, t('campaigns.public.postTextFallback', 'Оновлення без опису'));
+    const textContent = extractTextFromTiptapJson(post.postContentJson, t('campaigns.public.postTextFallback'));
     setActiveGalleryImages(
       post.images.map((image) => ({
         src: image.imageUrl,
@@ -152,7 +152,7 @@ export default function PublicCampaignPage() {
       })),
     );
     setActiveGalleryTitle(t('campaigns.public.postGalleryTitle', { id: postId.slice(0, 8) }));
-    setActiveGalleryDescription(t('campaigns.public.postGalleryDescription', 'Окрема галерея цього поста'));
+    setActiveGalleryDescription(t('campaigns.public.postGalleryDescription'));
     openGalleryAt(startIndex);
   };
 
@@ -214,7 +214,7 @@ export default function PublicCampaignPage() {
 
       <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
         <Breadcrumbs items={[
-          { label: 'Головна', href: '/' },
+          { label: t('common.home'), href: '/' },
           { label: campaign.organizationName, href: `/o/${campaign.organizationSlug}` },
           { label: campaignTitle }
         ]} />
@@ -272,7 +272,7 @@ export default function PublicCampaignPage() {
                   className="block h-full w-full cursor-pointer"
                   data-testid="public-campaign-cover-open-button"
                   onClick={openCoverGallery}
-                  aria-label="Відкрити обкладинку збору"
+                  aria-label={t('campaigns.public.openCoverImage')}
                 >
                   <img src={campaign.coverImageUrl} alt={campaignTitle} className="h-full w-full object-cover object-center" data-testid="public-campaign-cover-image" />
                 </button>
@@ -300,7 +300,7 @@ export default function PublicCampaignPage() {
             <TabsList data-testid="public-campaign-main-tabs-list" className="w-full justify-start rounded-2xl border border-border/80 bg-card/92 p-1 shadow-[0_10px_24px_var(--shadow-soft)]">
               <TabsTrigger value="updates" data-testid="public-campaign-tab-updates" className="rounded-xl px-4">{t('campaigns.public.updatesTitle')}</TabsTrigger>
               <TabsTrigger value="receipts" data-testid="public-campaign-tab-receipts" className="rounded-xl px-4">{t('campaigns.public.receiptsPreviewTitle')}</TabsTrigger>
-              <TabsTrigger value="spending" data-testid="public-campaign-tab-spending" className="rounded-xl px-4">{t('campaigns.public.spending.title', 'Витрати')}</TabsTrigger>
+              <TabsTrigger value="spending" data-testid="public-campaign-tab-spending" className="rounded-xl px-4">{t('campaigns.public.spending.title')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="updates" data-testid="public-campaign-panel-updates">
@@ -314,13 +314,13 @@ export default function PublicCampaignPage() {
                 <CardContent className="space-y-4">
                   {posts.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground" data-testid="public-campaign-empty-posts">
-                      {t('campaigns.public.postsEmpty', 'Поки що немає публічних оновлень')}
+                      {t('campaigns.public.postsEmpty')}
                     </div>
                   ) : null}
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {posts.map((post, index) => {
                       const selectedImage = post.images[0];
-                      const textContent = extractTextFromTiptapJson(post.postContentJson, t('campaigns.public.postTextFallback', 'Оновлення без опису'));
+                      const textContent = extractTextFromTiptapJson(post.postContentJson, t('campaigns.public.postTextFallback'));
 
                       return (
                         <article key={post.id} className="overflow-hidden rounded-2xl border border-border/70 bg-muted/15 shadow-[0_10px_24px_var(--shadow-soft)]" data-testid={`public-campaign-post-${index}`}>
@@ -333,7 +333,7 @@ export default function PublicCampaignPage() {
                                 }}
                                 className="group block w-full cursor-pointer"
                                 data-testid={`public-campaign-post-open-button-${index}`}
-                                aria-label={t('campaigns.public.openPostImage', 'Відкрити фото оновлення')}
+                                aria-label={t('campaigns.public.openPostImage')}
                               >
                                 <img
                                   src={selectedImage.imageUrl}
@@ -433,10 +433,10 @@ export default function PublicCampaignPage() {
                   <CardTitle className="flex items-center justify-between gap-2 text-xl">
                     <span className="flex items-center gap-2">
                       <Wallet className="h-5 w-5 text-primary" />
-                      {t('campaigns.public.spending.title', 'Витрати')}
+                      {t('campaigns.public.spending.title')}
                     </span>
                     <Badge variant="outline" data-testid="public-campaign-spending-total-badge">
-                      {t('campaigns.public.spending.total', 'Разом: {{amount}}', {
+                      {t('campaigns.public.spending.total', {
                         amount: formatPublicAmount(publicPurchasesTotal / 100, locale, t('common.na')),
                       })}
                     </Badge>
@@ -446,7 +446,7 @@ export default function PublicCampaignPage() {
                   {purchasesQuery.isLoading ? <Skeleton className="h-24 rounded-2xl" /> : null}
                   {!purchasesQuery.isLoading && publicPurchasesSorted.length === 0 ? (
                     <div data-testid="public-campaign-spending-empty" className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
-                      {t('campaigns.public.spending.empty', 'Поки що немає публічних витрат')}
+                      {t('campaigns.public.spending.empty')}
                     </div>
                   ) : null}
 
@@ -478,7 +478,7 @@ export default function PublicCampaignPage() {
 
                               <div className="mt-3 flex flex-wrap items-center gap-2" data-testid={`public-campaign-spending-doc-summary-${index}`}>
                                 <Badge variant="outline" className="border-border/60">
-                                  {t('campaigns.public.spending.documentsCount', 'Документів: {{count}}', { count: purchase.documents.length })}
+                                  {t('campaigns.public.spending.documentsCount', { count: purchase.documents.length })}
                                 </Badge>
                                 {visibleCounterparties.length > 0 ? (
                                   <Badge variant="secondary" data-testid={`public-campaign-spending-counterparty-${index}`}>
@@ -487,14 +487,14 @@ export default function PublicCampaignPage() {
                                 ) : null}
                                 {restrictedDocuments > 0 ? (
                                   <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20" data-testid={`public-campaign-spending-restricted-${index}`}>
-                                    {t('campaigns.public.spending.transferActSecured', 'Є захищені Transfer Act документи')}
+                                    {t('campaigns.public.spending.transferActSecured')}
                                   </Badge>
                                 ) : null}
                               </div>
 
                               {visibleDocuments.length === 0 ? (
                                 <div className="mt-4 rounded-xl border border-dashed border-border p-3 text-xs text-muted-foreground" data-testid={`public-campaign-spending-no-visible-docs-${index}`}>
-                                  {t('campaigns.public.spending.noVisibleDocuments', 'Для цієї витрати доступні лише захищені документи.')}
+                                  {t('campaigns.public.spending.noVisibleDocuments')}
                                 </div>
                               ) : (
                                 <div className="mt-4 space-y-2" data-testid={`public-campaign-spending-documents-${index}`}>
@@ -503,7 +503,7 @@ export default function PublicCampaignPage() {
                                     const documentDateLabel = document.documentDate
                                       ? new Date(document.documentDate).toLocaleDateString(locale)
                                       : t('campaigns.public.receiptDateFallback');
-                                    const documentName = document.originalFileName || t('campaigns.public.spending.documentFallbackName', 'Документ без назви');
+                                    const documentName = document.originalFileName || t('campaigns.public.spending.documentFallbackName');
 
                                     return (
                                       <div
@@ -519,7 +519,7 @@ export default function PublicCampaignPage() {
                                               </Badge>
                                               {document.items?.length ? (
                                                 <Badge variant="secondary" data-testid={`public-campaign-spending-document-items-count-${index}-${documentIndex}`}>
-                                                  {t('campaigns.public.spending.itemsCount', 'Позицій: {{count}}', { count: document.items.length })}
+                                                  {t('campaigns.public.spending.itemsCount', { count: document.items.length })}
                                                 </Badge>
                                               ) : null}
                                             </div>
@@ -527,7 +527,7 @@ export default function PublicCampaignPage() {
                                               {documentName}
                                             </p>
                                             <p className="text-xs text-muted-foreground" data-testid={`public-campaign-spending-document-counterparty-${index}-${documentIndex}`}>
-                                              {document.counterpartyName || t('campaigns.public.spending.counterpartyFallback', 'Контрагент не вказаний')}
+                                              {document.counterpartyName || t('campaigns.public.spending.counterpartyFallback')}
                                             </p>
                                             <p className="text-xs text-muted-foreground" data-testid={`public-campaign-spending-document-date-${index}-${documentIndex}`}>
                                               {documentDateLabel}
@@ -541,7 +541,7 @@ export default function PublicCampaignPage() {
                                               <Button asChild variant="outline" size="sm" data-testid={`public-campaign-spending-document-open-${index}-${documentIndex}`}>
                                                 <a href={document.fileUrl} target="_blank" rel="noopener noreferrer">
                                                   <Eye className="h-4 w-4" />
-                                                  {t('campaigns.public.spending.openDocument', 'Переглянути')}
+                                                  {t('campaigns.public.spending.openDocument')}
                                                 </a>
                                               </Button>
                                             ) : null}
@@ -557,7 +557,7 @@ export default function PublicCampaignPage() {
                                 <Button asChild variant="outline" size="sm" className="rounded-xl transition-colors hover:bg-primary/10 hover:text-primary" data-testid={`public-campaign-spending-open-full-${index}`}>
                                   <Link to={`/spending/${purchase.id}`}>
                                     <Eye className="h-4 w-4" />
-                                    {t('campaigns.public.spending.viewFullExpense', 'Повна сторінка витрати')}
+                                    {t('campaigns.public.spending.viewFullExpense')}
                                   </Link>
                                 </Button>
                               </div>
@@ -587,7 +587,7 @@ export default function PublicCampaignPage() {
           currentIndex={galleryIndex}
           onIndexChange={setGalleryIndex}
           title={activeGalleryTitle || campaignTitle}
-          description={activeGalleryDescription || t('campaigns.public.coverGalleryDescription', 'Галерея обкладинки збору')}
+          description={activeGalleryDescription || t('campaigns.public.coverGalleryDescription')}
           testIdPrefix="public-campaign-gallery"
         />
 

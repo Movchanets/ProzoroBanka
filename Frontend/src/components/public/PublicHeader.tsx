@@ -9,7 +9,7 @@ import { useAuthStore } from '@/stores/authStore';
 export function PublicHeader() {
   const { t } = useTranslation();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const entryLabel = isAuthenticated ? t('common.goToOrganizationsMenu', 'В кабінет') : t('common.volunteerSignIn', 'Вхід для волонтерів');
+  const entryLabel = isAuthenticated ? t('common.goToDashboard') : t('common.volunteerSignIn');
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl">
@@ -22,7 +22,7 @@ export function PublicHeader() {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <Button asChild variant="ghost" size="sm" className="hidden sm:flex rounded-full">
-            <Link to="/#campaigns">{t('home.tabs.campaigns', 'Всі збори')}</Link>
+            <Link to="/#campaigns">{t('home.tabs.campaigns')}</Link>
           </Button>
 
           <LanguageSwitcher />

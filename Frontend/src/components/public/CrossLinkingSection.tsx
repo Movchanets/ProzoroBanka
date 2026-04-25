@@ -16,7 +16,7 @@ export function CrossLinkingSection({ currentCampaignId }: CrossLinkingSectionPr
   if (isLoading) {
     return (
       <section className="mt-8 space-y-4">
-        <h2 className="text-2xl font-bold">{t('campaigns.public.otherActiveCampaigns', 'Інші активні збори')}</h2>
+        <h2 className="text-2xl font-bold">{t('campaigns.public.otherActiveCampaigns')}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-64 rounded-3xl" />
@@ -32,7 +32,7 @@ export function CrossLinkingSection({ currentCampaignId }: CrossLinkingSectionPr
 
   return (
     <section className="mt-8 space-y-4" data-testid="public-cross-linking-section">
-      <h2 className="text-2xl font-bold">{t('campaigns.public.otherActiveCampaigns', 'Інші активні збори')}</h2>
+      <h2 className="text-2xl font-bold">{t('campaigns.public.otherActiveCampaigns')}</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {otherCampaigns.map((campaign) => (
           <CampaignCard key={campaign.id} campaign={campaign} />

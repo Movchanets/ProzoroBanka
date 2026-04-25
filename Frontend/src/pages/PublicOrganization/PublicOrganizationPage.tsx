@@ -31,15 +31,15 @@ function resolveSiteBaseUrl(): string {
   return LOCALHOST_ORIGIN_REGEX.test(window.location.origin) ? '' : window.location.origin;
 }
 
+const SITE_BASE_URL = resolveSiteBaseUrl();
+
 function buildSiteUrl(path: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return SITE_BASE_URL ? `${SITE_BASE_URL}${normalizedPath}` : normalizedPath;
 }
 
-const SITE_BASE_URL = resolveSiteBaseUrl();
-
 export default function PublicOrganizationPage() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { slug } = useParams<{ slug: string }>();
   const [tab, setTab] = useState<'all' | 'active' | 'completed'>('all');
 
@@ -57,8 +57,8 @@ export default function PublicOrganizationPage() {
     return (
       <main className="mx-auto w-[min(1200px,calc(100%-24px))] py-6">
         <Alert variant="destructive">
-          <AlertTitle>Не вдалося завантажити організацію</AlertTitle>
-          <AlertDescription>Перевірте посилання або спробуйте пізніше.</AlertDescription>
+          <AlertTitle>{t('organizations.public.detail.errorTitle')}</AlertTitle>
+          <AlertDescription>{t('organizations.public.detail.errorDescription')}</AlertDescription>
         </Alert>
       </main>
     );
@@ -70,10 +70,15 @@ export default function PublicOrganizationPage() {
   return (
     <>
       <SeoHelmet
-        title={organizationForSeo ? `${organizationForSeo.name}: прозорість, звіти, збори | ProzoroBanka` : 'Організація | ProzoroBanka'}
+        title={organizationForSeo 
+          ? t('organizations.public.detail.seoTitle', { name: organizationForSeo.name }) 
+          : t('organizations.public.detail.seoTitleFallback')}
         description={organizationForSeo
-          ? `${organizationForSeo.name}. ${organizationForSeo.description ?? 'Публічний профіль організації'} Перевірка, активні збори та прозора звітність.`
-          : 'Профіль волонтерської організації з відкритими показниками прозорості і переліком зборів.'}
+          ? t('organizations.public.detail.seoDescription', { 
+              name: organizationForSeo.name, 
+              description: organizationForSeo.description || t('organizations.public.detail.descriptionFallback') 
+            })
+          : t('organizations.public.detail.seoDescriptionFallback')}
         canonicalPath={slug ? `/o/${slug}` : '/o'}
         robots="index,follow"
         jsonLd={organizationForSeo
@@ -93,7 +98,7 @@ export default function PublicOrganizationPage() {
                 {
                   '@type': 'ListItem',
                   position: 1,
-                  name: 'Головна',
+                  name: t('common.home'),
                   item: buildSiteUrl('/'),
                 },
                 {
@@ -110,8 +115,8 @@ export default function PublicOrganizationPage() {
 
       <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
         <Breadcrumbs items={[
-          { label: 'Головна', href: '/' },
-          { label: 'Організації', href: '/#organizations' },
+          { label: t('common.home'), href: '/' },
+          { label: t('home.tabs.organizations'), href: '/#organizations' },
           { label: org.name }
         ]} />
 
@@ -119,7 +124,7 @@ export default function PublicOrganizationPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-3xl font-extrabold leading-tight text-foreground">{org.name}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">{org.description || 'Опис організації поки відсутній.'}</p>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">{org.description || t('organizations.public.detail.descriptionFallback')}</p>
             {org.website ? (
               <a
                 data-testid="public-org-website-link"
@@ -128,7 +133,7 @@ export default function PublicOrganizationPage() {
                 target="_blank"
                 rel="noreferrer"
               >
-                Вебсайт організації
+                {t('organizations.public.detail.websiteLink')}
               </a>
             ) : null}
           </div>
@@ -138,7 +143,7 @@ export default function PublicOrganizationPage() {
 
       <Card className="border-border/80 bg-card/92 shadow-[0_16px_40px_var(--shadow-soft)]">
         <CardHeader>
-          <CardTitle>Команда</CardTitle>
+          <CardTitle>{t('organizations.public.detail.teamTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           <TeamAvatarRow members={org.teamMembers} />
@@ -149,7 +154,7 @@ export default function PublicOrganizationPage() {
 
       <Card className="border-border/80 bg-card/92 shadow-[0_16px_40px_var(--shadow-soft)]">
         <CardHeader className="gap-4">
-          <CardTitle>Збори</CardTitle>
+          <CardTitle>{t('organizations.public.detail.campaignsTitle')}</CardTitle>
           <CampaignTabFilter value={tab} onChange={setTab} />
         </CardHeader>
         <CardContent>
@@ -157,7 +162,7 @@ export default function PublicOrganizationPage() {
 
           {!campaignsQuery.isLoading && campaigns.length === 0 ? (
             <div data-testid="public-org-empty-campaigns" className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
-              У цієї організації ще немає зборів у вибраному статусі.
+              {t('organizations.public.detail.campaignsEmpty')}
             </div>
           ) : null}
 
@@ -171,7 +176,7 @@ export default function PublicOrganizationPage() {
                   className="rounded-2xl border border-border/80 bg-card/90 p-4 shadow-[0_10px_24px_var(--shadow-soft)] transition-colors duration-200 hover:bg-muted/50"
                 >
                   <p className="font-semibold text-foreground">{resolveLocalizedText(campaign.titleUk, campaign.titleEn, i18n.language)}</p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">{campaign.description || 'Без опису'}</p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">{campaign.description || t('organizations.public.detail.campaignDescriptionFallback')}</p>
                 </Link>
               ))}
             </div>

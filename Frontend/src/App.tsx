@@ -72,8 +72,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
   }
 
+  // Return null instead of <RouteFallback /> to avoid duplicating the loader
+  // text when the outer <Suspense> boundary is also showing its fallback.
   if (isResolvingSession) {
-    return <RouteFallback />;
+    return null;
   }
 
   return <>{children}</>;
@@ -86,8 +88,9 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
+  // Return null instead of <RouteFallback /> — see ProtectedRoute comment.
   if (isResolvingSession) {
-    return <RouteFallback />;
+    return null;
   }
 
   return <Navigate to={defaultAuthenticatedPath} replace />;

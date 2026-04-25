@@ -36,7 +36,10 @@
     "leave": "Покинути",
     "open": "Відкрити",
     "na": "Н/д",
-    "home": "Головна"
+    "home": "Головна",
+    "uah": "грн",
+    "verified": "Підтверджено",
+    "verifiedHint": "Організація підтверджена платформою"
   },
   "auth": {
     "login": {
@@ -314,6 +317,35 @@
       "contactEmail": "Контактний email",
       "cropTitle": "Обрізати логотип",
       "cropDescription": "Оберіть квадратну область для логотипу організації"
+    },
+    "public": {
+      "card": {
+        "members": "учасників",
+        "descriptionFallback": "Організація ще не додала опис.",
+        "activeCampaigns": "Активні збори:",
+        "viewOrganization": "Переглянути організацію"
+      },
+      "transparency": {
+        "title": "Прозорість витрат",
+        "totalSpent": "Всього підтверджено:",
+        "empty": "Ще немає даних для відображення категорій витрат.",
+        "monthlyDynamics": "Динаміка по місяцях"
+      },
+      "teamEmpty": "Команда ще не відображається",
+      "detail": {
+        "errorTitle": "Не вдалося завантажити організацію",
+        "errorDescription": "Перевірте посилання або спробуйте пізніше.",
+        "seoTitle": "{{name}}: прозорість, звіти, збори | ProzoroBanka",
+        "seoTitleFallback": "Організація | ProzoroBanka",
+        "seoDescription": "{{name}}. {{description}} Перевірка, активні збори та прозора звітність.",
+        "seoDescriptionFallback": "Профіль волонтерської організації з відкритими показниками прозорості і переліком зборів.",
+        "descriptionFallback": "Опис організації поки відсутній.",
+        "websiteLink": "Вебсайт організації",
+        "teamTitle": "Команда",
+        "campaignsTitle": "Збори",
+        "campaignsEmpty": "У цієї організації ще немає зборів у вибраному статусі.",
+        "campaignDescriptionFallback": "Без опису"
+      }
     }
   },
   "campaigns": {
@@ -486,6 +518,22 @@
       "success": "Прогрес збору оновлено",
       "error": "Не вдалося оновити прогрес збору"
     },
+    "card": {
+      "statusActive": "Активний",
+      "statusCompleted": "Завершений",
+      "statusPaused": "Призупинений",
+      "statusDraft": "Чернетка",
+      "openPhoto": "Відкрити фото збору",
+      "viewCampaign": "Переглянути збір",
+      "previewDescription": "Попередній перегляд фото збору"
+    },
+    "progressBar": {
+      "collected": "Зібрано",
+      "documented": "Задокументовано",
+      "goal": "ціль",
+      "documentedLabel": "Задокументовано:",
+      "documentedShare": "Документовано {{percent}}% від зібраного"
+    },
     "public": {
       "errorTitle": "Не вдалося завантажити збір",
       "errorDescription": "Перевірте посилання або спробуйте пізніше.",
@@ -495,6 +543,7 @@
       "seoDescriptionFallback": "Публічна сторінка благодійного збору з деталями прогресу та витрат.",
       "topBadge": "Публічний прозорий збір",
       "descriptionFallback": "Опис збору поки не додано.",
+      "otherActiveCampaigns": "Інші активні збори",
       "supportCampaign": "Підтримати збір",
       "kpiCollected": "Зібрано",
       "kpiGoal": "Мета",
@@ -503,6 +552,8 @@
       "coverPlaceholderDescription": "Після інтеграції медіа тут буде обкладинка збору.",
       "updatesTitle": "Оновлення кампанії",
       "postTextFallback": "Оновлення без опису",
+      "postsEmpty": "Поки що немає публічних оновлень",
+      "openCoverImage": "Відкрити обкладинку збору",
       "openPostImage": "Відкрити фото оновлення",
       "prevImage": "Попереднє зображення",
       "nextImage": "Наступне зображення",
@@ -839,7 +890,10 @@
       "detailsTitle": "Деталі чека",
       "receiptIdLabel": "ID чека",
       "merchantLabel": "Магазин",
-      "taxVerificationLabel": "Перевірка ДПС"
+      "taxVerificationLabel": "Перевірка ДПС",
+      "dateNotSpecified": "Дата не вказана",
+      "noMerchantName": "Без назви мерчанта",
+      "viewReceipt": "Переглянути чек"
     }
   },
   "purchases": {
