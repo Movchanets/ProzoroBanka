@@ -6,15 +6,19 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+COMPOSE_ENV_FILE="$REPO_ROOT/docker-compose.playwright.env"
 
-COMPOSE_CMD="docker compose -f docker-compose.yml -f docker-compose.ci.yml"
 DB_NAME="${PLAYWRIGHT_TEST_DB:-prozoro_banka_ci}"
+
+compose() {
+	docker compose --env-file "$COMPOSE_ENV_FILE" -f docker-compose.yml -f docker-compose.ci.yml "$@"
+}
 
 cd "$REPO_ROOT"
 
 echo "[cleanup-test-db] Cleaning database '$DB_NAME'..."
 
-$COMPOSE_CMD exec -T postgres psql -U postgres -d "$DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
+compose exec -T postgres psql -U postgres -d "$DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
 DO
 $$
 DECLARE

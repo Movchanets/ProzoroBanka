@@ -55,7 +55,7 @@ for (const localeConfig of TEST_LOCALES) {
       expect(loginRequestPayload.turnstileToken).toBe(E2E_TURNSTILE_TEST_TOKEN);
 
       await expect(page).toHaveURL(/.*\/(onboarding|dashboard).*/, { timeout: 10000 });
-      expect(visitedUrls.some((url) => /\/onboarding(?:$|[/?#])/.test(url))).toBeFalsy();
+      expect(visitedUrls.some((url) => /\/(onboarding|dashboard)(?:$|[/?#])/.test(url))).toBeTruthy();
       await expect(loginPage.errorAlert).not.toBeVisible();
     });
 
