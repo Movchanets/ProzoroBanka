@@ -39,7 +39,8 @@ export function useAdminOrganizations(page: number, verifiedOnly?: boolean, sear
   return useQuery({
     queryKey: adminQueryKeys.organizations(page, verifiedOnly, search),
     queryFn: () => {
-      const url = new URL('/api/admin/organizations', window.location.origin);
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+      const url = new URL('/api/admin/organizations', origin);
       url.searchParams.set('page', page.toString());
       if (verifiedOnly !== undefined && verifiedOnly !== null) {
         url.searchParams.set('verifiedOnly', String(verifiedOnly));

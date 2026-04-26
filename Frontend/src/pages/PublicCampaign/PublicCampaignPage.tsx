@@ -13,30 +13,31 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
 import { Breadcrumbs } from '@/components/public/Breadcrumbs';
 import { CrossLinkingSection } from '@/components/public/CrossLinkingSection';
-import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { usePublicCampaign, usePublicCampaignReceipts } from '@/hooks/queries/usePublic';
 import { usePublicPurchases } from '@/hooks/queries/usePurchases';
 import { resolveLocalizedText } from '@/lib/localizedText';
 import { extractTextFromTiptapJson } from '@/lib/tiptapContent';
 import { DocumentType } from '@/types';
+import type { MetaDescriptor } from 'react-router';
 
-const ENV_SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '');
-const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
-
-function resolveSiteBaseUrl(): string {
-  if (ENV_SITE_BASE_URL) {
-    return ENV_SITE_BASE_URL;
-  }
-
-  return LOCALHOST_ORIGIN_REGEX.test(window.location.origin) ? '' : window.location.origin;
+// eslint-disable-next-line react-refresh/only-export-components
+export function meta(): MetaDescriptor[] {
+  return [
+    { title: 'Публічна сторінка збору | ProzoroBanka' },
+    {
+      name: 'description',
+      content: 'Сторінка збору з прогресом, деталями витрат і підтвердженими чеками.',
+    },
+    { name: 'robots', content: 'index,follow' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:title', content: 'Публічна сторінка збору | ProzoroBanka' },
+    {
+      property: 'og:description',
+      content: 'Сторінка збору з прогресом, деталями витрат і підтвердженими чеками.',
+    },
+    { name: 'twitter:card', content: 'summary_large_image' },
+  ];
 }
-
-function buildSiteUrl(path: string): string {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return SITE_BASE_URL ? `${SITE_BASE_URL}${normalizedPath}` : normalizedPath;
-}
-
-const SITE_BASE_URL = resolveSiteBaseUrl();
 
 function formatPublicAmount(value: number | undefined, locale: string, emptyText: string) {
   if (typeof value !== 'number') {
@@ -80,10 +81,6 @@ export default function PublicCampaignPage() {
   const receiptsQuery = usePublicCampaignReceipts(id, 1);
   const purchasesQuery = usePublicPurchases(id ?? '', Boolean(id));
 
-  const campaignForSeo = campaignQuery.data;
-  const campaignForSeoTitle = campaignForSeo
-    ? resolveLocalizedText(campaignForSeo.titleUk, campaignForSeo.titleEn, i18n.language)
-    : '';
   const receipts = receiptsQuery.data?.items ?? [];
   const publicPurchases = purchasesQuery.data ?? [];
   const publicPurchasesSorted = [...publicPurchases].sort(
@@ -158,60 +155,6 @@ export default function PublicCampaignPage() {
 
   return (
     <>
-      <SeoHelmet
-        title={campaignForSeo
-          ? t('campaigns.public.seoTitleWithName', { title: campaignForSeoTitle })
-          : t('campaigns.public.seoTitleFallback')}
-        description={campaignForSeo
-          ? t('campaigns.public.seoDescriptionWithName', {
-            title: campaignForSeoTitle,
-            organizationName: campaignForSeo.organizationName,
-          })
-          : t('campaigns.public.seoDescriptionFallback')}
-        canonicalPath={id ? `/c/${id}` : '/c'}
-        robots="index,follow"
-        jsonLd={campaignForSeo
-          ? [
-            {
-              '@context': 'https://schema.org',
-              '@type': 'WebPage',
-              name: campaignForSeoTitle,
-              description: campaignForSeo.description,
-              url: buildSiteUrl(`/c/${campaignForSeo.id}`),
-              isPartOf: {
-                '@type': 'WebSite',
-                name: 'ProzoroBanka',
-                url: SITE_BASE_URL || undefined,
-              },
-            },
-            {
-              '@context': 'https://schema.org',
-              '@type': 'BreadcrumbList',
-              itemListElement: [
-                {
-                  '@type': 'ListItem',
-                  position: 1,
-                  name: t('common.home'),
-                  item: buildSiteUrl('/'),
-                },
-                {
-                  '@type': 'ListItem',
-                  position: 2,
-                  name: campaignForSeo.organizationName,
-                  item: buildSiteUrl(`/o/${campaignForSeo.organizationSlug}`),
-                },
-                {
-                  '@type': 'ListItem',
-                  position: 3,
-                  name: campaignForSeoTitle,
-                  item: buildSiteUrl(`/c/${campaignForSeo.id}`),
-                },
-              ],
-            },
-          ]
-          : undefined}
-      />
-
       <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
         <Breadcrumbs items={[
           { label: t('common.home'), href: '/' },

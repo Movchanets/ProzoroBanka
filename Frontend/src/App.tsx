@@ -1,15 +1,13 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
 import { queryClient } from './services/queryClient';
 import { useAuthStore } from './stores/authStore';
 import { AppRoles, hasAppRole } from './constants/appRoles';
 import { Toaster } from './components/ui/sonner';
-import { RouteSeoSync } from './hooks/useRouteSeo';
-import { Loader2 } from 'lucide-react';
 import { useAuthNavigation } from './hooks/useAuthNavigation';
 import PublicSpendingPage from './pages/PublicSpending/PublicSpendingPage';
+import { AppLoadingFallback } from './components/AppLoadingFallback';
 
 const LoginPage = lazy(() => import('./pages/Login/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/Register/RegisterPage'));
@@ -50,18 +48,6 @@ const AdminSettingsPage = lazy(() => import('./pages/Admin/AdminSettingsPage'));
 const ReactQueryDevtools = import.meta.env.DEV
   ? lazy(() => import('@tanstack/react-query-devtools').then((module) => ({ default: module.ReactQueryDevtools })))
   : null;
-
-function RouteFallback() {
-  const { t } = useTranslation();
-  return (
-    <div className="mx-auto flex min-h-screen w-[min(1180px,calc(100%-32px))] items-center justify-center py-8 max-sm:w-[min(1180px,calc(100%-20px))]">
-      <div className="flex flex-col items-center justify-center gap-4 rounded-4xl border border-border bg-card/80 px-6 py-8 text-sm font-semibold text-muted-foreground shadow-[0_24px_80px_var(--shadow-soft)] backdrop-blur-xl">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" aria-hidden="true" />
-        <div>{t('common.loadingInterface')}</div>
-      </div>
-    </div>
-  );
-}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -130,8 +116,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <RouteSeoSync />
-        <Suspense fallback={<RouteFallback />}>
+        <Suspense fallback={<AppLoadingFallback />}>
           <Routes>
             {/* Guest routes */}
             <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />

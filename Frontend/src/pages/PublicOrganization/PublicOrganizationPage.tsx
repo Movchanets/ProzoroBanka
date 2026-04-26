@@ -9,10 +9,10 @@ import { CampaignStatus } from '@/types';
 import { CampaignTabFilter } from '@/components/public/CampaignTabFilter';
 import { TransparencyChart } from '@/components/public/TransparencyChart';
 import { Breadcrumbs } from '@/components/public/Breadcrumbs';
-import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { useOrgTransparency, usePublicOrgCampaigns, usePublicOrganization } from '@/hooks/queries/usePublic';
 import { resolveLocalizedText } from '@/lib/localizedText';
 import { useTranslation } from 'react-i18next';
+import type { MetaDescriptor } from 'react-router';
 
 function mapTabToStatus(tab: 'all' | 'active' | 'completed') {
   if (tab === 'active') return CampaignStatus.Active;
@@ -20,22 +20,23 @@ function mapTabToStatus(tab: 'all' | 'active' | 'completed') {
   return undefined;
 }
 
-const ENV_SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '');
-const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
-
-function resolveSiteBaseUrl(): string {
-  if (ENV_SITE_BASE_URL) {
-    return ENV_SITE_BASE_URL;
-  }
-
-  return LOCALHOST_ORIGIN_REGEX.test(window.location.origin) ? '' : window.location.origin;
-}
-
-const SITE_BASE_URL = resolveSiteBaseUrl();
-
-function buildSiteUrl(path: string): string {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return SITE_BASE_URL ? `${SITE_BASE_URL}${normalizedPath}` : normalizedPath;
+// eslint-disable-next-line react-refresh/only-export-components
+export function meta(): MetaDescriptor[] {
+  return [
+    { title: 'Публічний профіль організації | ProzoroBanka' },
+    {
+      name: 'description',
+      content: 'Профіль організації з перевіркою, активними зборами та публічними показниками прозорості.',
+    },
+    { name: 'robots', content: 'index,follow' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:title', content: 'Публічний профіль організації | ProzoroBanka' },
+    {
+      property: 'og:description',
+      content: 'Профіль організації з перевіркою, активними зборами та публічними показниками прозорості.',
+    },
+    { name: 'twitter:card', content: 'summary_large_image' },
+  ];
 }
 
 export default function PublicOrganizationPage() {
@@ -46,8 +47,6 @@ export default function PublicOrganizationPage() {
   const organizationQuery = usePublicOrganization(slug);
   const campaignsQuery = usePublicOrgCampaigns(slug, mapTabToStatus(tab), 1);
   const transparencyQuery = useOrgTransparency(slug);
-
-  const organizationForSeo = organizationQuery.data;
 
   if (organizationQuery.isLoading) {
     return <div className="mx-auto w-[min(1200px,calc(100%-24px))] py-6 sm:w-[min(1200px,calc(100%-40px))]"><Skeleton className="h-72 rounded-4xl shadow-[0_16px_40px_var(--shadow-soft)]" /></div>;
@@ -69,50 +68,6 @@ export default function PublicOrganizationPage() {
 
   return (
     <>
-      <SeoHelmet
-        title={organizationForSeo 
-          ? t('organizations.public.detail.seoTitle', { name: organizationForSeo.name }) 
-          : t('organizations.public.detail.seoTitleFallback')}
-        description={organizationForSeo
-          ? t('organizations.public.detail.seoDescription', { 
-              name: organizationForSeo.name, 
-              description: organizationForSeo.description || t('organizations.public.detail.descriptionFallback') 
-            })
-          : t('organizations.public.detail.seoDescriptionFallback')}
-        canonicalPath={slug ? `/o/${slug}` : '/o'}
-        robots="index,follow"
-        jsonLd={organizationForSeo
-          ? [
-            {
-              '@context': 'https://schema.org',
-              '@type': 'Organization',
-              name: organizationForSeo.name,
-              url: buildSiteUrl(`/o/${organizationForSeo.slug}`),
-              description: organizationForSeo.description,
-              sameAs: organizationForSeo.website ? [organizationForSeo.website] : undefined,
-            },
-            {
-              '@context': 'https://schema.org',
-              '@type': 'BreadcrumbList',
-              itemListElement: [
-                {
-                  '@type': 'ListItem',
-                  position: 1,
-                  name: t('common.home'),
-                  item: buildSiteUrl('/'),
-                },
-                {
-                  '@type': 'ListItem',
-                  position: 2,
-                  name: organizationForSeo.name,
-                  item: buildSiteUrl(`/o/${organizationForSeo.slug}`),
-                },
-              ],
-            },
-          ]
-          : undefined}
-      />
-
       <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
         <Breadcrumbs items={[
           { label: t('common.home'), href: '/' },

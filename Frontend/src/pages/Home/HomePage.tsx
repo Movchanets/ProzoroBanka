@@ -9,26 +9,33 @@ import { CampaignStatus } from '@/types';
 import { OrganizationCard } from '@/components/public/OrganizationCard';
 import { CampaignCard } from '@/components/public/CampaignCard';
 import { ComingSoonStub } from '@/components/public/ComingSoonStub';
-import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { useHomeCampaignFeed, usePublicCampaignCategories, useSearchOrganizations } from '@/hooks/queries/usePublic';
 import { useTranslation } from 'react-i18next';
 import { resolveLocalizedText } from '@/lib/localizedText';
 import { useLocation, useNavigate } from 'react-router-dom';
+import type { MetaDescriptor } from 'react-router';
 
 type HomeTab = 'campaigns' | 'organizations';
 type CampaignFilterStatus = 'all' | 'active' | 'completed';
-const ENV_SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '');
-const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 
-function resolveSiteBaseUrl(): string {
-  if (ENV_SITE_BASE_URL) {
-    return ENV_SITE_BASE_URL;
-  }
-
-  return LOCALHOST_ORIGIN_REGEX.test(window.location.origin) ? '' : window.location.origin;
+// eslint-disable-next-line react-refresh/only-export-components
+export function meta(): MetaDescriptor[] {
+  return [
+    { title: 'Прозорі благодійні збори та організації | ProzoroBanka' },
+    {
+      name: 'description',
+      content: 'Платформа публічної фінансової прозорості для волонтерських організацій і благодійних зборів.',
+    },
+    { name: 'robots', content: 'index,follow' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:title', content: 'Прозорі благодійні збори та організації | ProzoroBanka' },
+    {
+      property: 'og:description',
+      content: 'Платформа публічної фінансової прозорості для волонтерських організацій і благодійних зборів.',
+    },
+    { name: 'twitter:card', content: 'summary_large_image' },
+  ];
 }
-
-const SITE_BASE_URL = resolveSiteBaseUrl();
 
 function parseHomeTabFromHash(hash: string): HomeTab | null {
   if (hash === '#campaigns') {
@@ -84,7 +91,6 @@ export default function HomePage() {
   const emptyText = tab === 'campaigns'
     ? t('home.empty.campaigns')
     : t('home.empty.organizations');
-  const inLanguage = i18n.resolvedLanguage?.startsWith('en') ? 'en-US' : 'uk-UA';
 
   const handleTabChange = useCallback((value: string) => {
     const nextTab = value as HomeTab;
@@ -114,20 +120,6 @@ export default function HomePage() {
 
   return (
     <>
-      <SeoHelmet
-        title={t('home.seo.title')}
-        description={t('home.seo.description')}
-        canonicalPath="/"
-        robots="index,follow"
-        jsonLd={{
-          '@context': 'https://schema.org',
-          '@type': 'WebSite',
-          name: 'ProzoroBanka',
-          url: SITE_BASE_URL || undefined,
-          inLanguage,
-        }}
-      />
-
       <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
         
       <section

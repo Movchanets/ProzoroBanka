@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Outlet } from 'react-router';
 import { useAuthStore } from '../stores/authStore';
 import { useLogoutMutation } from '../hooks/queries/useAuth';
 import { useMyOrganizations } from '../hooks/queries/useOrganizations';
@@ -16,7 +16,7 @@ function getInitials(firstName?: string, lastName?: string) {
 }
 
 interface AppShellProps {
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 export default function AppShell({ children }: AppShellProps) {
@@ -102,7 +102,7 @@ export default function AppShell({ children }: AppShellProps) {
         </CardContent>
       </Card>
 
-      <main>{children}</main>
+      <main>{children ?? <Outlet />}</main>
     </div>
   );
-}
+}
