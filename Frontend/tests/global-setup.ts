@@ -16,8 +16,7 @@ function getBashExecutable() {
  */
 async function globalSetup() {
   const repoRoot = path.resolve(process.cwd(), '..');
-  const composeEnvFilePath = path.resolve(repoRoot, 'docker-compose.playwright.env');
-  const composeCmd = `docker compose --env-file "${composeEnvFilePath}" -f docker-compose.yml -f docker-compose.ci.yml`;
+  const composeCmd = 'docker compose -f docker-compose.yml -f docker-compose.ci.yml';
   const bashExecutable = getBashExecutable();
 
   console.log('[global-setup] Starting test containers...');

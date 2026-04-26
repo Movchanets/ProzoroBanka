@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "react-router dev",
-    "build": "tsc -b && react-router build",
+    "build:types": "tsc -b",
+    "build:router": "react-router build",
+    "build": "npm run build:types && npm run build:router",
+    "build:playwright": "npm run build:types && react-router build --mode playwright",
     "generate:sitemap": "node ./scripts/generate-sitemap.mjs",
     "prerender": "node ./scripts/prerender.mjs",
     "build:prerender": "npm run build && npm run prerender",

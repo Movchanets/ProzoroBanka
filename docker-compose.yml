@@ -62,9 +62,7 @@ services:
       context: ./Frontend
       dockerfile: Dockerfile
       args:
-        API_URL: http://localhost:3000
-        BUILD_PUBLIC_VALUE_1: 1x00000000000000000000AA
-        BUILD_PUBLIC_VALUE_2: local-dev-client-id
+        BUILD_MODE: docker
     restart: unless-stopped
     ports:
       - "3000:3000"

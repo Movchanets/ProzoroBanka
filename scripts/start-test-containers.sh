@@ -6,13 +6,12 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-COMPOSE_ENV_FILE="$REPO_ROOT/docker-compose.playwright.env"
 
 SERVICES=(postgres redis api frontend)
 FORCE_REBUILD_FLAG=false
 
 compose() {
-	docker compose --env-file "$COMPOSE_ENV_FILE" -f docker-compose.yml -f docker-compose.ci.yml "$@"
+	docker compose -f docker-compose.yml -f docker-compose.ci.yml "$@"
 }
 
 wait_until() {

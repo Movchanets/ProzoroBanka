@@ -24,66 +24,8 @@ import { AdminUsersPage } from '../pages/AdminUsersPage';
 import { AdminRolesPage } from '../pages/AdminRolesPage';
 import { AdminSettingsPage } from '../pages/AdminSettingsPage';
 import { TeamPage } from '../pages/TeamPage';
-import { E2E_TURNSTILE_TEST_TOKEN } from './e2e-auth';
-
-const TURNSTILE_SCRIPT_URL = '**/challenges.cloudflare.com/turnstile/v0/api.js*';
-
-function buildTurnstileMockScript() {
-  return `
-    (() => {
-      const token = ${JSON.stringify(E2E_TURNSTILE_TEST_TOKEN)};
-      let counter = 0;
-      const widgets = new Map();
-
-      function injectToken(widget) {
-        const { container, input, options } = widget;
-
-        if (!input.isConnected) {
-          container.appendChild(input);
-        }
-
-        input.value = token;
-        options.callback?.(token);
-      }
-
-      window.turnstile = {
-        render(container, options = {}) {
-          const widgetId = \`cf-chl-widget-\${++counter}\`;
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = 'cf-turnstile-response';
-          input.id = \`\${widgetId}_response\`;
-
-          const widget = { container, input, options };
-          widgets.set(widgetId, widget);
-          window.setTimeout(() => injectToken(widget), 0);
-
-          return widgetId;
-        },
-        reset(widgetId) {
-          const widget = widgets.get(widgetId);
-          if (!widget) {
-            return;
-          }
-
-          injectToken(widget);
-        },
-        remove(widgetId) {
-          const widget = widgets.get(widgetId);
-          if (!widget) {
-            return;
-          }
-
-          widget.input.remove();
-          widgets.delete(widgetId);
-        },
-      };
-    })();
-  `;
-}
 
 type AppFixtures = {
-  turnstileMock: void;
   loginPage: LoginPage;
   dashboardPage: DashboardPage;
   profilePage: ProfilePage;
@@ -112,17 +54,6 @@ type AppFixtures = {
 };
 
 export const test = base.extend<AppFixtures>({
-  turnstileMock: [async ({ page }, finishFixture) => {
-    await page.route(TURNSTILE_SCRIPT_URL, async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/javascript',
-        body: buildTurnstileMockScript(),
-      });
-    });
-
-    await finishFixture();
-  }, { auto: true }],
   loginPage: async ({ page }, finishFixture) => {
     await finishFixture(new LoginPage(page));
   },

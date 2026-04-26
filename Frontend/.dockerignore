@@ -1,8 +1,10 @@
-.env
+node_modules
+build
+dist
+playwright-report
+test-results
 .env.local
-.env.development
 .env.development.local
-.env.production
 .env.production.local
 .env.test
 .env.test.local

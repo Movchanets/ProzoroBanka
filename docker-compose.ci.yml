@@ -34,10 +34,7 @@ services:
       - "5173:3000"
     build:
       args:
-        API_URL: ${VITE_API_URL:-http://localhost:5188}
-        # Жорстко задаємо тестовий ключ, щоб реальний ключ з локального .env не потрапляв у тести
-        BUILD_PUBLIC_VALUE_1: "1x00000000000000000000AA"
-        BUILD_PUBLIC_VALUE_2: "local-dev-client-id"
+        BUILD_MODE: playwright
     depends_on:
       api:
         condition: service_started

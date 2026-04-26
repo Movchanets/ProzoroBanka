@@ -6,12 +6,11 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-COMPOSE_ENV_FILE="$REPO_ROOT/docker-compose.playwright.env"
 
 DB_NAME="${PLAYWRIGHT_TEST_DB:-prozoro_banka_ci}"
 
 compose() {
-	docker compose --env-file "$COMPOSE_ENV_FILE" -f docker-compose.yml -f docker-compose.ci.yml "$@"
+	docker compose -f docker-compose.yml -f docker-compose.ci.yml "$@"
 }
 
 cd "$REPO_ROOT"
