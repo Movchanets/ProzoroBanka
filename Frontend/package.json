@@ -11,6 +11,7 @@
     "build:prerender": "npm run build && npm run prerender",
     "lint": "eslint .",
     "preview": "vite preview --outDir build/client --port 5173",
+    "start": "vite preview --outDir build/client --port 5173",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:rebuild": "cross-env FORCE_DOCKER_BUILD=true playwright test",
