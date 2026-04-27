@@ -8,13 +8,33 @@ import {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./services/queryClient";
 import { Toaster } from "./components/ui/sonner";
+import { I18nextProvider } from "react-i18next";
+import i18nInstance from "./i18n";
 import { ThemeProvider } from "./components/theme-provider";
 import { AppLoadingFallback } from "./components/AppLoadingFallback";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import "./i18n";
 
 import "./index.css";
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+
+  // Create a stable i18n instance for the first render (matching SSG 'uk')
+  const [ukI18n] = useState(() => {
+    const instance = i18nInstance.cloneInstance({
+      lng: 'uk',
+      detection: { caches: [] }, // Important: do not override localStorage during hydration pass
+    });
+    return instance;
+  });
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+
   return (
     <html lang="uk" suppressHydrationWarning>
       <head>
@@ -34,10 +54,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           disableTransitionOnChange
           storageKey="prozoro-banka-theme"
         >
-          <QueryClientProvider client={queryClient}>
-            {children}
-            <Toaster />
-          </QueryClientProvider>
+          <I18nextProvider i18n={mounted ? i18nInstance : ukI18n}>
+            <QueryClientProvider client={queryClient}>
+              {children}
+              <Toaster />
+            </QueryClientProvider>
+          </I18nextProvider>
         </ThemeProvider>
         <ScrollRestoration />
         <Scripts />
@@ -47,6 +69,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { i18n } = useTranslation();
+
+  useEffect(() => {
+    document.documentElement.lang = i18n.language;
+  }, [i18n.language]);
+
   return <Outlet />;
 }
 
