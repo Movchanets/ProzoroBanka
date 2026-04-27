@@ -13,6 +13,9 @@ import { useOrgTransparency, usePublicOrgCampaigns, usePublicOrganization } from
 import { resolveLocalizedText } from '@/lib/localizedText';
 import { useTranslation } from 'react-i18next';
 import type { MetaDescriptor } from 'react-router';
+import { publicService } from '@/services/publicService';
+import type { PublicOrganization } from '@/types';
+import type { LoaderFunctionArgs } from 'react-router';
 
 function mapTabToStatus(tab: 'all' | 'active' | 'completed') {
   if (tab === 'active') return CampaignStatus.Active;
@@ -21,30 +24,50 @@ function mapTabToStatus(tab: 'all' | 'active' | 'completed') {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function meta(): MetaDescriptor[] {
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  try {
+    const organization = await publicService.getOrganization(params.slug!);
+    return { organization };
+  } catch (error) {
+    console.error('Failed to load organization:', error);
+    return { organization: null };
+  }
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function meta({ data }: { data: { organization: PublicOrganization | null } }): MetaDescriptor[] {
+  if (!data?.organization) {
+    return [
+      { title: 'Організацію не знайдено | ProzoroBanka' },
+      { name: 'description', content: 'Цю організацію не знайдено або вона була видалена.' },
+    ];
+  }
+
+  const { organization } = data;
+  const title = organization.name || 'Організація';
+  const description = organization.description || 'Профіль організації з перевіркою, активними зборами та публічними показниками прозорості.';
+
   return [
-    { title: 'Публічний профіль організації | ProzoroBanka' },
-    {
-      name: 'description',
-      content: 'Профіль організації з перевіркою, активними зборами та публічними показниками прозорості.',
-    },
+    { title: `${title} | ProzoroBanka` },
+    { name: 'description', content: description },
     { name: 'robots', content: 'index,follow' },
     { property: 'og:type', content: 'website' },
-    { property: 'og:title', content: 'Публічний профіль організації | ProzoroBanka' },
-    {
-      property: 'og:description',
-      content: 'Профіль організації з перевіркою, активними зборами та публічними показниками прозорості.',
-    },
+    { property: 'og:title', content: `${title} | ProzoroBanka` },
+    { property: 'og:description', content: description },
+    { property: 'og:image', content: organization.logoUrl },
     { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: `${title} | ProzoroBanka` },
+    { name: 'twitter:description', content: description },
+    { name: 'twitter:image', content: organization.logoUrl },
   ];
 }
 
-export default function PublicOrganizationPage() {
+export default function PublicOrganizationPage({ loaderData }: { loaderData?: { organization: PublicOrganization | null } }) {
   const { t, i18n } = useTranslation();
   const { slug } = useParams<{ slug: string }>();
   const [tab, setTab] = useState<'all' | 'active' | 'completed'>('all');
 
-  const organizationQuery = usePublicOrganization(slug);
+  const organizationQuery = usePublicOrganization(slug, { initialData: loaderData?.organization || undefined });
   const campaignsQuery = usePublicOrgCampaigns(slug, mapTabToStatus(tab), 1);
   const transparencyQuery = useOrgTransparency(slug);
 

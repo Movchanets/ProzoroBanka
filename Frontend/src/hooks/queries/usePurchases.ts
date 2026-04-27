@@ -12,6 +12,7 @@ import type {
   PurchaseStatus,
   DocumentType,
 } from '@/types';
+import type { PurchaseDetailDto } from '@/types';
 
 export const purchaseKeys = {
   all: ['purchases'] as const,
@@ -469,10 +470,11 @@ export function usePublicPurchases(campaignId: string, enabled = true) {
   });
 }
 
-export function usePublicPurchaseById(purchaseId: string, enabled = true) {
+export function usePublicPurchaseById(purchaseId: string, enabled = true, options?: { initialData?: PurchaseDetailDto }) {
   return useQuery({
     queryKey: ['publicPurchase', purchaseId],
     queryFn: () => purchaseService.publicGetById(purchaseId),
     enabled: enabled && Boolean(purchaseId),
+    ...options,
   });
 }

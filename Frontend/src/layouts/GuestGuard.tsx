@@ -1,15 +1,16 @@
 import { Navigate, Outlet } from 'react-router';
 import { useAuthNavigation } from '@/hooks/useAuthNavigation';
+import { AppLoadingFallback } from '@/components/AppLoadingFallback';
 
 export default function GuestGuard() {
-  const { isAuthenticated, isResolvingSession, defaultAuthenticatedPath } = useAuthNavigation();
+  const { _hasHydrated, isAuthenticated, isResolvingSession, defaultAuthenticatedPath } = useAuthNavigation();
 
-  if (isAuthenticated && !isResolvingSession) {
-    return <Navigate to={defaultAuthenticatedPath} replace />;
+  if (!_hasHydrated || isResolvingSession) {
+    return <AppLoadingFallback />;
   }
 
-  if (isResolvingSession) {
-    return null;
+  if (isAuthenticated) {
+    return <Navigate to={defaultAuthenticatedPath} replace />;
   }
 
   return <Outlet />;

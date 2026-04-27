@@ -4,6 +4,7 @@ import { useMyOrganizations } from './queries/useOrganizations';
 import { useAuthStore } from '@/stores/authStore';
 
 export function useAuthNavigation() {
+  const _hasHydrated = useAuthStore((state) => state._hasHydrated);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const updateUser = useAuthStore((state) => state.updateUser);
 
@@ -29,6 +30,7 @@ export function useAuthNavigation() {
     : '/onboarding';
 
   return {
+    _hasHydrated,
     isAuthenticated,
     isResolvingSession,
     organizations,

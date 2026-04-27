@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { CampaignStatus, type CampaignStatus as CampaignStatusType } from '@/types';
 import { publicService } from '@/services/publicService';
-import type { PublicListResponse, PublicReceipt } from '@/types';
+import type { PublicListResponse, PublicReceipt, PublicCampaignDetail, PublicOrganization, PublicReceiptDetail } from '@/types';
 
 type HomeCampaignStatusFilter = 'all' | 'active' | 'completed';
 
@@ -99,12 +99,13 @@ export function usePublicCampaignCategories(enabled = true) {
   });
 }
 
-export function usePublicOrganization(slug: string | null | undefined) {
+export function usePublicOrganization(slug: string | null | undefined, options?: { initialData?: PublicOrganization }) {
   return useQuery({
     queryKey: publicKeys.organization(slug ?? ''),
     queryFn: () => publicService.getOrganization(slug ?? ''),
     enabled: Boolean(slug),
     ...publicQueryDefaults,
+    ...options,
   });
 }
 
@@ -117,12 +118,13 @@ export function usePublicOrgCampaigns(slug: string | null | undefined, status?: 
   });
 }
 
-export function usePublicCampaign(campaignId: string | null | undefined) {
+export function usePublicCampaign(campaignId: string | null | undefined, options?: { initialData?: PublicCampaignDetail }) {
   return useQuery({
     queryKey: publicKeys.campaign(campaignId ?? ''),
     queryFn: () => publicService.getCampaign(campaignId ?? ''),
     enabled: Boolean(campaignId),
     ...publicQueryDefaults,
+    ...options,
   });
 }
 
@@ -154,12 +156,13 @@ export function usePublicCampaignReceipts(campaignId: string | null | undefined,
   });
 }
 
-export function usePublicReceipt(receiptId: string | null | undefined) {
+export function usePublicReceipt(receiptId: string | null | undefined, options?: { initialData?: PublicReceiptDetail }) {
   return useQuery({
     queryKey: publicKeys.receipt(receiptId ?? ''),
     queryFn: () => publicService.getReceipt(receiptId ?? ''),
     enabled: Boolean(receiptId),
     ...publicQueryDefaults,
+    ...options,
   });
 }
 

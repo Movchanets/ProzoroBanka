@@ -1,5 +1,5 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
-import { setTestLanguage, t } from './i18n';
+import { setTestLanguage } from './i18n';
 
 export const E2E_API_BASE_URL = process.env.E2E_API_URL ?? 'http://localhost:5188';
 // Cloudflare official testing response token for server-side validation flows.
@@ -311,19 +311,15 @@ export async function createOrganizationForCurrentSession(page: Page, name: stri
 }
 
 /**
- * Wait for all app-level loader instances ("Завантаження інтерфейсу...") to disappear.
- *
- * Multiple `<RouteFallback />` components may render simultaneously when `<Suspense>`
- * and `<ProtectedRoute>` (isResolvingSession) stack, producing 2+ elements with the
- * same loader text.  `getByText()` strict mode fails in that case, so we use
- * `toHaveCount(0)` which is multi-element safe.
+ * Wait for the app-level loading fallback to be hidden after route/auth resolution.
  */
 export async function waitForAppLoaded(
   page: Page,
   options?: { timeoutMs?: number },
 ): Promise<void> {
   const timeoutMs = options?.timeoutMs ?? 15_000;
-  await expect(page.getByText(t('common.loadingInterface'))).toHaveCount(0, { timeout: timeoutMs });
+  await page.locator('[data-testid="app-loading"]').first().waitFor({ state: 'hidden', timeout: timeoutMs });
+  await page.waitForLoadState('domcontentloaded');
 }
 
 export async function waitForTurnstileToken(

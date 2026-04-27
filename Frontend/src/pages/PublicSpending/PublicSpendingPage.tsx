@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePublicPurchaseById } from '@/hooks/queries/usePurchases';
 import { DocumentType, PurchaseStatus } from '@/types';
+import type { MetaDescriptor } from 'react-router';
+import { purchaseService } from '@/services/purchaseService';
+import type { DocumentDto, PurchaseDetailDto } from '@/types';
+import type { LoaderFunctionArgs } from 'react-router';
 
 function formatPublicAmount(value: number | undefined, locale: string, emptyText: string) {
   if (typeof value !== 'number') {
@@ -50,12 +54,49 @@ function getPurchaseStatusLabel(status: number, t: (key: string, options?: Recor
   }
 }
 
-export default function PublicSpendingPage() {
+// eslint-disable-next-line react-refresh/only-export-components
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  try {
+    const purchase = await purchaseService.publicGetById(params.id!);
+    return { purchase };
+  } catch (error) {
+    console.error('Failed to load purchase:', error);
+    return { purchase: null };
+  }
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function meta({ data }: { data: { purchase: PurchaseDetailDto | null } }): MetaDescriptor[] {
+  if (!data?.purchase) {
+    return [
+      { title: 'Витрату не знайдено | ProzoroBanka' },
+      { name: 'description', content: 'Цю витрату не знайдено або вона була видалена.' },
+    ];
+  }
+
+  const { purchase } = data;
+  const title = purchase.title || 'Витрата';
+  const description = purchase.description || 'Деталі витрат і підтверджені документи.';
+
+  return [
+    { title: `${title} | ProzoroBanka` },
+    { name: 'description', content: description },
+    { name: 'robots', content: 'index,follow' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:title', content: `${title} | ProzoroBanka` },
+    { property: 'og:description', content: description },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: `${title} | ProzoroBanka` },
+    { name: 'twitter:description', content: description },
+  ];
+}
+
+export default function PublicSpendingPage({ loaderData }: { loaderData?: { purchase: PurchaseDetailDto | null } }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US';
   const { id } = useParams<{ id: string }>();
 
-  const purchaseQuery = usePublicPurchaseById(id ?? '', Boolean(id));
+  const purchaseQuery = usePublicPurchaseById(id ?? '', Boolean(id), { initialData: loaderData?.purchase || undefined });
   const purchase = purchaseQuery.data;
 
   if (purchaseQuery.isLoading) {
@@ -82,7 +123,7 @@ export default function PublicSpendingPage() {
     );
   }
 
-  const visibleDocuments = purchase.documents.filter((document) => document.type !== DocumentType.TransferAct);
+  const visibleDocuments = (purchase.documents || []).filter((document: DocumentDto) => document.type !== DocumentType.TransferAct);
   const restrictedDocuments = purchase.documents.length - visibleDocuments.length;
   const purchaseAmount = formatPublicAmount(purchase.totalAmount / 100, locale, t('common.na'));
 
@@ -186,7 +227,7 @@ export default function PublicSpendingPage() {
               </div>
             ) : null}
 
-            {visibleDocuments.map((document, index) => {
+            {visibleDocuments.map((document: DocumentDto, index: number) => {
               const documentAmount = document.amount === null ? undefined : document.amount / 100;
               return (
                 <article

@@ -8,14 +8,55 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PhotoGalleryDialog } from '@/components/ui/photo-gallery-dialog';
 import { usePublicReceipt } from '@/hooks/queries/usePublic';
+import type { MetaDescriptor } from 'react-router';
+import { publicService } from '@/services/publicService';
+import type { PublicReceiptDetail } from '@/types';
+import type { LoaderFunctionArgs } from 'react-router';
 import { ReceiptItemsTable } from '@/components/receipt/ReceiptItemsTable';
 import type { ReceiptItem } from '@/types';
 
-export default function PublicReceiptPlaceholderPage() {
+// eslint-disable-next-line react-refresh/only-export-components
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  try {
+    const receipt = await publicService.getReceipt(params.id!);
+    return { receipt };
+  } catch (error) {
+    console.error('Failed to load receipt:', error);
+    return { receipt: null };
+  }
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function meta({ data }: { data: { receipt: PublicReceiptDetail | null } }): MetaDescriptor[] {
+  if (!data?.receipt) {
+    return [
+      { title: 'Чек не знайдено | ProzoroBanka' },
+      { name: 'description', content: 'Цей чек не знайдено або він був видалений.' },
+    ];
+  }
+
+  const { receipt } = data;
+  const title = receipt.merchantName || 'Чек';
+  const description = `Чек від ${receipt.merchantName || 'невідомого продавця'} на суму ${receipt.totalAmount} грн.`;
+
+  return [
+    { title: `Чек: ${title} | ProzoroBanka` },
+    { name: 'description', content: description },
+    { name: 'robots', content: 'index,follow' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:title', content: `Чек: ${title} | ProzoroBanka` },
+    { property: 'og:description', content: description },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: `Чек: ${title} | ProzoroBanka` },
+    { name: 'twitter:description', content: description },
+  ];
+}
+
+export default function PublicReceiptPlaceholderPage({ loaderData }: { loaderData?: { receipt: PublicReceiptDetail | null } }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US';
   const { id } = useParams<{ id: string }>();
-  const { data: receipt, isLoading, error } = usePublicReceipt(id);
+  const { data: receipt, isLoading, error } = usePublicReceipt(id || '', { initialData: loaderData?.receipt || undefined });
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
 
