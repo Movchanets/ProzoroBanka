@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 
 function resolvePageTitle(pathname: string, t: (key: string) => string): string {
   if (pathname === '/login') {

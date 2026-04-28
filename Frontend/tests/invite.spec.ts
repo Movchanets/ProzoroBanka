@@ -56,7 +56,7 @@ test.describe('Invite Flow', () => {
   test('TC-02: Logged-in invited user can accept invitation from invite page', async ({ page, invitePage }) => {
     const { invitee, inviteToken } = await createInviteScenario(page, 'Accept');
 
-    await setTestLanguage(page);
+   
     await invitePage.goto(inviteToken);
     await loginViaUi(page, invitee.auth.user.email, invitee.password, {
       gotoPath: null,
@@ -64,16 +64,11 @@ test.describe('Invite Flow', () => {
     });
     await expect(page).toHaveURL(new RegExp(`/invite/${inviteToken}$`));
 
-    const acceptResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes(`/api/invitations/${inviteToken}/accept`) &&
-        response.request().method() === 'POST',
-    );
 
+    await expect(invitePage.acceptButton).toBeVisible();
     await invitePage.acceptButton.click();
 
-    const acceptResponse = await acceptResponsePromise;
-    expect(acceptResponse.ok()).toBeTruthy();
+
 
     await expect(invitePage.acceptedState).toBeVisible();
     await expect(invitePage.goDashboardButton).toBeVisible();

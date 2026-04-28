@@ -262,3 +262,33 @@ export function useDeleteCampaignPost(campaignId: string) {
     },
   });
 }
+
+export const getCampaignsOptions = (orgId: string, status?: CampaignStatus) => ({
+  queryKey: [...campaignKeys.all(orgId), status],
+  queryFn: () => campaignService.listByOrganization(orgId, status),
+});
+
+export const getCampaignOptions = (id: string) => ({
+  queryKey: campaignKeys.detail(id),
+  queryFn: () => campaignService.getDetails(id),
+});
+
+export const getCampaignStatsOptions = (orgId: string) => ({
+  queryKey: campaignKeys.stats(orgId),
+  queryFn: () => campaignService.getStats(orgId),
+});
+
+export const getCampaignReceiptsOptions = (campaignId: string) => ({
+  queryKey: campaignKeys.receipts(campaignId),
+  queryFn: () => campaignService.getReceipts(campaignId),
+});
+
+export const getCampaignPostsOptions = (campaignId: string) => ({
+  queryKey: campaignKeys.posts(campaignId),
+  queryFn: () => campaignService.getPosts(campaignId),
+});
+
+export const getCampaignTransactionsOptions = (campaignId: string, page = 1, pageSize = 20) => ({
+  queryKey: campaignKeys.transactions(campaignId, page, pageSize),
+  queryFn: () => campaignService.getTransactions(campaignId, page, pageSize),
+});

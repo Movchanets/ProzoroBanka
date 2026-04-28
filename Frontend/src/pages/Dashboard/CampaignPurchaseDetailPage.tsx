@@ -1,18 +1,23 @@
 import { useState, useEffect, type DragEvent } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useSubmit, useActionData, useNavigation, useParams, useNavigate } from 'react-router';
+import type { ActionFunctionArgs as ClientActionArgs, LoaderFunctionArgs } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useForm } from 'react-hook-form';
+import { purchaseService } from '@/services/purchaseService';
+import { queryClient } from '@/services/queryClient';
+import { purchaseKeys } from '@/hooks/queries/usePurchases';
+
 import {
   usePurchaseDetail,
-  useCreatePurchase,
-  useUpdatePurchase,
-  useDeletePurchase,
   useUploadPurchaseDocument,
   useUpdatePurchaseDocumentMetadata,
   useDeletePurchaseDocument,
   useProcessPurchaseDocumentOcr,
+  getPurchaseDetailOptions,
 } from '@/hooks/queries/usePurchases';
+import { ensureQueryData } from '@/utils/routerHelpers';
+
 import type { PurchaseStatus as PurchaseStatusType, DocumentType as DocumentTypeType } from '@/types';
 import { PurchaseStatus, DocumentType, OcrProcessingStatus, type DocumentDto } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -252,10 +257,60 @@ function DocumentMetadataForm({
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const { orgId, campaignId, purchaseId } = params;
+  if (!orgId || !campaignId || !purchaseId || purchaseId === 'new') return null;
+
+  await ensureQueryData(getPurchaseDetailOptions(orgId, campaignId, purchaseId));
+  return null;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export async function clientAction({ request, params }: ClientActionArgs) {
+  const { orgId, campaignId, purchaseId } = params;
+  if (!orgId || !campaignId) throw new Error('Params missing');
+
+  const formData = await request.formData();
+  const intent = formData.get('intent');
+
+  try {
+    if (intent === 'savePurchase') {
+      const title = String(formData.get('title'));
+      const status = formData.get('status') ? Number(formData.get('status')) : undefined;
+      const isNew = !purchaseId || purchaseId === 'new';
+
+      if (isNew) {
+        const purchase = await purchaseService.create(orgId, campaignId, { title, totalAmount: 0 });
+        queryClient.invalidateQueries({ queryKey: purchaseKeys.list(orgId, campaignId) });
+        return { success: true, intent: 'create', purchaseId: purchase.id };
+      } else {
+        await purchaseService.update(orgId, campaignId, purchaseId, { title, status: status as PurchaseStatusType });
+        queryClient.invalidateQueries({ queryKey: purchaseKeys.detail(orgId, campaignId, purchaseId) });
+        return { success: true, intent: 'update' };
+      }
+    }
+
+    if (intent === 'deletePurchase') {
+      if (!purchaseId) throw new Error('Purchase ID is required for deletion');
+      await purchaseService.delete(orgId, campaignId, purchaseId);
+      queryClient.invalidateQueries({ queryKey: purchaseKeys.list(orgId, campaignId) });
+      return { success: true, intent: 'delete' };
+    }
+
+    return { error: 'Unknown intent' };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Action failed' };
+  }
+}
+
 export default function CampaignPurchaseDetailPage() {
   const { t, i18n } = useTranslation();
   const { orgId, campaignId, purchaseId } = useParams<{ orgId: string; campaignId: string; purchaseId?: string }>();
   const navigate = useNavigate();
+  const submit = useSubmit();
+  const actionData = useActionData() as { success?: boolean; intent?: string; purchaseId?: string; error?: string } | undefined;
+  const navigation = useNavigation();
 
   const isNew = !purchaseId || purchaseId === 'new';
 
@@ -266,9 +321,6 @@ export default function CampaignPurchaseDetailPage() {
     !isNew
   );
 
-  const createPurchase = useCreatePurchase();
-  const updatePurchase = useUpdatePurchase();
-  const deletePurchase = useDeletePurchase();
   const uploadDocument = useUploadPurchaseDocument();
   const updateDocumentMetadata = useUpdatePurchaseDocumentMetadata();
   const deleteDocument = useDeletePurchaseDocument();
@@ -305,29 +357,33 @@ export default function CampaignPurchaseDetailPage() {
     }
   }, [purchase, reset]);
 
-  const onSubmit = async (data: { title: string; status: string }) => {
-    try {
-      if (isNew) {
-        await createPurchase.mutateAsync({
-          organizationId: orgId!,
-          campaignId: campaignId!,
-          payload: { title: data.title, totalAmount: 0 },
-        });
+  useEffect(() => {
+    if (actionData?.success) {
+      if (actionData.intent === 'create') {
         toast.success(t('purchases.createSuccess', 'Закупівлю створено'));
         navigate(`/dashboard/${orgId}/purchases?campaignId=${campaignId}`);
-      } else {
-        await updatePurchase.mutateAsync({
-          organizationId: orgId!,
-          campaignId: campaignId!,
-          purchaseId: purchaseId!,
-          payload: { title: data.title, status: Number(data.status) as PurchaseStatusType },
-        });
+      } else if (actionData.intent === 'update') {
         toast.success(t('purchases.updateSuccess', 'Закупівлю оновлено'));
+      } else if (actionData.intent === 'delete') {
+        toast.success(t('purchases.deleteSuccess', 'Закупівлю видалено'));
+        navigate(`/dashboard/${orgId}/purchases?campaignId=${campaignId}`);
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('common.error'));
+    } else if (actionData?.error) {
+      toast.error(actionData.error);
     }
-  };
+  }, [actionData, t, navigate, orgId, campaignId]);
+
+  const onSaveSubmit = handleSubmit((data) => {
+    const formData = new FormData();
+    formData.append('intent', 'savePurchase');
+    formData.append('title', data.title);
+    if (!isNew) {
+      formData.append('status', data.status);
+    }
+    submit(formData, { method: 'post' });
+  });
+
+  const isPending = navigation.state !== 'idle';
 
   const handleUpload = async (file: File | null, type: DocumentType, clearFile: () => void) => {
     if (!file || !purchaseId) return;
@@ -441,20 +497,12 @@ export default function CampaignPurchaseDetailPage() {
     }
   };
 
-  const handleDeletePurchase = async () => {
+  const handleDeletePurchase = () => {
     if (!purchaseId || !confirm(t('purchases.deleteConfirm', 'Видалити цю закупівлю та всі прив\'язані документи?'))) return;
     
-    try {
-      await deletePurchase.mutateAsync({
-        organizationId: orgId!,
-        campaignId: campaignId!,
-        purchaseId: purchaseId,
-      });
-      toast.success(t('purchases.deleteSuccess', 'Закупівлю видалено'));
-      navigate(`/dashboard/${orgId}/purchases?campaignId=${campaignId}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('common.error'));
-    }
+    const formData = new FormData();
+    formData.append('intent', 'deletePurchase');
+    submit(formData, { method: 'post' });
   };
 
   if (!isNew && isPurchaseLoading) {
@@ -484,7 +532,7 @@ export default function CampaignPurchaseDetailPage() {
             <CardTitle>{isNew ? t('purchases.createNew', 'Нова закупівля') : t('purchases.editPurchase', 'Редагувати закупівлю')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form id="purchase-form" onSubmit={handleSubmit(onSubmit)} className={`grid gap-4 ${isNew ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+            <form id="purchase-form" onSubmit={onSaveSubmit} className={`grid gap-4 ${isNew ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
               <div className="space-y-2">
                 <Label htmlFor="title">{t('purchases.titleFields', 'Назва (опис)')}</Label>
                 <Input id="title" {...register('title', { required: true })} placeholder={t('purchases.titlePlaceholder', 'Напр. 5 Мавіків')} data-testid="purchase-detail-title-input" />
@@ -520,7 +568,7 @@ export default function CampaignPurchaseDetailPage() {
           </CardContent>
           <CardFooter className="flex justify-between border-t border-border/50 pt-4">
             {!isNew ? (
-              <Button type="button" variant="default" className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeletePurchase} disabled={deletePurchase.isPending} data-testid="purchase-detail-delete-button">
+              <Button type="button" variant="default" className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeletePurchase} disabled={isPending} data-testid="purchase-detail-delete-button">
                 <Trash2 className="h-4 w-4 mr-2" />
                 {t('common.delete')}
               </Button>

@@ -1,5 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
+import type { LoaderFunctionArgs } from 'react-router';
+import { getReceiptDetailOptions } from '@/hooks/queries/useReceipts';
+import { getOcrModelsOptions } from '@/hooks/queries/useOcrModels';
+import { ensureQueryData } from '@/utils/routerHelpers';
 import {
   AlertCircle,
 } from 'lucide-react';
@@ -37,6 +41,23 @@ const publicationLabelKeyMap: Record<number, string> = {
   [ReceiptPublicationStatus.Draft]: 'draft',
   [ReceiptPublicationStatus.Active]: 'active',
 };
+
+// eslint-disable-next-line react-refresh/only-export-components
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const { orgId, receiptId } = params;
+  if (!orgId) return null;
+
+  const promises: Promise<unknown>[] = [
+    ensureQueryData(getOcrModelsOptions()),
+  ];
+
+  if (receiptId && receiptId !== 'new') {
+    promises.push(ensureQueryData(getReceiptDetailOptions(orgId, receiptId)));
+  }
+
+  await Promise.allSettled(promises);
+  return null;
+}
 
 export default function ReceiptDetailPage() {
   const { t, i18n } = useTranslation();

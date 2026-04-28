@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import { CalendarDays, Eye, FileText, ImageIcon, Newspaper, ShieldCheck, Target, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useQueries } from '@tanstack/react-query';
@@ -19,17 +19,24 @@ import { resolveLocalizedText } from '@/lib/localizedText';
 import { extractTextFromTiptapJson } from '@/lib/tiptapContent';
 import { DocumentType } from '@/types';
 import type { MetaDescriptor } from 'react-router';
-import { publicService } from '@/services/publicService';
 import type { PublicCampaignDetail } from '@/types';
 import type { LoaderFunctionArgs } from 'react-router';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getPublicCampaignOptions, getPublicCampaignReceiptsOptions } from '@/hooks/queries/usePublic';
+import { getPublicPurchasesOptions } from '@/hooks/queries/usePurchases';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const id = params.id!;
   try {
-    const campaign = await publicService.getCampaign(params.id!);
+    const [campaign] = await Promise.all([
+      ensureQueryData(getPublicCampaignOptions(id)),
+      ensureQueryData(getPublicCampaignReceiptsOptions(id, 1)),
+      ensureQueryData(getPublicPurchasesOptions(id)),
+    ]);
     return { campaign };
   } catch (error) {
-    console.error('Failed to load campaign:', error);
+    console.error('Failed to load campaign data:', error);
     return { campaign: null };
   }
 }

@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import {
   ArrowRight,
   CheckCircle2,
@@ -33,8 +33,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useMyReceipts, useDeleteReceipt } from '@/hooks/queries/useReceipts';
-import { useOrganizationMembers } from '@/hooks/queries/useOrganizations';
+import { useMyReceipts, useDeleteReceipt, getMyReceiptsOptions } from '@/hooks/queries/useReceipts';
+import { useOrganizationMembers, getOrganizationMembersOptions } from '@/hooks/queries/useOrganizations';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import type { LoaderFunctionArgs } from 'react-router';
 import { useAuthStore } from '@/stores/authStore';
 import { OrganizationRole, ReceiptPublicationStatus, ReceiptStatus, type ReceiptListItem } from '@/types';
 
@@ -109,6 +111,19 @@ function ReceiptStatusBadge({ receipt }: { receipt: ReceiptListItem }) {
       </Badge>
     </div>
   );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const { orgId } = params;
+  if (!orgId) return null;
+
+  await Promise.allSettled([
+    ensureQueryData(getOrganizationMembersOptions(orgId)),
+    ensureQueryData(getMyReceiptsOptions(orgId, { search: '', status: undefined, onlyUnattached: false })),
+  ]);
+
+  return null;
 }
 
 export default function ReceiptsListPage() {

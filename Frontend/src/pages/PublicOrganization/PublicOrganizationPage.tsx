@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,9 +13,10 @@ import { useOrgTransparency, usePublicOrgCampaigns, usePublicOrganization } from
 import { resolveLocalizedText } from '@/lib/localizedText';
 import { useTranslation } from 'react-i18next';
 import type { MetaDescriptor } from 'react-router';
-import { publicService } from '@/services/publicService';
 import type { PublicOrganization } from '@/types';
 import type { LoaderFunctionArgs } from 'react-router';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getOrgTransparencyOptions, getPublicOrgCampaignsOptions, getPublicOrganizationOptions } from '@/hooks/queries/usePublic';
 
 function mapTabToStatus(tab: 'all' | 'active' | 'completed') {
   if (tab === 'active') return CampaignStatus.Active;
@@ -25,11 +26,16 @@ function mapTabToStatus(tab: 'all' | 'active' | 'completed') {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const slug = params.slug!;
   try {
-    const organization = await publicService.getOrganization(params.slug!);
+    const [organization] = await Promise.all([
+      ensureQueryData(getPublicOrganizationOptions(slug)),
+      ensureQueryData(getPublicOrgCampaignsOptions(slug, undefined, 1)),
+      ensureQueryData(getOrgTransparencyOptions(slug)),
+    ]);
     return { organization };
   } catch (error) {
-    console.error('Failed to load organization:', error);
+    console.error('Failed to load organization data:', error);
     return { organization: null };
   }
 }

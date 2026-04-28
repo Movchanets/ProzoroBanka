@@ -1,9 +1,13 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useCampaigns, useDeleteCampaign } from '@/hooks/queries/useCampaigns';
 import { useOrganizationMembers } from '@/hooks/queries/useOrganizations';
 import { useAuthStore } from '@/stores/authStore';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getCampaignsOptions } from '@/hooks/queries/useCampaigns';
+import { getOrganizationMembersOptions } from '@/hooks/queries/useOrganizations';
+import type { LoaderFunctionArgs } from 'react-router';
 import { CampaignStatusLabel, OrganizationRole, type Campaign } from '@/types';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -123,6 +127,16 @@ function CampaignCard({
       </CardContent>
     </Card>
   );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const orgId = params.orgId!;
+  await Promise.allSettled([
+    ensureQueryData(getCampaignsOptions(orgId)),
+    ensureQueryData(getOrganizationMembersOptions(orgId)),
+  ]);
+  return null;
 }
 
 export default function CampaignsListPage() {

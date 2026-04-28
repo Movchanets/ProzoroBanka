@@ -39,3 +39,11 @@ $$;
 SQL
 
 echo "[cleanup-test-db] Database cleanup completed."
+
+echo "[cleanup-test-db] Cleaning uploads-test folder..."
+# Remove all contents of uploads-test folder if it exists
+if [ -d "Backend/src/ProzoroBanka.API/wwwroot/uploads-test" ]; then
+    find "Backend/src/ProzoroBanka.API/wwwroot/uploads-test" -mindepth 1 -delete
+fi
+
+echo "[cleanup-test-db] Cleanup completed successfully."

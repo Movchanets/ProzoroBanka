@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Building2, Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { useMyOrganizations } from '@/hooks/queries/useOrganizations';
 import { useWorkspaceStore } from '@/stores/workspaceStore';

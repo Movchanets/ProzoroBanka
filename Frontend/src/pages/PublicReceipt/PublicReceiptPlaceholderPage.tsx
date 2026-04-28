@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import { CalendarDays, ChevronRight, FileCheck2, Loader2, ReceiptText, ShieldCheck, Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,16 +9,18 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PhotoGalleryDialog } from '@/components/ui/photo-gallery-dialog';
 import { usePublicReceipt } from '@/hooks/queries/usePublic';
 import type { MetaDescriptor } from 'react-router';
-import { publicService } from '@/services/publicService';
 import type { PublicReceiptDetail } from '@/types';
 import type { LoaderFunctionArgs } from 'react-router';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getPublicReceiptOptions } from '@/hooks/queries/usePublic';
 import { ReceiptItemsTable } from '@/components/receipt/ReceiptItemsTable';
 import type { ReceiptItem } from '@/types';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const id = params.id!;
   try {
-    const receipt = await publicService.getReceipt(params.id!);
+    const receipt = await ensureQueryData(getPublicReceiptOptions(id));
     return { receipt };
   } catch (error) {
     console.error('Failed to load receipt:', error);

@@ -1,4 +1,5 @@
-import { type Page, type Locator } from '@playwright/test';
+import { type Page, type Locator } from "@playwright/test";
+import { gotoAppPath } from "../support/navigation";
 
 export class DashboardPage {
   readonly page: Page;
@@ -6,11 +7,11 @@ export class DashboardPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.adminLink = page.getByTestId('dashboard-admin-link');
+    this.adminLink = page.getByTestId("dashboard-admin-link");
   }
 
   async goto(orgId: string) {
-    await this.page.goto(`/dashboard/${orgId}`);
+    await gotoAppPath(this.page, `/dashboard/${orgId}`);
   }
 
   async clickAdminLink() {

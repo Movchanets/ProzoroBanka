@@ -9,9 +9,11 @@ import {
   useAdminUserDetails,
   useAdminRemoveUserOrganizationLink,
   useAdminUpdateUserOrganizationLink,
+  getAdminUsersOptions,
+  getAdminRolesOptions,
 } from '@/hooks/queries/useAdminQueries';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -40,7 +42,7 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AppRoles } from '@/constants/appRoles';
+import { AppRoles, hasAppRole } from '@/constants/appRoles';
 import { OrganizationPermissions, OrganizationRole } from '@/types/domains/organizations';
 import type { AdminUserDto, AdminRoleDto, AdminUserOrganizationLinkDto } from '@/types/admin';
 import { useAuthStore } from '@/stores/authStore';
@@ -839,4 +841,36 @@ function OrganizationMembershipCard({
       )}
     </div>
   );
+}
+
+export async function clientLoader({ request }: { request: Request }) {
+  const { waitAuthHydration, useAuthStore } = await import('@/stores/authStore');
+  const { ensureQueryData } = await import('@/utils/routerHelpers');
+
+  await waitAuthHydration();
+  const { isAuthenticated, user } = useAuthStore.getState();
+
+  if (!isAuthenticated || !hasAppRole(user?.roles, AppRoles.Admin)) {
+    return null;
+  }
+
+  const url = new URL(request.url);
+  
+  const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+  const statusParam = url.searchParams.get('status');
+  const roleParam = url.searchParams.get('role');
+  const search = url.searchParams.get('search') || '';
+  
+  const filters = {
+    search: search.trim() || undefined,
+    isActive: statusParam === 'all' || !statusParam ? undefined : statusParam === 'active',
+    role: roleParam === 'all' || !roleParam ? undefined : roleParam,
+  };
+
+  await Promise.allSettled([
+    ensureQueryData(getAdminUsersOptions(page, filters)),
+    ensureQueryData(getAdminRolesOptions()),
+  ]);
+
+  return null;
 }

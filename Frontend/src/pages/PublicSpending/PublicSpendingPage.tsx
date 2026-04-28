@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import { CalendarDays, ChevronRight, Eye, FileText, Loader2, ReceiptText, ShieldCheck, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePublicPurchaseById } from '@/hooks/queries/usePurchases';
 import { DocumentType, PurchaseStatus } from '@/types';
 import type { MetaDescriptor } from 'react-router';
-import { purchaseService } from '@/services/purchaseService';
 import type { DocumentDto, PurchaseDetailDto } from '@/types';
 import type { LoaderFunctionArgs } from 'react-router';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getPublicPurchaseByIdOptions } from '@/hooks/queries/usePurchases';
 
 function formatPublicAmount(value: number | undefined, locale: string, emptyText: string) {
   if (typeof value !== 'number') {
@@ -56,8 +57,9 @@ function getPurchaseStatusLabel(status: number, t: (key: string, options?: Recor
 
 // eslint-disable-next-line react-refresh/only-export-components
 export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const id = params.id!;
   try {
-    const purchase = await purchaseService.publicGetById(params.id!);
+    const purchase = await ensureQueryData(getPublicPurchaseByIdOptions(id));
     return { purchase };
   } catch (error) {
     console.error('Failed to load purchase:', error);

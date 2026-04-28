@@ -126,3 +126,23 @@ export function useDeleteStateRegistryCredential(orgId: string) {
     },
   });
 }
+
+export const getMyOrganizationsOptions = () => ({
+  queryKey: orgKeys.my(),
+  queryFn: () => organizationService.getMyOrganizations(),
+});
+
+export const getOrganizationOptions = (id: string) => ({
+  queryKey: orgKeys.detail(id),
+  queryFn: () => organizationService.getOrganization(id),
+});
+
+export const getOrganizationMembersOptions = (id: string) => ({
+  queryKey: orgKeys.members(id),
+  queryFn: () => organizationService.getMembers(id),
+});
+
+export const getOrganizationStateRegistrySettingsOptions = (id: string) => ({
+  queryKey: orgKeys.stateRegistrySettings(id),
+  queryFn: () => organizationService.getStateRegistrySettings(id),
+});

@@ -1,17 +1,18 @@
-import { Navigate, Outlet } from 'react-router';
-import { useAuthStore } from '@/stores/authStore';
-import { AppRoles, hasAppRole } from '@/constants/appRoles';
+import { Navigate, Outlet } from "react-router";
+import { AppLoadingFallback } from "@/components/AppLoadingFallback";
+import { AppRoles, hasAppRole } from "@/constants/appRoles";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function AdminGuard() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const userRoles = useAuthStore((s) => s.user?.roles);
+  const hasHydrated = useAuthStore((state) => state._hasHydrated);
+  const userRoles = useAuthStore((state) => state.user?.roles);
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  if (!hasHydrated) {
+    return <AppLoadingFallback />;
   }
 
   if (!hasAppRole(userRoles, AppRoles.Admin)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <Outlet />;

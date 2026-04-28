@@ -1,10 +1,13 @@
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useSubmit, useNavigation } from 'react-router';
+import type { ActionFunctionArgs as ClientActionArgs } from 'react-router';
 import {
   useAdminGeneralSettings,
   useAdminPlansSettings,
-  useAdminUpdateGeneralSettings,
-  useAdminUpdatePlansSettings,
+  getAdminPlansSettingsOptions,
+  getAdminGeneralSettingsOptions,
+  useAdminOcrModels,
+  getAdminOcrModelsOptions,
 } from '@/hooks/queries/useAdminQueries';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,9 +17,11 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { AdminGeneralSettingsDto, AdminPlansSettingsDto } from '@/types/admin';
 import { adminOcrService } from '@/services/adminOcrService';
+import { adminSettingsService } from '@/services/adminSettingsService';
+import { queryClient } from '@/services/queryClient';
 import type { OcrModelConfig } from '@/types';
+import { Loader2 } from 'lucide-react';
 
-const adminOcrQueryKey = ['admin', 'settings', 'ocr-models'] as const;
 
 export default function AdminSettingsPage() {
   const { t } = useTranslation();
@@ -113,58 +118,121 @@ export default function AdminSettingsPage() {
   );
 }
 
+export async function clientLoader() {
+  const { ensureQueryData } = await import('@/utils/routerHelpers');
+  await Promise.allSettled([
+    ensureQueryData({ queryKey: ['profile'], queryFn: (await import('@/services/profileService')).profileService.getProfile }),
+    ensureQueryData(getAdminPlansSettingsOptions()),
+    ensureQueryData(getAdminGeneralSettingsOptions()),
+    ensureQueryData(getAdminOcrModelsOptions()),
+  ]);
+  return null;
+}
+
+export async function clientAction({ request }: ClientActionArgs) {
+  const formData = await request.formData();
+  const intent = formData.get('intent');
+
+  try {
+    if (intent === 'updatePlans') {
+      const payload = {
+        free: {
+          maxCampaigns: Number(formData.get('freeMaxCampaigns')),
+          maxMembers: Number(formData.get('freeMaxMembers')),
+          maxOcrExtractionsPerMonth: Number(formData.get('freeMaxOcr')),
+        },
+        paid: {
+          maxCampaigns: Number(formData.get('paidMaxCampaigns')),
+          maxMembers: Number(formData.get('paidMaxMembers')),
+          maxOcrExtractionsPerMonth: Number(formData.get('paidMaxOcr')),
+        },
+      };
+      await adminSettingsService.updatePlansSettings(payload);
+      queryClient.invalidateQueries({ queryKey: getAdminPlansSettingsOptions().queryKey });
+      return { success: true, intent: 'updatePlans' };
+    }
+
+    if (intent === 'updateGeneral') {
+      const payload = {
+        maxOwnedOrganizationsForNonAdmin: Number(formData.get('maxOwnedOrganizations')),
+        maxJoinedOrganizationsForNonAdmin: Number(formData.get('maxJoinedOrganizations')),
+      };
+      await adminSettingsService.updateGeneralSettings(payload);
+      queryClient.invalidateQueries({ queryKey: getAdminGeneralSettingsOptions().queryKey });
+      return { success: true, intent: 'updateGeneral' };
+    }
+
+    if (intent === 'addOcrModel') {
+      await adminOcrService.add({
+        name: String(formData.get('name')),
+        modelIdentifier: String(formData.get('modelIdentifier')),
+        provider: String(formData.get('provider')),
+        isActive: formData.get('isActive') === 'true',
+        isDefault: formData.get('isDefault') === 'true',
+      });
+      queryClient.invalidateQueries({ queryKey: getAdminOcrModelsOptions().queryKey });
+      return { success: true, intent: 'addOcrModel' };
+    }
+
+    if (intent === 'updateOcrModel') {
+      const id = String(formData.get('id'));
+      const payload: { isActive?: boolean; isDefault?: boolean } = {};
+      if (formData.has('isActive')) payload.isActive = formData.get('isActive') === 'true';
+      if (formData.has('isDefault')) payload.isDefault = formData.get('isDefault') === 'true';
+      
+      await adminOcrService.update(id, payload);
+      queryClient.invalidateQueries({ queryKey: getAdminOcrModelsOptions().queryKey });
+      return { success: true, intent: 'updateOcrModel' };
+    }
+
+    return { error: 'Unknown intent' };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Action failed' };
+  }
+}
+
 function OcrModelsSettings() {
-  const queryClient = useQueryClient();
+  const submit = useSubmit();
+  const navigation = useNavigation();
   const [name, setName] = useState('');
   const [modelIdentifier, setModelIdentifier] = useState('');
   const [provider, setProvider] = useState('OpenRouter');
   const [isActive, setIsActive] = useState(true);
   const [isDefault, setIsDefault] = useState(false);
-
   const {
     data: models,
     isLoading,
     isError,
     error,
-  } = useQuery({
-    queryKey: adminOcrQueryKey,
-    queryFn: () => adminOcrService.list(),
-  });
+  } = useAdminOcrModels();
 
-  const addModelMutation = useMutation({
-    mutationFn: adminOcrService.add,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminOcrQueryKey });
-      setName('');
-      setModelIdentifier('');
-      setProvider('OpenRouter');
-      setIsActive(true);
-      setIsDefault(false);
-    },
-  });
+  const isAdding = navigation.state !== 'idle' && navigation.formData?.get('intent') === 'addOcrModel';
+  const isUpdating = navigation.state !== 'idle' && navigation.formData?.get('intent') === 'updateOcrModel';
 
-  const updateModelMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: { isActive?: boolean; isDefault?: boolean } }) =>
-      adminOcrService.update(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adminOcrQueryKey });
-    },
-  });
+  useEffect(() => {
+    // We can use useActionData if we pass it down, or just check navigation
+    if (navigation.state === 'idle' && name && !isAdding) {
+       // Reset if add was successful - this is a bit tricky with shared actionData
+    }
+  }, [navigation.state]);
 
-  const onAddModel = async () => {
+  const onAddModel = () => {
     const normalizedName = name.trim();
     const normalizedIdentifier = modelIdentifier.trim();
-    if (!normalizedName || !normalizedIdentifier) {
-      return;
-    }
+    if (!normalizedName || !normalizedIdentifier) return;
 
-    await addModelMutation.mutateAsync({
-      name: normalizedName,
-      modelIdentifier: normalizedIdentifier,
-      provider,
-      isActive,
-      isDefault,
-    });
+    const formData = new FormData();
+    formData.append('intent', 'addOcrModel');
+    formData.append('name', normalizedName);
+    formData.append('modelIdentifier', normalizedIdentifier);
+    formData.append('provider', provider);
+    formData.append('isActive', String(isActive));
+    formData.append('isDefault', String(isDefault));
+    submit(formData, { method: 'post' });
+
+    // Optimistic reset
+    setName('');
+    setModelIdentifier('');
   };
 
   return (
@@ -225,10 +293,10 @@ function OcrModelsSettings() {
       <div className="flex justify-end">
         <Button
           data-testid="admin-ocr-model-add-button"
-          onClick={() => void onAddModel()}
-          disabled={addModelMutation.isPending}
+          onClick={onAddModel}
+          disabled={isAdding}
         >
-          {addModelMutation.isPending ? 'Adding...' : 'Add OCR model'}
+          {isAdding ? 'Adding...' : 'Add OCR model'}
         </Button>
       </div>
 
@@ -259,8 +327,14 @@ function OcrModelsSettings() {
                   variant="outline"
                   size="sm"
                   data-testid={`admin-ocr-model-toggle-active-${model.id}`}
-                  onClick={() => updateModelMutation.mutate({ id: model.id, payload: { isActive: !model.isActive } })}
-                  disabled={updateModelMutation.isPending}
+                  onClick={() => {
+                    const fd = new FormData();
+                    fd.append('intent', 'updateOcrModel');
+                    fd.append('id', model.id);
+                    fd.append('isActive', String(!model.isActive));
+                    submit(fd, { method: 'post' });
+                  }}
+                  disabled={isUpdating}
                 >
                   {model.isActive ? 'Deactivate' : 'Activate'}
                 </Button>
@@ -268,8 +342,14 @@ function OcrModelsSettings() {
                   variant={model.isDefault ? 'secondary' : 'outline'}
                   size="sm"
                   data-testid={`admin-ocr-model-toggle-default-${model.id}`}
-                  onClick={() => updateModelMutation.mutate({ id: model.id, payload: { isDefault: true } })}
-                  disabled={updateModelMutation.isPending || !model.isActive}
+                  onClick={() => {
+                    const fd = new FormData();
+                    fd.append('intent', 'updateOcrModel');
+                    fd.append('id', model.id);
+                    fd.append('isDefault', 'true');
+                    submit(fd, { method: 'post' });
+                  }}
+                  disabled={isUpdating || !model.isActive}
                 >
                   {model.isDefault ? 'Default' : 'Set default'}
                 </Button>
@@ -287,7 +367,8 @@ function OcrModelsSettings() {
 
 function PlansSettingsForm({ settings }: { settings: AdminPlansSettingsDto }) {
   const { t } = useTranslation();
-  const updatePlansMutation = useAdminUpdatePlansSettings();
+  const submit = useSubmit();
+  const navigation = useNavigation();
   const [freeMaxCampaigns, setFreeMaxCampaigns] = useState(String(settings.free.maxCampaigns));
   const [freeMaxMembers, setFreeMaxMembers] = useState(String(settings.free.maxMembers));
   const [freeMaxOcr, setFreeMaxOcr] = useState(String(settings.free.maxOcrExtractionsPerMonth));
@@ -296,32 +377,18 @@ function PlansSettingsForm({ settings }: { settings: AdminPlansSettingsDto }) {
   const [paidMaxMembers, setPaidMaxMembers] = useState(String(settings.paid.maxMembers));
   const [paidMaxOcr, setPaidMaxOcr] = useState(String(settings.paid.maxOcrExtractionsPerMonth));
 
-  const handleSavePlans = async () => {
-    const payload = {
-      free: {
-        maxCampaigns: Number(freeMaxCampaigns),
-        maxMembers: Number(freeMaxMembers),
-        maxOcrExtractionsPerMonth: Number(freeMaxOcr),
-      },
-      paid: {
-        maxCampaigns: Number(paidMaxCampaigns),
-        maxMembers: Number(paidMaxMembers),
-        maxOcrExtractionsPerMonth: Number(paidMaxOcr),
-      },
-    };
+  const isSaving = navigation.state !== 'idle' && navigation.formData?.get('intent') === 'updatePlans';
 
-    if (
-      !Number.isFinite(payload.free.maxCampaigns) || payload.free.maxCampaigns < 1 ||
-      !Number.isFinite(payload.free.maxMembers) || payload.free.maxMembers < 1 ||
-      !Number.isFinite(payload.free.maxOcrExtractionsPerMonth) || payload.free.maxOcrExtractionsPerMonth < 1 ||
-      !Number.isFinite(payload.paid.maxCampaigns) || payload.paid.maxCampaigns < 1 ||
-      !Number.isFinite(payload.paid.maxMembers) || payload.paid.maxMembers < 1 ||
-      !Number.isFinite(payload.paid.maxOcrExtractionsPerMonth) || payload.paid.maxOcrExtractionsPerMonth < 1
-    ) {
-      return;
-    }
-
-    await updatePlansMutation.mutateAsync(payload);
+  const handleSavePlans = () => {
+    const formData = new FormData();
+    formData.append('intent', 'updatePlans');
+    formData.append('freeMaxCampaigns', freeMaxCampaigns);
+    formData.append('freeMaxMembers', freeMaxMembers);
+    formData.append('freeMaxOcr', freeMaxOcr);
+    formData.append('paidMaxCampaigns', paidMaxCampaigns);
+    formData.append('paidMaxMembers', paidMaxMembers);
+    formData.append('paidMaxOcr', paidMaxOcr);
+    submit(formData, { method: 'post' });
   };
 
   return (
@@ -386,9 +453,10 @@ function PlansSettingsForm({ settings }: { settings: AdminPlansSettingsDto }) {
         <Button
           data-testid="admin-settings-plans-save-button"
           onClick={handleSavePlans}
-          disabled={updatePlansMutation.isPending}
+          disabled={isSaving}
         >
-          {updatePlansMutation.isPending ? t('admin.settings.shared.saving') : t('admin.settings.plans.save')}
+          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {isSaving ? t('admin.settings.shared.saving') : t('admin.settings.plans.save')}
         </Button>
       </div>
     </>
@@ -397,24 +465,19 @@ function PlansSettingsForm({ settings }: { settings: AdminPlansSettingsDto }) {
 
 function GeneralSettingsForm({ settings }: { settings: AdminGeneralSettingsDto }) {
   const { t } = useTranslation();
-  const updateGeneralMutation = useAdminUpdateGeneralSettings();
+  const submit = useSubmit();
+  const navigation = useNavigation();
   const [maxOwnedOrganizations, setMaxOwnedOrganizations] = useState(String(settings.maxOwnedOrganizationsForNonAdmin));
   const [maxJoinedOrganizations, setMaxJoinedOrganizations] = useState(String(settings.maxJoinedOrganizationsForNonAdmin));
 
-  const handleSaveGeneral = async () => {
-    const payload = {
-      maxOwnedOrganizationsForNonAdmin: Number(maxOwnedOrganizations),
-      maxJoinedOrganizationsForNonAdmin: Number(maxJoinedOrganizations),
-    };
+  const isSaving = navigation.state !== 'idle' && navigation.formData?.get('intent') === 'updateGeneral';
 
-    if (
-      !Number.isFinite(payload.maxOwnedOrganizationsForNonAdmin) || payload.maxOwnedOrganizationsForNonAdmin < 1 ||
-      !Number.isFinite(payload.maxJoinedOrganizationsForNonAdmin) || payload.maxJoinedOrganizationsForNonAdmin < 1
-    ) {
-      return;
-    }
-
-    await updateGeneralMutation.mutateAsync(payload);
+  const handleSaveGeneral = () => {
+    const formData = new FormData();
+    formData.append('intent', 'updateGeneral');
+    formData.append('maxOwnedOrganizations', maxOwnedOrganizations);
+    formData.append('maxJoinedOrganizations', maxJoinedOrganizations);
+    submit(formData, { method: 'post' });
   };
 
   return (
@@ -438,9 +501,10 @@ function GeneralSettingsForm({ settings }: { settings: AdminGeneralSettingsDto }
         <Button
           data-testid="admin-settings-general-save-button"
           onClick={handleSaveGeneral}
-          disabled={updateGeneralMutation.isPending}
+          disabled={isSaving}
         >
-          {updateGeneralMutation.isPending ? t('admin.settings.shared.saving') : t('admin.settings.general.save')}
+          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {isSaving ? t('admin.settings.shared.saving') : t('admin.settings.general.save')}
         </Button>
       </div>
     </>

@@ -45,7 +45,10 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.error('[AuthStore] Rehydration error:', error);
+        }
         if (state) {
           state.setHydrated(true);
         }
@@ -53,3 +56,20 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+export const waitAuthHydration = async () => {
+  const store = useAuthStore.getState();
+  if (store._hasHydrated) return;
+
+  return new Promise<void>((resolve) => {
+    const unsub = useAuthStore.subscribe((state) => {
+      if (state._hasHydrated) {
+        unsub();
+        resolve();
+      }
+    });
+    
+    // As a fallback, trigger rehydration if it hasn't started
+    useAuthStore.persist.rehydrate();
+  });
+};

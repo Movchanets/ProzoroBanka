@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useSubmit, useActionData, useNavigation, redirect } from 'react-router';
+import type { ActionFunctionArgs } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { CircleAlert, KeyRound, LoaderCircle, Mail } from 'lucide-react';
 import { createLoginSchema, type LoginFormData } from '../../utils/authSchemas';
-import { useGoogleLoginMutation, useLoginMutation } from '../../hooks/queries/useAuth';
+import { authService } from '../../services/authService';
+import { profileService } from '../../services/profileService';
+import { useAuthStore } from '../../stores/authStore';
+import { useGoogleLoginMutation } from '../../hooks/queries/useAuth';
 import { TurnstileWidget } from '../../components/TurnstileWidget';
 import { AuthShell } from '../../components/auth/AuthShell';
 import { FieldMessages } from '../../components/auth/FieldMessages';
@@ -35,13 +39,38 @@ declare global {
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
 const GOOGLE_SCRIPT_ID = 'google-identity-services';
 
+export async function clientAction({ request }: ActionFunctionArgs) {
+  const formData = await request.formData();
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+  const turnstileToken = formData.get('turnstileToken') as string;
+  const next = new URL(request.url).searchParams.get('next') || '/dashboard';
+
+  try {
+    const response = await authService.login({ email, password, turnstileToken });
+    useAuthStore.getState().setAuth(response.accessToken, response.refreshToken, response.accessTokenExpiry, response.user);
+
+    try {
+      const profile = await profileService.getProfile();
+      useAuthStore.getState().updateUser(profile);
+    } catch (e) {
+      console.error('Failed to fetch profile after login:', e);
+    }
+
+    return redirect(next);
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Login failed' };
+  }
+}
+
 export default function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const submit = useSubmit();
+  const actionData = useActionData() as { error?: string } | undefined;
   const [searchParams] = useSearchParams();
-  const [serverError, setServerError] = useState<string | null>(null);
   const [googleReady, setGoogleReady] = useState(false);
-  const loginMutation = useLoginMutation();
+  const [localError, setLocalError] = useState<string | null>(null);
   const googleLoginMutation = useGoogleLoginMutation();
   const googleInitializedRef = useRef(false);
 
@@ -73,23 +102,19 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    setServerError(null);
+    setLocalError(null);
 
     const widgetToken = document
       .querySelector<HTMLInputElement>('input[name="cf-turnstile-response"]')
       ?.value
       ?.trim();
 
-    const payload: LoginFormData = widgetToken
-      ? { ...data, turnstileToken: widgetToken }
-      : data;
+    const payload = {
+      ...data,
+      turnstileToken: widgetToken || data.turnstileToken,
+    };
 
-    try {
-      await loginMutation.mutateAsync(payload);
-      navigate(nextPath, { replace: true });
-    } catch (err) {
-      setServerError(err instanceof Error ? err.message : t('auth.login.errorDefault'));
-    }
+    submit(payload, { method: 'post', replace: true });
   };
 
   const handleTurnstileVerify = useCallback((token: string) => {
@@ -112,23 +137,23 @@ export default function LoginPage() {
         client_id: GOOGLE_CLIENT_ID,
         callback: async ({ credential }) => {
           if (!credential) {
-            setServerError(t('auth.login.googleNoToken'));
+            setLocalError(t('auth.login.googleNoToken'));
             return;
           }
 
           const turnstileToken = document.querySelector<HTMLInputElement>('input[name="cf-turnstile-response"]')?.value?.trim();
           if (!turnstileToken) {
-            setServerError(t('auth.login.googleTurnstileRequired'));
+            setLocalError(t('auth.login.googleTurnstileRequired'));
             return;
           }
 
-          setServerError(null);
+          setLocalError(null);
 
           try {
             await googleLoginMutation.mutateAsync({ idToken: credential, turnstileToken });
             navigate(nextPath, { replace: true });
           } catch (err) {
-            setServerError(err instanceof Error ? err.message : t('auth.login.googleError'));
+            setLocalError(err instanceof Error ? err.message : t('auth.login.googleError'));
           }
         },
         cancel_on_tap_outside: true,
@@ -166,25 +191,28 @@ export default function LoginPage() {
 
   const handleGoogleLogin = useCallback(() => {
     if (!GOOGLE_CLIENT_ID) {
-      setServerError(t('auth.login.googleNotConfiguredShort'));
+      setLocalError(t('auth.login.googleNotConfiguredShort'));
       return;
     }
 
     if (!window.google || !googleReady) {
-      setServerError(t('auth.login.googleInitializing'));
+      setLocalError(t('auth.login.googleInitializing'));
       return;
     }
 
     const turnstileToken = document.querySelector<HTMLInputElement>('input[name="cf-turnstile-response"]')?.value?.trim();
     if (!turnstileToken) {
-      setServerError(t('auth.login.googleTurnstileRequired'));
+      setLocalError(t('auth.login.googleTurnstileRequired'));
       return;
     }
 
-    setServerError(null);
+    setLocalError(null);
     setValue('turnstileToken', turnstileToken, { shouldValidate: true });
     window.google.accounts.id.prompt();
   }, [googleReady, setValue, t]);
+
+  const serverError = actionData?.error || localError;
+  const isPending = useNavigation().state !== 'idle';
 
   return (
     <AuthShell
@@ -253,8 +281,8 @@ export default function LoginPage() {
           <FieldMessages error={errors.turnstileToken} />
         </div>
 
-        <Button type="submit" data-testid="login-submit-button" size="pillWide" className="w-full shadow-[0_18px_30px_var(--shadow-strong)]" disabled={loginMutation.isPending}>
-          {loginMutation.isPending ? t('auth.login.submitPending') : t('auth.login.submit')}
+        <Button type="submit" data-testid="login-submit-button" size="pillWide" className="w-full shadow-[0_18px_30px_var(--shadow-strong)]" disabled={isPending}>
+          {isPending ? t('auth.login.submitPending') : t('auth.login.submit')}
         </Button>
 
         <div className="relative py-1.5">

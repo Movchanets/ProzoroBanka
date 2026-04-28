@@ -12,8 +12,10 @@ import { ComingSoonStub } from '@/components/public/ComingSoonStub';
 import { useHomeCampaignFeed, usePublicCampaignCategories, useSearchOrganizations } from '@/hooks/queries/usePublic';
 import { useTranslation } from 'react-i18next';
 import { resolveLocalizedText } from '@/lib/localizedText';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import type { MetaDescriptor } from 'react-router';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getHomeCampaignFeedOptions, getPublicCampaignCategoriesOptions, getSearchOrganizationsOptions } from '@/hooks/queries/usePublic';
 
 type HomeTab = 'campaigns' | 'organizations';
 type CampaignFilterStatus = 'all' | 'active' | 'completed';
@@ -35,6 +37,15 @@ export function meta(): MetaDescriptor[] {
     },
     { name: 'twitter:card', content: 'summary_large_image' },
   ];
+}
+
+export async function clientLoader() {
+  await Promise.all([
+    ensureQueryData(getPublicCampaignCategoriesOptions()),
+    ensureQueryData(getHomeCampaignFeedOptions('', undefined, 'all', true, 24)),
+    ensureQueryData(getSearchOrganizationsOptions('', 1, false, false, 'activeCampaigns', 12)),
+  ]);
+  return null;
 }
 
 function parseHomeTabFromHash(hash: string): HomeTab | null {

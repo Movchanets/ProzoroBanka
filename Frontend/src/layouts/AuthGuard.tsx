@@ -1,12 +1,13 @@
-import { Navigate, Outlet, useLocation } from 'react-router';
-import { useAuthNavigation } from '@/hooks/useAuthNavigation';
-import { AppLoadingFallback } from '@/components/AppLoadingFallback';
+import { Navigate, Outlet, useLocation } from "react-router";
+import { AppLoadingFallback } from "@/components/AppLoadingFallback";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function AuthGuard() {
   const location = useLocation();
-  const { _hasHydrated, isAuthenticated, isResolvingSession } = useAuthNavigation();
+  const hasHydrated = useAuthStore((state) => state._hasHydrated);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  if (!_hasHydrated || isResolvingSession) {
+  if (!hasHydrated) {
     return <AppLoadingFallback />;
   }
 

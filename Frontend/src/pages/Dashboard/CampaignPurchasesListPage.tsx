@@ -1,18 +1,22 @@
-import { useMemo, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useMemo, useState, useEffect } from 'react';
+import { useSubmit, useActionData, useNavigation, useParams, useNavigate, Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { useCreatePurchase, usePurchases } from '@/hooks/queries/usePurchases';
-import { useCampaign } from '@/hooks/queries/useCampaigns';
+import { usePurchases, getPurchasesOptions, purchaseKeys } from '@/hooks/queries/usePurchases';
+import { useCampaign, getCampaignOptions } from '@/hooks/queries/useCampaigns';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import type { ActionFunctionArgs as ClientActionArgs, LoaderFunctionArgs } from 'react-router';
 import { PurchaseStatus } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { purchaseService } from '@/services/purchaseService';
+import { queryClient } from '@/services/queryClient';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-import { ArrowLeft, Plus, ReceiptText, SearchX, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, ReceiptText, SearchX, FileText, Loader2 } from 'lucide-react';
 import { resolveLocalizedText } from '@/lib/localizedText';
 import { toast } from 'sonner';
 
@@ -31,11 +35,46 @@ function getPurchaseStatusLabel(status: PurchaseStatus, t: TFunction) {
   }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const { orgId, campaignId } = params;
+  if (!orgId || !campaignId) return null;
+
+  await Promise.allSettled([
+    ensureQueryData(getCampaignOptions(campaignId)),
+    ensureQueryData(getPurchasesOptions(orgId, campaignId)),
+  ]);
+  return null;
+}
+
+export async function clientAction({ request, params }: ClientActionArgs) {
+  const { orgId, campaignId } = params;
+  if (!orgId || !campaignId) throw new Error('Params missing');
+
+  const formData = await request.formData();
+  const intent = formData.get('intent');
+
+  if (intent === 'createPurchase') {
+    const title = String(formData.get('title'));
+    try {
+      const purchase = await purchaseService.create(orgId, campaignId, { title, totalAmount: 0 });
+      queryClient.invalidateQueries({ queryKey: purchaseKeys.list(orgId, campaignId) });
+      return { success: true, intent: 'create', purchaseId: purchase.id };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Failed to create purchase' };
+    }
+  }
+
+  return { error: 'Unknown intent' };
+}
+
 export default function CampaignPurchasesListPage() {
   const { t, i18n } = useTranslation();
   const { orgId, campaignId } = useParams<{ orgId: string; campaignId: string }>();
   const navigate = useNavigate();
-  const createPurchase = useCreatePurchase();
+  const submit = useSubmit();
+  const actionData = useActionData() as { success?: boolean; purchaseId?: string; error?: string } | undefined;
+  const navigation = useNavigation();
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const selectedStatus = useMemo(
@@ -46,23 +85,23 @@ export default function CampaignPurchasesListPage() {
   const { data: campaign, isLoading: isCampaignLoading } = useCampaign(campaignId);
   const { data: purchases, isLoading: isPurchasesLoading } = usePurchases(orgId!, campaignId!, selectedStatus);
 
-  const handleCreatePurchase = async () => {
-    try {
-      const created = await createPurchase.mutateAsync({
-        organizationId: orgId!,
-        campaignId: campaignId!,
-        payload: {
-          title: t('purchases.defaultNewTitle', 'Нова закупівля'),
-          totalAmount: 0,
-        },
-      });
-
+  useEffect(() => {
+    if (actionData?.success && actionData.purchaseId) {
       toast.success(t('purchases.createSuccess', 'Закупівлю створено'));
-      navigate(`/dashboard/${orgId}/purchases/${created.id}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('common.error'));
+      navigate(`/dashboard/${orgId}/purchases/${actionData.purchaseId}`);
+    } else if (actionData?.error) {
+      toast.error(actionData.error);
     }
+  }, [actionData, navigate, t, orgId]);
+
+  const handleCreatePurchase = () => {
+    const formData = new FormData();
+    formData.append('intent', 'createPurchase');
+    formData.append('title', t('purchases.defaultNewTitle', 'Нова закупівля'));
+    submit(formData, { method: 'post' });
   };
+
+  const isPending = navigation.state !== 'idle' && navigation.formData?.get('intent') === 'createPurchase';
 
   if (isCampaignLoading) {
     return (
@@ -114,8 +153,9 @@ export default function CampaignPurchasesListPage() {
               </SelectContent>
             </Select>
 
-            <Button onClick={handleCreatePurchase} disabled={createPurchase.isPending} data-testid="campaign-purchases-open-create-dialog">
-              <Plus className="h-4 w-4" />
+            <Button onClick={handleCreatePurchase} disabled={isPending} data-testid="campaign-purchases-open-create-dialog">
+              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Plus className="h-4 w-4 mr-1" />
               {t('purchases.createNew', 'Нова закупівля')}
             </Button>
           </div>
@@ -135,8 +175,9 @@ export default function CampaignPurchasesListPage() {
             <p className="text-sm text-muted-foreground max-w-sm">
               {t('purchases.emptyDescription', 'Закупівлі дозволяють групувати документи (вид. накладні, акти, чеки) для звітування.')}
             </p>
-            <Button className="mt-2" onClick={handleCreatePurchase} disabled={createPurchase.isPending} data-testid="campaign-purchases-empty-create-button">
-              <Plus className="h-4 w-4" />
+            <Button className="mt-2" onClick={handleCreatePurchase} disabled={isPending} data-testid="campaign-purchases-empty-create-button">
+              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Plus className="h-4 w-4 mr-1" />
               {t('purchases.createNew', 'Створити')}
             </Button>
           </CardContent>

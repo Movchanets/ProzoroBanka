@@ -1,15 +1,11 @@
-import { useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useSubmit, useActionData, useNavigation, useParams, useNavigate } from 'react-router';
+import type { ActionFunctionArgs as ClientActionArgs } from 'react-router';
+import { useTranslation } from 'react-i18next';
+import { campaignService } from '@/services/campaignService';
+
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useTranslation } from 'react-i18next';
-import {
-  useCampaign,
-  useUpdateCampaign,
-  useChangeCampaignStatus,
-  useGetMonobankJars,
-  useSetupMonobankWebhook,
-} from '@/hooks/queries/useCampaigns';
 import { createCampaignSchema, type CreateCampaignFormData } from '@/utils/organizationSchemas';
 import { CampaignStatusLabel } from '@/types';
 import type { CampaignStatus } from '@/types';
@@ -26,19 +22,62 @@ import { ArrowLeft, CheckCircle2, Link2, Loader2, Megaphone, Wallet } from 'luci
 import { Checkbox } from '@/components/ui/checkbox';
 import { usePublicCampaignCategories } from '@/hooks/queries/usePublic';
 import { resolveLocalizedText } from '@/lib/localizedText';
+import { queryClient } from '@/services/queryClient';
+import { campaignKeys, useCampaign, useGetMonobankJars, useSetupMonobankWebhook } from '@/hooks/queries/useCampaigns';
+
+export async function clientAction({ request, params }: ClientActionArgs) {
+  const { orgId, campaignId } = params;
+  if (!orgId || !campaignId) throw new Error('Params missing');
+
+  const formData = await request.formData();
+  const intent = formData.get('intent');
+
+  try {
+    if (intent === 'update') {
+      const data = Object.fromEntries(formData) as unknown as CreateCampaignFormData;
+      const categoryIds = formData.getAll('categoryIds').map(String);
+      
+      await campaignService.update(campaignId, {
+        titleUk: data.titleUk,
+        titleEn: data.titleEn,
+        description: data.description || undefined,
+        goalAmount: Math.round(Number(data.goalAmount) * 100),
+        deadline: data.deadline || undefined,
+        categoryIds: categoryIds,
+        sendUrl: data.sendUrl || undefined,
+      });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(campaignId) });
+      return { success: true, message: 'campaigns.edit.savedMessage' };
+    }
+
+    if (intent === 'status') {
+      const newStatus = Number(formData.get('status'));
+      await campaignService.changeStatus(campaignId, { newStatus: newStatus as CampaignStatus });
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(campaignId) });
+      return { success: true, message: 'campaigns.edit.statusUpdated' };
+    }
+
+    return { error: 'Unknown intent' };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Action failed' };
+  }
+}
 
 export default function CampaignEditPage() {
   const { t, i18n } = useTranslation();
   const { orgId, campaignId } = useParams<{ orgId: string; campaignId: string }>();
   const navigate = useNavigate();
+  const submit = useSubmit();
+  const actionData = useActionData() as { success?: boolean; message?: string; error?: string } | undefined;
+  const navigation = useNavigation();
+
   const { data: campaign, isLoading } = useCampaign(campaignId);
-  const updateCampaign = useUpdateCampaign(orgId!);
-  const changeStatus = useChangeCampaignStatus(orgId!);
   const getMonobankJars = useGetMonobankJars();
   const setupMonobankWebhook = useSetupMonobankWebhook(orgId!);
   const { data: categoryOptions = [] } = usePublicCampaignCategories();
-  const [apiError, setApiError] = useState<string | null>(null);
+  
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [monobankToken, setMonobankToken] = useState('');
   const [selectedJarAccountId, setSelectedJarAccountId] = useState('');
@@ -82,7 +121,7 @@ export default function CampaignEditPage() {
       return [] as { id: string; title: string; balance: string }[];
     }
 
-    return payload.jars.map((jar) => ({
+    return payload.jars.map((jar: any) => ({
       id: jar.id,
       title: jar.title || jar.id,
       balance: formatAmount(jar.balance, jar.currencyCode),
@@ -90,7 +129,7 @@ export default function CampaignEditPage() {
   }, [getMonobankJars.data]);
 
   const selectedJar = useMemo(
-    () => jarOptions.find((option) => option.id === selectedJarAccountId),
+    () => jarOptions.find((option: any) => option.id === selectedJarAccountId),
     [jarOptions, selectedJarAccountId],
   );
 
@@ -103,39 +142,41 @@ export default function CampaignEditPage() {
       goalAmount: campaign.goalAmount / 100,
       deadline: campaign.deadline?.split('T')[0] ?? '',
       sendUrl: campaign.sendUrl ?? '',
-      categoryIds: campaign.categories?.map((category) => category.id) ?? [],
+      categoryIds: campaign.categories?.map((category: any) => category.id) ?? [],
     } : undefined,
   });
   const selectedCategoryIds = useWatch({ control, name: 'categoryIds' }) ?? [];
 
-  const onSubmit = async (data: CreateCampaignFormData) => {
-    setApiError(null); setSuccessMsg(null);
-    try {
-      await updateCampaign.mutateAsync({ 
-        id: campaignId!, 
-        payload: {
-          titleUk: data.titleUk,
-          titleEn: data.titleEn,
-          description: data.description || undefined,
-          goalAmount: Math.round(data.goalAmount * 100),
-          deadline: data.deadline || undefined,
-          categoryIds: data.categoryIds,
-          sendUrl: data.sendUrl || undefined,
-        }
-      });
-      setSuccessMsg(t('campaigns.edit.savedMessage'));
-      setTimeout(() => setSuccessMsg(null), 3000);
-    } catch (err) { setApiError(err instanceof Error ? err.message : t('campaigns.edit.updateError')); }
+  useEffect(() => {
+    if (actionData?.success && actionData.message) {
+      setSuccessMsg(t(actionData.message));
+      const timer = setTimeout(() => setSuccessMsg(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [actionData, t]);
+
+  const onSubmit = handleSubmit((data: any) => {
+    const formData = new FormData();
+    formData.append('intent', 'update');
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'categoryIds' && Array.isArray(value)) {
+        value.forEach((v) => formData.append('categoryIds', v));
+      } else {
+        formData.append(key, String(value));
+      }
+    });
+    submit(formData, { method: 'post' });
+  });
+
+  const handleStatusChange = (newStatus: string) => {
+    const formData = new FormData();
+    formData.append('intent', 'status');
+    formData.append('status', newStatus);
+    submit(formData, { method: 'post' });
   };
 
-  const handleStatusChange = async (newStatus: string) => {
-    setApiError(null);
-    try {
-      await changeStatus.mutateAsync({ id: campaignId!, payload: { newStatus: Number(newStatus) as CampaignStatus } });
-      setSuccessMsg(t('campaigns.edit.statusUpdated'));
-      setTimeout(() => setSuccessMsg(null), 3000);
-    } catch (err) { setApiError(err instanceof Error ? err.message : t('campaigns.edit.statusError')); }
-  };
+  const isPending = navigation.state !== 'idle';
+  const serverError = actionData?.error;
 
   const handleFetchJars = async () => {
     setWizardError(null);
@@ -156,7 +197,6 @@ export default function CampaignEditPage() {
 
   const handleConnectMonobank = async () => {
     setWizardError(null);
-    setApiError(null);
     setSuccessMsg(null);
 
     const token = monobankToken.trim();
@@ -196,12 +236,12 @@ export default function CampaignEditPage() {
       </div>
 
       {successMsg && (<Alert className="border-success/30 bg-success/10 text-success" data-testid="campaign-edit-success-alert"><CheckCircle2 className="h-4 w-4" /><AlertDescription>{successMsg}</AlertDescription></Alert>)}
-      {apiError && (<Alert variant="destructive" data-testid="campaign-edit-error-alert"><AlertDescription>{apiError}</AlertDescription></Alert>)}
+      {serverError && (<Alert variant="destructive" data-testid="campaign-edit-error-alert"><AlertDescription>{serverError}</AlertDescription></Alert>)}
 
       <Card className="border border-border bg-card/60 backdrop-blur-sm">
         <CardContent className="flex items-center justify-between p-5">
           <div className="flex items-center gap-3"><Megaphone className="h-5 w-5 text-primary" /><span className="font-medium">{t('campaigns.edit.statusLabel')}</span></div>
-          <Select value={String(campaign?.status ?? 0)} onValueChange={handleStatusChange} disabled={updateCampaign.isPending}>
+          <Select value={String(campaign?.status ?? 0)} onValueChange={handleStatusChange} disabled={isPending}>
             <SelectTrigger className="w-40" data-testid="campaign-edit-status-trigger"><SelectValue /></SelectTrigger>
             <SelectContent>
               {Object.entries(CampaignStatusLabel).map(([value, label]) => (<SelectItem key={value} value={value} data-testid={`campaign-edit-status-option-${value}`}>{t(label)}</SelectItem>))}
@@ -238,7 +278,7 @@ export default function CampaignEditPage() {
       <Card className="border border-border bg-card/60 backdrop-blur-sm">
         <CardHeader><CardTitle className="text-xl" data-testid="campaign-edit-title">{t('campaigns.edit.title')}</CardTitle></CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" data-testid="campaign-edit-form">
+          <form onSubmit={onSubmit} className="space-y-4" data-testid="campaign-edit-form">
             <div className="space-y-2">
               <Label htmlFor="edit-title">{t('campaigns.create.titleLabel')}</Label>
               <Input id="edit-title" {...register('titleUk')} data-testid="campaign-edit-title-uk-input" />
@@ -257,7 +297,7 @@ export default function CampaignEditPage() {
             <div className="space-y-2">
               <Label>{t('campaigns.create.categoriesLabel', 'Категорії')}</Label>
               <div className="grid gap-2 sm:grid-cols-2" data-testid="campaign-edit-categories-list">
-                {categoryOptions.map((category) => {
+                {categoryOptions.map((category: any) => {
                   const label = resolveLocalizedText(category.nameUk, category.nameEn, i18n.language);
                   const checked = selectedCategoryIds.includes(category.id);
 
@@ -269,7 +309,7 @@ export default function CampaignEditPage() {
                           if (isChecked) {
                             setValue('categoryIds', [...new Set([...selectedCategoryIds, category.id])], { shouldDirty: true });
                           } else {
-                            setValue('categoryIds', selectedCategoryIds.filter((id) => id !== category.id), { shouldDirty: true });
+                            setValue('categoryIds', selectedCategoryIds.filter((id: string) => id !== category.id), { shouldDirty: true });
                           }
                         }}
                         data-testid={`campaign-edit-category-checkbox-${category.slug}`}
@@ -304,8 +344,8 @@ export default function CampaignEditPage() {
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => navigate(`/dashboard/${orgId}/campaigns`)} data-testid="campaign-edit-cancel-button">{t('common.cancel')}</Button>
-              <Button type="submit" disabled={updateCampaign.isPending || !isDirty} data-testid="campaign-edit-save-button">
-                {updateCampaign.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={isPending || !isDirty} data-testid="campaign-edit-save-button">
+                {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t('common.save')}
               </Button>
             </div>
@@ -397,7 +437,7 @@ export default function CampaignEditPage() {
                       <SelectValue placeholder={t('campaigns.monobank.jarSelectPlaceholder', 'Оберіть банку')} />
                     </SelectTrigger>
                     <SelectContent>
-                      {jarOptions.map((option) => (
+                      {jarOptions.map((option: any) => (
                         <SelectItem
                           key={option.id}
                           value={option.id}
