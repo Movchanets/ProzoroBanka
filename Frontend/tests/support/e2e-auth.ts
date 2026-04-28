@@ -8,11 +8,21 @@ export const E2E_API_BASE_URL =
 export const E2E_TURNSTILE_TEST_TOKEN =
   process.env.E2E_TURNSTILE_TOKEN ?? "XXXX.DUMMY.TOKEN.XXXX";
 export const E2E_DEFAULT_PASSWORD = "Qwerty-1";
-const SEEDED_ADMIN_EMAIL = "admin@example.com";
+export const E2E_SEEDED_ADMIN_EMAIL =
+  process.env.E2E_EMAIL ?? "admin@example.com";
+export const E2E_SEEDED_ADMIN_PASSWORD =
+  process.env.E2E_PASSWORD ?? E2E_DEFAULT_PASSWORD;
 const SEEDED_ADMIN_PASSWORD_FALLBACKS = [
   E2E_DEFAULT_PASSWORD,
   "Admin123!ChangeMe",
 ];
+
+export function getSeededAdminCredentials() {
+  return {
+    email: E2E_SEEDED_ADMIN_EMAIL,
+    password: E2E_SEEDED_ADMIN_PASSWORD,
+  };
+}
 
 const RETRYABLE_HTTP_STATUS = new Set([500, 502, 503, 504]);
 
@@ -22,7 +32,7 @@ function isRetryableStatus(status: number) {
 
 function shouldTrySeededAdminFallbacks(email: string) {
   return (
-    !process.env.E2E_PASSWORD && email.toLowerCase() === SEEDED_ADMIN_EMAIL
+    !process.env.E2E_PASSWORD && email.toLowerCase() === E2E_SEEDED_ADMIN_EMAIL
   );
 }
 

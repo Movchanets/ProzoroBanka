@@ -1,4 +1,4 @@
-import { type Page, type Locator } from "@playwright/test";
+import { type Page, type Locator, type Response } from "@playwright/test";
 import { gotoAppPath } from "../support/navigation";
 
 export class LoginPage {
@@ -36,6 +36,12 @@ export class LoginPage {
 
   async submit() {
     await this.submitButton.click();
+  }
+
+  async submitAndWaitForLoginResponse(): Promise<Response> {
+    const loginResponsePromise = this.waitForLoginResponse();
+    await this.submit();
+    return loginResponsePromise;
   }
 
   getValidationMessage(message: string) {

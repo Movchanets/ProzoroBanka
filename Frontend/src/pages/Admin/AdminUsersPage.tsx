@@ -3,16 +3,19 @@ import {
   useAdminUsers,
   useAdminRoles,
   useAdminAssignRoles,
-  useAdminDeleteUser,
   useAdminImpersonateUser,
-  useAdminSetUserLockout,
   useAdminUserDetails,
-  useAdminRemoveUserOrganizationLink,
   useAdminUpdateUserOrganizationLink,
   getAdminUsersOptions,
   getAdminRolesOptions,
+  adminQueryKeys,
 } from '@/hooks/queries/useAdminQueries';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiFetch } from '@/services/api';
+import { toast } from 'sonner';
+import type { ServiceResponse } from '@/types';
+import type { AdminUserDto, AdminUserOrganizationLinkDto, AdminRoleDto } from '@/types/admin';
+import { OrganizationPermissions, OrganizationRole } from '@/types/domains/organizations';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,14 +40,23 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppRoles, hasAppRole } from '@/constants/appRoles';
-import { OrganizationPermissions, OrganizationRole } from '@/types/domains/organizations';
-import type { AdminUserDto, AdminRoleDto, AdminUserOrganizationLinkDto } from '@/types/admin';
 import { useAuthStore } from '@/stores/authStore';
 
 type StatusFilter = 'all' | 'active' | 'locked';
@@ -89,6 +101,7 @@ function planLabel(planType: 1 | 2) {
 export default function AdminUsersPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
   const [searchParams, setSearchParams] = useSearchParams();
   const currentUserRoles = useAuthStore((state) => state.user?.roles ?? []);
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
@@ -101,6 +114,58 @@ export default function AdminUsersPage() {
   const [searchInput, setSearchInput] = useState(searchFromUrl);
   const [editingUser, setEditingUser] = useState<AdminUserDto | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+
+  // Confirmation dialogs state
+  const [impersonateConfirm, setImpersonateConfirm] = useState<AdminUserDto | null>(null);
+  const [lockoutConfirm, setLockoutConfirm] = useState<{ user: AdminUserDto; shouldLock: boolean } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<AdminUserDto | null>(null);
+  const [deleteInput, setDeleteInput] = useState('');
+  const [orgLinkRemoveConfirm, setOrgLinkRemoveConfirm] = useState<{ userId: string; organization: AdminUserOrganizationLinkDto } | null>(null);
+
+
+
+  // Generic mutations that take userId in variables
+  const globalLockoutMutation = useMutation({
+    mutationFn: ({ userId, locked }: { userId: string; locked: boolean }) =>
+      apiFetch<ServiceResponse<{ message: string }>>(`/api/admin/users/${userId}/lockout`, {
+        method: 'PUT',
+        body: JSON.stringify({ locked }),
+      }),
+    onSuccess: (_: any, { locked, userId: _userId }: { locked: boolean; userId: string }) => {
+      toast.success(locked ? 'Користувача заблоковано' : 'Користувача розблоковано');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users', viewingUserId, 'details'] });
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
+
+  const globalDeleteMutation = useMutation({
+    mutationFn: (userId: string) =>
+      apiFetch<ServiceResponse<{ message: string }>>(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      toast.success('Користувача видалено');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      setDeleteConfirm(null);
+      setDeleteInput('');
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
+
+  const globalRemoveOrgLinkMutation = useMutation({
+    mutationFn: ({ userId, organizationId }: { userId: string; organizationId: string }) =>
+      apiFetch(`/api/admin/users/${userId}/organizations/${organizationId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: (_: any, { userId, organizationId: _organizationId }: { userId: string; organizationId: string }) => {
+      toast.success('Звʼязок користувача з організацією видалено');
+      queryClient.invalidateQueries({ queryKey: adminQueryKeys.userDetails(userId) });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      setOrgLinkRemoveConfirm(null);
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
 
   useEffect(() => {
     setSearchInput(searchFromUrl);
@@ -196,17 +261,16 @@ export default function AdminUsersPage() {
   const impersonateMutation = useAdminImpersonateUser();
 
   const handleImpersonate = useCallback(async (user: AdminUserDto) => {
-    const confirmed = window.confirm(
-      `Ви увійдете в систему як ${user.email}. Щоб повернутись до адмін-акаунта, потрібно виконати вихід і авторизуватись повторно. Продовжити?`,
-    );
+    setImpersonateConfirm(user);
+  }, []);
 
-    if (!confirmed) {
-      return;
-    }
-
-    await impersonateMutation.mutateAsync(user.id);
+  const executeImpersonate = useCallback(async () => {
+    if (!impersonateConfirm) return;
+    const userId = impersonateConfirm.id;
+    setImpersonateConfirm(null);
+    await impersonateMutation.mutateAsync(userId);
     navigate('/onboarding', { replace: true });
-  }, [impersonateMutation, navigate]);
+  }, [impersonateConfirm, impersonateMutation, navigate]);
 
   const resetFilters = () => {
     setSearchInput('');
@@ -350,6 +414,8 @@ export default function AdminUsersPage() {
                   onOpenProfile={() => setViewingUserId(user.id)}
                   onEditRoles={() => setEditingUser(user)}
                   onImpersonate={() => handleImpersonate(user)}
+                  onToggleLockout={(shouldLock) => setLockoutConfirm({ user, shouldLock })}
+                  onDelete={() => setDeleteConfirm(user)}
                   canImpersonate={canImpersonateUsers && currentUserId !== user.id}
                   isImpersonating={impersonateMutation.isPending && impersonateMutation.variables === user.id}
                 />
@@ -401,8 +467,133 @@ export default function AdminUsersPage() {
           userId={viewingUserId}
           onClose={() => setViewingUserId(null)}
           onEditRoles={(user) => setEditingUser(user)}
+          onRemoveOrgLink={(userId, organization) => setOrgLinkRemoveConfirm({ userId, organization })}
         />
       )}
+
+      {/* Impersonation Confirmation */}
+      <AlertDialog open={!!impersonateConfirm} onOpenChange={(open) => !open && setImpersonateConfirm(null)}>
+        <AlertDialogContent data-testid="admin-users-impersonate-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Увійти як користувач?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ви увійдете в систему як {impersonateConfirm?.email}. Щоб повернутись до адмін-акаунта, потрібно виконати вихід і авторизуватись повторно.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="admin-users-impersonate-cancel">Скасувати</AlertDialogCancel>
+            <AlertDialogAction data-testid="admin-users-impersonate-confirm" onClick={executeImpersonate}>
+              Продовжити
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Lockout Confirmation */}
+      <AlertDialog open={!!lockoutConfirm} onOpenChange={(open) => !open && setLockoutConfirm(null)}>
+        <AlertDialogContent data-testid="admin-users-lockout-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {lockoutConfirm?.shouldLock ? 'Заблокувати користувача?' : 'Розблокувати користувача?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Підтвердьте: {lockoutConfirm?.shouldLock ? 'заблокувати' : 'розблокувати'} користувача {lockoutConfirm?.user.email}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="admin-users-lockout-cancel">Скасувати</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="admin-users-lockout-confirm"
+              onClick={async () => {
+                if (lockoutConfirm) {
+                  const { user, shouldLock } = lockoutConfirm;
+                  setLockoutConfirm(null);
+                  await globalLockoutMutation.mutateAsync({ userId: user.id, locked: shouldLock });
+                }
+              }}
+            >
+              Підтвердити
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete User Confirmation (Prompt Replacement) */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => {
+        if (!open) {
+          setDeleteConfirm(null);
+          setDeleteInput('');
+        }
+      }}>
+        <DialogContent data-testid="admin-users-delete-dialog">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Видалити користувача?</DialogTitle>
+            <DialogDescription>
+              Ця дія є незворотною. Усі дані користувача будуть видалені.
+              Будь ласка, введіть email користувача <strong>{deleteConfirm?.email}</strong> для підтвердження.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              data-testid="admin-users-delete-input"
+              value={deleteInput}
+              onChange={(e) => setDeleteInput(e.target.value)}
+              placeholder="Введіть email для підтвердження"
+              className="w-full"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && deleteInput.toLowerCase() === deleteConfirm?.email.toLowerCase()) {
+                  void globalDeleteMutation.mutateAsync(deleteConfirm.id);
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)} data-testid="admin-users-delete-cancel">
+              Скасувати
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteInput.toLowerCase() !== deleteConfirm?.email.toLowerCase()}
+              data-testid="admin-users-delete-confirm"
+              onClick={async () => {
+                if (deleteConfirm) {
+                  await globalDeleteMutation.mutateAsync(deleteConfirm.id);
+                }
+              }}
+            >
+              Видалити остаточно
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Org Link Confirmation */}
+      <AlertDialog open={!!orgLinkRemoveConfirm} onOpenChange={(open) => !open && setOrgLinkRemoveConfirm(null)}>
+        <AlertDialogContent data-testid="admin-users-remove-org-link-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Видалити зв&apos;язок з організацією?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Видалити зв&apos;язок користувача з організацією &quot;{orgLinkRemoveConfirm?.organization.organizationName}&quot;?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="admin-users-remove-org-link-cancel">Скасувати</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="admin-users-remove-org-link-confirm"
+              onClick={async () => {
+                if (orgLinkRemoveConfirm) {
+                  await globalRemoveOrgLinkMutation.mutateAsync({
+                    userId: orgLinkRemoveConfirm.userId,
+                    organizationId: orgLinkRemoveConfirm.organization.organizationId,
+                  });
+                }
+              }}
+            >
+              Видалити
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -412,6 +603,8 @@ function UserRow({
   onOpenProfile,
   onEditRoles,
   onImpersonate,
+  onToggleLockout,
+  onDelete,
   canImpersonate,
   isImpersonating,
 }: {
@@ -419,30 +612,18 @@ function UserRow({
   onOpenProfile: () => void;
   onEditRoles: () => void;
   onImpersonate: () => Promise<void>;
+  onToggleLockout: (shouldLock: boolean) => void;
+  onDelete: () => void;
   canImpersonate: boolean;
   isImpersonating: boolean;
 }) {
   const initials = `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.trim().toUpperCase() || 'U';
-  const lockoutMutation = useAdminSetUserLockout(user.id);
-  const deleteMutation = useAdminDeleteUser(user.id);
-
-  const handleToggleLockout = async () => {
-    const shouldLock = user.isActive;
-    const action = shouldLock ? 'заблокувати' : 'розблокувати';
-    if (!window.confirm(`Підтвердьте: ${action} користувача ${user.email}?`)) {
-      return;
-    }
-
-    await lockoutMutation.mutateAsync(shouldLock);
+  const handleToggleLockout = () => {
+    onToggleLockout(user.isActive);
   };
 
-  const handleDelete = async () => {
-    const confirmation = window.prompt(`Щоб видалити користувача, введіть email: ${user.email}`);
-    if (confirmation?.trim().toLowerCase() !== user.email.toLowerCase()) {
-      return;
-    }
-
-    await deleteMutation.mutateAsync();
+  const handleDelete = () => {
+    onDelete();
   };
 
   return (
@@ -490,7 +671,6 @@ function UserRow({
             variant="outline"
             size="sm"
             onClick={onOpenProfile}
-            disabled={lockoutMutation.isPending || deleteMutation.isPending}
           >
             Профіль
           </Button>
@@ -500,7 +680,6 @@ function UserRow({
             variant="outline"
             size="sm"
             onClick={onEditRoles}
-            disabled={lockoutMutation.isPending || deleteMutation.isPending}
           >
             Змінити ролі
           </Button>
@@ -510,9 +689,9 @@ function UserRow({
             variant={user.isActive ? 'outline' : 'secondary'}
             size="sm"
             onClick={handleToggleLockout}
-            disabled={lockoutMutation.isPending || deleteMutation.isPending || isImpersonating}
+            disabled={isImpersonating}
           >
-            {lockoutMutation.isPending ? 'Оновлення...' : user.isActive ? 'Заблокувати (бан)' : 'Зняти локаут'}
+            {user.isActive ? 'Заблокувати (бан)' : 'Зняти локаут'}
           </Button>
 
           {canImpersonate ? (
@@ -523,7 +702,7 @@ function UserRow({
               onClick={() => {
                 void onImpersonate();
               }}
-              disabled={lockoutMutation.isPending || deleteMutation.isPending || isImpersonating}
+              disabled={isImpersonating}
             >
               {isImpersonating ? 'Перемикання...' : 'Увійти як'}
             </Button>
@@ -534,10 +713,10 @@ function UserRow({
             variant="soft"
             size="sm"
             onClick={handleDelete}
-            disabled={lockoutMutation.isPending || deleteMutation.isPending || isImpersonating}
+            disabled={isImpersonating}
             className="text-destructive hover:bg-destructive/10"
           >
-            {deleteMutation.isPending ? 'Видалення...' : 'Видалити'}
+            Видалити
           </Button>
         </div>
       </TableCell>
@@ -616,10 +795,12 @@ function UserDetailsDialog({
   userId,
   onClose,
   onEditRoles,
+  onRemoveOrgLink,
 }: {
   userId: string;
   onClose: () => void;
   onEditRoles: (user: AdminUserDto) => void;
+  onRemoveOrgLink: (userId: string, organization: AdminUserOrganizationLinkDto) => void;
 }) {
   const { data: user, isLoading } = useAdminUserDetails(userId);
 
@@ -716,10 +897,11 @@ function UserDetailsDialog({
                 ) : (
                   <div className="space-y-3">
                     {user.organizations.map((organization) => (
-                      <OrganizationMembershipCard
+                       <OrganizationMembershipCard
                         key={`${organization.organizationId}-${organization.role}-${organization.permissions}`}
                         userId={user.id}
                         organization={organization}
+                        onRemove={() => onRemoveOrgLink(user.id, organization)}
                       />
                     ))}
                   </div>
@@ -736,12 +918,13 @@ function UserDetailsDialog({
 function OrganizationMembershipCard({
   userId,
   organization,
+  onRemove,
 }: {
   userId: string;
   organization: AdminUserOrganizationLinkDto;
+  onRemove: () => void;
 }) {
   const updateMembershipMutation = useAdminUpdateUserOrganizationLink(userId);
-  const removeMembershipMutation = useAdminRemoveUserOrganizationLink(userId);
   const [role, setRole] = useState<OrganizationRole>(organization.role);
   const [permissions, setPermissions] = useState<number>(organization.permissions);
 
@@ -757,12 +940,8 @@ function OrganizationMembershipCard({
     });
   };
 
-  const handleRemove = async () => {
-    if (!window.confirm(`Видалити зв'язок користувача з організацією "${organization.organizationName}"?`)) {
-      return;
-    }
-
-    await removeMembershipMutation.mutateAsync(organization.organizationId);
+  const handleRemove = () => {
+    onRemove();
   };
 
   return (
@@ -824,7 +1003,7 @@ function OrganizationMembershipCard({
             <Button
               variant="outline"
               onClick={handleSave}
-              disabled={updateMembershipMutation.isPending || removeMembershipMutation.isPending}
+              disabled={updateMembershipMutation.isPending}
             >
               {updateMembershipMutation.isPending ? 'Збереження...' : 'Зберегти зв&apos;язок'}
             </Button>
@@ -832,9 +1011,9 @@ function OrganizationMembershipCard({
               variant="soft"
               className="text-destructive hover:bg-destructive/10"
               onClick={handleRemove}
-              disabled={updateMembershipMutation.isPending || removeMembershipMutation.isPending}
+              disabled={updateMembershipMutation.isPending}
             >
-              {removeMembershipMutation.isPending ? 'Видалення...' : 'Видалити зв&apos;язок'}
+              Видалити зв&apos;язок
             </Button>
           </div>
         </div>

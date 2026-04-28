@@ -5,7 +5,8 @@ import { useAuthStore } from "@/stores/authStore";
 function getGuestRedirectTarget(search: string) {
   const next = new URLSearchParams(search).get("next");
 
-  if (!next || !next.startsWith("/")) {
+  // Reject if next is missing, doesn't start with /, or starts with // (protocol-relative)
+  if (!next || !next.startsWith("/") || next.startsWith("//")) {
     return "/dashboard";
   }
 

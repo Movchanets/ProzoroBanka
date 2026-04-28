@@ -15,4 +15,8 @@ export class OnboardingPage {
   async goto() {
     await gotoAppPath(this.page, "/onboarding");
   }
+
+  async openCreateOrganizationDialog() {
+    await this.createOrgButton.click();
+  }
 }
