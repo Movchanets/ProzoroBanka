@@ -1,4 +1,4 @@
-import { type Page, type Locator } from "@playwright/test";
+import { type Page, type Locator, type Response } from "@playwright/test";
 import { gotoAppPath } from "../support/navigation";
 
 export class OrgSettingsPage {
@@ -52,6 +52,17 @@ export class OrgSettingsPage {
 
   async goto(orgId: string) {
     await gotoAppPath(this.page, `/dashboard/${orgId}/settings`);
+  }
+
+  async saveAndWaitForUpdate(orgId: string): Promise<Response> {
+    const updateResponsePromise = this.page.waitForResponse(
+      (response) =>
+        response.url().includes(`/api/organizations/${orgId}`) &&
+        response.request().method() === "PUT",
+    );
+
+    await this.saveButton.click();
+    return updateResponsePromise;
   }
 
   async saveRegistryKeys(key: string) {

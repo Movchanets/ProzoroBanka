@@ -1,4 +1,4 @@
-import { type Page, type Locator } from "@playwright/test";
+import { type Page, type Locator, type Response } from "@playwright/test";
 import { gotoAppPath } from "../support/navigation";
 
 export class ProfilePage {
@@ -12,6 +12,12 @@ export class ProfilePage {
   readonly tabInvitations: Locator;
   readonly tabContentInvitations: Locator;
   readonly goOnboardingButton: Locator;
+  readonly loadingProfileText: Locator;
+  readonly emailSection: Locator;
+  readonly sessionSection: Locator;
+  readonly badge: Locator;
+  readonly editBadge: Locator;
+  readonly successAlert: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -26,10 +32,52 @@ export class ProfilePage {
       "profile-tab-content-invitations",
     );
     this.goOnboardingButton = page.getByTestId("profile-go-onboarding-button");
+    this.loadingProfileText = page
+      .getByText("Завантаження профілю")
+      .or(page.getByText("Loading profile"));
+    this.emailSection = page
+      .locator("article")
+      .filter({
+        hasText: /Email|Електронна пошта/i,
+      })
+      .first();
+    this.sessionSection = page
+      .locator("article")
+      .filter({
+        hasText: /Session status|Статус сесії/i,
+      })
+      .first();
+    this.badge = page
+      .getByText("Профіль")
+      .or(page.getByText("Profile"))
+      .first();
+    this.editBadge = page
+      .getByText("Редагування")
+      .or(page.getByText("Edit"))
+      .first();
+    this.successAlert = page
+      .getByText("Профіль оновлено")
+      .or(page.getByText("Profile updated"))
+      .first();
   }
 
   async goto() {
     await gotoAppPath(this.page, "/profile");
+  }
+
+  async waitForLoaded() {
+    await this.loadingProfileText.waitFor({ state: "hidden", timeout: 10_000 });
+  }
+
+  async saveAndWaitForUpdate(): Promise<Response> {
+    const updateResponsePromise = this.page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/auth/me") &&
+        response.request().method() === "PUT",
+    );
+
+    await this.saveButton.click();
+    return updateResponsePromise;
   }
 
   getIncomingInvitationRow(idOrPattern: string | RegExp) {

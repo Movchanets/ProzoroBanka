@@ -77,7 +77,7 @@ echo "[start-test-containers] API is ready!"
 
 # Wait for Frontend to be ready
 echo "[start-test-containers] Waiting for Frontend to be ready..."
-wait_until 120 bash -lc "curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ | grep -Eq '^(200|304)$'"
+wait_until 120 bash -lc "curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/ | grep -Eq '^(200|304)$'"
 echo "[start-test-containers] Frontend is ready!"
 
 echo "[start-test-containers] All services are ready!"
