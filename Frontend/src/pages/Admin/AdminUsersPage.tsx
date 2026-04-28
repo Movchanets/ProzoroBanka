@@ -131,7 +131,7 @@ export default function AdminUsersPage() {
         method: 'PUT',
         body: JSON.stringify({ locked }),
       }),
-    onSuccess: (_: any, { locked, userId: _userId }: { locked: boolean; userId: string }) => {
+    onSuccess: (_: any, { locked }: { locked: boolean; userId: string }) => {
       toast.success(locked ? 'Користувача заблоковано' : 'Користувача розблоковано');
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'users', viewingUserId, 'details'] });
@@ -158,7 +158,7 @@ export default function AdminUsersPage() {
       apiFetch(`/api/admin/users/${userId}/organizations/${organizationId}`, {
         method: 'DELETE',
       }),
-    onSuccess: (_: any, { userId, organizationId: _organizationId }: { userId: string; organizationId: string }) => {
+    onSuccess: (_: any, { userId }: { userId: string; organizationId: string }) => {
       toast.success('Звʼязок користувача з організацією видалено');
       queryClient.invalidateQueries({ queryKey: adminQueryKeys.userDetails(userId) });
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
