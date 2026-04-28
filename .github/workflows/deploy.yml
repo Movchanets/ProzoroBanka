@@ -306,11 +306,8 @@ jobs:
 
           npm run generate:sitemap
 
-      - name: Install Playwright Chromium for prerender
-        working-directory: Frontend
-        run: npx playwright install --with-deps chromium
 
-      - name: Build and prerender frontend bundle
+      - name: Build frontend bundle
         working-directory: Frontend
         env:
           VITE_API_URL: ${{ vars.API_CUSTOM_DOMAIN != '' && format('https://{0}', vars.API_CUSTOM_DOMAIN) || needs.provision-infrastructure.outputs.api_base_url }}
@@ -324,7 +321,7 @@ jobs:
             exit 1
           fi
 
-          npm run build:prerender
+          npm run build
 
       - name: Azure login
         uses: azure/login@v3
@@ -356,5 +353,5 @@ jobs:
         with:
           action: upload
           skip_app_build: true
-          app_location: Frontend/dist
+          app_location: Frontend/build/client
           azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
