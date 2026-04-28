@@ -1,4 +1,4 @@
-import { useAuthStore } from '../stores/authStore';
+import { useAuthStore, waitAuthHydration } from '../stores/authStore';
 import type { ApiError, TokenResponse } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -67,6 +67,7 @@ export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  await waitAuthHydration();
   const store = useAuthStore.getState();
   let token = store.accessToken;
 
@@ -98,7 +99,6 @@ export async function apiFetch<T>(
     ...options,
     headers,
   });
-
   // 2. Реактивне оновлення токена (отримали 401)
   if (response.status === 401) {
     if (store.refreshToken) {

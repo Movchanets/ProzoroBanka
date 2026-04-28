@@ -33,7 +33,10 @@ export function LanguageSwitcher() {
         {languages.map(({ code, label }) => (
           <DropdownMenuItem
             key={code}
-            onClick={() => i18n.changeLanguage(code)}
+            onClick={() => {
+              i18n.changeLanguage(code);
+              localStorage.setItem('prozoro-banka-lang', code);
+            }}
             className={i18n.language === code ? 'font-bold text-primary' : ''}
           >
             {label}

@@ -36,7 +36,7 @@ export function TurnstileWidget({
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const callbackRefs = useRef({ onVerify, onExpire, onError });
-  const [isLoaded, setIsLoaded] = useState(!!window.turnstile);
+  const [isLoaded, setIsLoaded] = useState(() => typeof window !== 'undefined' && !!window.turnstile);
   const effectiveTheme = theme === 'auto' ? (resolvedTheme === 'dark' ? 'dark' : 'light') : theme;
   const effectiveSiteKey = siteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY;
 

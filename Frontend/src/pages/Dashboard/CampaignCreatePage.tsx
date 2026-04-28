@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useMemo, useEffect } from 'react';
+import { useParams, useNavigate, useSubmit, useActionData, useNavigation } from 'react-router';
+import type { ActionFunctionArgs as ClientActionArgs } from 'react-router';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
-import { useCreateCampaign } from '@/hooks/queries/useCampaigns';
+import { campaignService } from '@/services/campaignService';
 import { createCampaignSchema, type CreateCampaignFormData } from '@/utils/organizationSchemas';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,14 +16,45 @@ import { ArrowLeft, Loader2, Megaphone } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { usePublicCampaignCategories } from '@/hooks/queries/usePublic';
 import { resolveLocalizedText } from '@/lib/localizedText';
+import { queryClient } from '@/services/queryClient';
+import { campaignKeys } from '@/hooks/queries/useCampaigns';
+
+export async function clientAction({ request, params }: ClientActionArgs) {
+  const { orgId } = params;
+  if (!orgId) throw new Error('Organization ID is required');
+
+  const formData = await request.formData();
+  const data = Object.fromEntries(formData) as unknown as CreateCampaignFormData;
+  const categoryIds = formData.getAll('categoryIds').map(String);
+
+  try {
+    const campaign = await campaignService.create(orgId, {
+      titleUk: data.titleUk,
+      titleEn: data.titleEn,
+      description: data.description || undefined,
+      goalAmount: Math.round(Number(data.goalAmount) * 100),
+      deadline: data.deadline || undefined,
+      categoryIds: categoryIds,
+      sendUrl: data.sendUrl || undefined,
+    });
+
+    queryClient.invalidateQueries({ queryKey: campaignKeys.all(orgId) });
+    queryClient.invalidateQueries({ queryKey: campaignKeys.stats(orgId) });
+
+    return { success: true, campaignId: campaign.id };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to create campaign' };
+  }
+}
 
 export default function CampaignCreatePage() {
   const { t, i18n } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
-  const createCampaign = useCreateCampaign(orgId!);
+  const submit = useSubmit();
+  const actionData = useActionData() as { success?: boolean; campaignId?: string; error?: string } | undefined;
+  const navigation = useNavigation();
   const { data: categoryOptions = [] } = usePublicCampaignCategories();
-  const [apiError, setApiError] = useState<string | null>(null);
 
   const schema = useMemo(() => createCampaignSchema(t), [t]);
 
@@ -32,23 +64,26 @@ export default function CampaignCreatePage() {
   });
   const selectedCategoryIds = useWatch({ control, name: 'categoryIds' }) ?? [];
 
-  const onSubmit = async (data: CreateCampaignFormData) => {
-    setApiError(null);
-    try {
-      await createCampaign.mutateAsync({
-        titleUk: data.titleUk,
-        titleEn: data.titleEn,
-        description: data.description || undefined,
-        goalAmount: Math.round(data.goalAmount * 100),
-        deadline: data.deadline || undefined,
-        categoryIds: data.categoryIds,
-        sendUrl: data.sendUrl || undefined,
-      });
+  useEffect(() => {
+    if (actionData?.success) {
       navigate(`/dashboard/${orgId}/campaigns`);
-    } catch (err) {
-      setApiError(err instanceof Error ? err.message : t('campaigns.createError'));
     }
-  };
+  }, [actionData, navigate, orgId]);
+
+  const onSubmit = handleSubmit((data) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'categoryIds' && Array.isArray(value)) {
+        value.forEach((v) => formData.append('categoryIds', v));
+      } else {
+        formData.append(key, String(value));
+      }
+    });
+    submit(formData, { method: 'post' });
+  });
+
+  const isPending = navigation.state !== 'idle';
+  const serverError = actionData?.error;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6" data-testid="campaign-create-page">
@@ -67,8 +102,8 @@ export default function CampaignCreatePage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" data-testid="campaign-create-form">
-            {apiError && (<Alert variant="destructive" data-testid="campaign-create-api-error"><AlertDescription>{apiError}</AlertDescription></Alert>)}
+          <form onSubmit={onSubmit} className="space-y-4" data-testid="campaign-create-form">
+            {serverError && (<Alert variant="destructive" data-testid="campaign-create-api-error"><AlertDescription>{serverError}</AlertDescription></Alert>)}
             <div className="space-y-2">
               <Label htmlFor="campaign-title">{t('campaigns.create.titleLabel')}</Label>
               <Input id="campaign-title" placeholder={t('campaigns.create.titlePlaceholderUk', 'Назва українською')} autoFocus {...register('titleUk')} data-testid="campaign-create-title-uk-input" />
@@ -134,8 +169,8 @@ export default function CampaignCreatePage() {
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => navigate(`/dashboard/${orgId}/campaigns`)} data-testid="campaign-create-cancel-button">{t('common.cancel')}</Button>
-              <Button type="submit" disabled={createCampaign.isPending} data-testid="campaign-create-submit-button">
-                {createCampaign.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={isPending} data-testid="campaign-create-submit-button">
+                {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t('common.create')}
               </Button>
             </div>

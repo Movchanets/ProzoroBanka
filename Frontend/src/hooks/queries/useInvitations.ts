@@ -86,3 +86,13 @@ export function useCancelInvitation(orgId: string) {
     },
   });
 }
+
+export const getInviteInfoOptions = (token: string) => ({
+  queryKey: invitationKeys.info(token),
+  queryFn: () => invitationService.getInvitationByToken(token),
+});
+
+export const getMyInvitationsOptions = () => ({
+  queryKey: invitationKeys.my,
+  queryFn: invitationService.getMyInvitations,
+});

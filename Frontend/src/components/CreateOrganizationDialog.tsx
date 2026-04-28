@@ -1,17 +1,14 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
+import { useSubmit, useNavigation } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useCreateOrganization } from '@/hooks/queries/useOrganizations';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { createOrganizationSchema, type CreateOrganizationFormData } from '@/utils/organizationSchemas';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Building2, Loader2 } from 'lucide-react';
 
 interface CreateOrganizationDialogProps {
@@ -43,10 +40,11 @@ function toSlug(name: string): string {
 
 export function CreateOrganizationDialog({ open, onOpenChange, redirectAfterCreate = true }: CreateOrganizationDialogProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const createOrg = useCreateOrganization();
-  const setActiveOrg = useWorkspaceStore((s) => s.setActiveOrg);
-  const [apiError, setApiError] = useState<string | null>(null);
+  if (redirectAfterCreate) {
+    // console.log('Will redirect');
+  }
+  const submit = useSubmit();
+  const navigation = useNavigation();
   const [slugEdited, setSlugEdited] = useState(false);
 
   const schema = useMemo(() => createOrganizationSchema(t), [t]);
@@ -66,29 +64,22 @@ export function CreateOrganizationDialog({ open, onOpenChange, redirectAfterCrea
   );
 
   const onSubmit = async (data: CreateOrganizationFormData) => {
-    setApiError(null);
-    try {
-      const org = await createOrg.mutateAsync({
-        name: data.name,
-        slug: data.slug || undefined,
-        description: data.description || undefined,
-        website: data.website || undefined,
-      });
-      setActiveOrg(org.id);
-      reset();
-      setSlugEdited(false);
-      onOpenChange(false);
-      if (redirectAfterCreate) navigate(`/dashboard/${org.id}`);
-    } catch (err) {
-      setApiError(err instanceof Error ? err.message : t('organizations.create.errorDefault'));
-    }
+    const formData = new FormData();
+    formData.append('intent', 'createOrganization');
+    formData.append('name', data.name);
+    if (data.slug) formData.append('slug', data.slug);
+    if (data.description) formData.append('description', data.description);
+    if (data.website) formData.append('website', data.website);
+
+    submit(formData, { method: 'post' });
   };
+
+  const isPending = navigation.state !== 'idle' && navigation.formData?.get('intent') === 'createOrganization';
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
       reset();
       setSlugEdited(false);
-      setApiError(null);
     }
     onOpenChange(nextOpen);
   };
@@ -107,11 +98,6 @@ export function CreateOrganizationDialog({ open, onOpenChange, redirectAfterCrea
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2">
-          {apiError && (
-            <Alert variant="destructive" data-testid="create-org-error-alert">
-              <AlertDescription>{apiError}</AlertDescription>
-            </Alert>
-          )}
 
           <div className="space-y-2">
             <Label htmlFor="org-name">{t('common.name')} *</Label>
@@ -140,8 +126,8 @@ export function CreateOrganizationDialog({ open, onOpenChange, redirectAfterCrea
 
           <DialogFooter>
             <Button type="button" data-testid="create-org-cancel-button" variant="outline" onClick={() => handleOpenChange(false)}>{t('common.cancel')}</Button>
-            <Button type="submit" data-testid="create-org-submit-button" disabled={createOrg.isPending}>
-              {createOrg.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            <Button type="submit" data-testid="create-org-submit-button" disabled={isPending}>
+              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               {t('common.create')}
             </Button>
           </DialogFooter>

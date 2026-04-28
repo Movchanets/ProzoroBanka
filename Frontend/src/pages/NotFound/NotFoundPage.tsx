@@ -1,9 +1,9 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { MetaDescriptor } from 'react-router';
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export function meta(): MetaDescriptor[] {
   return [
     { title: 'Сторінку не знайдено | ProzoroBanka' },

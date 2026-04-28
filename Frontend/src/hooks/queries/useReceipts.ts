@@ -141,11 +141,24 @@ export function useDeleteReceipt() {
   });
 }
 
+export function useReceiptDetail(organizationId: string, receiptId: string, enabled = true) {
+  return useQuery({
+    ...getReceiptDetailOptions(organizationId, receiptId),
+    enabled: enabled && Boolean(organizationId) && Boolean(receiptId),
+  });
+}
+
+export const getReceiptDetailOptions = (organizationId: string, receiptId: string) => ({
+  queryKey: receiptKeys.detail(organizationId, receiptId),
+  queryFn: () => receiptService.getByIdInOrganization(organizationId, receiptId),
+});
+
 export function useGetMyReceipt() {
   return useMutation({
     mutationFn: ({ organizationId, receiptId }: { organizationId: string; receiptId: string }) =>
       receiptService.getByIdInOrganization(organizationId, receiptId),
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(receiptKeys.detail(variables.organizationId, variables.receiptId), data);
       queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.organizationId, variables.receiptId) });
     },
   });
@@ -273,3 +286,16 @@ export function useImportReceiptTaxXml() {
     },
   });
 }
+
+export const getMyReceiptsOptions = (
+  organizationId: string,
+  params?: { search?: string; status?: ReceiptStatus; onlyUnattached?: boolean },
+) => ({
+  queryKey: receiptKeys.list(
+    organizationId,
+    params?.search,
+    params?.status,
+    params?.onlyUnattached,
+  ),
+  queryFn: () => receiptService.listByOrganization(organizationId, params),
+});

@@ -1,4 +1,5 @@
-import { type Page, type Locator } from '@playwright/test';
+import { type Page, type Locator } from "@playwright/test";
+import { gotoAppPath } from "../support/navigation";
 
 export class LoginPage {
   readonly page: Page;
@@ -10,19 +11,19 @@ export class LoginPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.emailInput = page.getByTestId('login-email-input');
-    this.passwordInput = page.getByTestId('login-password-input');
-    this.submitButton = page.getByTestId('login-submit-button');
-    this.errorAlert = page.getByTestId('login-error-alert');
-    this.publicPagesLink = page.getByTestId('login-public-pages-link');
+    this.emailInput = page.getByTestId("login-email-input");
+    this.passwordInput = page.getByTestId("login-password-input");
+    this.submitButton = page.getByTestId("login-submit-button");
+    this.errorAlert = page.getByTestId("login-error-alert");
+    this.publicPagesLink = page.getByTestId("login-public-pages-link");
   }
 
   async goto() {
-    await this.page.goto('/login');
+    await gotoAppPath(this.page, "/login");
   }
 
   getHeading(title: string) {
-    return this.page.getByRole('heading', { name: title });
+    return this.page.getByRole("heading", { name: title });
   }
 
   async fillEmail(email: string) {
@@ -42,8 +43,10 @@ export class LoginPage {
   }
 
   waitForLoginResponse() {
-    return this.page.waitForResponse((response) =>
-      response.url().includes('/auth/login') && response.request().method() === 'POST'
+    return this.page.waitForResponse(
+      (response) =>
+        response.url().includes("/auth/login") &&
+        response.request().method() === "POST",
     );
   }
 }

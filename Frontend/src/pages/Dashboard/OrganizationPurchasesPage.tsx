@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useCampaigns } from '@/hooks/queries/useCampaigns';
@@ -10,6 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getCampaignsOptions } from '@/hooks/queries/useCampaigns';
+import { getOrganizationPurchasesOptions, getPurchasesOptions } from '@/hooks/queries/usePurchases';
+import type { LoaderFunctionArgs } from 'react-router';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -29,6 +33,28 @@ function getPurchaseStatusLabel(status: PurchaseStatus, t: TFunction) {
     default:
       return t('purchases.status.fallback', 'Статус {{status}}').replace('{{status}}', String(status));
   }
+}
+
+ 
+export async function clientLoader({ params, request }: LoaderFunctionArgs) {
+  const orgId = params.orgId!;
+  const url = new URL(request.url);
+  const campaignId = url.searchParams.get('campaignId');
+
+  // 1. Fetch campaigns first to know the default campaign if none provided
+  const campaigns = await ensureQueryData(getCampaignsOptions(orgId));
+  const selectedCampaignId = campaignId || (campaigns.length > 0 ? campaigns[0].id : null);
+
+  const promises: Promise<unknown>[] = [
+    ensureQueryData(getOrganizationPurchasesOptions(orgId, undefined, true)),
+  ];
+
+  if (selectedCampaignId) {
+    promises.push(ensureQueryData(getPurchasesOptions(orgId, selectedCampaignId)));
+  }
+
+  await Promise.allSettled(promises);
+  return null;
 }
 
 export default function OrganizationPurchasesPage() {

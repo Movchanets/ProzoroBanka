@@ -8,8 +8,12 @@ export const ocrModelQueryKeys = {
 
 export function useOcrModels(enabled = true) {
   return useQuery({
-    queryKey: ocrModelQueryKeys.active(),
-    queryFn: () => apiFetch<OcrModelConfig[]>('/api/ocr/models'),
+    ...getOcrModelsOptions(),
     enabled,
   });
 }
+
+export const getOcrModelsOptions = () => ({
+  queryKey: ocrModelQueryKeys.active(),
+  queryFn: () => apiFetch<OcrModelConfig[]>('/api/ocr/models'),
+});

@@ -5,12 +5,14 @@ import {
   useAdminSetOrganizationPlan,
   useAdminBlockOrganization,
   useAdminUnblockOrganization,
+  getAdminOrganizationsOptions,
+  getAdminOrganizationPlanUsageOptions,
 } from '@/hooks/queries/useAdminQueries';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import {
   Table,
   TableBody,
@@ -501,4 +503,22 @@ function UsageCard({
       </div>
     </div>
   );
+}
+
+export async function clientLoader({ request }: { request: Request }) {
+  const { ensureQueryData } = await import('@/utils/routerHelpers');
+  const url = new URL(request.url);
+  const page = Number(url.searchParams.get('page')) || 1;
+  const verifiedOnlyParam = url.searchParams.get('verifiedOnly');
+  const verifiedOnly = verifiedOnlyParam === 'true' ? true : verifiedOnlyParam === 'false' ? false : undefined;
+  const search = url.searchParams.get('search') || '';
+
+  const orgs = await ensureQueryData(getAdminOrganizationsOptions(page, verifiedOnly, search));
+
+  // Prefetch usage for the first organization if it exists
+  if (orgs.items.length > 0) {
+    await ensureQueryData(getAdminOrganizationPlanUsageOptions(orgs.items[0].id));
+  }
+
+  return null;
 }

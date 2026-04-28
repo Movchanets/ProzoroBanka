@@ -5,6 +5,7 @@ import {
   useAdminCreateCampaignCategory,
   useAdminDeleteCampaignCategory,
   useAdminUpdateCampaignCategory,
+  getAdminCampaignCategoriesOptions,
 } from '@/hooks/queries/useAdminQueries';
 import type { AdminCampaignCategoryDto, AdminCampaignCategoryPayload } from '@/types/admin';
 import { Button } from '@/components/ui/button';
@@ -237,4 +238,10 @@ export default function AdminCampaignCategoriesPage() {
       </Card>
     </div>
   );
+}
+
+export async function clientLoader() {
+  const { ensureQueryData } = await import('@/utils/routerHelpers');
+  await ensureQueryData(getAdminCampaignCategoriesOptions(true));
+  return null;
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import { CalendarDays, Eye, FileText, ImageIcon, Newspaper, ShieldCheck, Target, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useQueries } from '@tanstack/react-query';
@@ -19,23 +19,53 @@ import { resolveLocalizedText } from '@/lib/localizedText';
 import { extractTextFromTiptapJson } from '@/lib/tiptapContent';
 import { DocumentType } from '@/types';
 import type { MetaDescriptor } from 'react-router';
+import type { PublicCampaignDetail } from '@/types';
+import type { LoaderFunctionArgs } from 'react-router';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getPublicCampaignOptions, getPublicCampaignReceiptsOptions } from '@/hooks/queries/usePublic';
+import { getPublicPurchasesOptions } from '@/hooks/queries/usePurchases';
 
-// eslint-disable-next-line react-refresh/only-export-components
-export function meta(): MetaDescriptor[] {
+ 
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const id = params.id!;
+  try {
+    const [campaign] = await Promise.all([
+      ensureQueryData(getPublicCampaignOptions(id)),
+      ensureQueryData(getPublicCampaignReceiptsOptions(id, 1)),
+      ensureQueryData(getPublicPurchasesOptions(id)),
+    ]);
+    return { campaign };
+  } catch (error) {
+    console.error('Failed to load campaign data:', error);
+    return { campaign: null };
+  }
+}
+
+ 
+export function meta({ data }: { data: { campaign: PublicCampaignDetail | null } }): MetaDescriptor[] {
+  if (!data?.campaign) {
+    return [
+      { title: 'Збір не знайдено | ProzoroBanka' },
+      { name: 'description', content: 'Цей збір не знайдено або він був видалений.' },
+    ];
+  }
+
+  const { campaign } = data;
+  const title = campaign.titleUk || campaign.titleEn || 'Збір';
+  const description = campaign.description || 'Сторінка збору з прогресом, деталями витрат і підтвердженими чеками.';
+
   return [
-    { title: 'Публічна сторінка збору | ProzoroBanka' },
-    {
-      name: 'description',
-      content: 'Сторінка збору з прогресом, деталями витрат і підтвердженими чеками.',
-    },
+    { title: `${title} | ProzoroBanka` },
+    { name: 'description', content: description },
     { name: 'robots', content: 'index,follow' },
     { property: 'og:type', content: 'website' },
-    { property: 'og:title', content: 'Публічна сторінка збору | ProzoroBanka' },
-    {
-      property: 'og:description',
-      content: 'Сторінка збору з прогресом, деталями витрат і підтвердженими чеками.',
-    },
+    { property: 'og:title', content: `${title} | ProzoroBanka` },
+    { property: 'og:description', content: description },
+    { property: 'og:image', content: campaign.coverImageUrl },
     { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: `${title} | ProzoroBanka` },
+    { name: 'twitter:description', content: description },
+    { name: 'twitter:image', content: campaign.coverImageUrl },
   ];
 }
 
@@ -66,7 +96,7 @@ function getPublicDocumentTypeLabel(type: number, t: (key: string, options?: Rec
   }
 }
 
-export default function PublicCampaignPage() {
+export default function PublicCampaignPage({ loaderData }: { loaderData?: { campaign: PublicCampaignDetail | null } }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US';
   const { id } = useParams<{ id: string }>();
@@ -77,7 +107,7 @@ export default function PublicCampaignPage() {
   const [activeGalleryDescription, setActiveGalleryDescription] = useState('');
   const [activeTab, setActiveTab] = useState<'updates' | 'receipts' | 'spending'>('updates');
 
-  const campaignQuery = usePublicCampaign(id);
+  const campaignQuery = usePublicCampaign(id, { initialData: loaderData?.campaign || undefined });
   const receiptsQuery = usePublicCampaignReceipts(id, 1);
   const purchasesQuery = usePublicPurchases(id ?? '', Boolean(id));
 

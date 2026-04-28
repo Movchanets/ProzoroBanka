@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
   useAttachReceiptToCampaign,
@@ -10,7 +10,13 @@ import {
   useCreateCampaignPost,
   useDetachReceiptFromCampaign,
   useUpdateCampaignBalance,
+  getCampaignOptions,
+  getCampaignReceiptsOptions,
+  getCampaignPostsOptions,
+  getCampaignTransactionsOptions,
 } from '@/hooks/queries/useCampaigns';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import type { LoaderFunctionArgs } from 'react-router';
 import {
   CampaignStatusLabel,
   ReceiptPublicationStatus,
@@ -70,6 +76,20 @@ function getReceiptDisplayTitle(receipt: ReceiptListItem) {
 }
 
 type InsightTab = 'receipts' | 'transactions';
+
+ 
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const { campaignId } = params;
+  if (!campaignId) return null;
+
+  await Promise.allSettled([
+    ensureQueryData(getCampaignOptions(campaignId)),
+    ensureQueryData(getCampaignReceiptsOptions(campaignId)),
+    ensureQueryData(getCampaignPostsOptions(campaignId)),
+    ensureQueryData(getCampaignTransactionsOptions(campaignId, 1, 10)),
+  ]);
+  return null;
+}
 
 export default function CampaignDetailPage() {
   const { t, i18n } = useTranslation();

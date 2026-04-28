@@ -19,6 +19,42 @@ export const seededAdminAuth: AuthResponse = {
 export async function seedAdminSession(page: Page, locale: TestLanguage): Promise<void> {
   await applyLocale(page, locale);
   await setAuthStorage(page, seededAdminAuth);
+
+  // Mock profile endpoint to avoid 401 with the mock token
+  await page.route('**/api/users/profile', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(seededAdminAuth.user),
+    });
+  });
+
+  // Also mock /auth/me which is sometimes used
+  await page.route('**/api/auth/me', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ...seededAdminAuth.user,
+        roles: ['Admin']
+      }),
+    });
+  });
+
+  // Auth navigation resolves default routes using organization list.
+  await page.route('**/api/organizations/my', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: 'org-nav-admin',
+          name: 'Admin Org',
+          slug: 'admin-org',
+        },
+      ]),
+    });
+  });
 }
 
 export async function expectAdminRoleInStorage(page: Page, timeout = 10_000): Promise<void> {

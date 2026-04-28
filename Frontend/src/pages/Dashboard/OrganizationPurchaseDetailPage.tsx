@@ -1,36 +1,32 @@
 import { useState, useEffect, useMemo, type DragEvent } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useSubmit, useActionData, useNavigation, useParams, useNavigate } from 'react-router';
+import type { ActionFunctionArgs as ClientActionArgs } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useForm } from 'react-hook-form';
 import { useCampaigns } from '@/hooks/queries/useCampaigns';
 import {
-  useCreateDraftPurchase,
-  useAttachPurchaseToCampaign,
-  useAddWaybillItem,
   usePurchaseDetailShort,
-  useUpdatePurchaseShort,
-  useDeletePurchaseShort,
-  useUploadPurchaseDocumentShort,
-  useUpdatePurchaseDocumentMetadataShort,
-  useDeletePurchaseDocumentShort,
-  useProcessPurchaseDocumentOcrShort,
-  useUpdateWaybillItem,
-  useDeleteWaybillItem,
+  getPurchaseDetailShortOptions,
+  purchaseKeys,
+  purchaseShortKeys,
 } from '@/hooks/queries/usePurchases';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getCampaignsOptions } from '@/hooks/queries/useCampaigns';
+import type { LoaderFunctionArgs } from 'react-router';
 import { CampaignStatus, PurchaseStatus, DocumentType, OcrProcessingStatus, type DocumentDto } from '@/types';
-import type { PurchaseStatus as PurchaseStatusType } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Loader2, Trash2, UploadCloud, Download, Sparkles, Save, Eye } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash2, UploadCloud, Sparkles, Save, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { DocumentPreviewDialog } from '@/components/ui/document-preview-dialog';
+import { purchaseService } from '@/services/purchaseService';
+import { queryClient } from '@/services/queryClient';
 
 function getPurchaseStatusLabel(status: PurchaseStatus, t: TFunction) {
   switch (status) {
@@ -64,35 +60,7 @@ function getDocumentTypeLabel(type: DocumentType, t: TFunction) {
   }
 }
 
-function getOcrStatusLabel(status: OcrProcessingStatus, t: TFunction) {
-  switch (status) {
-    case OcrProcessingStatus.NotRequired:
-      return t('purchases.ocrStatus.notRequired', 'OCR не потрібен');
-    case OcrProcessingStatus.NotProcessed:
-      return t('purchases.ocrStatus.notProcessed', 'OCR не запускали');
-    case OcrProcessingStatus.Processing:
-      return t('purchases.ocrStatus.processing', 'OCR у процесі');
-    case OcrProcessingStatus.Success:
-      return t('purchases.ocrStatus.success', 'OCR успішно');
-    case OcrProcessingStatus.Failed:
-      return t('purchases.ocrStatus.failed', 'OCR помилка');
-    default:
-      return t('purchases.ocrStatus.fallback', 'OCR статус {{status}}').replace('{{status}}', String(status));
-  }
-}
 
-function getOcrBadgeVariant(status: OcrProcessingStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
-  switch (status) {
-    case OcrProcessingStatus.Success:
-      return 'default';
-    case OcrProcessingStatus.Failed:
-      return 'destructive';
-    case OcrProcessingStatus.Processing:
-      return 'secondary';
-    default:
-      return 'outline';
-  }
-}
 
 function DocumentMetadataForm({
   document,
@@ -135,7 +103,7 @@ function DocumentMetadataForm({
   const [itemUnitPrice, setItemUnitPrice] = useState('0');
   const documentItems = useMemo(() => document.items ?? [], [document.items]);
   const [editableItems, setEditableItems] = useState(
-    documentItems.map((item) => ({
+    documentItems.map((item: any) => ({
       id: item.id,
       name: item.name,
       quantity: String(item.quantity),
@@ -159,7 +127,7 @@ function DocumentMetadataForm({
   };
 
   const isItemChanged = (editableItem: { id: string; name: string; quantity: string; unitPrice: string }) => {
-    const sourceItem = documentItems.find((candidate) => candidate.id === editableItem.id);
+    const sourceItem = documentItems.find((candidate: any) => candidate.id === editableItem.id);
     if (!sourceItem) {
       return false;
     }
@@ -213,7 +181,7 @@ function DocumentMetadataForm({
     }
 
     if (isWaybill && editableItems.length > 0) {
-      return editableItems.reduce((sum, item) => {
+      return editableItems.reduce((sum: number, item: any) => {
         const qty = Number(item.quantity.replace(',', '.'));
         const unit = Number(item.unitPrice.replace(',', '.'));
         if (!Number.isFinite(qty) || !Number.isFinite(unit) || qty < 0 || unit < 0) {
@@ -224,7 +192,7 @@ function DocumentMetadataForm({
       }, 0);
     }
 
-    return documentItems.reduce((sum, item) => sum + (item.totalPrice / 100), 0);
+    return documentItems.reduce((sum: number, item: any) => sum + (item.totalPrice / 100), 0);
   })();
 
   const amountValue = calculatedWaybillAmount !== null
@@ -261,7 +229,7 @@ function DocumentMetadataForm({
         return;
       }
 
-      const targetItem = editableItems.find((item) => item.id === itemId);
+      const targetItem = editableItems.find((item: any) => item.id === itemId);
       if (!targetItem) {
         return;
       }
@@ -303,7 +271,7 @@ function DocumentMetadataForm({
             {documentItems.length === 0 ? (
               <p className="text-xs text-muted-foreground" data-testid={`purchase-document-items-empty-${document.id}`}>{t('purchases.items.empty')}</p>
             ) : !isWaybill || editableItems.length === 0 ? (
-              documentItems.map((item) => (
+              documentItems.map((item: any) => (
                 <div key={item.id} className="grid grid-cols-1 md:grid-cols-14 items-center gap-2 rounded-md border border-border/50 bg-background p-2 text-xs" data-testid={`purchase-document-item-row-${item.id}`}>
                   <p className="md:col-span-5 truncate font-medium">{item.name}</p>
                   <p className="md:col-span-2 text-muted-foreground">{item.quantity}</p>
@@ -312,8 +280,8 @@ function DocumentMetadataForm({
                 </div>
               ))
             ) : (
-              editableItems.map((editableItem) => {
-                const item = documentItems.find((candidate) => candidate.id === editableItem.id);
+              editableItems.map((editableItem: any) => {
+                const item = documentItems.find((candidate: any) => candidate.id === editableItem.id);
                 if (!item) {
                   return null;
                 }
@@ -321,13 +289,13 @@ function DocumentMetadataForm({
                 return (
                   <div key={item.id} className="grid grid-cols-1 md:grid-cols-14 items-center gap-2 rounded-md border border-border/50 bg-background p-2 text-xs" data-testid={`purchase-document-item-row-${item.id}`}>
                     <div className="md:col-span-5">
-                      <Input value={editableItem.name} onChange={(event) => setEditableItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, name: event.target.value } : candidate))} data-testid={`purchase-document-item-name-${item.id}`} />
+                      <Input value={editableItem.name} onChange={(event) => setEditableItems((current: any[]) => current.map((candidate: any) => candidate.id === item.id ? { ...candidate, name: event.target.value } : candidate))} data-testid={`purchase-document-item-name-${item.id}`} />
                     </div>
                     <div className="md:col-span-2">
-                      <Input type="number" step="0.001" min="0" value={editableItem.quantity} onChange={(event) => setEditableItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, quantity: event.target.value } : candidate))} data-testid={`purchase-document-item-quantity-${item.id}`} />
+                      <Input type="number" step="0.001" min="0" value={editableItem.quantity} onChange={(event) => setEditableItems((current: any[]) => current.map((candidate: any) => candidate.id === item.id ? { ...candidate, quantity: event.target.value } : candidate))} data-testid={`purchase-document-item-quantity-${item.id}`} />
                     </div>
                     <div className="md:col-span-2">
-                      <Input type="number" step="0.01" min="0" value={editableItem.unitPrice} onChange={(event) => setEditableItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, unitPrice: event.target.value } : candidate))} data-testid={`purchase-document-item-unit-price-${item.id}`} />
+                      <Input type="number" step="0.01" min="0" value={editableItem.unitPrice} onChange={(event) => setEditableItems((current: any[]) => current.map((candidate: any) => candidate.id === item.id ? { ...candidate, unitPrice: event.target.value } : candidate))} data-testid={`purchase-document-item-unit-price-${item.id}`} />
                     </div>
                     <p className="md:col-span-2 md:text-right font-semibold">{(Math.round(Number(editableItem.quantity.replace(',', '.')) * Number(editableItem.unitPrice.replace(',', '.')) * 100) / 100).toFixed(2)} ₴</p>
                     <div className="md:col-span-3 flex flex-wrap justify-end gap-2">
@@ -510,38 +478,141 @@ function DocumentMetadataForm({
   );
 }
 
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const { orgId, purchaseId } = params;
+  if (!orgId) return null;
+
+  const promises: Promise<unknown>[] = [
+    ensureQueryData(getCampaignsOptions(orgId, CampaignStatus.Active)),
+  ];
+
+  if (purchaseId && purchaseId !== 'new') {
+    promises.push(ensureQueryData(getPurchaseDetailShortOptions(orgId, purchaseId)));
+  }
+
+  await Promise.allSettled(promises);
+  return null;
+}
+
+export async function clientAction({ request, params }: ClientActionArgs) {
+  const { orgId, purchaseId } = params;
+  if (!orgId) throw new Error('Organization ID missing');
+
+  const formData = await request.formData();
+  const intent = formData.get('intent');
+
+  try {
+    if (intent === 'savePurchase') {
+      const payload = {
+        title: String(formData.get('title')),
+        totalAmount: Number(formData.get('totalAmount')),
+        status: Number(formData.get('status')) as PurchaseStatus,
+      };
+      if (purchaseId === 'new') {
+        const purchase = await purchaseService.createDraft({ ...payload, organizationId: orgId });
+        return { success: true, intent: 'create', purchaseId: purchase.id };
+      } else {
+        await purchaseService.updateShort(orgId, purchaseId!, payload);
+        queryClient.invalidateQueries({ queryKey: purchaseShortKeys.detail(orgId, purchaseId!) });
+        return { success: true, intent: 'update' };
+      }
+    }
+
+    if (intent === 'deletePurchase') {
+      await purchaseService.deleteShort(orgId, purchaseId!);
+      queryClient.invalidateQueries({ queryKey: purchaseKeys.all });
+      return { success: true, intent: 'delete' };
+    }
+
+    if (intent === 'attachToCampaign') {
+      const campaignId = String(formData.get('campaignId'));
+      await purchaseService.attachToCampaign(purchaseId!, { campaignId });
+      queryClient.invalidateQueries({ queryKey: purchaseShortKeys.detail(orgId, purchaseId!) });
+      return { success: true, intent: 'attach' };
+    }
+
+    if (intent === 'uploadDocument') {
+      const file = formData.get('file') as File;
+      const type = Number(formData.get('type')) as DocumentType;
+      await purchaseService.uploadDocumentShort(orgId, purchaseId!, file, type);
+      queryClient.invalidateQueries({ queryKey: purchaseShortKeys.detail(orgId, purchaseId!) });
+      return { success: true, intent: 'upload' };
+    }
+
+    if (intent === 'deleteDocument') {
+      const documentId = String(formData.get('documentId'));
+      await purchaseService.deleteDocumentShort(orgId, purchaseId!, documentId);
+      queryClient.invalidateQueries({ queryKey: purchaseShortKeys.detail(orgId, purchaseId!) });
+      return { success: true, intent: 'deleteDocument' };
+    }
+
+    if (intent === 'updateDocumentMetadata') {
+      const documentId = String(formData.get('documentId'));
+      const payload = JSON.parse(String(formData.get('payload')));
+      await purchaseService.updateDocumentMetadataShort(orgId, purchaseId!, documentId, payload);
+      queryClient.invalidateQueries({ queryKey: purchaseShortKeys.detail(orgId, purchaseId!) });
+      return { success: true, intent: 'updateDocumentMetadata' };
+    }
+
+    if (intent === 'addWaybillItem') {
+      const documentId = String(formData.get('documentId'));
+      const payload = JSON.parse(String(formData.get('payload')));
+      await purchaseService.addItemToWaybill(documentId, payload);
+      queryClient.invalidateQueries({ queryKey: purchaseShortKeys.detail(orgId, purchaseId!) });
+      return { success: true, intent: 'addWaybillItem' };
+    }
+
+    if (intent === 'updateWaybillItem') {
+      const documentId = String(formData.get('documentId'));
+      const itemId = String(formData.get('itemId'));
+      const payload = JSON.parse(String(formData.get('payload')));
+      await purchaseService.updateWaybillItem(documentId, itemId, payload);
+      queryClient.invalidateQueries({ queryKey: purchaseShortKeys.detail(orgId, purchaseId!) });
+      return { success: true, intent: 'updateWaybillItem' };
+    }
+
+    if (intent === 'deleteWaybillItem') {
+      const documentId = String(formData.get('documentId'));
+      const itemId = String(formData.get('itemId'));
+      await purchaseService.deleteWaybillItem(documentId, itemId);
+      queryClient.invalidateQueries({ queryKey: purchaseShortKeys.detail(orgId, purchaseId!) });
+      return { success: true, intent: 'deleteWaybillItem' };
+    }
+
+    if (intent === 'processOcr') {
+      const documentId = String(formData.get('documentId'));
+      await purchaseService.processDocumentOcrShort(orgId, purchaseId!, documentId, { confirmReprocess: true });
+      queryClient.invalidateQueries({ queryKey: purchaseShortKeys.detail(orgId, purchaseId!) });
+      return { success: true, intent: 'processOcr' };
+    }
+
+    return { error: 'Unknown intent' };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Action failed' };
+  }
+}
+
 export default function OrganizationPurchaseDetailPage() {
   const { t, i18n } = useTranslation();
-  const { orgId, purchaseId } = useParams<{ orgId: string; purchaseId?: string }>();
+  const { orgId, purchaseId } = useParams<{ orgId: string; purchaseId: string }>();
   const navigate = useNavigate();
-  const isNew = !purchaseId || purchaseId === 'new';
-  const isDocumentsLocked = isNew || !purchaseId || purchaseId === 'new';
+  const submit = useSubmit();
+  const actionData = useActionData() as { success?: boolean; intent?: string; purchaseId?: string; error?: string } | undefined;
+  const navigation = useNavigation();
 
-  const { data: campaigns = [] } = useCampaigns(orgId);
-  const activeCampaigns = campaigns.filter((campaign) => campaign.status === CampaignStatus.Active);
+  const isNew = purchaseId === 'new';
+  const isDocumentsLocked = isNew;
 
-  const { data: purchase, isLoading: isPurchaseLoading } = usePurchaseDetailShort(
-    orgId!,
-    purchaseId ?? '',
-    Boolean(purchaseId) && !isNew
-  );
+  const { data: campaignsData = [] } = useCampaigns(orgId ?? '');
+  const activeCampaigns = campaignsData.filter((campaign) => campaign.status === CampaignStatus.Active);
 
-  const createDraftPurchase = useCreateDraftPurchase();
-  const attachPurchaseToCampaign = useAttachPurchaseToCampaign();
-  const addWaybillItem = useAddWaybillItem();
-  const updateWaybillItem = useUpdateWaybillItem();
-  const deleteWaybillItem = useDeleteWaybillItem();
-  const updatePurchase = useUpdatePurchaseShort();
-  const deletePurchase = useDeletePurchaseShort();
-  const uploadDocument = useUploadPurchaseDocumentShort();
-  const updateDocumentMetadata = useUpdatePurchaseDocumentMetadataShort();
-  const deleteDocument = useDeletePurchaseDocumentShort();
-  const processDocumentOcr = useProcessPurchaseDocumentOcrShort();
+  const { data: purchase, isLoading: isPurchaseLoading } = usePurchaseDetailShort(orgId ?? '', purchaseId ?? '', !isNew);
 
   const { register, handleSubmit, reset, setValue, formState: { isSubmitting } } = useForm({
     defaultValues: {
       title: '',
       status: String(PurchaseStatus.PaymentSent),
+      totalAmount: 0,
     },
   });
 
@@ -555,10 +626,7 @@ export default function OrganizationPurchaseDetailPage() {
   const [selectedAttachCampaignId, setSelectedAttachCampaignId] = useState<string>('');
 
   const openDocumentPreview = (fileUrl: string | null, originalFileName: string) => {
-    if (!fileUrl) {
-      return;
-    }
-
+    if (!fileUrl) return;
     setPreviewDocument({ src: fileUrl, title: originalFileName, fileName: originalFileName });
   };
 
@@ -567,218 +635,144 @@ export default function OrganizationPurchaseDetailPage() {
       reset({
         title: purchase.title,
         status: String(purchase.status),
+        totalAmount: purchase.totalAmount / 100,
       });
     }
   }, [purchase, reset]);
 
-  const onSubmit = async (data: { title: string; status: string }) => {
-    try {
-      if (isNew) {
-        const created = await createDraftPurchase.mutateAsync({
-          organizationId: orgId!,
-          title: data.title,
-          description: null,
-        });
+  useEffect(() => {
+    if (actionData?.success) {
+      if (actionData.intent === 'create' && actionData.purchaseId) {
         toast.success(t('purchases.createSuccess', 'Закупівлю створено'));
-        navigate(`/dashboard/${orgId}/purchases/${created.id}`);
-      } else {
-        await updatePurchase.mutateAsync({
-          organizationId: orgId!,
-          purchaseId: purchaseId!,
-          payload: { title: data.title, status: Number(data.status) as PurchaseStatusType },
-        });
+        navigate(`/dashboard/${orgId}/purchases/${actionData.purchaseId}`);
+      } else if (actionData.intent === 'delete') {
+        toast.success(t('purchases.deleteSuccess', 'Закупівлю видалено'));
+        navigate(`/dashboard/${orgId}/purchases`);
+      } else if (actionData.intent === 'update') {
         toast.success(t('purchases.updateSuccess', 'Закупівлю оновлено'));
+      } else if (actionData.intent === 'attach') {
+        toast.success(t('purchases.attachSuccess', 'Закупівлю прикріплено до кампанії'));
+      } else if (actionData.intent === 'upload') {
+        toast.success(t('purchases.uploadSuccess', 'Документ завантажено'));
+      } else if (actionData.intent === 'deleteDocument') {
+        toast.success(t('purchases.deleteDocSuccess', 'Документ видалено'));
+      } else if (actionData.intent === 'processOcr') {
+        toast.success(t('purchases.ocrStarted', 'OCR запущено'));
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('common.error'));
+    } else if (actionData?.error) {
+      toast.error(actionData.error);
     }
+  }, [actionData, navigate, t, orgId]);
+
+  const onSave = (data: { title: string; totalAmount: number; status: string }) => {
+    const formData = new FormData();
+    formData.append('intent', 'savePurchase');
+    formData.append('title', data.title);
+    formData.append('totalAmount', String(Math.round(data.totalAmount * 100)));
+    formData.append('status', data.status);
+    submit(formData, { method: 'post' });
   };
 
-  const handleUpload = async (file: File | null, type: DocumentType, clearFile: () => void) => {
-    if (!file || !purchaseId || isDocumentsLocked) {
-      if (isDocumentsLocked) {
-        toast.error(t('purchases.documentsLockedBeforeCreate', 'Спочатку збережіть закупівлю, а потім завантажуйте документи.'));
-      }
+  const onDelete = () => {
+    if (!window.confirm(t('common.confirmDelete', 'Ви впевнені?'))) return;
+    const formData = new FormData();
+    formData.append('intent', 'deletePurchase');
+    submit(formData, { method: 'post' });
+  };
+
+  const handleAttachPurchase = () => {
+    if (!selectedAttachCampaignId) {
+      toast.error(t('purchases.toasts.selectCampaignFirst', 'Спершу оберіть збір'));
       return;
     }
+    const formData = new FormData();
+    formData.append('intent', 'attachToCampaign');
+    formData.append('campaignId', selectedAttachCampaignId);
+    submit(formData, { method: 'post' });
+    setIsAttachDialogOpen(false);
+    setSelectedAttachCampaignId('');
+  };
 
-    try {
-      await uploadDocument.mutateAsync({
-        organizationId: orgId!,
-        purchaseId: purchaseId,
-        file,
-        type,
-      });
-      clearFile();
-      toast.success(t('purchases.uploadSuccess', 'Документ завантажено'));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('common.error'));
+  const handleUpload = (file: File | null, type: DocumentType, clearFile: () => void) => {
+    if (!file) return;
+    if (isDocumentsLocked) {
+      toast.error(t('purchases.documentsLockedBeforeCreate', 'Спочатку збережіть закупівлю'));
+      return;
     }
+    const formData = new FormData();
+    formData.append('intent', 'uploadDocument');
+    formData.append('file', file);
+    formData.append('type', String(type));
+    submit(formData, { method: 'post', encType: 'multipart/form-data' });
+    clearFile();
   };
 
   const handleUploadDrop = (event: DragEvent<HTMLDivElement>, setFile: (file: File | null) => void) => {
     event.preventDefault();
     setActiveUploadHoverZone(null);
-
     if (isDocumentsLocked) {
-      toast.error(t('purchases.documentsLockedBeforeCreate', 'Спочатку збережіть закупівлю, а потім завантажуйте документи.'));
+      toast.error(t('purchases.documentsLockedBeforeCreate', 'Спочатку збережіть закупівлю'));
       return;
     }
-
     const file = event.dataTransfer.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    setFile(file);
+    if (file) setFile(file);
   };
 
-  const handleDeleteDocument = async (docId: string) => {
-    if (!purchaseId) return;
-    try {
-      await deleteDocument.mutateAsync({
-        organizationId: orgId!,
-        purchaseId: purchaseId,
-        documentId: docId,
-      });
-      toast.success(t('purchases.deleteDocSuccess', 'Документ видалено'));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('common.error'));
-    }
+  const handleDeleteDocument = (docId: string) => {
+    if (!window.confirm(t('common.confirmDelete'))) return;
+    const formData = new FormData();
+    formData.append('intent', 'deleteDocument');
+    formData.append('documentId', docId);
+    submit(formData, { method: 'post' });
   };
 
-  const handleSaveDocumentMetadata = async (
-    documentId: string,
-    payload: {
-      amount?: number;
-      counterpartyName?: string;
-      documentDate?: string;
-      edrpou?: string;
-      payerFullName?: string;
-      receiptCode?: string;
-      paymentPurpose?: string;
-      senderIban?: string;
-      receiverIban?: string;
-    },
-  ) => {
-    if (!purchaseId) {
-      return;
-    }
-
-    try {
-      await updateDocumentMetadata.mutateAsync({
-        organizationId: orgId!,
-        purchaseId,
-        documentId,
-        payload,
-      });
-      toast.success(t('purchases.metadataSaved', 'Метадані документа оновлено'));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('common.error'));
-    }
+  const handleSaveDocumentMetadata = async (documentId: string, payload: any) => {
+    const formData = new FormData();
+    formData.append('intent', 'updateDocumentMetadata');
+    formData.append('documentId', documentId);
+    formData.append('payload', JSON.stringify(payload));
+    submit(formData, { method: 'post' });
   };
 
-  const handleRunDocumentOcr = async (
-    documentId: string,
-    isRestricted: boolean,
-    status: OcrProcessingStatus,
-  ) => {
-    if (!purchaseId) {
-      return;
-    }
-
+  const handleRunDocumentOcr = (documentId: string, isRestricted: boolean, status: OcrProcessingStatus) => {
     if (isRestricted) {
       toast.error(t('purchases.ocrRestricted', 'OCR заборонено для цього типу'));
       return;
     }
-
     const confirmReprocess = status === OcrProcessingStatus.Success
       ? window.confirm(t('purchases.confirmRerunOcr', 'Документ вже розпізнано. Запустити OCR повторно?'))
-      : false;
+      : true;
+    if (!confirmReprocess) return;
 
-    if (status === OcrProcessingStatus.Success && !confirmReprocess) {
-      return;
-    }
-
-    try {
-      await processDocumentOcr.mutateAsync({
-        organizationId: orgId!,
-        purchaseId,
-        documentId,
-        confirmReprocess,
-      });
-      toast.success(t('purchases.ocrStarted', 'OCR запущено'));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('common.error'));
-    }
+    const formData = new FormData();
+    formData.append('intent', 'processOcr');
+    formData.append('documentId', documentId);
+    submit(formData, { method: 'post' });
   };
 
-  const handleDeletePurchase = async () => {
-    if (!purchaseId || isNew || !confirm(t('purchases.deleteConfirm', 'Видалити цю закупівлю та всі прив\'язані документи?'))) return;
-    
-    try {
-      await deletePurchase.mutateAsync({
-        organizationId: orgId!,
-        purchaseId: purchaseId,
-      });
-      toast.success(t('purchases.deleteSuccess', 'Закупівлю видалено'));
-      navigate(`/dashboard/${orgId}/purchases`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('common.error'));
-    }
+  const handleAddWaybillItem = async (documentId: string, payload: any) => {
+    const formData = new FormData();
+    formData.append('intent', 'addWaybillItem');
+    formData.append('documentId', documentId);
+    formData.append('payload', JSON.stringify(payload));
+    submit(formData, { method: 'post' });
   };
 
-  const handleAttachPurchase = async () => {
-    if (!purchaseId || !selectedAttachCampaignId) {
-      toast.error(t('purchases.toasts.selectCampaignFirst', 'Спершу оберіть збір'));
-      return;
-    }
-
-    try {
-      await attachPurchaseToCampaign.mutateAsync({
-        purchaseId,
-        payload: { campaignId: selectedAttachCampaignId },
-      });
-      setIsAttachDialogOpen(false);
-      setSelectedAttachCampaignId('');
-      toast.success(t('purchases.attachSuccess', 'Закупівлю прикріплено до збору'));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('common.error'));
-    }
-  };
-
-  const handleAddWaybillItem = async (
-    documentId: string,
-    payload: { name: string; quantity: number; unitPrice: number },
-  ) => {
-    try {
-      await addWaybillItem.mutateAsync({ documentId, payload });
-      toast.success(t('purchases.items.addSuccess', 'Позицію додано'));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('common.error'));
-    }
-  };
-
-  const handleUpdateWaybillItem = async (
-    documentId: string,
-    itemId: string,
-    payload: { name: string; quantity: number; unitPrice: number },
-  ) => {
-    try {
-      await updateWaybillItem.mutateAsync({ documentId, itemId, payload });
-      toast.success(t('purchases.items.updateSuccess', 'Позицію оновлено'));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('common.error'));
-    }
+  const handleUpdateWaybillItem = async (documentId: string, itemId: string, payload: any) => {
+    const formData = new FormData();
+    formData.append('intent', 'updateWaybillItem');
+    formData.append('documentId', documentId);
+    formData.append('itemId', itemId);
+    formData.append('payload', JSON.stringify(payload));
+    submit(formData, { method: 'post' });
   };
 
   const handleDeleteWaybillItem = async (documentId: string, itemId: string) => {
-    try {
-      await deleteWaybillItem.mutateAsync({ documentId, itemId });
-      toast.success(t('purchases.items.deleteSuccess', 'Позицію видалено'));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('common.error'));
-    }
+    const formData = new FormData();
+    formData.append('intent', 'deleteWaybillItem');
+    formData.append('documentId', documentId);
+    formData.append('itemId', itemId);
+    submit(formData, { method: 'post' });
   };
 
   if (isPurchaseLoading) {
@@ -806,6 +800,9 @@ export default function OrganizationPurchaseDetailPage() {
     );
   }
 
+  const isSaving = navigation.state === 'submitting' && navigation.formData?.get('intent') === 'savePurchase';
+  const isPending = navigation.state === 'submitting';
+
   const receiptDocuments = purchase?.documents.filter((document) => document.type === DocumentType.BankReceipt) ?? [];
   const waybillDocuments = purchase?.documents.filter((document) => document.type === DocumentType.Waybill || document.type === DocumentType.Invoice) ?? [];
   const transferDocuments = purchase?.documents.filter((document) => document.type === DocumentType.TransferAct) ?? [];
@@ -818,13 +815,12 @@ export default function OrganizationPurchaseDetailPage() {
       </Button>
 
       <div className="grid gap-6 md:grid-cols-1">
-        {/* Main Form */}
         <Card className="border border-border bg-card/60 backdrop-blur-sm">
           <CardHeader>
             <CardTitle>{isNew ? t('purchases.createNew', 'Нова закупівля') : t('purchases.editPurchase', 'Редагувати закупівлю')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form id="purchase-form" onSubmit={handleSubmit(onSubmit)} className="grid gap-4 grid-cols-1 md:grid-cols-2">
+            <form id="purchase-form" onSubmit={handleSubmit(onSave)} className="grid gap-4 grid-cols-1 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="title">{t('purchases.titleFields', 'Назва (опис)')}</Label>
                 <Input id="title" {...register('title', { required: true })} placeholder={t('purchases.titlePlaceholder', 'Напр. 5 Мавіків')} data-testid="purchase-detail-title-input" />
@@ -857,12 +853,12 @@ export default function OrganizationPurchaseDetailPage() {
             </form>
           </CardContent>
           <CardFooter className="flex justify-between border-t border-border/50 pt-4">
-            <Button type="button" variant="default" className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeletePurchase} disabled={isNew || deletePurchase.isPending} data-testid="purchase-detail-delete-button">
+            <Button type="button" variant="default" className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={onDelete} disabled={isNew || isPending} data-testid="purchase-detail-delete-button">
               <Trash2 className="h-4 w-4 mr-2" />
               {t('common.delete')}
             </Button>
-            <Button type="submit" form="purchase-form" disabled={isSubmitting || createDraftPurchase.isPending} data-testid="purchase-detail-save-button">
-              {(isSubmitting || createDraftPurchase.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" form="purchase-form" disabled={isSubmitting || isSaving} data-testid="purchase-detail-save-button">
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('common.save')}
             </Button>
           </CardFooter>
@@ -875,7 +871,7 @@ export default function OrganizationPurchaseDetailPage() {
             </CardHeader>
             <CardContent className="flex items-center justify-between gap-4">
               <p className="text-sm text-muted-foreground" data-testid="purchase-detail-draft-message">
-                {t('purchases.draftDescription', 'Ця закупівля ще не прикріплена до збору. Прикріпіть її, щоб відображати в межах кампанії.')}
+                {t('purchases.draftDescription', 'Ця закупівля ще не прикріплена до збору.')}
               </p>
               <Button type="button" onClick={() => setIsAttachDialogOpen(true)} data-testid="purchase-detail-open-attach-campaign-dialog">
                 {t('purchases.attachToCampaign', 'Прикріпити до збору')}
@@ -884,12 +880,11 @@ export default function OrganizationPurchaseDetailPage() {
           </Card>
         ) : null}
 
-        {/* Documents Panel */}
         <div className="space-y-6">
           {isDocumentsLocked ? (
             <Card className="border border-border bg-card/60 backdrop-blur-sm" data-testid="purchase-documents-locked-card">
               <CardContent className="py-5 text-sm text-muted-foreground" data-testid="purchase-documents-locked-message">
-                {t('purchases.documentsLockedBeforeCreate', 'Спочатку збережіть закупівлю, а потім завантажуйте документи.')}
+                {t('purchases.documentsLockedBeforeCreate', 'Спочатку збережіть закупівлю')}
               </CardContent>
             </Card>
           ) : null}
@@ -899,278 +894,137 @@ export default function OrganizationPurchaseDetailPage() {
               <CardTitle>{t('purchases.documentsPanel', 'Документи закупівлі')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Receipts Section */}
               <section className="space-y-3 rounded-2xl border border-border/70 bg-background/40 p-3" data-testid="purchase-documents-receipts-block">
                 <div className="flex flex-col gap-1">
                   <p className="text-sm font-semibold">{t('purchases.blocks.receiptsTitle', 'Блок квитанцій')}</p>
-                  <p className="text-xs text-muted-foreground">{t('purchases.blocks.receiptsDescription', 'Банківські квитанції з OCR-розпізнаванням.')}</p>
                 </div>
-
                 <div
+                  data-testid="purchase-documents-receipts-dropzone"
                   className={`rounded-xl border border-dashed px-3 py-2 transition-colors ${activeUploadHoverZone === 'receipts' ? 'border-primary bg-primary/5' : 'border-border/70 bg-background/60'}`}
-                  onDragOver={(event) => {
-                    if (isDocumentsLocked) {
-                      return;
-                    }
-                    event.preventDefault();
-                    setActiveUploadHoverZone('receipts');
-                  }}
+                  onDragOver={(event) => { event.preventDefault(); setActiveUploadHoverZone('receipts'); }}
                   onDragLeave={() => setActiveUploadHoverZone(null)}
                   onDrop={(event) => handleUploadDrop(event, setReceiptUploadFile)}
-                  data-testid="purchase-documents-receipts-dropzone"
                 >
-                  <p className="mb-2 text-xs text-muted-foreground">{t('purchases.uploadDropHint', 'Перетягніть файл сюди або оберіть вручну')}</p>
-                  <Input type="file" disabled={isDocumentsLocked} onChange={(event) => setReceiptUploadFile(event.target.files?.[0] ?? null)} data-testid="purchase-documents-receipts-file-input" />
-                  {receiptUploadFile ? <p className="mt-2 truncate text-xs text-foreground">{receiptUploadFile.name}</p> : null}
+                  <Input type="file" disabled={isDocumentsLocked} onChange={(event) => setReceiptUploadFile(event.target.files?.[0] ?? null)} />
+                  {receiptUploadFile && <p className="mt-2 text-xs">{receiptUploadFile.name}</p>}
                 </div>
-
-                <Button
-                  type="button"
-                  onClick={() => handleUpload(receiptUploadFile, DocumentType.BankReceipt, () => setReceiptUploadFile(null))}
-                  disabled={isDocumentsLocked || !receiptUploadFile || uploadDocument.isPending}
-                  data-testid="purchase-documents-receipts-upload-button"
-                >
-                  {uploadDocument.isPending ? <Loader2 className="h-4 w-4 animate-spin md:mr-2" /> : <UploadCloud className="h-4 w-4 md:mr-2" />}
-                  <span>{t('purchases.upload', 'Завантажити')}</span>
+                <Button onClick={() => handleUpload(receiptUploadFile, DocumentType.BankReceipt, () => setReceiptUploadFile(null))} disabled={isDocumentsLocked || !receiptUploadFile || isPending}>
+                  {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UploadCloud className="h-4 w-4 mr-2" />}
+                  {t('purchases.upload')}
                 </Button>
-
-                {receiptDocuments.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">{t('purchases.blocks.empty', 'Документи ще не додані')}</p>
-                ) : (
-                  receiptDocuments.map((doc) => (
-                    <div key={doc.id} className="space-y-3 rounded-lg border border-border/60 bg-background/50 p-3" data-testid={`purchase-document-card-${doc.id}`}>
-                      <div className="flex items-center justify-between">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{doc.originalFileName}</p>
-                          <div className="mt-1 flex items-center gap-2">
-                            <Badge variant="outline" className="text-[10px]">{getDocumentTypeLabel(doc.type, t)}</Badge>
-                            <Badge variant={getOcrBadgeVariant(doc.ocrProcessingStatus)} className="text-[10px]" data-testid={`purchase-document-ocr-status-${doc.id}`}>
-                              {getOcrStatusLabel(doc.ocrProcessingStatus, t)}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button type="button" variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={processDocumentOcr.isPending} data-testid={`purchase-document-ocr-button-${doc.id}`}>
-                            <Sparkles className="h-4 w-4" />
-                            {doc.ocrProcessingStatus === OcrProcessingStatus.Success
-                              ? t('purchases.blocks.rerunOcr', 'Повторити OCR')
-                              : t('purchases.blocks.runOcr', 'Запустити OCR')}
-                          </Button>
-                          {doc.fileUrl ? (
-                            <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          ) : null}
-                          {doc.fileUrl ? (
-                            <Button variant="ghost" size="icon" asChild data-testid={`purchase-document-download-${doc.id}`}>
-                              <a href={doc.fileUrl} target="_blank" rel="noreferrer">
-                                <Download className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          ) : null}
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" onClick={() => handleDeleteDocument(doc.id)} disabled={deleteDocument.isPending} data-testid={`purchase-document-delete-${doc.id}`}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                {receiptDocuments.map((doc) => (
+                  <div key={doc.id} className="p-3 border rounded-lg bg-background/50">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium truncate">{doc.originalFileName}</span>
+                      <div className="flex gap-1">
+                        <Button variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={isPending}>
+                          <Sparkles className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteDocument(doc.id)} disabled={isPending}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <DocumentMetadataForm
-                        key={`${doc.id}-${doc.amount ?? 'n'}-${doc.counterpartyName ?? 'n'}-${doc.documentDate ?? 'n'}-${doc.items?.map((item) => `${item.id}:${item.name}:${item.quantity}:${item.unitPrice}`).join('|') ?? 'n'}-${doc.edrpou ?? 'n'}-${doc.payerFullName ?? 'n'}-${doc.receiptCode ?? 'n'}-${doc.paymentPurpose ?? 'n'}-${doc.senderIban ?? 'n'}-${doc.receiverIban ?? 'n'}`}
-                        document={doc}
-                        onSubmit={handleSaveDocumentMetadata}
-                        onAddWaybillItem={handleAddWaybillItem}
-                        onUpdateWaybillItem={handleUpdateWaybillItem}
-                        onDeleteWaybillItem={handleDeleteWaybillItem}
-                        isPending={updateDocumentMetadata.isPending || addWaybillItem.isPending || updateWaybillItem.isPending || deleteWaybillItem.isPending}
-                        t={t}
-                      />
                     </div>
-                  ))
-                )}
+                    <DocumentMetadataForm document={doc} onSubmit={handleSaveDocumentMetadata} isPending={isPending} t={t} />
+                  </div>
+                ))}
               </section>
 
+              {/* Waybills Section */}
               <section className="space-y-3 rounded-2xl border border-border/70 bg-background/40 p-3" data-testid="purchase-documents-waybills-block">
                 <div className="flex flex-col gap-1">
                   <p className="text-sm font-semibold">{t('purchases.blocks.waybillsTitle', 'Блок накладних')}</p>
-                  <p className="text-xs text-muted-foreground">{t('purchases.blocks.waybillsDescription', 'Видаткові накладні та рахунки з OCR.')}</p>
                 </div>
-
-                <div className="space-y-2">
-                  <Label>{t('purchases.docType', 'Тип документу')}</Label>
-                  <Select value={String(waybillUploadType)} onValueChange={(value) => setWaybillUploadType(Number(value) as DocumentType)} disabled={isDocumentsLocked}>
-                    <SelectTrigger data-testid="purchase-documents-waybills-type-trigger">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={String(DocumentType.Waybill)}>{getDocumentTypeLabel(DocumentType.Waybill, t)}</SelectItem>
-                      <SelectItem value={String(DocumentType.Invoice)}>{getDocumentTypeLabel(DocumentType.Invoice, t)}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
+                <Select value={String(waybillUploadType)} onValueChange={(value) => setWaybillUploadType(Number(value) as DocumentType)} disabled={isDocumentsLocked}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={String(DocumentType.Waybill)}>{getDocumentTypeLabel(DocumentType.Waybill, t)}</SelectItem>
+                    <SelectItem value={String(DocumentType.Invoice)}>{getDocumentTypeLabel(DocumentType.Invoice, t)}</SelectItem>
+                  </SelectContent>
+                </Select>
                 <div
+                  data-testid="purchase-documents-waybills-dropzone"
                   className={`rounded-xl border border-dashed px-3 py-2 transition-colors ${activeUploadHoverZone === 'waybills' ? 'border-primary bg-primary/5' : 'border-border/70 bg-background/60'}`}
-                  onDragOver={(event) => {
-                    if (isDocumentsLocked) {
-                      return;
-                    }
-                    event.preventDefault();
-                    setActiveUploadHoverZone('waybills');
-                  }}
+                  onDragOver={(event) => { event.preventDefault(); setActiveUploadHoverZone('waybills'); }}
                   onDragLeave={() => setActiveUploadHoverZone(null)}
                   onDrop={(event) => handleUploadDrop(event, setWaybillUploadFile)}
-                  data-testid="purchase-documents-waybills-dropzone"
                 >
-                  <p className="mb-2 text-xs text-muted-foreground">{t('purchases.uploadDropHint', 'Перетягніть файл сюди або оберіть вручну')}</p>
-                  <Input type="file" disabled={isDocumentsLocked} onChange={(event) => setWaybillUploadFile(event.target.files?.[0] ?? null)} data-testid="purchase-documents-waybills-file-input" />
-                  {waybillUploadFile ? <p className="mt-2 truncate text-xs text-foreground">{waybillUploadFile.name}</p> : null}
+                  <Input type="file" disabled={isDocumentsLocked} onChange={(event) => setWaybillUploadFile(event.target.files?.[0] ?? null)} />
+                  {waybillUploadFile && <p className="mt-2 text-xs">{waybillUploadFile.name}</p>}
                 </div>
-
-                <Button
-                  type="button"
-                  onClick={() => handleUpload(waybillUploadFile, waybillUploadType, () => setWaybillUploadFile(null))}
-                  disabled={isDocumentsLocked || !waybillUploadFile || uploadDocument.isPending}
-                  data-testid="purchase-documents-waybills-upload-button"
-                >
-                  {uploadDocument.isPending ? <Loader2 className="h-4 w-4 animate-spin md:mr-2" /> : <UploadCloud className="h-4 w-4 md:mr-2" />}
-                  <span>{t('purchases.upload', 'Завантажити')}</span>
+                <Button onClick={() => handleUpload(waybillUploadFile, waybillUploadType, () => setWaybillUploadFile(null))} disabled={isDocumentsLocked || !waybillUploadFile || isPending}>
+                  {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UploadCloud className="h-4 w-4 mr-2" />}
+                  {t('purchases.upload')}
                 </Button>
-
-                {waybillDocuments.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">{t('purchases.blocks.empty', 'Документи ще не додані')}</p>
-                ) : (
-                  waybillDocuments.map((doc) => (
-                    <div key={doc.id} className="space-y-3 rounded-lg border border-border/60 bg-background/50 p-3" data-testid={`purchase-document-card-${doc.id}`}>
-                      <div className="flex items-center justify-between">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{doc.originalFileName}</p>
-                          <div className="mt-1 flex items-center gap-2">
-                            <Badge variant="outline" className="text-[10px]">{getDocumentTypeLabel(doc.type, t)}</Badge>
-                            <Badge variant={getOcrBadgeVariant(doc.ocrProcessingStatus)} className="text-[10px]" data-testid={`purchase-document-ocr-status-${doc.id}`}>
-                              {getOcrStatusLabel(doc.ocrProcessingStatus, t)}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button type="button" variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={processDocumentOcr.isPending} data-testid={`purchase-document-ocr-button-${doc.id}`}>
-                            <Sparkles className="h-4 w-4" />
-                            {doc.ocrProcessingStatus === OcrProcessingStatus.Success
-                              ? t('purchases.blocks.rerunOcr', 'Повторити OCR')
-                              : t('purchases.blocks.runOcr', 'Запустити OCR')}
-                          </Button>
-                          {doc.fileUrl ? (
-                            <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          ) : null}
-                          {doc.fileUrl ? (
-                            <Button variant="ghost" size="icon" asChild data-testid={`purchase-document-download-${doc.id}`}>
-                              <a href={doc.fileUrl} target="_blank" rel="noreferrer">
-                                <Download className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          ) : null}
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" onClick={() => handleDeleteDocument(doc.id)} disabled={deleteDocument.isPending} data-testid={`purchase-document-delete-${doc.id}`}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                {waybillDocuments.map((doc) => (
+                  <div key={doc.id} className="p-3 border rounded-lg bg-background/50">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium truncate">{doc.originalFileName}</span>
+                      <div className="flex gap-1">
+                        <Button variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={isPending}>
+                          <Sparkles className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteDocument(doc.id)} disabled={isPending}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <DocumentMetadataForm
-                        key={`${doc.id}-${doc.amount ?? 'n'}-${doc.counterpartyName ?? 'n'}-${doc.documentDate ?? 'n'}-${doc.items?.map((item) => `${item.id}:${item.name}:${item.quantity}:${item.unitPrice}`).join('|') ?? 'n'}-${doc.edrpou ?? 'n'}-${doc.payerFullName ?? 'n'}-${doc.receiptCode ?? 'n'}-${doc.paymentPurpose ?? 'n'}-${doc.senderIban ?? 'n'}-${doc.receiverIban ?? 'n'}`}
-                        document={doc}
-                        onSubmit={handleSaveDocumentMetadata}
-                        onAddWaybillItem={handleAddWaybillItem}
-                        onUpdateWaybillItem={handleUpdateWaybillItem}
-                        onDeleteWaybillItem={handleDeleteWaybillItem}
-                        isPending={updateDocumentMetadata.isPending || addWaybillItem.isPending || updateWaybillItem.isPending || deleteWaybillItem.isPending}
-                        t={t}
-                      />
                     </div>
-                  ))
-                )}
+                    <DocumentMetadataForm
+                      document={doc}
+                      onSubmit={handleSaveDocumentMetadata}
+                      onAddWaybillItem={handleAddWaybillItem}
+                      onUpdateWaybillItem={handleUpdateWaybillItem}
+                      onDeleteWaybillItem={handleDeleteWaybillItem}
+                      isPending={isPending}
+                      t={t}
+                    />
+                  </div>
+                ))}
               </section>
 
+              {/* Transfer Act Section */}
               <section className="space-y-3 rounded-2xl border border-border/70 bg-background/40 p-3" data-testid="purchase-documents-transfer-block">
                 <div className="flex flex-col gap-1">
-                  <p className="text-sm font-semibold">{t('purchases.blocks.transferTitle', 'Блок передачі (optional)')}</p>
-                  <p className="text-xs text-muted-foreground">{t('purchases.blocks.transferDescription', 'Акти прийому-передачі. OCR обмежено з міркувань безпеки.')}</p>
+                  <p className="text-sm font-semibold">{t('purchases.blocks.transferTitle', 'Блок передачі')}</p>
                 </div>
-
                 <div
+                  data-testid="purchase-documents-transfer-dropzone"
                   className={`rounded-xl border border-dashed px-3 py-2 transition-colors ${activeUploadHoverZone === 'transfer' ? 'border-primary bg-primary/5' : 'border-border/70 bg-background/60'}`}
-                  onDragOver={(event) => {
-                    if (isDocumentsLocked) {
-                      return;
-                    }
-                    event.preventDefault();
-                    setActiveUploadHoverZone('transfer');
-                  }}
+                  onDragOver={(event) => { event.preventDefault(); setActiveUploadHoverZone('transfer'); }}
                   onDragLeave={() => setActiveUploadHoverZone(null)}
                   onDrop={(event) => handleUploadDrop(event, setTransferUploadFile)}
-                  data-testid="purchase-documents-transfer-dropzone"
                 >
-                  <p className="mb-2 text-xs text-muted-foreground">{t('purchases.uploadDropHint', 'Перетягніть файл сюди або оберіть вручну')}</p>
-                  <Input type="file" disabled={isDocumentsLocked} onChange={(event) => setTransferUploadFile(event.target.files?.[0] ?? null)} data-testid="purchase-documents-transfer-file-input" />
-                  {transferUploadFile ? <p className="mt-2 truncate text-xs text-foreground">{transferUploadFile.name}</p> : null}
+                  <Input type="file" disabled={isDocumentsLocked} onChange={(event) => setTransferUploadFile(event.target.files?.[0] ?? null)} />
+                  {transferUploadFile && <p className="mt-2 text-xs">{transferUploadFile.name}</p>}
                 </div>
-
-                <Button
-                  type="button"
-                  onClick={() => handleUpload(transferUploadFile, DocumentType.TransferAct, () => setTransferUploadFile(null))}
-                  disabled={isDocumentsLocked || !transferUploadFile || uploadDocument.isPending}
-                  data-testid="purchase-documents-transfer-upload-button"
-                >
-                  {uploadDocument.isPending ? <Loader2 className="h-4 w-4 animate-spin md:mr-2" /> : <UploadCloud className="h-4 w-4 md:mr-2" />}
-                  <span>{t('purchases.upload', 'Завантажити')}</span>
+                <Button onClick={() => handleUpload(transferUploadFile, DocumentType.TransferAct, () => setTransferUploadFile(null))} disabled={isDocumentsLocked || !transferUploadFile || isPending}>
+                  {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UploadCloud className="h-4 w-4 mr-2" />}
+                  {t('purchases.upload')}
                 </Button>
-
-                {transferDocuments.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">{t('purchases.blocks.empty', 'Документи ще не додані')}</p>
-                ) : (
-                  transferDocuments.map((doc) => (
-                    <div key={doc.id} className="space-y-3 rounded-lg border border-border/60 bg-background/50 p-3" data-testid={`purchase-document-card-${doc.id}`}>
-                      <div className="flex items-center justify-between">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{doc.originalFileName}</p>
-                          <div className="mt-1 flex items-center gap-2">
-                            <Badge variant="outline" className="text-[10px]">{getDocumentTypeLabel(doc.type, t)}</Badge>
-                            <Badge variant={getOcrBadgeVariant(doc.ocrProcessingStatus)} className="text-[10px]" data-testid={`purchase-document-ocr-status-${doc.id}`}>
-                              {getOcrStatusLabel(doc.ocrProcessingStatus, t)}
-                            </Badge>
-                            <Badge variant="secondary" className="text-[10px] bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20">
-                              {t('purchases.ocrRestricted', 'OCR заборонено для цього типу')}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button type="button" variant="outline" size="sm" disabled data-testid={`purchase-document-ocr-button-${doc.id}`}>
-                            <Sparkles className="h-4 w-4" />
-                            {t('purchases.blocks.runOcr', 'Запустити OCR')}
-                          </Button>
-                          {doc.fileUrl ? (
-                            <Button type="button" variant="ghost" size="icon" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)} data-testid={`purchase-document-preview-${doc.id}`}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          ) : null}
-                          {doc.fileUrl ? (
-                            <Button variant="ghost" size="icon" asChild data-testid={`purchase-document-download-${doc.id}`}>
-                              <a href={doc.fileUrl} target="_blank" rel="noreferrer">
-                                <Download className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          ) : null}
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" onClick={() => handleDeleteDocument(doc.id)} disabled={deleteDocument.isPending} data-testid={`purchase-document-delete-${doc.id}`}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                {transferDocuments.map((doc) => (
+                  <div key={doc.id} className="p-3 border rounded-lg bg-background/50">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium truncate">{doc.originalFileName}</span>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteDocument(doc.id)} disabled={isPending}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <DocumentMetadataForm document={doc} onSubmit={handleSaveDocumentMetadata} isPending={updateDocumentMetadata.isPending} t={t} />
                     </div>
-                  ))
-                )}
+                    <DocumentMetadataForm document={doc} onSubmit={handleSaveDocumentMetadata} isPending={isPending} t={t} />
+                  </div>
+                ))}
               </section>
-
-              {!(purchase?.documents.length ?? 0) ? (
-                <p className="border-t border-border/50 pt-4 text-center text-sm text-muted-foreground">{t('purchases.noDocuments', 'Документів ще немає')}</p>
-              ) : null}
             </CardContent>
           </Card>
         </div>
@@ -1178,44 +1032,25 @@ export default function OrganizationPurchaseDetailPage() {
 
       <DocumentPreviewDialog
         open={Boolean(previewDocument)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPreviewDocument(null);
-          }
-        }}
+        onOpenChange={(open) => { if (!open) setPreviewDocument(null); }}
         src={previewDocument?.src ?? null}
         title={previewDocument?.title ?? ''}
-        fileName={previewDocument?.fileName}
-        mimeType={previewDocument?.mimeType}
-        description={previewDocument?.fileName}
-        testIdPrefix="purchase-document-preview"
+        testIdPrefix="purchase-detail-doc-preview"
       />
 
       <Dialog open={isAttachDialogOpen} onOpenChange={setIsAttachDialogOpen}>
-        <DialogContent data-testid="purchase-detail-attach-campaign-dialog">
-          <DialogHeader>
-            <DialogTitle>{t('purchases.attachToCampaign', 'Прикріпити до збору')}</DialogTitle>
-            <DialogDescription>{t('purchases.attachDescription', 'Оберіть активний збір, до якого потрібно прикріпити закупівлю.')}</DialogDescription>
-          </DialogHeader>
-
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t('purchases.attachToCampaign')}</DialogTitle></DialogHeader>
           <Select value={selectedAttachCampaignId} onValueChange={setSelectedAttachCampaignId}>
-            <SelectTrigger data-testid="purchase-detail-attach-campaign-select-trigger">
-              <SelectValue placeholder={t('purchases.filters.selectCampaign', 'Оберіть збір')} />
-            </SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={t('purchases.filters.selectCampaign')} /></SelectTrigger>
             <SelectContent>
-              {activeCampaigns.map((campaign) => (
-                <SelectItem key={campaign.id} value={campaign.id} data-testid={`purchase-detail-attach-campaign-option-${campaign.id}`}>
-                  {campaign.titleUk}
-                </SelectItem>
+              {activeCampaigns.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.titleUk}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-
           <div className="flex justify-end">
-            <Button type="button" onClick={handleAttachPurchase} disabled={attachPurchaseToCampaign.isPending} data-testid="purchase-detail-attach-campaign-submit-button">
-              {attachPurchaseToCampaign.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {t('common.save')}
-            </Button>
+            <Button onClick={handleAttachPurchase} disabled={isPending}>{t('common.save')}</Button>
           </div>
         </DialogContent>
       </Dialog>

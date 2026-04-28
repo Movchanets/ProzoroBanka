@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useInviteInfo, useAcceptInvitation, useDeclineInvitation } from '@/hooks/queries/useInvitations';
 import { useAuthStore } from '@/stores/authStore';
@@ -12,6 +12,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PhotoGalleryDialog } from '@/components/ui/photo-gallery-dialog';
 import { CheckCircle2, Loader2, X } from 'lucide-react';
+import type { LoaderFunctionArgs } from 'react-router';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getInviteInfoOptions } from '@/hooks/queries/useInvitations';
+
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const token = params.token;
+  if (!token) return null;
+  
+  try {
+    await ensureQueryData(getInviteInfoOptions(token));
+  } catch (error) {
+    console.error('Failed to prefetch invite info:', error);
+  }
+  return null;
+}
 
 export default function InvitePage() {
   const { t } = useTranslation();
@@ -117,7 +132,7 @@ export default function InvitePage() {
                 </div>
                 <CardTitle>{t('invitations.page.acceptedTitle')}</CardTitle>
                 <CardDescription>{t('invitations.page.acceptedDesc', { name: info.organizationName })}</CardDescription>
-                <Button onClick={() => navigate('/onboarding')} data-testid="invite-page-go-dashboard-button">{t('common.goToDashboard')}</Button>
+                <Button onClick={() => navigate('/dashboard')} data-testid="invite-page-go-dashboard-button">{t('common.goToDashboard')}</Button>
               </>
             ) : (
               <>

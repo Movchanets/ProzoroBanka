@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useOrganization, useOrganizationStateRegistrySettings } from '@/hooks/queries/useOrganizations';
 import { useCampaigns } from '@/hooks/queries/useCampaigns';
@@ -9,6 +9,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart3, Globe, Megaphone, ReceiptText, Users, Zap, ShieldCheck, ScanSearch, ShieldAlert } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { LoaderFunctionArgs } from 'react-router';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getOrganizationOptions, getOrganizationStateRegistrySettingsOptions } from '@/hooks/queries/useOrganizations';
+import { getCampaignsOptions } from '@/hooks/queries/useCampaigns';
 
 const PLAN_LABELS: Record<number, string> = {
   1: 'Free',
@@ -19,6 +23,17 @@ const PLAN_DESCRIPTIONS: Record<number, string> = {
   1: 'Безкоштовний тариф: до 3 кампаній, до 10 учасників, до 100 OCR-розпізнавань на місяць.',
   2: 'Платний тариф: до 100 кампаній, до 200 учасників, до 5000 OCR-розпізнавань на місяць.',
 };
+
+ 
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const orgId = params.orgId!;
+  await Promise.allSettled([
+    ensureQueryData(getOrganizationOptions(orgId)),
+    ensureQueryData(getOrganizationStateRegistrySettingsOptions(orgId)),
+    ensureQueryData(getCampaignsOptions(orgId)),
+  ]);
+  return null;
+}
 
 export default function DashboardHomePage() {
   const { t } = useTranslation();

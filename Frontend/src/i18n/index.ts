@@ -5,12 +5,9 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import uk from './locales/uk.json';
 import en from './locales/en.json';
 
-const isBrowser = typeof window !== 'undefined';
 
-const i18nInstance = i18n.use(initReactI18next);
-if (isBrowser) {
-  i18nInstance.use(LanguageDetector);
-}
+
+const i18nInstance = i18n.use(initReactI18next).use(LanguageDetector);
 
 i18nInstance.init({
   resources: {
@@ -25,7 +22,7 @@ i18nInstance.init({
   detection: {
     order: ['localStorage', 'navigator'],
     lookupLocalStorage: 'prozoro-banka-lang',
-    caches: ['localStorage'],
+    caches: [], // Disable automatic caching to prevent hydration pass from overriding user preference
   },
 });
 

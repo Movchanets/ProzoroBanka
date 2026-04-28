@@ -346,461 +346,350 @@ Terraform використовує Azure Storage backend. Приклади backe
 - `.github/workflows/deploy.yml`
 - `Infra/`
 
-
 # ProzoroBanka
 
-
--ProzoroBanka is a full-stack platform for transparent fundraising by volunteer initiatives and organizations. The repository contains
--
+## -ProzoroBanka is a full-stack platform for transparent fundraising by volunteer initiatives and organizations. The repository contains
 
 -- `Backend/`: ASP.NET Core Web API on .NET 10 with Clean Architecture layers (`API`, `Application`, `Domain`, `Infrastructure`)
 -- `Frontend/`: React 19 + Vite client application
 -- `Infra/`: Terraform for Azure infrastructure and deployment wiring
--
 
--The application supports public campaign pages, organization profiles, invitations and team management, admin flows, file uploads, OCR integration, Monobank-related flows, and public transparency pages
--
+- -The application supports public campaign pages, organization profiles, invitations and team management, admin flows, file uploads, OCR integration, Monobank-related flows, and public transparency pages
 
--## Architecture
--
+- -## Architecture
 
--### Backend
--
+- -### Backend
 
--- ASP.NET Core API with JWT authentication
--- Entity Framework Core + PostgreSQL
--- ASP.NET Identity for users and roles
--- MediatR-style application layer structure with commands/queries
--- Local or cloud file storage providers
--- Optional Redis for caching and output cache
--- Automatic database migration on startup
--- Automatic seed of roles and admin user on startup
--
+- -- ASP.NET Core API with JWT authentication
+  -- Entity Framework Core + PostgreSQL
+  -- ASP.NET Identity for users and roles
+  -- MediatR-style application layer structure with commands/queries
+  -- Local or cloud file storage providers
+  -- Optional Redis for caching and output cache
+  -- Automatic database migration on startup
+  -- Automatic seed of roles and admin user on startup
 
--### Frontend
--
+- -### Frontend
 
--- React 19 + TypeScript + Vite
--- React Router
--- TanStack Query for server state
--- Zustand for auth/workspace state
--- Tailwind CSS v4 and Radix UI primitives
--- Playwright E2E tests and prerender/sitemap scripts
--
+- -- React 19 + TypeScript + Vite
+  -- React Router
+  -- TanStack Query for server state
+  -- Zustand for auth/workspace state
+  -- Tailwind CSS v4 and Radix UI primitives
+  -- Playwright E2E tests and prerender/sitemap scripts
 
--### Infrastructure
--
+- -### Infrastructure
 
--Terraform in `Infra/` manages Azure resources for hosting
--
+- -Terraform in `Infra/` manages Azure resources for hosting
 
--- Azure Resource Group
--- Azure Container Apps Environment
--- Azure Container App for the backend API
--- Azure Static Web App for the frontend
--- Azure Blob Storage for uploaded files
--- Optional Azure Document Intelligence resource for OCR
--
+- -- Azure Resource Group
+  -- Azure Container Apps Environment
+  -- Azure Container App for the backend API
+  -- Azure Static Web App for the frontend
+  -- Azure Blob Storage for uploaded files
+  -- Optional Azure Document Intelligence resource for OCR
 
--Important: PostgreSQL and Redis are not provisioned by Terraform in this repo. Their connection strings are injected as secrets/variables during deploy
--
+- -Important: PostgreSQL and Redis are not provisioned by Terraform in this repo. Their connection strings are injected as secrets/variables during deploy
 
--## Prerequisites
--
+- -## Prerequisites
 
--For local development without Docker
--
+- -For local development without Docker
 
--- .NET SDK `10.0.x`
--- Node.js `22.x`
--- npm
--- PostgreSQL `17+` or a compatible local instance
--- Docker Desktop if you want to start the database quickly through Compose
--
+- -- .NET SDK `10.0.x`
+  -- Node.js `22.x`
+  -- npm
+  -- PostgreSQL `17+` or a compatible local instance
+  -- Docker Desktop if you want to start the database quickly through Compose
 
--For the quickest full local stack
--
+- -For the quickest full local stack
 
--- Docker Desktop with `docker compose`
--
+- -- Docker Desktop with `docker compose`
 
--## Local Development
--
+- -## Local Development
 
--There are two practical ways to run the project locally
--
+- -There are two practical ways to run the project locally
 
--### Option 1: Full stack with Docker Compose
--
+- -### Option 1: Full stack with Docker Compose
 
--This is the fastest way to get backend, frontend, PostgreSQL, and Redis running together
--
+- -This is the fastest way to get backend, frontend, PostgreSQL, and Redis running together
 
--```powershell
+- -`powershell
 -docker compose up --build
--```
--
+-`
 
--Services
--
+- -Services
 
--- Frontend: `http://localhost:3000`
--- API: `http://localhost:5000`
--- PostgreSQL: `localhost:5432`
--- Redis: `localhost:6379`
--
+- -- Frontend: `http://localhost:3000`
+  -- API: `http://localhost:5000`
+  -- PostgreSQL: `localhost:5432`
+  -- Redis: `localhost:6379`
 
--What Compose does
--
+- -What Compose does
 
--- starts PostgreSQL with database `prozoro_banka_dev`
--- starts Redis
--- builds and runs the backend in `Development`
--- builds and runs the frontend with the API URL baked in
--
+- -- starts PostgreSQL with database `prozoro_banka_dev`
+  -- starts Redis
+  -- builds and runs the backend in `Development`
+  -- builds and runs the frontend with the API URL baked in
 
--The backend container auto-applies EF Core migrations on startup and seeds roles and an admin user
--
+- -The backend container auto-applies EF Core migrations on startup and seeds roles and an admin user
 
--Default local admin seed from development config
--
+- -Default local admin seed from development config
 
--- email: `admin@example.com`
--- password: `Qwerty-1`
--
+- -- email: `admin@example.com`
+  -- password: `Qwerty-1`
 
--If you want to stop and remove containers
--
+- -If you want to stop and remove containers
 
--```powershell
+- -`powershell
 -docker compose down
--```
--
+-`
 
--If you also want to remove persisted database volumes
--
+- -If you also want to remove persisted database volumes
 
--```powershell
+- -`powershell
 -docker compose down -v
--```
--
+-`
 
--### Option 2: Local backend + local frontend, only DB in Docker
--
+- -### Option 2: Local backend + local frontend, only DB in Docker
 
--This is the best mode for day-to-day development when you want hot reload in both apps and only need the database container
--
+- -This is the best mode for day-to-day development when you want hot reload in both apps and only need the database container
 
--Start PostgreSQL only
--
+- -Start PostgreSQL only
 
--```powershell
+- -`powershell
 -docker compose up -d postgres
--```
--
+-`
 
--Redis is optional. If you want it too
--
+- -Redis is optional. If you want it too
 
--```powershell
+- -`powershell
 -docker compose up -d postgres redis
--```
--
+-`
 
--#### Backend
--
+- -#### Backend
 
--The API project is `Backend/src/ProzoroBanka.API`
--
+- -The API project is `Backend/src/ProzoroBanka.API`
 
--From the repo root
--
+- -From the repo root
 
--```powershell
+- -`powershell
 -dotnet restore Backend/ProzoroBanka.slnx
 -dotnet run --project Backend/src/ProzoroBanka.API
--```
--
+-`
 
--Default local backend URLs from `launchSettings.json`
--
+- -Default local backend URLs from `launchSettings.json`
 
--- `http://localhost:5188`
--- `https://localhost:7038`
--
+- -- `http://localhost:5188`
+  -- `https://localhost:7038`
 
--OpenAPI/Scalar is available in development at
--
+- -OpenAPI/Scalar is available in development at
 
--- `http://localhost:5188/scalar`
--
+- -- `http://localhost:5188/scalar`
 
--The backend applies migrations automatically on startup
--
+- -The backend applies migrations automatically on startup
 
--#### Backend config for minimum setup
--
+- -#### Backend config for minimum setup
 
--Minimum required dependency is PostgreSQL. Redis can be disabled
--
+- -Minimum required dependency is PostgreSQL. Redis can be disabled
 
--Recommended PowerShell overrides for a clean local setup without Redis
--
+- -Recommended PowerShell overrides for a clean local setup without Redis
 
--```powershell
+- -`powershell
 -$env:ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=prozoro_banka_dev;Username=postgres;Password=123456"
 -$env:Redis__Enabled="false"
 -$env:Storage__Provider="Local"
 -$env:Ocr__Provider="fallback"
 -dotnet run --project Backend/src/ProzoroBanka.API
--```
--
+-`
 
--Notes
--
+- -Notes
 
--- with `Redis__Enabled=false`, the app falls back to in-memory cache
--- `Storage__Provider=Local` stores uploads under `wwwroot/uploads`
--- `Ocr__Provider=fallback` avoids requiring cloud OCR credentials for local work
--
+- -- with `Redis__Enabled=false`, the app falls back to in-memory cache
+  -- `Storage__Provider=Local` stores uploads under `wwwroot/uploads`
+  -- `Ocr__Provider=fallback` avoids requiring cloud OCR credentials for local work
 
--Optional integrations that can stay unset locally
--
+- -Optional integrations that can stay unset locally
 
--- Google OAuth
--- Cloudflare Turnstile
--- SMTP credentials
--- Azure/Mistral OCR credentials
--- Redis connection string
--
+- -- Google OAuth
+  -- Cloudflare Turnstile
+  -- SMTP credentials
+  -- Azure/Mistral OCR credentials
+  -- Redis connection string
 
--Do not commit real secrets into `appsettings.*` files. Prefer environment variables or local user secrets
--
+- -Do not commit real secrets into `appsettings.*` files. Prefer environment variables or local user secrets
 
--#### Frontend
--
+- -#### Frontend
 
--The frontend lives in `Frontend/`
--
+- -The frontend lives in `Frontend/`
 
--```powershell
+- -`powershell
 -Set-Location Frontend
 -$env:VITE_API_URL="http://localhost:5188"
 -npm ci
 -npm run dev
--```
--
+-`
 
--The dev server runs at
--
+- -The dev server runs at
 
--- `http://localhost:5173`
--
+- -- `http://localhost:5173`
 
--Useful frontend env vars
--
+- -Useful frontend env vars
 
--- `VITE_API_URL`: backend base URL
--- `VITE_SITE_URL`: canonical site URL for sitemap/SEO builds
--- `VITE_TURNSTILE_SITE_KEY`: optional Turnstile site key
--- `VITE_GOOGLE_CLIENT_ID`: optional Google auth client id
--- `VITE_GA_MEASUREMENT_ID`: optional Google Analytics id
--
+- -- `VITE_API_URL`: backend base URL
+  -- `VITE_SITE_URL`: canonical site URL for sitemap/SEO builds
+  -- `VITE_TURNSTILE_SITE_KEY`: optional Turnstile site key
+  -- `VITE_GOOGLE_CLIENT_ID`: optional Google auth client id
+  -- `VITE_GA_MEASUREMENT_ID`: optional Google Analytics id
 
--### Recommended local workflow
--
+- -### Recommended local workflow
 
--For most development tasks
--
+- -For most development tasks
 
--1. Start PostgreSQL with Docker.
--2. Run backend locally from `Backend/src/ProzoroBanka.API`.
--3. Run frontend locally from `Frontend/`.
--4. Enable Redis only if you are working on caching behavior
--
+- -1. Start PostgreSQL with Docker.
+  -2. Run backend locally from `Backend/src/ProzoroBanka.API`.
+  -3. Run frontend locally from `Frontend/`.
+  -4. Enable Redis only if you are working on caching behavior
 
--This keeps feedback loops fast while still matching production dependencies closely enough for normal feature work
--
+- -This keeps feedback loops fast while still matching production dependencies closely enough for normal feature work
 
--## Testing
--
+- -## Testing
 
--### Backend
--
+- -### Backend
 
--```powershell
+- -`powershell
 -dotnet test Backend/ProzoroBanka.slnx
--```
--
+-`
 
--### Frontend lint/build
--
+- -### Frontend lint/build
 
--```powershell
+- -`powershell
 -Set-Location Frontend
 -npm ci
 -npm run lint
 -npm run build
--```
--
+-`
 
--### Playwright E2E
--
+- -### Playwright E2E
 
--```powershell
+- -`powershell
 -Set-Location Frontend
 -npx playwright install
 -npm run test:e2e
--```
--
+-`
 
--There is also a helper script for bringing up the full containerized stack for tests
--
+- -There is also a helper script for bringing up the full containerized stack for tests
 
--- `scripts/start-test-containers.sh`
--
+- -- `scripts/start-test-containers.sh`
 
--## Deploy
--
+- -## Deploy
 
--Deployment is driven by GitHub Actions in `.github/workflows/`
--
+- -Deployment is driven by GitHub Actions in `.github/workflows/`
 
--### CI
--
+- -### CI
 
--`ci.yml` runs
--
+- -`ci.yml` runs
 
--- backend restore/build/test
--- frontend install/lint/build
--- Terraform formatting and validation
--- Playwright E2E tests
--
+- -- backend restore/build/test
+  -- frontend install/lint/build
+  -- Terraform formatting and validation
+  -- Playwright E2E tests
 
--### Main deploy pipeline
--
+- -### Main deploy pipeline
 
--`deploy.yml` is the main Azure deployment workflow
--
+- -`deploy.yml` is the main Azure deployment workflow
 
--High-level flow
--
+- -High-level flow
 
--1. Build backend Docker image from `Backend/Dockerfile`.
--2. Push the image to GitHub Container Registry (`ghcr.io`).
--3. Log in to Azure.
--4. Run `terraform init/plan/apply` from `Infra/`.
--5. Provision or update Azure resources.
--6. Read Terraform outputs such as the API base URL and Static Web App name.
--7. Build the frontend with production URLs and SEO env vars.
--8. Generate sitemap and prerender static pages.
--9. Deploy `Frontend/dist` to Azure Static Web Apps
--
+- -1. Build backend Docker image from `Backend/Dockerfile`.
+  -2. Push the image to GitHub Container Registry (`ghcr.io`).
+  -3. Log in to Azure.
+  -4. Run `terraform init/plan/apply` from `Infra/`.
+  -5. Provision or update Azure resources.
+  -6. Read Terraform outputs such as the API base URL and Static Web App name.
+  -7. Build the frontend with production URLs and SEO env vars.
+  -8. Generate sitemap and prerender static pages.
+  -9. Deploy `Frontend/dist` to Azure Static Web Apps
 
--Triggers
--
+- -Triggers
 
--- push to `main`
--- manual `workflow_dispatch`
--- a successful CI workflow run in the configured path
--
+- -- push to `main`
+  -- manual `workflow_dispatch`
+  -- a successful CI workflow run in the configured path
 
--### Frontend-only rebuild
--
+- -### Frontend-only rebuild
 
--`frontend-rebuild.yml` exists for rebuilding and redeploying only the frontend when backend infrastructure is already in place
--
+- -`frontend-rebuild.yml` exists for rebuilding and redeploying only the frontend when backend infrastructure is already in place
 
--It can resolve config either from
--
+- -It can resolve config either from
 
--- GitHub secrets/variables
--- Terraform remote state outputs
--
+- -- GitHub secrets/variables
+  -- Terraform remote state outputs
 
--## Infra
--
+- -## Infra
 
--Terraform root is `Infra/`
--
+- -Terraform root is `Infra/`
 
--Main files
--
+- -Main files
 
--- `providers.tf`: Terraform and AzureRM provider configuration
--- `rg.tf`: resource group
--- `env.tf`: Azure Container Apps environment
--- `apps.tf`: backend container app and its secrets/env wiring
--- `static_web_app.tf`: frontend hosting
--- `storage.tf`: blob storage for uploads
--- `ocr.tf`: optional Azure OCR resource
--- `variables.tf`: deploy-time configuration
--- `outputs.tf`: values consumed by CI/CD and manual operations
--
+- -- `providers.tf`: Terraform and AzureRM provider configuration
+  -- `rg.tf`: resource group
+  -- `env.tf`: Azure Container Apps environment
+  -- `apps.tf`: backend container app and its secrets/env wiring
+  -- `static_web_app.tf`: frontend hosting
+  -- `storage.tf`: blob storage for uploads
+  -- `ocr.tf`: optional Azure OCR resource
+  -- `variables.tf`: deploy-time configuration
+  -- `outputs.tf`: values consumed by CI/CD and manual operations
 
--### What infrastructure is created
--
+- -### What infrastructure is created
 
--- backend runtime on Azure Container Apps
--- frontend hosting on Azure Static Web Apps
--- blob storage for uploaded files
--- optional custom domains for frontend and API
--- optional managed certificate flow handled by Azure after DNS validation
--
+- -- backend runtime on Azure Container Apps
+  -- frontend hosting on Azure Static Web Apps
+  -- blob storage for uploaded files
+  -- optional custom domains for frontend and API
+  -- optional managed certificate flow handled by Azure after DNS validation
 
--### What must be provided from outside
--
+- -### What must be provided from outside
 
--- PostgreSQL connection string
--- Redis connection string, if enabled
--- JWT secrets
--- encryption key
--- SMTP credentials
--- Google OAuth credentials
--- Turnstile secret
--- OCR credentials, unless Terraform creates the Azure OCR resource
--- GHCR pull credentials for Azure Container Apps
--
+- -- PostgreSQL connection string
+  -- Redis connection string, if enabled
+  -- JWT secrets
+  -- encryption key
+  -- SMTP credentials
+  -- Google OAuth credentials
+  -- Turnstile secret
+  -- OCR credentials, unless Terraform creates the Azure OCR resource
+  -- GHCR pull credentials for Azure Container Apps
 
--### Terraform state
--
+- -### Terraform state
 
--Terraform uses an Azure Storage backend. Example backend configs exist here
--
+- -Terraform uses an Azure Storage backend. Example backend configs exist here
 
--- `Infra/environments/dev/backend.hcl.example`
--- `Infra/environments/prod/backend.hcl.example`
--
+- -- `Infra/environments/dev/backend.hcl.example`
+  -- `Infra/environments/prod/backend.hcl.example`
 
--Environment examples also exist for Terraform variables
--
+- -Environment examples also exist for Terraform variables
 
--- `Infra/environments/dev/terraform.tfvars.example`
--- `Infra/terraform.tfvars.example`
--
+- -- `Infra/environments/dev/terraform.tfvars.example`
+  -- `Infra/terraform.tfvars.example`
 
--## Production topology
--
+- -## Production topology
 
--The production topology is effectively
--
+- -The production topology is effectively
 
--- users open the frontend from Azure Static Web Apps
--- frontend calls the backend API on Azure Container Apps
--- backend uses PostgreSQL for primary data
--- backend optionally uses Redis for cache/output cache
--- backend stores uploaded files in Azure Blob Storage
--- backend may use Azure Document Intelligence or Mistral for OCR
--
+- -- users open the frontend from Azure Static Web Apps
+  -- frontend calls the backend API on Azure Container Apps
+  -- backend uses PostgreSQL for primary data
+  -- backend optionally uses Redis for cache/output cache
+  -- backend stores uploaded files in Azure Blob Storage
+  -- backend may use Azure Document Intelligence or Mistral for OCR
 
--## Useful paths
--
+- -## Useful paths
 
--- `Backend/ProzoroBanka.slnx`
--- `Backend/src/ProzoroBanka.API`
--- `Frontend/package.json`
--- `docker-compose.yml`
--- `.github/workflows/ci.yml`
--- `.github/workflows/deploy.yml`
--- `Infra/`
+- -- `Backend/ProzoroBanka.slnx`
+  -- `Backend/src/ProzoroBanka.API`
+  -- `Frontend/package.json`
+  -- `docker-compose.yml`
+  -- `.github/workflows/ci.yml`
+  -- `.github/workflows/deploy.yml`
+  -- `Infra/`

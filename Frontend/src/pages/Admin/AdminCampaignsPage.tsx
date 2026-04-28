@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { useAdminOrganizationCampaigns } from '@/hooks/queries/useAdminQueries';
+import { useParams, Link } from 'react-router';
+import { useAdminOrganizationCampaigns, getAdminOrganizationCampaignsOptions } from '@/hooks/queries/useAdminQueries';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -174,4 +174,17 @@ function CampaignRow({ campaign }: { campaign: AdminCampaignDto }) {
       </TableCell>
     </TableRow>
   );
+}
+
+export async function clientLoader({ params, request }: { params: { orgId?: string }; request: Request }) {
+  const { ensureQueryData } = await import('@/utils/routerHelpers');
+  const url = new URL(request.url);
+  const page = Number(url.searchParams.get('page')) || 1;
+  const orgId = params.orgId;
+
+  if (orgId) {
+    await ensureQueryData(getAdminOrganizationCampaignsOptions(orgId, page));
+  }
+
+  return null;
 }

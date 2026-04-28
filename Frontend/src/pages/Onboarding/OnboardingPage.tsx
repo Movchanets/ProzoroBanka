@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useActionData, useNavigate } from 'react-router';
+import type { ActionFunctionArgs } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,49 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Sparkles, Users, FileCheck2, ArrowRight, LogOut } from 'lucide-react';
 import { useLogoutMutation } from '@/hooks/queries/useAuth';
+import { organizationService } from '@/services/organizationService';
+import { queryClient } from '@/services/queryClient';
+import { orgKeys } from '@/hooks/queries/useOrganizations';
+import { toast } from 'sonner';
+import { useEffect, useState } from 'react';
+
+export async function clientAction({ request }: ActionFunctionArgs) {
+  const formData = await request.formData();
+  const intent = formData.get('intent');
+
+  if (intent === 'createOrganization') {
+    const name = String(formData.get('name'));
+    const slug = formData.get('slug') ? String(formData.get('slug')) : undefined;
+    const description = formData.get('description') ? String(formData.get('description')) : undefined;
+    const website = formData.get('website') ? String(formData.get('website')) : undefined;
+
+    try {
+      const org = await organizationService.create({ name, slug, description, website });
+      queryClient.invalidateQueries({ queryKey: orgKeys.all });
+      return { success: true, orgId: org.id };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Failed to create organization' };
+    }
+  }
+
+  return { error: 'Unknown intent' };
+}
 
 export default function OnboardingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const logoutMutation = useLogoutMutation();
+  const actionData = useActionData() as { success?: boolean; orgId?: string; error?: string } | undefined;
+
+  useEffect(() => {
+    if (actionData?.success && actionData.orgId) {
+      toast.success(t('organizations.create.success', 'Організацію створено'));
+      navigate(`/dashboard/${actionData.orgId}`);
+    } else if (actionData?.error) {
+      toast.error(actionData.error);
+    }
+  }, [actionData, navigate, t]);
 
   const handleLogout = async () => {
     await logoutMutation.mutateAsync();

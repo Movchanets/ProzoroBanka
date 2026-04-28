@@ -1,15 +1,28 @@
-import { Navigate, Outlet } from 'react-router';
-import { useAuthNavigation } from '@/hooks/useAuthNavigation';
+import { Navigate, Outlet, useLocation } from "react-router";
+import { AppLoadingFallback } from "@/components/AppLoadingFallback";
+import { useAuthStore } from "@/stores/authStore";
 
-export default function GuestGuard() {
-  const { isAuthenticated, isResolvingSession, defaultAuthenticatedPath } = useAuthNavigation();
+function getGuestRedirectTarget(search: string) {
+  const next = new URLSearchParams(search).get("next");
 
-  if (isAuthenticated && !isResolvingSession) {
-    return <Navigate to={defaultAuthenticatedPath} replace />;
+  if (!next || !next.startsWith("/")) {
+    return "/dashboard";
   }
 
-  if (isResolvingSession) {
-    return null;
+  return next;
+}
+
+export default function GuestGuard() {
+  const location = useLocation();
+  const hasHydrated = useAuthStore((state) => state._hasHydrated);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  if (!hasHydrated) {
+    return <AppLoadingFallback />;
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to={getGuestRedirectTarget(location.search)} replace />;
   }
 
   return <Outlet />;

@@ -1,6 +1,6 @@
 {
   "navigationFallback": {
-    "rewrite": "/index.html",
+    "rewrite": "/__spa-fallback.html",
     "exclude": [
       "/assets/*",
       "/*.css",

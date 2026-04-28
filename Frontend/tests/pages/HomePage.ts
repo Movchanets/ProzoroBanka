@@ -1,4 +1,5 @@
-import { type Page, type Locator } from '@playwright/test';
+import { type Page, type Locator } from "@playwright/test";
+import { gotoAppPath } from "../support/navigation";
 
 export class HomePage {
   readonly page: Page;
@@ -22,27 +23,31 @@ export class HomePage {
 
   constructor(page: Page) {
     this.page = page;
-    this.mainHeading = page.getByRole('heading', { level: 1 });
-    this.heroSection = page.getByTestId('home-hero-section');
-    this.mainTabs = page.getByTestId('home-main-tabs');
-    this.searchForm = page.getByTestId('home-search-form');
-    this.searchInput = page.getByTestId('home-search-input');
-    this.searchSubmitButton = page.getByTestId('home-search-submit-button');
-    this.campaignGrid = page.getByTestId('home-campaign-grid');
-    this.campaignCardLink = page.getByTestId('home-campaign-card-link');
-    this.campaignOrgLink = page.getByTestId('home-campaign-org-link');
-    this.verifiedOrgToggle = page.getByTestId('home-campaign-verified-org-toggle');
-    this.campaignStatusSelect = page.getByTestId('home-campaign-status-select');
-    this.campaignCategorySelect = page.getByTestId('home-campaign-category-select');
-    this.tabCampaigns = page.getByTestId('home-main-tab-campaigns');
-    this.tabOrganizations = page.getByTestId('home-main-tab-organizations');
-    this.orgGrid = page.getByTestId('home-org-grid');
-    this.verifiedFilterToggle = page.getByTestId('home-verified-filter-toggle');
-    this.activeFilterToggle = page.getByTestId('home-active-filter-toggle');
+    this.mainHeading = page.getByRole("heading", { level: 1 });
+    this.heroSection = page.getByTestId("home-hero-section");
+    this.mainTabs = page.getByTestId("home-main-tabs");
+    this.searchForm = page.getByTestId("home-search-form");
+    this.searchInput = page.getByTestId("home-search-input");
+    this.searchSubmitButton = page.getByTestId("home-search-submit-button");
+    this.campaignGrid = page.getByTestId("home-campaign-grid");
+    this.campaignCardLink = page.getByTestId("home-campaign-card-link");
+    this.campaignOrgLink = page.getByTestId("home-campaign-org-link");
+    this.verifiedOrgToggle = page.getByTestId(
+      "home-campaign-verified-org-toggle",
+    );
+    this.campaignStatusSelect = page.getByTestId("home-campaign-status-select");
+    this.campaignCategorySelect = page.getByTestId(
+      "home-campaign-category-select",
+    );
+    this.tabCampaigns = page.getByTestId("home-main-tab-campaigns");
+    this.tabOrganizations = page.getByTestId("home-main-tab-organizations");
+    this.orgGrid = page.getByTestId("home-org-grid");
+    this.verifiedFilterToggle = page.getByTestId("home-verified-filter-toggle");
+    this.activeFilterToggle = page.getByTestId("home-active-filter-toggle");
   }
 
   async goto() {
-    await this.page.goto('/');
+    await gotoAppPath(this.page, "/");
   }
 
   async fillSearch(text: string) {
@@ -56,18 +61,20 @@ export class HomePage {
 
   async selectStatus(nameRegex: RegExp) {
     await this.campaignStatusSelect.click();
-    await this.page.getByRole('option', { name: nameRegex }).click();
+    await this.page.getByRole("option", { name: nameRegex }).click();
   }
 
   async selectCategory(nameRegex: RegExp) {
     await this.campaignCategorySelect.click();
-    await this.page.getByRole('option', { name: nameRegex }).click();
+    await this.page.getByRole("option", { name: nameRegex }).click();
   }
 
   async submitSearchAndWait() {
     await Promise.all([
-      this.page.waitForResponse((response) =>
-        response.url().includes('/api/public/campaigns/search') && response.ok(),
+      this.page.waitForResponse(
+        (response) =>
+          response.url().includes("/api/public/campaigns/search") &&
+          response.ok(),
       ),
       this.searchSubmitButton.click(),
     ]);

@@ -1,4 +1,4 @@
-import { useAdminRoles } from '@/hooks/queries/useAdminQueries';
+import { useAdminRoles, getAdminRolesOptions } from '@/hooks/queries/useAdminQueries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -75,4 +75,10 @@ export default function AdminRolesPage() {
       </Card>
     </div>
   );
+}
+
+export async function clientLoader() {
+  const { ensureQueryData } = await import('@/utils/routerHelpers');
+  await ensureQueryData(getAdminRolesOptions());
+  return null;
 }
