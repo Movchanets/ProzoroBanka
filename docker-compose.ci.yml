@@ -34,9 +34,7 @@ services:
       - "5173:3000"
     build:
       args:
-        API_URL: ${VITE_API_URL:-http://localhost:5188}
-        BUILD_PUBLIC_VALUE_1: ${VITE_TURNSTILE_SITE_KEY:-1x00000000000000000000AA}
-        BUILD_PUBLIC_VALUE_2: ${VITE_GOOGLE_CLIENT_ID:-test-client-id}
+        BUILD_MODE: playwright
     depends_on:
       api:
         condition: service_started

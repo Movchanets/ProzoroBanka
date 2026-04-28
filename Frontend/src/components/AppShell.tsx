@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Outlet } from 'react-router';
 import { useAuthStore } from '../stores/authStore';
 import { useLogoutMutation } from '../hooks/queries/useAuth';
 import { useMyOrganizations } from '../hooks/queries/useOrganizations';
@@ -16,7 +16,29 @@ function getInitials(firstName?: string, lastName?: string) {
 }
 
 interface AppShellProps {
-  children: ReactNode;
+  children?: ReactNode;
+}
+
+export async function clientLoader() {
+  const { waitAuthHydration, useAuthStore } = await import('@/stores/authStore');
+  const { ensureQueryData } = await import('@/utils/routerHelpers');
+  const { getMyOrganizationsOptions } = await import('@/hooks/queries/useOrganizations');
+
+  await waitAuthHydration();
+  const { isAuthenticated } = useAuthStore.getState();
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  try {
+    await ensureQueryData(getMyOrganizationsOptions());
+  } catch {
+    // Guards will handle redirects for unauthenticated/forbidden states.
+    return null;
+  }
+
+  return null;
 }
 
 export default function AppShell({ children }: AppShellProps) {
@@ -102,7 +124,7 @@ export default function AppShell({ children }: AppShellProps) {
         </CardContent>
       </Card>
 
-      <main>{children}</main>
+      <main>{children ?? <Outlet />}</main>
     </div>
   );
 }

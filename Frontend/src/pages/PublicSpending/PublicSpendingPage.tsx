@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import { CalendarDays, ChevronRight, Eye, FileText, Loader2, ReceiptText, ShieldCheck, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -7,6 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePublicPurchaseById } from '@/hooks/queries/usePurchases';
 import { DocumentType, PurchaseStatus } from '@/types';
+import type { MetaDescriptor } from 'react-router';
+import type { DocumentDto, PurchaseDetailDto } from '@/types';
+import type { LoaderFunctionArgs } from 'react-router';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getPublicPurchaseByIdOptions } from '@/hooks/queries/usePurchases';
 
 function formatPublicAmount(value: number | undefined, locale: string, emptyText: string) {
   if (typeof value !== 'number') {
@@ -50,12 +55,50 @@ function getPurchaseStatusLabel(status: number, t: (key: string, options?: Recor
   }
 }
 
-export default function PublicSpendingPage() {
+ 
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const id = params.id!;
+  try {
+    const purchase = await ensureQueryData(getPublicPurchaseByIdOptions(id));
+    return { purchase };
+  } catch (error) {
+    console.error('Failed to load purchase:', error);
+    return { purchase: null };
+  }
+}
+
+ 
+export function meta({ data }: { data: { purchase: PurchaseDetailDto | null } }): MetaDescriptor[] {
+  if (!data?.purchase) {
+    return [
+      { title: 'Витрату не знайдено | ProzoroBanka' },
+      { name: 'description', content: 'Цю витрату не знайдено або вона була видалена.' },
+    ];
+  }
+
+  const { purchase } = data;
+  const title = purchase.title || 'Витрата';
+  const description = purchase.description || 'Деталі витрат і підтверджені документи.';
+
+  return [
+    { title: `${title} | ProzoroBanka` },
+    { name: 'description', content: description },
+    { name: 'robots', content: 'index,follow' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:title', content: `${title} | ProzoroBanka` },
+    { property: 'og:description', content: description },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: `${title} | ProzoroBanka` },
+    { name: 'twitter:description', content: description },
+  ];
+}
+
+export default function PublicSpendingPage({ loaderData }: { loaderData?: { purchase: PurchaseDetailDto | null } }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US';
   const { id } = useParams<{ id: string }>();
 
-  const purchaseQuery = usePublicPurchaseById(id ?? '', Boolean(id));
+  const purchaseQuery = usePublicPurchaseById(id ?? '', Boolean(id), { initialData: loaderData?.purchase || undefined });
   const purchase = purchaseQuery.data;
 
   if (purchaseQuery.isLoading) {
@@ -82,7 +125,7 @@ export default function PublicSpendingPage() {
     );
   }
 
-  const visibleDocuments = purchase.documents.filter((document) => document.type !== DocumentType.TransferAct);
+  const visibleDocuments = (purchase.documents || []).filter((document: DocumentDto) => document.type !== DocumentType.TransferAct);
   const restrictedDocuments = purchase.documents.length - visibleDocuments.length;
   const purchaseAmount = formatPublicAmount(purchase.totalAmount / 100, locale, t('common.na'));
 
@@ -186,7 +229,7 @@ export default function PublicSpendingPage() {
               </div>
             ) : null}
 
-            {visibleDocuments.map((document, index) => {
+            {visibleDocuments.map((document: DocumentDto, index: number) => {
               const documentAmount = document.amount === null ? undefined : document.amount / 100;
               return (
                 <article

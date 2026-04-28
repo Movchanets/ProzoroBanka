@@ -20,6 +20,8 @@ dist/
 .env.local
 .env.*.local
 .env.test
+Frontend/build/
+Frontend/.react-router/
 
 # ---- Playwright ----
 Frontend/test-results/
@@ -43,6 +45,11 @@ Frontend/tc01-fail.txt
 .github/csharp-developer/
 .github/skills/
 .github/prompts/
+graphify-out/
+.codex/skills/
+.agents/skills/
+.agents/rules/
+.agents/workflows/
 # ---- Terraform ----
 .terraform/
 *.tfstate
@@ -65,3 +72,4 @@ Backend/src/ProzoroBanka.API/wwwroot/
 *.md
 state.txt
 Backend/build.log
+test-results/.last-run.json

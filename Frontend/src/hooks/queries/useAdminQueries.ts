@@ -1,9 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../services/api';
 import type { ServiceResponse, CampaignStatus } from '../../types';
-import { profileService } from '../../services/profileService';
-import { useAuthStore } from '../../stores/authStore';
-import { useWorkspaceStore } from '../../stores/workspaceStore';
 import type {
   AdminOrganizationListResponse,
   AdminCampaignDto,
@@ -19,8 +16,12 @@ import type {
   AdminCampaignCategoryDto,
   AdminCampaignCategoryPayload,
 } from '../../types/admin';
-import type { TokenResponse } from '../../types/domains/auth';
 import { toast } from 'sonner';
+import { adminOcrService } from '../../services/adminOcrService';
+import { profileService } from '../../services/profileService';
+import { useAuthStore } from '../../stores/authStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
+import type { TokenResponse } from '../../types/domains/auth';
 
 export const adminQueryKeys = {
   organizations: (page: number, verifiedOnly?: boolean, search?: string) => ['admin', 'organizations', page, verifiedOnly, search] as const,
@@ -33,32 +34,40 @@ export const adminQueryKeys = {
   generalSettings: () => ['admin', 'settings', 'general'] as const,
   roles: () => ['admin', 'roles'] as const,
   campaignCategories: () => ['admin', 'campaign-categories'] as const,
+  ocrModels: () => ['admin', 'settings', 'ocr-models'] as const,
 };
 
 export function useAdminOrganizations(page: number, verifiedOnly?: boolean, search?: string) {
-  return useQuery({
-    queryKey: adminQueryKeys.organizations(page, verifiedOnly, search),
-    queryFn: () => {
-      const url = new URL('/api/admin/organizations', window.location.origin);
-      url.searchParams.set('page', page.toString());
-      if (verifiedOnly !== undefined && verifiedOnly !== null) {
-        url.searchParams.set('verifiedOnly', String(verifiedOnly));
-      }
-      if (search?.trim()) {
-        url.searchParams.set('search', search.trim());
-      }
-      return apiFetch<AdminOrganizationListResponse>(url.pathname + url.search);
-    },
-  });
+  return useQuery(getAdminOrganizationsOptions(page, verifiedOnly, search));
 }
+
+export const getAdminOrganizationsOptions = (page: number, verifiedOnly?: boolean, search?: string) => ({
+  queryKey: adminQueryKeys.organizations(page, verifiedOnly, search),
+  queryFn: () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+    const url = new URL('/api/admin/organizations', origin);
+    url.searchParams.set('page', page.toString());
+    if (verifiedOnly !== undefined && verifiedOnly !== null) {
+      url.searchParams.set('verifiedOnly', String(verifiedOnly));
+    }
+    if (search?.trim()) {
+      url.searchParams.set('search', search.trim());
+    }
+    return apiFetch<AdminOrganizationListResponse>(url.pathname + url.search);
+  },
+});
 
 export function useAdminOrganizationPlanUsage(orgId: string | null) {
   return useQuery({
-    queryKey: adminQueryKeys.organizationPlanUsage(orgId ?? ''),
-    queryFn: () => apiFetch<ServiceResponse<OrganizationPlanUsageDto>>(`/api/admin/organizations/${orgId}/plan-usage`),
+    ...getAdminOrganizationPlanUsageOptions(orgId),
     enabled: !!orgId,
   });
 }
+
+export const getAdminOrganizationPlanUsageOptions = (orgId: string | null) => ({
+  queryKey: adminQueryKeys.organizationPlanUsage(orgId ?? ''),
+  queryFn: () => apiFetch<ServiceResponse<OrganizationPlanUsageDto>>(`/api/admin/organizations/${orgId}/plan-usage`),
+});
 
 export function useAdminSetOrganizationPlan(orgId: string | null) {
   const queryClient = useQueryClient();
@@ -146,12 +155,16 @@ export function useAdminUnblockOrganization(organizationId: string) {
 
 export function useAdminOrganizationCampaigns(orgId: string, page: number) {
   return useQuery({
-    queryKey: adminQueryKeys.organizationCampaigns(orgId, page),
-    queryFn: () =>
-      apiFetch<AdminCampaignDto[]>(`/api/admin/organizations/${orgId}/campaigns?page=${page}`),
+    ...getAdminOrganizationCampaignsOptions(orgId, page),
     enabled: !!orgId,
   });
 }
+
+export const getAdminOrganizationCampaignsOptions = (orgId: string, page: number) => ({
+  queryKey: adminQueryKeys.organizationCampaigns(orgId, page),
+  queryFn: () =>
+    apiFetch<AdminCampaignDto[]>(`/api/admin/organizations/${orgId}/campaigns?page=${page}`),
+});
 
 export function useAdminChangeCampaignStatus(campaignId: string) {
   const queryClient = useQueryClient();
@@ -171,11 +184,13 @@ export function useAdminChangeCampaignStatus(campaignId: string) {
 }
 
 export function useAdminCampaignCategories(includeInactive = true) {
-  return useQuery({
-    queryKey: [...adminQueryKeys.campaignCategories(), includeInactive],
-    queryFn: () => apiFetch<AdminCampaignCategoryDto[]>(`/api/admin/campaign-categories?includeInactive=${String(includeInactive)}`),
-  });
+  return useQuery(getAdminCampaignCategoriesOptions(includeInactive));
 }
+
+export const getAdminCampaignCategoriesOptions = (includeInactive = true) => ({
+  queryKey: [...adminQueryKeys.campaignCategories(), includeInactive],
+  queryFn: () => apiFetch<AdminCampaignCategoryDto[]>(`/api/admin/campaign-categories?includeInactive=${String(includeInactive)}`),
+});
 
 export function useAdminCreateCampaignCategory() {
   const queryClient = useQueryClient();
@@ -225,50 +240,60 @@ export function useAdminDeleteCampaignCategory() {
 }
 
 export function useAdminUsers(page: number, filters?: AdminUsersFilters) {
-  return useQuery({
-    queryKey: adminQueryKeys.users(page, filters),
-    queryFn: () => {
-      const params = new URLSearchParams();
-      params.set('page', String(page));
-
-      if (filters?.search) {
-        params.set('search', filters.search);
-      }
-
-      if (typeof filters?.isActive === 'boolean') {
-        params.set('isActive', String(filters.isActive));
-      }
-
-      if (filters?.role) {
-        params.set('role', filters.role);
-      }
-
-      return apiFetch<AdminUserListResponse>(`/api/admin/users?${params.toString()}`);
-    },
-  });
+  return useQuery(getAdminUsersOptions(page, filters));
 }
+
+export const getAdminUsersOptions = (page: number, filters?: AdminUsersFilters) => ({
+  queryKey: adminQueryKeys.users(page, filters),
+  queryFn: () => {
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+
+    if (filters?.search) {
+      params.set('search', filters.search);
+    }
+
+    if (typeof filters?.isActive === 'boolean') {
+      params.set('isActive', String(filters.isActive));
+    }
+
+    if (filters?.role) {
+      params.set('role', filters.role);
+    }
+
+    return apiFetch<AdminUserListResponse>(`/api/admin/users?${params.toString()}`);
+  },
+});
 
 export function useAdminRoles() {
-  return useQuery({
-    queryKey: adminQueryKeys.roles(),
-    queryFn: () => apiFetch<AdminRoleDto[]>('/api/admin/roles'),
-  });
+  return useQuery(getAdminRolesOptions());
 }
+
+export const getAdminRolesOptions = () => ({
+  queryKey: adminQueryKeys.roles(),
+  queryFn: () => apiFetch<AdminRoleDto[]>('/api/admin/roles'),
+});
 
 export function useAdminUserDetails(userId: string | null) {
   return useQuery({
-    queryKey: adminQueryKeys.userDetails(userId ?? ''),
-    queryFn: () => apiFetch<AdminUserDetailsDto>(`/api/admin/users/${userId}`),
+    ...getAdminUserDetailsOptions(userId),
     enabled: !!userId,
   });
 }
 
+export const getAdminUserDetailsOptions = (userId: string | null) => ({
+  queryKey: adminQueryKeys.userDetails(userId ?? ''),
+  queryFn: () => apiFetch<AdminUserDetailsDto>(`/api/admin/users/${userId}`),
+});
+
 export function useAdminUserLimitsSettings() {
-  return useQuery({
-    queryKey: adminQueryKeys.userLimitsSettings(),
-    queryFn: () => apiFetch<AdminUserLimitsSettingsDto>('/api/admin/settings/users'),
-  });
+  return useQuery(getAdminUserLimitsSettingsOptions());
 }
+
+export const getAdminUserLimitsSettingsOptions = () => ({
+  queryKey: adminQueryKeys.userLimitsSettings(),
+  queryFn: () => apiFetch<AdminUserLimitsSettingsDto>('/api/admin/settings/users'),
+});
 
 export function useAdminUpdateUserLimitsSettings() {
   const queryClient = useQueryClient();
@@ -288,11 +313,13 @@ export function useAdminUpdateUserLimitsSettings() {
 }
 
 export function useAdminPlansSettings() {
-  return useQuery({
-    queryKey: adminQueryKeys.plansSettings(),
-    queryFn: () => apiFetch<AdminPlansSettingsDto>('/api/admin/settings/plans'),
-  });
+  return useQuery(getAdminPlansSettingsOptions());
 }
+
+export const getAdminPlansSettingsOptions = () => ({
+  queryKey: adminQueryKeys.plansSettings(),
+  queryFn: () => apiFetch<AdminPlansSettingsDto>('/api/admin/settings/plans'),
+});
 
 export function useAdminUpdatePlansSettings() {
   const queryClient = useQueryClient();
@@ -313,11 +340,22 @@ export function useAdminUpdatePlansSettings() {
 }
 
 export function useAdminGeneralSettings() {
-  return useQuery({
-    queryKey: adminQueryKeys.generalSettings(),
-    queryFn: () => apiFetch<AdminGeneralSettingsDto>('/api/admin/settings/general'),
-  });
+  return useQuery(getAdminGeneralSettingsOptions());
 }
+
+export const getAdminGeneralSettingsOptions = () => ({
+  queryKey: adminQueryKeys.generalSettings(),
+  queryFn: () => apiFetch<AdminGeneralSettingsDto>('/api/admin/settings/general'),
+});
+
+export function useAdminOcrModels() {
+  return useQuery(getAdminOcrModelsOptions());
+}
+
+export const getAdminOcrModelsOptions = () => ({
+  queryKey: adminQueryKeys.ocrModels(),
+  queryFn: () => adminOcrService.list(),
+});
 
 export function useAdminUpdateGeneralSettings() {
   const queryClient = useQueryClient();

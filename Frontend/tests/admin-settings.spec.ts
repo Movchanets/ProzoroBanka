@@ -9,6 +9,7 @@ for (const localeConfig of TEST_LOCALES) {
     test.use({ locale: localeConfig.browserLocale });
 
     test.beforeEach(async ({ page }) => {
+      
       await seedAdminSession(page, localeConfig.uiLanguage);
       await mockMyOrganizationsNav(page);
       await mockAdminSettings(page);

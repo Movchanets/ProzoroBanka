@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useSubmit, useActionData, useNavigation } from 'react-router';
+import type { ActionFunctionArgs } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { CircleAlert, CircleCheckBig, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 import { AuthShell } from '../../components/auth/AuthShell';
-import { useResetPasswordMutation } from '../../hooks/queries/useAuth';
+import { authService } from '../../services/authService';
 import { createResetPasswordSchema, type ResetPasswordFormData } from '../../utils/authSchemas';
 import { FieldMessages } from '../../components/auth/FieldMessages';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -14,14 +15,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
+export async function clientAction({ request }: ActionFunctionArgs) {
+  const formData = await request.formData();
+  const data = Object.fromEntries(formData) as unknown as ResetPasswordFormData;
+
+  try {
+    const response = await authService.resetPassword(data);
+    return { success: true, message: response.message };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to reset password' };
+  }
+}
+
 const REDIRECT_DELAY_SECONDS = 4;
 
 export default function ResetPasswordPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const resetPasswordMutation = useResetPasswordMutation();
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const submit = useSubmit();
+  const actionData = useActionData() as { success?: boolean; message?: string; error?: string } | undefined;
+  const navigation = useNavigation();
+  const successMessage = actionData?.success ? actionData.message || t('auth.resetPassword.successDefault') : null;
+  const serverError = actionData?.error;
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
 
   const schema = useMemo(() => createResetPasswordSchema(t), [t]);
@@ -64,11 +80,17 @@ export default function ResetPasswordPage() {
 
   const hasLinkParams = Boolean(searchParams.get('email') && searchParams.get('token'));
 
-  const onSubmit = handleSubmit(async (values) => {
-    const response = await resetPasswordMutation.mutateAsync(values);
-    setRedirectCountdown(REDIRECT_DELAY_SECONDS);
-    setSuccessMessage(response.message || t('auth.resetPassword.successDefault'));
+  const onSubmit = handleSubmit((values) => {
+    submit(values as any, { method: 'post' });
   });
+
+  const isPending = navigation.state !== 'idle';
+
+  useEffect(() => {
+    if (actionData?.success && redirectCountdown === null) {
+      setRedirectCountdown(REDIRECT_DELAY_SECONDS);
+    }
+  }, [actionData, redirectCountdown]);
 
   return (
     <AuthShell
@@ -139,17 +161,15 @@ export default function ResetPasswordPage() {
             <FieldMessages error={errors.confirmPassword} />
           </div>
 
-          {resetPasswordMutation.error && (
+          {serverError && (
             <Alert variant="destructive" aria-live="polite">
               <CircleAlert aria-hidden="true" />
-              <AlertDescription>
-                {resetPasswordMutation.error instanceof Error ? resetPasswordMutation.error.message : t('auth.resetPassword.errorDefault')}
-              </AlertDescription>
+              <AlertDescription>{serverError}</AlertDescription>
             </Alert>
           )}
 
-          <Button type="submit" size="pillWide" className="w-full shadow-[0_18px_30px_var(--shadow-strong)]" disabled={resetPasswordMutation.isPending}>
-            {resetPasswordMutation.isPending ? t('auth.resetPassword.submitPending') : t('auth.resetPassword.submit')}
+          <Button type="submit" size="pillWide" className="w-full shadow-[0_18px_30px_var(--shadow-strong)]" disabled={isPending}>
+            {isPending ? t('auth.resetPassword.submitPending') : t('auth.resetPassword.submit')}
           </Button>
         </form>
       )}

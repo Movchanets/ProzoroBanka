@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import { CalendarDays, Eye, FileText, ImageIcon, Newspaper, ShieldCheck, Target, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useQueries } from '@tanstack/react-query';
@@ -13,30 +13,61 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
 import { Breadcrumbs } from '@/components/public/Breadcrumbs';
 import { CrossLinkingSection } from '@/components/public/CrossLinkingSection';
-import { SeoHelmet } from '@/components/seo/SeoHelmet';
 import { usePublicCampaign, usePublicCampaignReceipts } from '@/hooks/queries/usePublic';
 import { usePublicPurchases } from '@/hooks/queries/usePurchases';
 import { resolveLocalizedText } from '@/lib/localizedText';
 import { extractTextFromTiptapJson } from '@/lib/tiptapContent';
 import { DocumentType } from '@/types';
+import type { MetaDescriptor } from 'react-router';
+import type { PublicCampaignDetail } from '@/types';
+import type { LoaderFunctionArgs } from 'react-router';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getPublicCampaignOptions, getPublicCampaignReceiptsOptions } from '@/hooks/queries/usePublic';
+import { getPublicPurchasesOptions } from '@/hooks/queries/usePurchases';
 
-const ENV_SITE_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '');
-const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+ 
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const id = params.id!;
+  try {
+    const [campaign] = await Promise.all([
+      ensureQueryData(getPublicCampaignOptions(id)),
+      ensureQueryData(getPublicCampaignReceiptsOptions(id, 1)),
+      ensureQueryData(getPublicPurchasesOptions(id)),
+    ]);
+    return { campaign };
+  } catch (error) {
+    console.error('Failed to load campaign data:', error);
+    return { campaign: null };
+  }
+}
 
-function resolveSiteBaseUrl(): string {
-  if (ENV_SITE_BASE_URL) {
-    return ENV_SITE_BASE_URL;
+ 
+export function meta({ data }: { data: { campaign: PublicCampaignDetail | null } }): MetaDescriptor[] {
+  if (!data?.campaign) {
+    return [
+      { title: 'Збір не знайдено | ProzoroBanka' },
+      { name: 'description', content: 'Цей збір не знайдено або він був видалений.' },
+    ];
   }
 
-  return LOCALHOST_ORIGIN_REGEX.test(window.location.origin) ? '' : window.location.origin;
-}
+  const { campaign } = data;
+  const title = campaign.titleUk || campaign.titleEn || 'Збір';
+  const description = campaign.description || 'Сторінка збору з прогресом, деталями витрат і підтвердженими чеками.';
 
-function buildSiteUrl(path: string): string {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return SITE_BASE_URL ? `${SITE_BASE_URL}${normalizedPath}` : normalizedPath;
+  return [
+    { title: `${title} | ProzoroBanka` },
+    { name: 'description', content: description },
+    { name: 'robots', content: 'index,follow' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:title', content: `${title} | ProzoroBanka` },
+    { property: 'og:description', content: description },
+    { property: 'og:image', content: campaign.coverImageUrl },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: `${title} | ProzoroBanka` },
+    { name: 'twitter:description', content: description },
+    { name: 'twitter:image', content: campaign.coverImageUrl },
+  ];
 }
-
-const SITE_BASE_URL = resolveSiteBaseUrl();
 
 function formatPublicAmount(value: number | undefined, locale: string, emptyText: string) {
   if (typeof value !== 'number') {
@@ -65,7 +96,7 @@ function getPublicDocumentTypeLabel(type: number, t: (key: string, options?: Rec
   }
 }
 
-export default function PublicCampaignPage() {
+export default function PublicCampaignPage({ loaderData }: { loaderData?: { campaign: PublicCampaignDetail | null } }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US';
   const { id } = useParams<{ id: string }>();
@@ -76,14 +107,10 @@ export default function PublicCampaignPage() {
   const [activeGalleryDescription, setActiveGalleryDescription] = useState('');
   const [activeTab, setActiveTab] = useState<'updates' | 'receipts' | 'spending'>('updates');
 
-  const campaignQuery = usePublicCampaign(id);
+  const campaignQuery = usePublicCampaign(id, { initialData: loaderData?.campaign || undefined });
   const receiptsQuery = usePublicCampaignReceipts(id, 1);
   const purchasesQuery = usePublicPurchases(id ?? '', Boolean(id));
 
-  const campaignForSeo = campaignQuery.data;
-  const campaignForSeoTitle = campaignForSeo
-    ? resolveLocalizedText(campaignForSeo.titleUk, campaignForSeo.titleEn, i18n.language)
-    : '';
   const receipts = receiptsQuery.data?.items ?? [];
   const publicPurchases = purchasesQuery.data ?? [];
   const publicPurchasesSorted = [...publicPurchases].sort(
@@ -158,60 +185,6 @@ export default function PublicCampaignPage() {
 
   return (
     <>
-      <SeoHelmet
-        title={campaignForSeo
-          ? t('campaigns.public.seoTitleWithName', { title: campaignForSeoTitle })
-          : t('campaigns.public.seoTitleFallback')}
-        description={campaignForSeo
-          ? t('campaigns.public.seoDescriptionWithName', {
-            title: campaignForSeoTitle,
-            organizationName: campaignForSeo.organizationName,
-          })
-          : t('campaigns.public.seoDescriptionFallback')}
-        canonicalPath={id ? `/c/${id}` : '/c'}
-        robots="index,follow"
-        jsonLd={campaignForSeo
-          ? [
-            {
-              '@context': 'https://schema.org',
-              '@type': 'WebPage',
-              name: campaignForSeoTitle,
-              description: campaignForSeo.description,
-              url: buildSiteUrl(`/c/${campaignForSeo.id}`),
-              isPartOf: {
-                '@type': 'WebSite',
-                name: 'ProzoroBanka',
-                url: SITE_BASE_URL || undefined,
-              },
-            },
-            {
-              '@context': 'https://schema.org',
-              '@type': 'BreadcrumbList',
-              itemListElement: [
-                {
-                  '@type': 'ListItem',
-                  position: 1,
-                  name: t('common.home'),
-                  item: buildSiteUrl('/'),
-                },
-                {
-                  '@type': 'ListItem',
-                  position: 2,
-                  name: campaignForSeo.organizationName,
-                  item: buildSiteUrl(`/o/${campaignForSeo.organizationSlug}`),
-                },
-                {
-                  '@type': 'ListItem',
-                  position: 3,
-                  name: campaignForSeoTitle,
-                  item: buildSiteUrl(`/c/${campaignForSeo.id}`),
-                },
-              ],
-            },
-          ]
-          : undefined}
-      />
-
       <main className="mx-auto flex w-[min(1200px,calc(100%-24px))] flex-col gap-6 py-6 sm:w-[min(1200px,calc(100%-40px))]">
         <Breadcrumbs items={[
           { label: t('common.home'), href: '/' },

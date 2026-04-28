@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import { CalendarDays, ChevronRight, FileCheck2, Loader2, ReceiptText, ShieldCheck, Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,14 +8,57 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PhotoGalleryDialog } from '@/components/ui/photo-gallery-dialog';
 import { usePublicReceipt } from '@/hooks/queries/usePublic';
+import type { MetaDescriptor } from 'react-router';
+import type { PublicReceiptDetail } from '@/types';
+import type { LoaderFunctionArgs } from 'react-router';
+import { ensureQueryData } from '@/utils/routerHelpers';
+import { getPublicReceiptOptions } from '@/hooks/queries/usePublic';
 import { ReceiptItemsTable } from '@/components/receipt/ReceiptItemsTable';
 import type { ReceiptItem } from '@/types';
 
-export default function PublicReceiptPlaceholderPage() {
+ 
+export async function clientLoader({ params }: LoaderFunctionArgs) {
+  const id = params.id!;
+  try {
+    const receipt = await ensureQueryData(getPublicReceiptOptions(id));
+    return { receipt };
+  } catch (error) {
+    console.error('Failed to load receipt:', error);
+    return { receipt: null };
+  }
+}
+
+ 
+export function meta({ data }: { data: { receipt: PublicReceiptDetail | null } }): MetaDescriptor[] {
+  if (!data?.receipt) {
+    return [
+      { title: 'Чек не знайдено | ProzoroBanka' },
+      { name: 'description', content: 'Цей чек не знайдено або він був видалений.' },
+    ];
+  }
+
+  const { receipt } = data;
+  const title = receipt.merchantName || 'Чек';
+  const description = `Чек від ${receipt.merchantName || 'невідомого продавця'} на суму ${receipt.totalAmount} грн.`;
+
+  return [
+    { title: `Чек: ${title} | ProzoroBanka` },
+    { name: 'description', content: description },
+    { name: 'robots', content: 'index,follow' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:title', content: `Чек: ${title} | ProzoroBanka` },
+    { property: 'og:description', content: description },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: `Чек: ${title} | ProzoroBanka` },
+    { name: 'twitter:description', content: description },
+  ];
+}
+
+export default function PublicReceiptPlaceholderPage({ loaderData }: { loaderData?: { receipt: PublicReceiptDetail | null } }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith('uk') ? 'uk-UA' : 'en-US';
   const { id } = useParams<{ id: string }>();
-  const { data: receipt, isLoading, error } = usePublicReceipt(id);
+  const { data: receipt, isLoading, error } = usePublicReceipt(id || '', { initialData: loaderData?.receipt || undefined });
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
 

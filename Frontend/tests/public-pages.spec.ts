@@ -1,13 +1,20 @@
-import { test, expect } from './support/fixtures';
-import { setupPublicPagesMocks } from './support/public-mocks';
+import { test, expect } from "./support/fixtures";
+import { setupPublicPagesMocks } from "./support/public-mocks";
 
-test.describe('Public pages', () => {
+test.describe("Public pages", () => {
   test.beforeEach(async ({ page }) => {
     await setupPublicPagesMocks(page);
   });
 
-  test('TC-01: home page loads and shows campaign grid', async ({ homePage }) => {
-    test.info().annotations.push({ type: 'locale-check', description: 'Public pages load in bilingual-ready UI.' });
+  test("TC-01: home page loads and shows campaign grid", async ({
+    homePage,
+  }) => {
+    test
+      .info()
+      .annotations.push({
+        type: "locale-check",
+        description: "Public pages load in bilingual-ready UI.",
+      });
 
     await homePage.goto();
 
@@ -19,10 +26,13 @@ test.describe('Public pages', () => {
     await expect(homePage.campaignOrgLink.first()).toBeVisible();
   });
 
-  test('TC-02: home search and filters are interactive', async ({ page, homePage }) => {
+  test("TC-02: home search and filters are interactive", async ({
+    page,
+    homePage,
+  }) => {
     await homePage.goto();
 
-    await homePage.fillSearch('тепловізори');
+    await homePage.fillSearch("тепловізори");
     await homePage.toggleVerifiedOrg(false);
     await homePage.selectStatus(/Активні|Active/i);
     await homePage.selectCategory(/Тепловізори|Thermal/i);
@@ -43,8 +53,10 @@ test.describe('Public pages', () => {
     await expect(homePage.activeFilterToggle).toBeChecked();
   });
 
-  test('TC-03: organization page loads and tab switch works', async ({ orgPublicPage }) => {
-    await orgPublicPage.goto('promin');
+  test("TC-03: organization page loads and tab switch works", async ({
+    orgPublicPage,
+  }) => {
+    await orgPublicPage.goto("promin");
 
     await expect(orgPublicPage.header).toBeVisible();
     await expect(orgPublicPage.transparencyPanel).toBeVisible();
@@ -59,21 +71,31 @@ test.describe('Public pages', () => {
     await expect(orgPublicPage.campaignList).toBeVisible();
   });
 
-  test('TC-04: campaign page loads and receipt link is visible', async ({ campaignPublicPage }) => {
-    await campaignPublicPage.goto('camp-1');
+  test("TC-04: campaign page loads and receipt link is visible", async ({
+    campaignPublicPage,
+  }) => {
+    await campaignPublicPage.goto("camp-1");
 
     await expect(campaignPublicPage.header).toBeVisible();
     await expect(campaignPublicPage.progressPanel).toBeVisible();
     await expect(campaignPublicPage.description).toBeVisible();
-    await campaignPublicPage.page.getByTestId('public-campaign-tab-receipts').click();
+    await campaignPublicPage.page
+      .getByTestId("public-campaign-tab-receipts")
+      .click();
     await expect(campaignPublicPage.receiptsList).toBeVisible();
     await expect(campaignPublicPage.receiptLink).toBeVisible();
   });
 
-  test('TC-04A: navigation from campaign receipt to receipt page works', async ({ page, campaignPublicPage, receiptPublicPage }) => {
-    await campaignPublicPage.goto('camp-1');
+  test("TC-04A: navigation from campaign receipt to receipt page works", async ({
+    page,
+    campaignPublicPage,
+    receiptPublicPage,
+  }) => {
+    await campaignPublicPage.goto("camp-1");
 
-    await campaignPublicPage.page.getByTestId('public-campaign-tab-receipts').click();
+    await campaignPublicPage.page
+      .getByTestId("public-campaign-tab-receipts")
+      .click();
     await expect(campaignPublicPage.receiptLink).toBeVisible();
     await campaignPublicPage.clickFirstReceipt();
 
@@ -82,10 +104,19 @@ test.describe('Public pages', () => {
     await expect(receiptPublicPage.image).toBeVisible();
     await expect(receiptPublicPage.itemsCard).toBeVisible();
     await expect(receiptPublicPage.photosGrid).toBeVisible();
-    await expect(receiptPublicPage.photoItemDescription).toContainText(/Товар:|Item:/);
+    await expect(receiptPublicPage.photoItemDescription).toContainText(
+      /Товар:|Item:/,
+    );
   });
 
-  test('TC-05: public toolbar is visible across public routes', async ({ page, homePage, orgPublicPage, campaignPublicPage, receiptPublicPage, publicLayout }) => {
+  test("TC-05: public toolbar is visible across public routes", async ({
+    page,
+    homePage,
+    orgPublicPage,
+    campaignPublicPage,
+    receiptPublicPage,
+    publicLayout,
+  }) => {
     await homePage.goto();
     await expect(publicLayout.toolbar).toBeVisible();
     await expect(publicLayout.toolbarEntryLink).toBeVisible();
@@ -97,19 +128,20 @@ test.describe('Public pages', () => {
     if (viewportWidth >= 640) {
       await expect(publicLayout.toolbarCampaignsAnchor).toBeVisible();
       // The organizations anchor was added in a later UI iteration — check only when present
-      const orgAnchorCount = await publicLayout.toolbarOrganizationsAnchor.count();
+      const orgAnchorCount =
+        await publicLayout.toolbarOrganizationsAnchor.count();
       if (orgAnchorCount > 0) {
         await expect(publicLayout.toolbarOrganizationsAnchor).toBeVisible();
       }
     }
 
-    await orgPublicPage.goto('promin');
+    await orgPublicPage.goto("promin");
     await expect(publicLayout.toolbar).toBeVisible();
 
-    await campaignPublicPage.goto('camp-1');
+    await campaignPublicPage.goto("camp-1");
     await expect(publicLayout.toolbar).toBeVisible();
 
-    await receiptPublicPage.goto('r1');
+    await receiptPublicPage.goto("r1");
     await expect(publicLayout.toolbar).toBeVisible();
     await expect(receiptPublicPage.receiptPage).toBeVisible();
     await expect(receiptPublicPage.image).toBeVisible();
@@ -117,41 +149,52 @@ test.describe('Public pages', () => {
     await expect(receiptPublicPage.photosGrid).toBeVisible();
   });
 
-  test('TC-07: toolbar anchors sync hash and active home tab', async ({ page, homePage, publicLayout }) => {
+  test("TC-07: toolbar anchors sync hash and active home tab", async ({
+    page,
+    homePage,
+    publicLayout,
+  }) => {
     // Toolbar anchors are only present on wide viewports (sm breakpoint ≥ 640px)
     const viewportWidth = page.viewportSize()?.width ?? 1280;
-    test.skip(viewportWidth < 640, 'Toolbar anchors are hidden on mobile viewports');
+    test.skip(
+      viewportWidth < 640,
+      "Toolbar anchors are hidden on mobile viewports",
+    );
 
     await homePage.goto();
 
     // The organizations anchor was added in a later UI iteration.
     // If it's not present yet (old Docker image), test the campaigns anchor only.
-    const orgAnchorCount = await publicLayout.toolbarOrganizationsAnchor.count();
+    const orgAnchorCount =
+      await publicLayout.toolbarOrganizationsAnchor.count();
 
     if (orgAnchorCount > 0) {
       await publicLayout.toolbarOrganizationsAnchor.click();
       await expect(page).toHaveURL(/#organizations$/);
-      await expect(homePage.tabOrganizations).toHaveAttribute('data-state', 'active');
+      await expect(homePage.tabOrganizations).toHaveAttribute(
+        "data-state",
+        "active",
+      );
       await expect(homePage.orgGrid).toBeVisible();
     }
 
     await publicLayout.toolbarCampaignsAnchor.click();
     await expect(page).toHaveURL(/#campaigns$/);
-    await expect(homePage.tabCampaigns).toHaveAttribute('data-state', 'active');
+    await expect(homePage.tabCampaigns).toHaveAttribute("data-state", "active");
     await expect(homePage.campaignGrid).toBeVisible();
   });
 
-  test('TC-06: login page contains link to public pages', async ({ page, loginPage, homePage }) => {
+  test("TC-06: login page contains link to public pages", async ({
+    page,
+    loginPage,
+    homePage,
+  }) => {
     await loginPage.goto();
     await expect(loginPage.publicPagesLink).toBeVisible();
 
-    const href = await loginPage.publicPagesLink.getAttribute('href');
     await loginPage.publicPagesLink.click({ force: true });
-    if (href) {
-      await page.goto(href);
-    }
 
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL("/");
     await expect(homePage.heroSection).toBeVisible();
   });
 });

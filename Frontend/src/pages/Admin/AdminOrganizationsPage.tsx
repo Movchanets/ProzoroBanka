@@ -5,12 +5,15 @@ import {
   useAdminSetOrganizationPlan,
   useAdminBlockOrganization,
   useAdminUnblockOrganization,
+  useAdminDeleteOrganization,
+  getAdminOrganizationsOptions,
+  getAdminOrganizationPlanUsageOptions,
 } from '@/hooks/queries/useAdminQueries';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import {
   Table,
   TableBody,
@@ -31,11 +34,31 @@ import { toast } from 'sonner';
 import { Check, X, Trash, MoreVertical, ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useTranslation } from 'react-i18next';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import type { AdminOrganizationDto, OrganizationPlanType, OrganizationPlanUsageDto } from '@/types/admin';
 import { OrganizationPlanType as PlanTypeEnum } from '@/types/admin';
 
 export default function AdminOrganizationsPage() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [verifiedOnly, setVerifiedOnly] = useState<boolean | undefined>(undefined);
   const [searchInput, setSearchInput] = useState('');
@@ -43,6 +66,15 @@ export default function AdminOrganizationsPage() {
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | null>(null);
   const [pendingPlanOrgId, setPendingPlanOrgId] = useState<string | null>(null);
   const [pendingPlanType, setPendingPlanType] = useState<OrganizationPlanType>(PlanTypeEnum.Free);
+
+  // Dialog states
+  const [actingOrg, setActingOrg] = useState<AdminOrganizationDto | null>(null);
+  const [isVerifyDialogOpen, setIsVerifyDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
+  const [isUnblockDialogOpen, setIsUnblockDialogOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [blockReason, setBlockReason] = useState('');
 
   const {
     data,
@@ -96,6 +128,65 @@ export default function AdminOrganizationsPage() {
 
   const planLabel = (planType: OrganizationPlanType) =>
     planType === PlanTypeEnum.Paid ? t('admin.organizations.plan.paid') : t('admin.organizations.plan.free');
+
+  const deleteMutation = useAdminDeleteOrganization(actingOrg?.id || '');
+  const blockMutation = useAdminBlockOrganization(actingOrg?.id || '');
+  const unblockMutation = useAdminUnblockOrganization(actingOrg?.id || '');
+
+  const handleOpenVerify = (org: AdminOrganizationDto) => {
+    setActingOrg(org);
+    setIsVerifyDialogOpen(true);
+  };
+
+  const handleOpenDelete = (org: AdminOrganizationDto) => {
+    setActingOrg(org);
+    setDeleteConfirmation('');
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleOpenBlockToggle = (org: AdminOrganizationDto) => {
+    setActingOrg(org);
+    if (org.isBlocked) {
+      setIsUnblockDialogOpen(true);
+    } else {
+      setBlockReason('');
+      setIsBlockDialogOpen(true);
+    }
+  };
+
+  const onConfirmVerify = async () => {
+    if (!actingOrg) return;
+    try {
+      await apiFetch(`/api/admin/organizations/${actingOrg.id}/verify`, {
+        method: 'PUT',
+        body: JSON.stringify({ isVerified: !actingOrg.isVerified })
+      });
+      toast.success(t('admin.organizations.actions.statusUpdated'));
+      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
+    } catch (e: unknown) {
+      toast.error((e as Error).message);
+    } finally {
+      setIsVerifyDialogOpen(false);
+    }
+  };
+
+  const onConfirmDelete = async () => {
+    if (!actingOrg) return;
+    await deleteMutation.mutateAsync();
+    setIsDeleteDialogOpen(false);
+  };
+
+  const onConfirmBlock = async () => {
+    if (!actingOrg || !blockReason.trim()) return;
+    await blockMutation.mutateAsync(blockReason.trim());
+    setIsBlockDialogOpen(false);
+  };
+
+  const onConfirmUnblock = async () => {
+    if (!actingOrg) return;
+    await unblockMutation.mutateAsync();
+    setIsUnblockDialogOpen(false);
+  };
 
   return (
     <div className="space-y-6" data-testid="admin-organizations-page">
@@ -181,6 +272,9 @@ export default function AdminOrganizationsPage() {
                   }}
                   isSelected={org.id === effectiveSelectedOrganizationId}
                   planLabel={planLabel}
+                  onVerify={() => handleOpenVerify(org)}
+                  onDelete={() => handleOpenDelete(org)}
+                  onBlockToggle={() => handleOpenBlockToggle(org)}
                 />
               ))
             )}
@@ -303,6 +397,122 @@ export default function AdminOrganizationsPage() {
           </Button>
         </div>
       )}
+
+      {/* Verify Dialog */}
+      <AlertDialog open={isVerifyDialogOpen} onOpenChange={setIsVerifyDialogOpen}>
+        <AlertDialogContent data-testid="admin-organizations-verify-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {actingOrg?.isVerified
+                ? t('admin.organizations.actions.unverify')
+                : t('admin.organizations.actions.verify')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('admin.organizations.actions.verifyConfirm', { name: actingOrg?.name })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirmVerify} data-testid="admin-organizations-verify-confirm">
+              {t('common.confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent data-testid="admin-organizations-delete-dialog">
+          <DialogHeader>
+            <DialogTitle>{t('admin.organizations.actions.delete')}</DialogTitle>
+            <DialogDescription>
+              {t('admin.organizations.actions.deleteConfirm', { name: actingOrg?.name })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-2">
+            <Label htmlFor="delete-confirm">
+              Введіть <strong>{actingOrg?.name}</strong> для підтвердження:
+            </Label>
+            <Input
+              id="delete-confirm"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              placeholder={actingOrg?.name}
+              data-testid="admin-organizations-delete-input"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteConfirmation !== actingOrg?.name || deleteMutation.isPending}
+              onClick={onConfirmDelete}
+              data-testid="admin-organizations-delete-confirm"
+            >
+              {deleteMutation.isPending ? t('common.deleting') : t('common.delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Block Dialog */}
+      <Dialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
+        <DialogContent data-testid="admin-organizations-block-dialog">
+          <DialogHeader>
+            <DialogTitle>Заблокувати організацію</DialogTitle>
+            <DialogDescription>
+              Введіть причину блокування для організації {actingOrg?.name}. Це обмежить доступ для всіх учасників.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-2">
+            <Label htmlFor="block-reason">Причина блокування:</Label>
+            <Input
+              id="block-reason"
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+              placeholder="Причина..."
+              data-testid="admin-organizations-block-input"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBlockDialogOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!blockReason.trim() || blockMutation.isPending}
+              onClick={onConfirmBlock}
+              data-testid="admin-organizations-block-confirm"
+            >
+              {blockMutation.isPending ? 'Блокування...' : 'Заблокувати'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unblock Dialog */}
+      <AlertDialog open={isUnblockDialogOpen} onOpenChange={setIsUnblockDialogOpen}>
+        <AlertDialogContent data-testid="admin-organizations-unblock-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Розблокувати організацію</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ви впевнені, що хочете розблокувати організацію {actingOrg?.name}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={onConfirmUnblock}
+              disabled={unblockMutation.isPending}
+              data-testid="admin-organizations-unblock-confirm"
+            >
+              {unblockMutation.isPending ? 'Розблокування...' : 'Розблокувати'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -312,64 +522,19 @@ function OrganizationRow({
   onSelect,
   isSelected,
   planLabel,
+  onVerify,
+  onDelete,
+  onBlockToggle,
 }: {
   org: AdminOrganizationDto;
   onSelect: (id: string, planType: OrganizationPlanType) => void;
   isSelected: boolean;
   planLabel: (planType: OrganizationPlanType) => string;
+  onVerify: () => void;
+  onDelete: () => void;
+  onBlockToggle: () => void;
 }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const blockMutation = useAdminBlockOrganization(org.id);
-  const unblockMutation = useAdminUnblockOrganization(org.id);
-
-  const toggleVerify = async () => {
-    if (!window.confirm(t('admin.organizations.actions.verifyConfirm', { name: org.name }))) return;
-    setIsVerifying(true);
-    try {
-      await apiFetch(`/api/admin/organizations/${org.id}/verify`, {
-        method: 'PUT',
-        body: JSON.stringify({ isVerified: !org.isVerified })
-      });
-      toast.success(t('admin.organizations.actions.statusUpdated'));
-      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
-    } catch (e: unknown) {
-      toast.error((e as Error).message);
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  const deleteOrg = async () => {
-    if (!window.prompt(t('admin.organizations.actions.deleteConfirm', { name: org.name }))?.includes(org.name)) return;
-    setIsDeleting(true);
-    try {
-      await apiFetch(`/api/admin/organizations/${org.id}`, { method: 'DELETE' });
-      toast.success(t('admin.organizations.actions.deleted'));
-      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
-    } catch (e: unknown) {
-      toast.error((e as Error).message);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const toggleBlock = async () => {
-    if (org.isBlocked) {
-      if (!window.confirm(`Розблокувати організацію ${org.name}?`)) return;
-      await unblockMutation.mutateAsync();
-    } else {
-      const reason = window.prompt(`Введіть причину блокування для організації ${org.name}:`);
-      if (reason === null) return;
-      if (!reason.trim()) {
-        toast.error('Причина блокування не може бути порожньою');
-        return;
-      }
-      await blockMutation.mutateAsync(reason.trim());
-    }
-  };
 
   return (
     <TableRow data-testid={`admin-organizations-row-${org.id}`} className={isSelected ? 'bg-primary/5' : ''}>
@@ -433,7 +598,7 @@ function OrganizationRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={toggleVerify} disabled={isVerifying} data-testid={`admin-organizations-verify-${org.id}`}>
+            <DropdownMenuItem onClick={onVerify} data-testid={`admin-organizations-verify-${org.id}`}>
               {org.isVerified ? <X className="mr-2 h-4 w-4" /> : <Check className="mr-2 h-4 w-4" />}
               {org.isVerified ? t('admin.organizations.actions.unverify') : t('admin.organizations.actions.verify')}
             </DropdownMenuItem>
@@ -444,8 +609,7 @@ function OrganizationRow({
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={toggleBlock} 
-              disabled={blockMutation.isPending || unblockMutation.isPending} 
+              onClick={onBlockToggle} 
               className={org.isBlocked ? "" : "text-destructive focus:bg-destructive/10"}
               data-testid={`admin-organizations-block-${org.id}`}
             >
@@ -461,7 +625,7 @@ function OrganizationRow({
                 </>
               )}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={deleteOrg} disabled={isDeleting} className="text-destructive focus:bg-destructive/10" data-testid={`admin-organizations-delete-${org.id}`}>
+            <DropdownMenuItem onClick={onDelete} className="text-destructive focus:bg-destructive/10" data-testid={`admin-organizations-delete-${org.id}`}>
               <Trash className="mr-2 h-4 w-4" />
               {t('admin.organizations.actions.delete')}
             </DropdownMenuItem>
@@ -501,4 +665,22 @@ function UsageCard({
       </div>
     </div>
   );
+}
+
+export async function clientLoader({ request }: { request: Request }) {
+  const { ensureQueryData } = await import('@/utils/routerHelpers');
+  const url = new URL(request.url);
+  const page = Number(url.searchParams.get('page')) || 1;
+  const verifiedOnlyParam = url.searchParams.get('verifiedOnly');
+  const verifiedOnly = verifiedOnlyParam === 'true' ? true : verifiedOnlyParam === 'false' ? false : undefined;
+  const search = url.searchParams.get('search') || '';
+
+  const orgs = await ensureQueryData(getAdminOrganizationsOptions(page, verifiedOnly, search));
+
+  // Prefetch usage for the first organization if it exists
+  if (orgs.items.length > 0) {
+    await ensureQueryData(getAdminOrganizationPlanUsageOptions(orgs.items[0].id));
+  }
+
+  return null;
 }

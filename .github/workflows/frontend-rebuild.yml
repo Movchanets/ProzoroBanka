@@ -192,11 +192,11 @@ jobs:
           SITEMAP_SITE_URL: ${{ needs.resolve-frontend-config.outputs.site_url }}
         run: npm run generate:sitemap
 
-      - name: Install Playwright Chromium for prerender
-        working-directory: Frontend
-        run: npx playwright install --with-deps chromium
 
-      - name: Build and prerender frontend
+
+
+
+      - name: Build frontend
         working-directory: Frontend
         env:
           VITE_API_URL: ${{ needs.resolve-frontend-config.outputs.api_url }}
@@ -204,7 +204,7 @@ jobs:
           VITE_GA_MEASUREMENT_ID: ${{ secrets.GA_MEASUREMENT_ID }}
           VITE_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-        run: npm run build:prerender
+        run: npm run build
 
       - name: Deploy using static token
         if: ${{ env.FRONTEND_SWA_DEPLOY_TOKEN != '' }}
@@ -212,7 +212,7 @@ jobs:
         with:
           action: upload
           skip_app_build: true
-          app_location: Frontend/dist
+          app_location: Frontend/build/client
           azure_static_web_apps_api_token: ${{ env.FRONTEND_SWA_DEPLOY_TOKEN }}
 
       - name: Azure login
@@ -254,7 +254,7 @@ jobs:
         with:
           action: upload
           skip_app_build: true
-          app_location: Frontend/dist
+          app_location: Frontend/build/client
           azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
 
       - name: Deployment summary

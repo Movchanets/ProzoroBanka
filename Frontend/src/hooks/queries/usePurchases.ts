@@ -12,6 +12,7 @@ import type {
   PurchaseStatus,
   DocumentType,
 } from '@/types';
+import type { PurchaseDetailDto } from '@/types';
 
 export const purchaseKeys = {
   all: ['purchases'] as const,
@@ -469,10 +470,41 @@ export function usePublicPurchases(campaignId: string, enabled = true) {
   });
 }
 
-export function usePublicPurchaseById(purchaseId: string, enabled = true) {
+export function usePublicPurchaseById(purchaseId: string, enabled = true, options?: { initialData?: PurchaseDetailDto }) {
   return useQuery({
     queryKey: ['publicPurchase', purchaseId],
     queryFn: () => purchaseService.publicGetById(purchaseId),
     enabled: enabled && Boolean(purchaseId),
+    ...options,
   });
 }
+
+export const getPublicPurchasesOptions = (campaignId: string) => ({
+  queryKey: ['publicPurchases', campaignId],
+  queryFn: () => purchaseService.publicList(campaignId),
+});
+
+export const getPublicPurchaseByIdOptions = (purchaseId: string) => ({
+  queryKey: ['publicPurchase', purchaseId],
+  queryFn: () => purchaseService.publicGetById(purchaseId),
+});
+
+export const getPurchasesOptions = (organizationId: string, campaignId: string, status?: PurchaseStatus) => ({
+  queryKey: purchaseKeys.list(organizationId, campaignId, status),
+  queryFn: () => purchaseService.list(organizationId, campaignId, status),
+});
+
+export const getOrganizationPurchasesOptions = (organizationId: string, status?: PurchaseStatus, onlyUnattached = false) => ({
+  queryKey: purchaseKeys.organizationList(organizationId, status, onlyUnattached),
+  queryFn: () => purchaseService.listOrganization(organizationId, status, onlyUnattached),
+});
+
+export const getPurchaseDetailOptions = (organizationId: string, campaignId: string, purchaseId: string) => ({
+  queryKey: purchaseKeys.detail(organizationId, campaignId, purchaseId),
+  queryFn: () => purchaseService.getById(organizationId, campaignId, purchaseId),
+});
+
+export const getPurchaseDetailShortOptions = (organizationId: string, purchaseId: string) => ({
+  queryKey: purchaseShortKeys.detail(organizationId, purchaseId),
+  queryFn: () => purchaseService.getByIdShort(organizationId, purchaseId),
+});

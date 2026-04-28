@@ -1,4 +1,5 @@
-import { type Page, type Locator, expect } from '@playwright/test';
+import { expect, type Page, type Locator } from "@playwright/test";
+import { gotoAppPath } from "../support/navigation";
 export class DashboardHomePage {
   readonly page: Page;
   readonly planCard: Locator;
@@ -8,14 +9,14 @@ export class DashboardHomePage {
 
   constructor(page: Page) {
     this.page = page;
-    this.planCard = page.getByTestId('dashboard-home-plan-card');
-    this.planName = page.getByTestId('dashboard-home-plan-name');
-    this.planDescription = page.getByTestId('dashboard-home-plan-description');
-    this.mobileMenuButton = page.getByTestId('dashboard-mobile-menu-button');
+    this.planCard = page.getByTestId("dashboard-home-plan-card");
+    this.planName = page.getByTestId("dashboard-home-plan-name");
+    this.planDescription = page.getByTestId("dashboard-home-plan-description");
+    this.mobileMenuButton = page.getByTestId("dashboard-mobile-menu-button");
   }
 
   async goto(orgId: string) {
-    await this.page.goto(`/dashboard/${orgId}`);
+    await gotoAppPath(this.page, `/dashboard/${orgId}`);
   }
 
   getNavLink(key: string) {
@@ -28,7 +29,7 @@ export class DashboardHomePage {
     const beforeUrl = this.page.url();
 
     const clickOrFallbackNavigate = async (link: Locator) => {
-      const href = await link.getAttribute('href').catch(() => null);
+      const href = await link.getAttribute("href").catch(() => null);
       try {
         await link.click({ force: true });
       } catch {
@@ -39,7 +40,9 @@ export class DashboardHomePage {
       }
 
       try {
-        await expect.poll(() => this.page.url(), { timeout: 1000 }).not.toBe(beforeUrl);
+        await expect
+          .poll(() => this.page.url(), { timeout: 1000 })
+          .not.toBe(beforeUrl);
       } catch {
         if (href) {
           await this.page.goto(href);
@@ -60,10 +63,15 @@ export class DashboardHomePage {
       return;
     }
 
-    const isMobileMenuVisible = await this.mobileMenuButton.isVisible().catch(() => false);
+    const isMobileMenuVisible = await this.mobileMenuButton
+      .isVisible()
+      .catch(() => false);
     if (isMobileMenuVisible) {
       await this.mobileMenuButton.click();
-      const mobileLink = this.page.getByRole('dialog').getByTestId(`dashboard-nav-${key}`).first();
+      const mobileLink = this.page
+        .getByRole("dialog")
+        .getByTestId(`dashboard-nav-${key}`)
+        .first();
       await expect(mobileLink).toBeVisible({ timeout: 10000 });
       await clickOrFallbackNavigate(mobileLink);
       return;
@@ -73,7 +81,9 @@ export class DashboardHomePage {
     const orgMatch = this.page.url().match(/\/dashboard\/([a-f0-9-]+)/i);
     const orgId = orgMatch?.[1];
     if (!orgId) {
-      throw new Error(`Unable to resolve dashboard organization id from URL: ${this.page.url()}`);
+      throw new Error(
+        `Unable to resolve dashboard organization id from URL: ${this.page.url()}`,
+      );
     }
 
     const fallbackPathByKey: Record<string, string> = {

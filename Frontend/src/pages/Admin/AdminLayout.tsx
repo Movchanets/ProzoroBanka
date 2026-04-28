@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Outlet, NavLink, useNavigate, Navigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate } from 'react-router';
 import { useAuthStore } from '@/stores/authStore';
-import { AppRoles, hasAppRole } from '@/constants/appRoles';
 import { useMyOrganizations } from '@/hooks/queries/useOrganizations';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -147,12 +146,6 @@ function AdminHeader() {
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const user = useAuthStore((s) => s.user);
-
-  // Fallback check:
-  if (!user || !hasAppRole(user.roles, AppRoles.Admin)) {
-     return <Navigate to="/" replace />;
-  }
 
   return (
     <div className="flex h-screen overflow-hidden">

@@ -1,12 +1,6 @@
 {
-  "responseOverrides": {
-    "404": {
-      "rewrite": "/404.html",
-      "statusCode": 404
-    }
-  },
   "navigationFallback": {
-    "rewrite": "/index.html",
+    "rewrite": "/__spa-fallback.html",
     "exclude": [
       "/assets/*",
       "/*.css",

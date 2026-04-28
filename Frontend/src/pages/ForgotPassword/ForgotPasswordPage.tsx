@@ -1,12 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link } from 'react-router-dom';
+import { Link, useSubmit, useActionData, useNavigation } from 'react-router';
+import type { ActionFunctionArgs } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { CircleAlert, CircleCheckBig, Mail } from 'lucide-react';
 import { TurnstileWidget } from '../../components/TurnstileWidget';
 import { AuthShell } from '../../components/auth/AuthShell';
-import { useForgotPasswordMutation } from '../../hooks/queries/useAuth';
+import { authService } from '../../services/authService';
 import { createForgotPasswordSchema, type ForgotPasswordFormData } from '../../utils/authSchemas';
 import { FieldMessages } from '../../components/auth/FieldMessages';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -14,10 +15,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+export async function clientAction({ request }: ActionFunctionArgs) {
+  const formData = await request.formData();
+  const data = Object.fromEntries(formData) as unknown as ForgotPasswordFormData;
+
+  try {
+    const response = await authService.forgotPassword(data);
+    return { success: true, message: response.message };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to send reset link' };
+  }
+}
+
 export default function ForgotPasswordPage() {
   const { t } = useTranslation();
-  const forgotPasswordMutation = useForgotPasswordMutation();
-  const [submitted, setSubmitted] = useState<string | null>(null);
+  const submit = useSubmit();
+  const actionData = useActionData() as { success?: boolean; message?: string; error?: string } | undefined;
+  const navigation = useNavigation();
 
   const schema = useMemo(() => createForgotPasswordSchema(t), [t]);
 
@@ -34,10 +48,13 @@ export default function ForgotPasswordPage() {
     defaultValues: { email: '', turnstileToken: '' },
   });
 
-  const onSubmit = handleSubmit(async (values) => {
-    const response = await forgotPasswordMutation.mutateAsync(values);
-    setSubmitted(response.message || t('auth.forgotPassword.fallbackMessage'));
+  const onSubmit = handleSubmit((values) => {
+    submit(values as any, { method: 'post' });
   });
+
+  const isPending = navigation.state !== 'idle';
+  const submitted = actionData?.success ? actionData.message || t('auth.forgotPassword.fallbackMessage') : null;
+  const serverError = actionData?.error;
 
   const handleTurnstileVerify = useCallback((token: string) => {
     setValue('turnstileToken', token, { shouldValidate: true });
@@ -79,19 +96,15 @@ export default function ForgotPasswordPage() {
             <FieldMessages error={errors.turnstileToken} />
           </div>
 
-          {forgotPasswordMutation.error && (
+          {serverError && (
             <Alert variant="destructive" aria-live="polite">
               <CircleAlert aria-hidden="true" />
-              <AlertDescription>
-                {forgotPasswordMutation.error instanceof Error
-                  ? forgotPasswordMutation.error.message
-                  : t('auth.forgotPassword.errorDefault')}
-              </AlertDescription>
+              <AlertDescription>{serverError}</AlertDescription>
             </Alert>
           )}
 
-          <Button type="submit" size="pillWide" className="w-full shadow-[0_18px_30px_var(--shadow-strong)]" disabled={forgotPasswordMutation.isPending}>
-            {forgotPasswordMutation.isPending ? t('auth.forgotPassword.submitPending') : t('auth.forgotPassword.submit')}
+          <Button type="submit" size="pillWide" className="w-full shadow-[0_18px_30px_var(--shadow-strong)]" disabled={isPending}>
+            {isPending ? t('auth.forgotPassword.submitPending') : t('auth.forgotPassword.submit')}
           </Button>
         </form>
       )}

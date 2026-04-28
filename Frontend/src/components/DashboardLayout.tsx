@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Outlet, useParams, NavLink, Navigate, useNavigate } from 'react-router-dom';
+import { useActionData, Outlet, useParams, NavLink, Navigate, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useOrganization } from '@/hooks/queries/useOrganizations';
+import { useOrganization, orgKeys } from '@/hooks/queries/useOrganizations';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useLogoutMutation } from '@/hooks/queries/useAuth';
@@ -16,15 +16,18 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { organizationService } from '@/services/organizationService';
+import { queryClient } from '@/services/queryClient';
+import { toast } from 'sonner';
 import {
   LayoutDashboard,
   Receipt,
   FileText,
+  Menu,
   Megaphone,
   Settings,
   Users,
   LogOut,
-  Menu,
   PanelLeftClose,
   PanelLeft,
   Globe,
@@ -205,15 +208,67 @@ function DashboardHeader({ orgName, isLoading }: { orgName?: string; isLoading: 
   );
 }
 
+export async function clientLoader({ params }: { params: { orgId?: string } }) {
+  const { ensureQueryData } = await import('@/utils/routerHelpers');
+  const { getOrganizationOptions, getMyOrganizationsOptions } = await import('@/hooks/queries/useOrganizations');
+  const { getMyInvitationsOptions } = await import('@/hooks/queries/useInvitations');
+
+  const promises: Promise<unknown>[] = [
+    ensureQueryData(getMyOrganizationsOptions()),
+    ensureQueryData(getMyInvitationsOptions()),
+  ];
+
+  if (params.orgId) {
+    promises.push(ensureQueryData(getOrganizationOptions(params.orgId)));
+  }
+
+  await Promise.allSettled(promises);
+  return null;
+}
+
+export async function clientAction({ request }: { request: Request }) {
+  const formData = await request.formData();
+  const intent = formData.get('intent');
+
+  if (intent === 'createOrganization') {
+    const name = String(formData.get('name'));
+    const slug = formData.get('slug') ? String(formData.get('slug')) : undefined;
+    const description = formData.get('description') ? String(formData.get('description')) : undefined;
+    const website = formData.get('website') ? String(formData.get('website')) : undefined;
+
+    try {
+      const org = await organizationService.create({ name, slug, description, website });
+      queryClient.invalidateQueries({ queryKey: orgKeys.all });
+      return { success: true, intent: 'createOrganization', orgId: org.id };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Failed to create organization' };
+    }
+  }
+
+  return { error: 'Unknown intent' };
+}
+
 export default function DashboardLayout() {
   const { t } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
-  const setActiveOrg = useWorkspaceStore((s) => s.setActiveOrg);
+  const navigate = useNavigate();
+  const setActiveOrg = useWorkspaceStore((s: any) => s.setActiveOrg);
   const { data: org, isLoading } = useOrganization(orgId);
+  const actionData = useActionData() as { success?: boolean; orgId?: string; intent?: string; error?: string } | undefined;
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (actionData?.success && actionData.intent === 'createOrganization' && actionData.orgId) {
+      toast.success(t('organizations.create.success', 'Організацію створено'));
+      setCreateDialogOpen(false);
+      navigate(`/dashboard/${actionData.orgId}`);
+    } else if (actionData?.error) {
+      toast.error(actionData.error);
+    }
+  }, [actionData, navigate, t]);
 
   useEffect(() => {
     if (orgId) setActiveOrg(orgId);
@@ -229,7 +284,7 @@ export default function DashboardLayout() {
     <>
       <div className="flex h-screen overflow-hidden">
         <aside className={cn('hidden flex-col border-r border-border bg-card/40 backdrop-blur-lg transition-[width] duration-200 md:flex', collapsed ? 'w-[68px]' : 'w-64')}>
-          <SidebarContent orgId={orgId} collapsed={collapsed} onCreateOrg={() => setCreateDialogOpen(true)} onToggleCollapse={() => setCollapsed((c) => !c)} />
+          <SidebarContent orgId={orgId} collapsed={collapsed} onCreateOrg={() => setCreateDialogOpen(true)} onToggleCollapse={() => setCollapsed((c: boolean) => !c)} />
         </aside>
 
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

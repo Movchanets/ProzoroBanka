@@ -1,16 +1,16 @@
-import { useState, useRef, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState, useRef, useMemo, useEffect } from 'react';
+import { useParams, useSubmit, useActionData, useNavigation } from 'react-router';
+import type { ActionFunctionArgs } from 'react-router';
+import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import {
-  useDeleteStateRegistryCredential,
   useOrganization,
   useOrganizationStateRegistrySettings,
-  useUpdateOrganization,
   useUploadOrgLogo,
-  useUpsertStateRegistryCredential,
 } from '@/hooks/queries/useOrganizations';
+import { organizationService } from '@/services/organizationService';
 import { StateRegistryProvider } from '@/types';
 import { createUpdateOrganizationSchema, type UpdateOrganizationFormData } from '@/utils/organizationSchemas';
 import { getImageUrl } from '@/lib/utils';
@@ -24,21 +24,70 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Building2, CheckCircle2, Loader2, Upload } from 'lucide-react';
+import { queryClient } from '@/services/queryClient';
+import { orgKeys } from '@/hooks/queries/useOrganizations';
+
+export async function clientAction({ request, params }: ActionFunctionArgs) {
+  const { orgId } = params;
+  if (!orgId) throw new Error('Organization ID is required');
+
+  const formData = await request.formData();
+  const intent = formData.get('intent');
+
+  try {
+    if (intent === 'updateProfile') {
+      const data = Object.fromEntries(formData) as unknown as UpdateOrganizationFormData;
+      await organizationService.update(orgId, {
+        name: data.name,
+        description: data.description || undefined,
+        website: data.website || undefined,
+        contactEmail: data.contactEmail || undefined,
+        phone: data.phone || undefined,
+      });
+      queryClient.invalidateQueries({ queryKey: orgKeys.detail(orgId) });
+      return { success: true, message: 'organizations.settings.savedMessage' };
+    }
+
+    if (intent === 'upsertRegistryKey') {
+      const apiKey = String(formData.get('apiKey'));
+      await Promise.all([
+        organizationService.upsertStateRegistryCredential(orgId, StateRegistryProvider.TaxService, apiKey),
+        organizationService.upsertStateRegistryCredential(orgId, StateRegistryProvider.CheckGovUa, apiKey),
+      ]);
+      queryClient.invalidateQueries({ queryKey: orgKeys.stateRegistrySettings(orgId) });
+      return { success: true, message: 'Ключ держреєстрів збережено.' };
+    }
+
+    if (intent === 'deleteRegistryKey') {
+      await Promise.all([
+        organizationService.deleteStateRegistryCredential(orgId, StateRegistryProvider.TaxService),
+        organizationService.deleteStateRegistryCredential(orgId, StateRegistryProvider.CheckGovUa),
+      ]);
+      queryClient.invalidateQueries({ queryKey: orgKeys.stateRegistrySettings(orgId) });
+      return { success: true, message: 'Ключ держреєстрів видалено.' };
+    }
+
+    return { error: 'Unknown intent' };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Action failed' };
+  }
+}
 
 export default function OrgSettingsPage() {
   const { t } = useTranslation();
   const { orgId } = useParams<{ orgId: string }>();
+  const submit = useSubmit();
+  const actionData = useActionData() as { success?: boolean; message?: string; error?: string } | undefined;
+  const navigation = useNavigation();
+
   const { data: org, isLoading } = useOrganization(orgId);
   const {
     data: stateRegistrySettings,
     isLoading: isLoadingStateRegistry,
     isError: isStateRegistryError,
   } = useOrganizationStateRegistrySettings(orgId);
-  const updateOrg = useUpdateOrganization(orgId!);
   const uploadLogo = useUploadOrgLogo(orgId!);
-  const upsertRegistryKey = useUpsertStateRegistryCredential(orgId!);
-  const deleteRegistryKey = useDeleteStateRegistryCredential(orgId!);
-  const [apiError, setApiError] = useState<string | null>(null);
+  
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [stateRegistryUnifiedKeyInput, setStateRegistryUnifiedKeyInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -53,21 +102,27 @@ export default function OrgSettingsPage() {
     values: org ? { name: org.name, description: org.description ?? '', website: org.website ?? '', contactEmail: org.contactEmail ?? '', phone: org.phone ?? '' } : undefined,
   });
 
-  const onSubmit = async (data: UpdateOrganizationFormData) => {
-    setApiError(null); setSuccessMsg(null);
-    try {
-      await updateOrg.mutateAsync({ name: data.name, description: data.description || undefined, website: data.website || undefined, contactEmail: data.contactEmail || undefined, phone: data.phone || undefined });
-      setSuccessMsg(t('organizations.settings.savedMessage'));
-      setTimeout(() => setSuccessMsg(null), 3000);
-    } catch (err) { setApiError(err instanceof Error ? err.message : t('organizations.settings.updateError')); }
-  };
+  useEffect(() => {
+    if (actionData?.success && actionData.message) {
+      setSuccessMsg(actionData.message.startsWith('organizations.') ? t(actionData.message) : actionData.message);
+      const timer = setTimeout(() => setSuccessMsg(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [actionData, t]);
+
+
+  const onProfileSubmit = handleSubmit((data) => {
+    const formData = new FormData();
+    formData.append('intent', 'updateProfile');
+    Object.entries(data).forEach(([key, value]) => formData.append(key, String(value)));
+    submit(formData, { method: 'post' });
+  });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { setApiError(t('organizations.settings.imageFileRequired')); e.target.value = ''; return; }
-    if (file.size > 2 * 1024 * 1024) { setApiError(t('organizations.settings.fileTooLarge')); e.target.value = ''; return; }
-    setApiError(null);
+    if (!file.type.startsWith('image/')) { toast.error(t('organizations.settings.imageFileRequired')); e.target.value = ''; return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error(t('organizations.settings.fileTooLarge')); e.target.value = ''; return; }
     const url = URL.createObjectURL(file);
     setCropSrc(url); setCropDialogOpen(true); e.target.value = '';
   };
@@ -82,7 +137,7 @@ export default function OrgSettingsPage() {
       await uploadLogo.mutateAsync(file);
       setSuccessMsg(t('organizations.settings.logoUpdated'));
       setTimeout(() => setSuccessMsg(null), 3000);
-    } catch (err) { setApiError(err instanceof Error ? err.message : t('organizations.settings.uploadError')); setLocalLogoPreview(null); }
+    } catch (err) { toast.error(err instanceof Error ? err.message : t('organizations.settings.uploadError')); setLocalLogoPreview(null); }
     finally { URL.revokeObjectURL(previewUrl); }
   };
 
@@ -92,49 +147,24 @@ export default function OrgSettingsPage() {
   };
 
   const displayedLogoUrl = localLogoPreview || getImageUrl(org?.logoUrl);
-  const isRegistryMutationPending = upsertRegistryKey.isPending || deleteRegistryKey.isPending;
+  const isPending = navigation.state !== 'idle';
+  const serverError = actionData?.error;
 
-  const saveRegistryKeys = async () => {
-    setApiError(null);
-    setSuccessMsg(null);
-
+  const saveRegistryKeys = () => {
     const normalizedKey = stateRegistryUnifiedKeyInput.trim();
-    if (!normalizedKey) {
-      setApiError('Вкажіть API ключ для збереження.');
-      return;
-    }
+    if (!normalizedKey) return;
 
-    try {
-      await Promise.all([
-        upsertRegistryKey.mutateAsync({ provider: StateRegistryProvider.TaxService, apiKey: normalizedKey }),
-        upsertRegistryKey.mutateAsync({ provider: StateRegistryProvider.CheckGovUa, apiKey: normalizedKey }),
-      ]);
-
-      setStateRegistryUnifiedKeyInput('');
-      setSuccessMsg('Ключ держреєстрів збережено.');
-    } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Не вдалося зберегти ключ держреєстрів.');
-    }
-  };
-
-  const clearRegistryInputs = () => {
+    const formData = new FormData();
+    formData.append('intent', 'upsertRegistryKey');
+    formData.append('apiKey', normalizedKey);
+    submit(formData, { method: 'post' });
     setStateRegistryUnifiedKeyInput('');
   };
 
-  const deleteUnifiedRegistryKey = async () => {
-    setApiError(null);
-    setSuccessMsg(null);
-
-    try {
-      await Promise.all([
-        deleteRegistryKey.mutateAsync(StateRegistryProvider.TaxService),
-        deleteRegistryKey.mutateAsync(StateRegistryProvider.CheckGovUa),
-      ]);
-
-      setSuccessMsg('Ключ держреєстрів видалено.');
-    } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Не вдалося видалити ключ держреєстрів.');
-    }
+  const deleteUnifiedRegistryKey = () => {
+    const formData = new FormData();
+    formData.append('intent', 'deleteRegistryKey');
+    submit(formData, { method: 'post' });
   };
 
   const unifiedMaskedKey = stateRegistrySettings?.taxService.maskedKey
@@ -152,7 +182,7 @@ export default function OrgSettingsPage() {
       </div>
 
       {successMsg && (<Alert data-testid="org-settings-success-alert" className="border-success/30 bg-success/10 text-success"><CheckCircle2 className="h-4 w-4" /><AlertDescription>{successMsg}</AlertDescription></Alert>)}
-      {apiError && (<Alert data-testid="org-settings-error-alert" variant="destructive"><AlertDescription>{apiError}</AlertDescription></Alert>)}
+      {serverError && (<Alert data-testid="org-settings-error-alert" variant="destructive"><AlertDescription>{serverError}</AlertDescription></Alert>)}
 
       <Card className="border border-border bg-card/60 backdrop-blur-sm">
         <CardHeader>
@@ -200,7 +230,7 @@ export default function OrgSettingsPage() {
               autoComplete="off"
               value={stateRegistryUnifiedKeyInput}
               onChange={(event) => setStateRegistryUnifiedKeyInput(event.target.value)}
-              disabled={isRegistryMutationPending}
+              disabled={isPending}
             />
             <p className="text-xs text-muted-foreground" data-testid="org-settings-state-registry-key-masked-value">
               {hasUnifiedKeyConfigured
@@ -215,17 +245,17 @@ export default function OrgSettingsPage() {
               variant="outline"
               data-testid="org-settings-state-keys-save-button"
               onClick={saveRegistryKeys}
-              disabled={isRegistryMutationPending}
+              disabled={isPending}
             >
-              {upsertRegistryKey.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {isPending && navigation.formData?.get('intent') === 'upsertRegistryKey' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Зберегти ключ
             </Button>
             <Button
               type="button"
               variant="outline"
               data-testid="org-settings-state-keys-clear-button"
-              onClick={clearRegistryInputs}
-              disabled={isRegistryMutationPending}
+              onClick={() => setStateRegistryUnifiedKeyInput('')}
+              disabled={isPending}
             >
               Очистити
             </Button>
@@ -233,8 +263,8 @@ export default function OrgSettingsPage() {
               type="button"
               variant="outline"
               data-testid="org-settings-delete-state-registry-key-button"
-              onClick={() => void deleteUnifiedRegistryKey()}
-              disabled={isRegistryMutationPending || !hasUnifiedKeyConfigured}
+              onClick={deleteUnifiedRegistryKey}
+              disabled={isPending || !hasUnifiedKeyConfigured}
             >
               Видалити ключ
             </Button>
@@ -272,7 +302,7 @@ export default function OrgSettingsPage() {
           <CardTitle className="text-lg flex items-center gap-2"><Building2 className="h-5 w-5 text-primary" />{t('organizations.settings.orgProfile')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={onProfileSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="settings-name">{t('common.name')}</Label>
               <Input id="settings-name" data-testid="org-settings-name-input" {...register('name')} />
@@ -301,8 +331,8 @@ export default function OrgSettingsPage() {
               {errors.phone && (<p className="text-sm text-destructive">{errors.phone.message}</p>)}
             </div>
             <div className="flex justify-end pt-2">
-              <Button type="submit" data-testid="org-settings-save-button" disabled={updateOrg.isPending || !isDirty}>
-                {updateOrg.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Button type="submit" data-testid="org-settings-save-button" disabled={isPending || !isDirty}>
+                {isPending && navigation.formData?.get('intent') === 'updateProfile' && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t('common.save')}
               </Button>
             </div>
