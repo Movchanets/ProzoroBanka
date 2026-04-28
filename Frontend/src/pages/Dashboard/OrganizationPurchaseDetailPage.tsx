@@ -111,6 +111,27 @@ function DocumentMetadataForm({
     })),
   );
 
+  useEffect(() => {
+    setAmountInput(document.amount ? (document.amount / 100).toFixed(2) : '');
+    setCounterpartyName(document.counterpartyName ?? '');
+    setDocumentDate(document.documentDate ? document.documentDate.slice(0, 10) : '');
+    setEdrpou(document.edrpou ?? '');
+    setPayerFullName(document.payerFullName ?? '');
+    setReceiptCode(document.receiptCode ?? '');
+    setPaymentPurpose(document.paymentPurpose ?? '');
+    setSenderIban(document.senderIban ?? '');
+    setReceiverIban(document.receiverIban ?? '');
+
+    setEditableItems(
+      (document.items ?? []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        quantity: String(item.quantity),
+        unitPrice: String(item.unitPrice / 100),
+      })),
+    );
+  }, [document]);
+
   const parseEditableItemForSave = (editableItem: { id: string; name: string; quantity: string; unitPrice: string }) => {
     const quantity = Number(editableItem.quantity.replace(',', '.'));
     const unitPriceHryvnia = Number(editableItem.unitPrice.replace(',', '.'));
@@ -657,7 +678,15 @@ export default function OrganizationPurchaseDetailPage() {
       } else if (actionData.intent === 'deleteDocument') {
         toast.success(t('purchases.deleteDocSuccess', 'Документ видалено'));
       } else if (actionData.intent === 'processOcr') {
-        toast.success(t('purchases.ocrStarted', 'OCR запущено'));
+        toast.success(t('purchases.ocrSuccess', 'Документ розпізнано'));
+      } else if (actionData.intent === 'updateDocumentMetadata') {
+        toast.success(t('purchases.metadataSaved', 'Метадані документа оновлено'));
+      } else if (actionData.intent === 'addWaybillItem') {
+        toast.success(t('purchases.items.addSuccess', 'Позицію додано'));
+      } else if (actionData.intent === 'updateWaybillItem') {
+        toast.success(t('purchases.items.updateSuccess', 'Позицію оновлено'));
+      } else if (actionData.intent === 'deleteWaybillItem') {
+        toast.success(t('purchases.items.deleteSuccess', 'Позицію видалено'));
       }
     } else if (actionData?.error) {
       toast.error(actionData.error);
@@ -906,10 +935,10 @@ export default function OrganizationPurchaseDetailPage() {
                   onDragLeave={() => setActiveUploadHoverZone(null)}
                   onDrop={(event) => handleUploadDrop(event, setReceiptUploadFile)}
                 >
-                  <Input type="file" disabled={isDocumentsLocked} onChange={(event) => setReceiptUploadFile(event.target.files?.[0] ?? null)} />
+                  <Input data-testid="purchase-document-receipt-input" type="file" disabled={isDocumentsLocked} onChange={(event) => setReceiptUploadFile(event.target.files?.[0] ?? null)} />
                   {receiptUploadFile && <p className="mt-2 text-xs">{receiptUploadFile.name}</p>}
                 </div>
-                <Button onClick={() => handleUpload(receiptUploadFile, DocumentType.BankReceipt, () => setReceiptUploadFile(null))} disabled={isDocumentsLocked || !receiptUploadFile || isPending}>
+                <Button data-testid="purchase-document-receipt-upload-button" onClick={() => handleUpload(receiptUploadFile, DocumentType.BankReceipt, () => setReceiptUploadFile(null))} disabled={isDocumentsLocked || !receiptUploadFile || isPending}>
                   {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UploadCloud className="h-4 w-4 mr-2" />}
                   {t('purchases.upload')}
                 </Button>
@@ -918,7 +947,7 @@ export default function OrganizationPurchaseDetailPage() {
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium truncate">{doc.originalFileName}</span>
                       <div className="flex gap-1">
-                        <Button variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={isPending}>
+                        <Button data-testid={`purchase-document-ocr-button-${doc.id}`} variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={isPending}>
                           <Sparkles className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)}>
@@ -953,10 +982,10 @@ export default function OrganizationPurchaseDetailPage() {
                   onDragLeave={() => setActiveUploadHoverZone(null)}
                   onDrop={(event) => handleUploadDrop(event, setWaybillUploadFile)}
                 >
-                  <Input type="file" disabled={isDocumentsLocked} onChange={(event) => setWaybillUploadFile(event.target.files?.[0] ?? null)} />
+                  <Input data-testid="purchase-document-waybill-input" type="file" disabled={isDocumentsLocked} onChange={(event) => setWaybillUploadFile(event.target.files?.[0] ?? null)} />
                   {waybillUploadFile && <p className="mt-2 text-xs">{waybillUploadFile.name}</p>}
                 </div>
-                <Button onClick={() => handleUpload(waybillUploadFile, waybillUploadType, () => setWaybillUploadFile(null))} disabled={isDocumentsLocked || !waybillUploadFile || isPending}>
+                <Button data-testid="purchase-document-waybill-upload-button" onClick={() => handleUpload(waybillUploadFile, waybillUploadType, () => setWaybillUploadFile(null))} disabled={isDocumentsLocked || !waybillUploadFile || isPending}>
                   {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UploadCloud className="h-4 w-4 mr-2" />}
                   {t('purchases.upload')}
                 </Button>
@@ -965,7 +994,7 @@ export default function OrganizationPurchaseDetailPage() {
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium truncate">{doc.originalFileName}</span>
                       <div className="flex gap-1">
-                        <Button variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={isPending}>
+                        <Button data-testid={`purchase-document-ocr-button-${doc.id}`} variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={isPending}>
                           <Sparkles className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => openDocumentPreview(doc.fileUrl, doc.originalFileName)}>
