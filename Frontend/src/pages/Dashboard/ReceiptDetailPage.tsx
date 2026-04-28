@@ -42,7 +42,7 @@ const publicationLabelKeyMap: Record<number, string> = {
   [ReceiptPublicationStatus.Active]: 'active',
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export async function clientLoader({ params }: LoaderFunctionArgs) {
   const { orgId, receiptId } = params;
   if (!orgId) return null;

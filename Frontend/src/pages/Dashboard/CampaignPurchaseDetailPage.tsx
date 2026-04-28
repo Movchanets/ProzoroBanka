@@ -257,7 +257,7 @@ function DocumentMetadataForm({
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export async function clientLoader({ params }: LoaderFunctionArgs) {
   const { orgId, campaignId, purchaseId } = params;
   if (!orgId || !campaignId || !purchaseId || purchaseId === 'new') return null;
@@ -266,7 +266,7 @@ export async function clientLoader({ params }: LoaderFunctionArgs) {
   return null;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export async function clientAction({ request, params }: ClientActionArgs) {
   const { orgId, campaignId, purchaseId } = params;
   if (!orgId || !campaignId) throw new Error('Params missing');

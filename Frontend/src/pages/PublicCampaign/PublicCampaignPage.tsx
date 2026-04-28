@@ -25,7 +25,7 @@ import { ensureQueryData } from '@/utils/routerHelpers';
 import { getPublicCampaignOptions, getPublicCampaignReceiptsOptions } from '@/hooks/queries/usePublic';
 import { getPublicPurchasesOptions } from '@/hooks/queries/usePurchases';
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export async function clientLoader({ params }: LoaderFunctionArgs) {
   const id = params.id!;
   try {
@@ -41,7 +41,7 @@ export async function clientLoader({ params }: LoaderFunctionArgs) {
   }
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export function meta({ data }: { data: { campaign: PublicCampaignDetail | null } }): MetaDescriptor[] {
   if (!data?.campaign) {
     return [

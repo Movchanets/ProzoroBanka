@@ -20,7 +20,7 @@ import { getHomeCampaignFeedOptions, getPublicCampaignCategoriesOptions, getSear
 type HomeTab = 'campaigns' | 'organizations';
 type CampaignFilterStatus = 'all' | 'active' | 'completed';
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export function meta(): MetaDescriptor[] {
   return [
     { title: 'Прозорі благодійні збори та організації | ProzoroBanka' },

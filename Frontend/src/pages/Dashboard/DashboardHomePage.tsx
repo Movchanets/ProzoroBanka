@@ -24,7 +24,7 @@ const PLAN_DESCRIPTIONS: Record<number, string> = {
   2: 'Платний тариф: до 100 кампаній, до 200 учасників, до 5000 OCR-розпізнавань на місяць.',
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export async function clientLoader({ params }: LoaderFunctionArgs) {
   const orgId = params.orgId!;
   await Promise.allSettled([

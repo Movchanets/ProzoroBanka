@@ -129,7 +129,7 @@ function CampaignCard({
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export async function clientLoader({ params }: LoaderFunctionArgs) {
   const orgId = params.orgId!;
   await Promise.allSettled([

@@ -35,7 +35,7 @@ function getPurchaseStatusLabel(status: PurchaseStatus, t: TFunction) {
   }
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export async function clientLoader({ params }: LoaderFunctionArgs) {
   const { orgId, campaignId } = params;
   if (!orgId || !campaignId) return null;

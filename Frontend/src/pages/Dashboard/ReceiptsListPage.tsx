@@ -113,7 +113,7 @@ function ReceiptStatusBadge({ receipt }: { receipt: ReceiptListItem }) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export async function clientLoader({ params }: LoaderFunctionArgs) {
   const { orgId } = params;
   if (!orgId) return null;

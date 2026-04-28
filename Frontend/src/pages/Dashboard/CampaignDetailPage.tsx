@@ -77,7 +77,7 @@ function getReceiptDisplayTitle(receipt: ReceiptListItem) {
 
 type InsightTab = 'receipts' | 'transactions';
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export async function clientLoader({ params }: LoaderFunctionArgs) {
   const { campaignId } = params;
   if (!campaignId) return null;

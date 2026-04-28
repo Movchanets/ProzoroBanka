@@ -24,7 +24,7 @@ function mapTabToStatus(tab: 'all' | 'active' | 'completed') {
   return undefined;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export async function clientLoader({ params }: LoaderFunctionArgs) {
   const slug = params.slug!;
   try {
@@ -40,7 +40,7 @@ export async function clientLoader({ params }: LoaderFunctionArgs) {
   }
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export function meta({ data }: { data: { organization: PublicOrganization | null } }): MetaDescriptor[] {
   if (!data?.organization) {
     return [

@@ -16,7 +16,7 @@ import { getPublicReceiptOptions } from '@/hooks/queries/usePublic';
 import { ReceiptItemsTable } from '@/components/receipt/ReceiptItemsTable';
 import type { ReceiptItem } from '@/types';
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export async function clientLoader({ params }: LoaderFunctionArgs) {
   const id = params.id!;
   try {
@@ -28,7 +28,7 @@ export async function clientLoader({ params }: LoaderFunctionArgs) {
   }
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export function meta({ data }: { data: { receipt: PublicReceiptDetail | null } }): MetaDescriptor[] {
   if (!data?.receipt) {
     return [

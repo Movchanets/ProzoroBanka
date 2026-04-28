@@ -35,7 +35,7 @@ function getPurchaseStatusLabel(status: PurchaseStatus, t: TFunction) {
   }
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 export async function clientLoader({ params, request }: LoaderFunctionArgs) {
   const orgId = params.orgId!;
   const url = new URL(request.url);
