@@ -1,4 +1,4 @@
-import { type Page, type Locator } from '@playwright/test';
+import { expect, type Page, type Locator } from '@playwright/test';
 import { gotoAppPath } from '../support/navigation';
 
 export class PurchaseDetailPage {
@@ -66,11 +66,13 @@ export class PurchaseDetailPage {
 
   async uploadReceipt(filePath: string) {
     await this.receiptInput.setInputFiles(filePath);
+    await expect(this.receiptUploadButton).toBeEnabled();
     await this.receiptUploadButton.click();
   }
 
   async uploadWaybill(filePath: string) {
     await this.waybillInput.setInputFiles(filePath);
+    await expect(this.waybillUploadButton).toBeEnabled();
     await this.waybillUploadButton.click();
   }
 
@@ -142,7 +144,23 @@ export class PurchaseDetailPage {
     return this.page.getByTestId(`purchase-document-item-unit-price-${itemId}`);
   }
 
+  get totalPurchaseAmountText() {
+    return this.totalAmountDisplay;
+  }
+
   getToastByText(text: string | RegExp) {
     return this.page.locator('[data-sonner-toast]').filter({ hasText: text });
+  }
+
+  async getDocIdByName(name: string): Promise<string | null> {
+    const docHeader = this.page.locator('span').filter({ hasText: name }).first();
+    const docCard = docHeader.locator('xpath=ancestor::div[contains(@class, "border")][1]');
+    const ocrButton = docCard.getByTestId(/^purchase-document-ocr-button-/);
+    const testId = await ocrButton.getAttribute('data-testid');
+    return testId?.replace('purchase-document-ocr-button-', '') || null;
+  }
+
+  ocrButton(docId: string) {
+    return this.page.getByTestId(`purchase-document-ocr-button-${docId}`);
   }
 }

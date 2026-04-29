@@ -39,15 +39,42 @@ export function meta(): MetaDescriptor[] {
   ];
 }
 
-export async function clientLoader() {
-  await Promise.all([
-    ensureQueryData(getPublicCampaignCategoriesOptions()),
-    ensureQueryData(getHomeCampaignFeedOptions('', undefined, 'all', true, 24)),
-    ensureQueryData(getSearchOrganizationsOptions('', 1, false, false, 'activeCampaigns', 12)),
-  ]);
-  return null;
-}
+// export async function clientLoader() {
+//   await Promise.all([
+//     ensureQueryData(getPublicCampaignCategoriesOptions()),
+//     ensureQueryData(getHomeCampaignFeedOptions('', undefined, 'all', true, 24)),
+//     ensureQueryData(getSearchOrganizationsOptions('', 1, false, false, 'activeCampaigns', 12)),
+//   ]);
+//   return null;
+// }
+export async function loader() {
+  // Визначаємо, чи ми на сервері під час білду
+  const isServer = typeof window === 'undefined';
 
+  try {
+    // Намагаємося стягнути дані для SSG
+    await Promise.all([
+      ensureQueryData(getPublicCampaignCategoriesOptions()),
+      ensureQueryData(getHomeCampaignFeedOptions('', undefined, 'all', true, 24)),
+      ensureQueryData(getSearchOrganizationsOptions('', 1, false, false, 'activeCampaigns', 12)),
+    ]);
+    
+    return null;
+  } catch (error) {
+    // 1. Виводимо реальну помилку в термінал, щоб ви могли її прочитати!
+    console.error("❌ Помилка лоадера під час SSG-збірки:", error);
+
+    // 2. Якщо ми в браузері, прокидаємо помилку далі (щоб спрацював ErrorBoundary)
+    if (!isServer) {
+      throw error;
+    }
+
+    // 3. АЛЕ якщо ми на етапі SSG-білду, МИ НЕ КИДАЄМО ПОМИЛКУ.
+    // Повертаємо null. Білд пройде успішно (без 500 статусу). 
+    // HTML згенерується пустим, і клієнтський React сам зробить запит.
+    return null;
+  }
+}
 function parseHomeTabFromHash(hash: string): HomeTab | null {
   if (hash === '#campaigns') {
     return 'campaigns';

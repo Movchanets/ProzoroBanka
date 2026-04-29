@@ -8,7 +8,12 @@ terraform {
     }
   }
 
-  backend "azurerm" {}
+  backend "azurerm" {
+    resource_group_name  = "filled_at_runtime"
+    storage_account_name = "filled_at_runtime"
+    container_name       = "filled_at_runtime"
+    key                  = "filled_at_runtime"
+  }
 }
 
 provider "azurerm" {

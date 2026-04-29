@@ -8,7 +8,6 @@ import {
   useDeleteReceiptItem,
   useDeleteReceiptItemPhoto,
   useExtractReceiptData,
-  useGetMyReceipt,
   useImportReceiptTaxXml,
   useLinkReceiptItemPhoto,
   useUpdateReceiptItem,
@@ -18,7 +17,9 @@ import {
   useUpdateReceiptDraft,
   useUpdateReceiptOcrDraft,
   useUploadReceiptDraft,
+  useReceiptDetail,
   useVerifyReceipt,
+  useGetMyReceipt,
 } from '@/hooks/queries/useReceipts';
 import { useOcrModels } from '@/hooks/queries/useOcrModels';
 import {
@@ -314,6 +315,12 @@ export function useReceiptDetailController({
   const reorderItemPhotosMutation = useReorderReceiptItemPhotos();
   const deleteItemPhotoMutation = useDeleteReceiptItemPhoto();
   const getReceiptMutation = useGetMyReceipt();
+  const { data: queryReceipt } = useReceiptDetail(
+    orgId ?? '',
+    receiptId ?? '',
+    Boolean(orgId && receiptId && receiptId !== 'new'),
+    (data) => (data?.status === ReceiptStatus.PendingOcr ? 3000 : false),
+  );
   const { data: ocrModels } = useOcrModels(Boolean(orgId));
 
   const activeReceiptId = useMemo(
@@ -335,7 +342,8 @@ export function useReceiptDetailController({
     || retryMutation.isPending
     || replaceItemPhotoMutation.isPending
     || reorderItemPhotosMutation.isPending
-    || deleteItemPhotoMutation.isPending;
+    || deleteItemPhotoMutation.isPending
+    || getReceiptMutation.isPending;
 
   const isPendingOcr = receipt?.status === ReceiptStatus.PendingOcr;
 
@@ -434,6 +442,15 @@ export function useReceiptDetailController({
     setItemDraft({ name: '', quantity: '', unitPrice: '', totalPrice: '', barcode: '' });
   };
 
+  useEffect(() => {
+    if (queryReceipt) {
+      setReceipt(queryReceipt);
+      setReceiptIdInput(queryReceipt.id);
+      hydrateOcrState(queryReceipt);
+      replaceItemPhotoAssets(buildItemPhotoAssets(queryReceipt));
+    }
+  }, [queryReceipt]);
+
   const applyReceipt = (next: ReceiptPipeline) => {
     setReceipt(next);
     setReceiptIdInput(next.id);
@@ -446,7 +463,7 @@ export function useReceiptDetailController({
   };
 
   useEffect(() => {
-    if (!receiptId) {
+    if (!receiptId || receiptId === 'new') {
       setReceipt(null);
       setReceiptIdInput('');
       setAliasInput('');
@@ -461,27 +478,8 @@ export function useReceiptDetailController({
       return;
     }
 
-    if (receipt?.id === receiptId) {
-      setReceiptIdInput(receiptId);
-      return;
-    }
-
     setReceiptIdInput(receiptId);
-
-    if (!orgId) {
-      toast.error(t('receipts.detail.toasts.routeMissingOrganization'));
-      return;
-    }
-
-    void getReceiptMutation.mutateAsync({ organizationId: orgId, receiptId })
-      .then((result) => {
-        applyReceipt(result);
-      })
-      .catch((error) => {
-        toast.error((error as Error).message);
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId, receiptId]);
+  }, [receiptId]);
 
   useEffect(() => () => {
     revokePreviewUrl(selectedFilePreviewRef.current);
@@ -496,31 +494,18 @@ export function useReceiptDetailController({
   }, [receipt?.status, hasPendingExtractRequest]);
 
   useEffect(() => {
-    if (!orgId || !receiptId || receipt?.status !== ReceiptStatus.PendingOcr) {
-      return;
+    if (receipt?.status !== ReceiptStatus.PendingOcr && previousStatusRef.current === ReceiptStatus.PendingOcr) {
+      const isSuccess = receipt?.status === ReceiptStatus.OcrExtracted;
+      toast[isSuccess ? 'success' : 'info'](
+        isSuccess
+          ? t('receipts.detail.toasts.ocrFinished')
+          : t('receipts.detail.toasts.ocrStatusUpdated'),
+      );
     }
+    previousStatusRef.current = receipt?.status;
+  }, [receipt?.status, t]);
 
-    const intervalId = setInterval(() => {
-      void getReceiptMutation.mutateAsync({ organizationId: orgId, receiptId })
-        .then((result) => {
-          applyReceipt(result);
-          if (result.status !== ReceiptStatus.PendingOcr) {
-            const isSuccess = result.status === ReceiptStatus.OcrExtracted;
-            toast[isSuccess ? 'success' : 'info'](
-              isSuccess
-                ? t('receipts.detail.toasts.ocrFinished')
-                : t('receipts.detail.toasts.ocrStatusUpdated'),
-            );
-          }
-        })
-        .catch(() => {
-          // ignore polling errors
-        });
-    }, 3000);
-
-    return () => clearInterval(intervalId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId, receiptId, receipt?.status]);
+  const previousStatusRef = useRef<ReceiptStatus | undefined>(receipt?.status);
 
   const getNextItemCropCandidate = (
     assets: ItemPhotoAsset[],

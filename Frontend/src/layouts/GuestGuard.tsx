@@ -14,9 +14,12 @@ function getGuestRedirectTarget(search: string) {
 }
 
 export default function GuestGuard() {
+  const isServer = typeof window === "undefined";
+
   const location = useLocation();
-  const hasHydrated = useAuthStore((state) => state._hasHydrated);
+  const hasHydrated =  useAuthStore((state) => state._hasHydrated);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  if (isServer) return <Outlet />;
 
   if (!hasHydrated) {
     return <AppLoadingFallback />;

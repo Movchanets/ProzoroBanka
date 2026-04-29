@@ -325,11 +325,13 @@ export function usePurchaseDetailShort(
   organizationId: string,
   purchaseId: string,
   enabled = true,
+  refetchInterval?: number | false | ((data: any) => number | false)
 ) {
-  return useQuery({
+  return useQuery<PurchaseDetailDto, Error>({
     queryKey: purchaseShortKeys.detail(organizationId, purchaseId),
     queryFn: () => purchaseService.getByIdShort(organizationId, purchaseId),
     enabled: enabled && Boolean(organizationId) && Boolean(purchaseId),
+    refetchInterval,
   });
 }
 

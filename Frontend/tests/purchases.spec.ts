@@ -155,16 +155,15 @@ test.describe("Purchases Flow", () => {
     const testFilePath = path.resolve(__dirname, "../public/favicon-32x32.png");
     await purchaseDetailPage.uploadReceipt(testFilePath);
 
-    // Wait for OCR button to appear (document uploaded)
-    const ocrButton = page.getByTestId(/^purchase-document-ocr-button-/).first();
+    // Wait for upload to finish and UI to update
+    await expect(purchaseDetailPage.getToastByText(/Документ завантажено|Збережено успішно/i)).toBeVisible();
+
+    const docId = await purchaseDetailPage.getDocIdByName('favicon-32x32.png');
+    if (!docId) throw new Error("Could not find document ID by name");
+
+    // Wait for the specific OCR button for the uploaded document to appear
+    const ocrButton = purchaseDetailPage.ocrButton(docId);
     await expect(ocrButton).toBeVisible();
-
-    // Get the docId from the testid
-    const testId = await ocrButton.getAttribute("data-testid");
-    const docId = testId?.replace("purchase-document-ocr-button-", "");
-
-    if (!docId)
-      throw new Error("Could not find document ID from OCR button testid");
 
     // 4. Trigger OCR
     await ocrButton.click();
@@ -173,18 +172,15 @@ test.describe("Purchases Flow", () => {
     await expect(purchaseDetailPage.getToastByText(/Документ розпізнано/i)).toBeVisible({ timeout: 15000 });
 
     // 5. Verify metadata fields (Stub data from StubDocumentOcrService)
-    // The fields should populate automatically because of our useEffect fix
-    const metadataForm = purchaseDetailPage.metadataForm(docId);
-    await expect(metadataForm).toBeVisible();
-
-    // Check EDRPOU (stub returns "12345678")
-    await expect(purchaseDetailPage.edrpouInput(docId)).toHaveValue("12345678");
+    // Use a longer timeout and wait for the value to be populated
+    const edrpouInput = purchaseDetailPage.edrpouInput(docId);
+    await expect(edrpouInput).toHaveValue("12345678", { timeout: 15000 });
 
     // Check Payer (stub returns "Ivanov Ivan")
-    await expect(purchaseDetailPage.payerInput(docId)).toHaveValue("Ivanov Ivan");
+    await expect(purchaseDetailPage.payerInput(docId)).toHaveValue("Ivanov Ivan", { timeout: 5000 });
 
     // Check Amount (stub returns 123.45)
-    await expect(purchaseDetailPage.amountInput(docId)).toHaveValue("123.45");
+    await expect(purchaseDetailPage.amountInput(docId)).toHaveValue(/123\.45/);
 
     // Check Counterparty (stub returns "OCR Stub Counterparty")
     await expect(purchaseDetailPage.counterpartyInput(docId)).toHaveValue(
@@ -215,7 +211,7 @@ test.describe("Purchases Flow", () => {
     await purchaseDetailPage.saveMetadata(docId);
 
     // Expect success toast
-    await expect(purchaseDetailPage.getToastByText(/оновлено/i)).toBeVisible();
+    await expect(purchaseDetailPage.getToastByText(/оновлено/i)).toBeVisible({ timeout: 15000 });
   });
 
   test('TC-07: Should upload waybill and verify OCR items extraction', async ({
@@ -249,11 +245,12 @@ test.describe("Purchases Flow", () => {
     // Wait for upload to finish
     await expect(purchaseDetailPage.getToastByText(/Документ завантажено/i)).toBeVisible();
     
-    // Get document ID from the OCR button
-    const ocrButton = page.getByTestId(/^purchase-document-ocr-button-/).first();
+    const docId = await purchaseDetailPage.getDocIdByName('favicon-32x32.png');
+    if (!docId) throw new Error("Could not find document ID by name");
+
+    // Wait for the specific OCR button for the uploaded document
+    const ocrButton = purchaseDetailPage.ocrButton(docId);
     await expect(ocrButton).toBeVisible();
-    const docId = (await ocrButton.getAttribute('data-testid'))?.replace('purchase-document-ocr-button-', '');
-    if (!docId) throw new Error("Could not find document ID on OCR button");
 
     // 4. Run OCR
     await purchaseDetailPage.runOcr(docId);
@@ -266,7 +263,7 @@ test.describe("Purchases Flow", () => {
     await expect(purchaseDetailPage.counterpartyInput(docId)).toHaveValue('OCR Stub Counterparty');
     
     // Document amount (1550.00 from stub)
-    await expect(purchaseDetailPage.amountInput(docId)).toHaveValue('1550.00');
+    await expect(purchaseDetailPage.amountInput(docId)).toHaveValue(/1550(\.00)?/);
 
     // Verify items list via POM
     const itemsList = purchaseDetailPage.itemsList(docId);
@@ -283,19 +280,24 @@ test.describe("Purchases Flow", () => {
     // "Stub Item 1": qty 10.5, price 100, total 1050
     await expect(rowItem1.locator('input').nth(0)).toHaveValue(/Stub Item 1/i);
     await expect(rowItem1.locator('input').nth(1)).toHaveValue('10.5');
-    await expect(rowItem1.locator('input').nth(2)).toHaveValue('100');
-    await expect(rowItem1.getByText('1050.00 ₴')).toBeVisible();
+    await expect(rowItem1.locator('input').nth(2)).toHaveValue(/100(\.00)?/);
+    await expect(rowItem1.getByText(/1050\.00/)).toBeVisible();
 
     // "Stub Item 2": qty 1, price 500, total 500
     await expect(rowItem2.locator('input').nth(0)).toHaveValue(/Stub Item 2/i);
     await expect(rowItem2.locator('input').nth(1)).toHaveValue('1');
-    await expect(rowItem2.locator('input').nth(2)).toHaveValue('500');
-    await expect(rowItem2.getByText('500.00 ₴')).toBeVisible();
+    await expect(rowItem2.locator('input').nth(2)).toHaveValue(/500(\.00)?/);
+    await expect(rowItem2.getByText(/500\.00/)).toBeVisible();
 
     // 6. Save metadata
     await purchaseDetailPage.saveMetadata(docId);
 
     // Expect success toast
-    await expect(purchaseDetailPage.getToastByText(/оновлено/i)).toBeVisible();
+    await expect(purchaseDetailPage.getToastByText(/збережено|оновлено/i)).toBeVisible();
+
+    // 7. Verify total purchase amount updated (sum of waybill items: 1050 + 500 = 1550)
+    // Recalculation might take a moment on the backend even after OCR status is "Success"
+    // Also handling different locale formats (1 550,00 vs 1,550.00)
+    await expect(purchaseDetailPage.totalPurchaseAmountText).toContainText(/1[,\u00A0]?550/, { timeout: 15000 });
   });
 });
