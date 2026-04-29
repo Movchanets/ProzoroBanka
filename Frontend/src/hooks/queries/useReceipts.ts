@@ -30,11 +30,13 @@ export function useMyReceipts(
   status?: ReceiptStatus,
   onlyUnattached = false,
   enabled = true,
+  refetchInterval?: number | false | ((data: any) => number | false),
 ) {
   return useQuery({
     queryKey: receiptKeys.list(organizationId, search, status, onlyUnattached),
     queryFn: () => receiptService.listByOrganization(organizationId, { search, status, onlyUnattached }),
     enabled: enabled && Boolean(organizationId),
+    refetchInterval,
   });
 }
 
@@ -141,10 +143,16 @@ export function useDeleteReceipt() {
   });
 }
 
-export function useReceiptDetail(organizationId: string, receiptId: string, enabled = true) {
+export function useReceiptDetail(
+  organizationId: string,
+  receiptId: string,
+  enabled = true,
+  refetchInterval?: number | false | ((data: any) => number | false),
+) {
   return useQuery({
     ...getReceiptDetailOptions(organizationId, receiptId),
     enabled: enabled && Boolean(organizationId) && Boolean(receiptId),
+    refetchInterval,
   });
 }
 

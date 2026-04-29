@@ -143,7 +143,17 @@ export default function ReceiptsListPage() {
     isLoading,
     isError,
     refetch,
-  } = useMyReceipts(orgId ?? '', deferredSearch, status, false, !!orgId);
+  } = useMyReceipts(
+    orgId ?? '',
+    deferredSearch,
+    status,
+    false,
+    !!orgId,
+    (data: any) => {
+      if (!Array.isArray(data)) return false;
+      return data.some((r: any) => r.status === ReceiptStatus.PendingOcr) ? 3000 : false;
+    }
+  );
 
   const stats = useMemo(() => {
     const attachedCount = receipts.filter((receipt) => receipt.campaignId).length;

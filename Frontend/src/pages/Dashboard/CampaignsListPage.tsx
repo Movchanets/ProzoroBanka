@@ -8,7 +8,7 @@ import { ensureQueryData } from '@/utils/routerHelpers';
 import { getCampaignsOptions } from '@/hooks/queries/useCampaigns';
 import { getOrganizationMembersOptions } from '@/hooks/queries/useOrganizations';
 import type { LoaderFunctionArgs } from 'react-router';
-import { CampaignStatusLabel, OrganizationRole, type Campaign } from '@/types';
+import { CampaignStatus, CampaignStatusLabel, OrganizationRole, type Campaign } from '@/types';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -91,24 +91,26 @@ function CampaignCard({
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2 mt-auto pt-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full gap-2 overflow-hidden"
-            data-testid={`campaign-card-public-link-${campaign.id}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              navigate(`/c/${campaign.id}`);
-            }}
-          >
-            <Globe className="h-4 w-4 shrink-0" />
-            <span className="hidden xl:inline truncate">
-              {t('campaigns.openPublicCampaignPage')}
-            </span>
-            <span className="xl:hidden truncate">
-              {t('campaigns.openPublicCampaignPageShort', 'Відкрити')}
-            </span>
-          </Button>
+          {campaign.status !== CampaignStatus.Draft && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2 overflow-hidden"
+              data-testid={`campaign-card-public-link-${campaign.id}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate(`/c/${campaign.id}`);
+              }}
+            >
+              <Globe className="h-4 w-4 shrink-0" />
+              <span className="hidden xl:inline truncate">
+                {t('campaigns.openPublicCampaignPage')}
+              </span>
+              <span className="xl:hidden truncate">
+                {t('campaigns.openPublicCampaignPageShort', 'Відкрити')}
+              </span>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"

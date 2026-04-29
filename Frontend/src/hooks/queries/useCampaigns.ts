@@ -19,11 +19,15 @@ export const campaignKeys = {
   receipts: (id: string) => ['campaignReceipts', id] as const,
 };
 
-export function useCampaigns(orgId: string | null | undefined, status?: CampaignStatus) {
+export function useCampaigns(
+  orgId: string | null | undefined, 
+  status?: CampaignStatus,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: [...campaignKeys.all(orgId!), status],
     queryFn: () => campaignService.listByOrganization(orgId!, status),
-    enabled: !!orgId,
+    enabled: (options?.enabled ?? true) && !!orgId,
   });
 }
 
