@@ -44,11 +44,29 @@ export class ReceiptsListPage {
   }
 
   async openReceipt(receiptId: string) {
-    await this.openButton(receiptId).click();
+    const btn = this.openButton(receiptId);
+    await btn.scrollIntoViewIfNeeded();
+    await btn.click({ force: true });
   }
 
   async deleteReceipt(receiptId: string) {
-    await this.deleteButton(receiptId).click();
-    await this.deleteConfirmButton.click();
+    const btn = this.deleteButton(receiptId);
+    await btn.scrollIntoViewIfNeeded();
+    await btn.click({ force: true });
+    
+    await this.deleteConfirmButton.waitFor({ state: 'visible', timeout: 10000 });
+
+    const [response] = await Promise.all([
+      this.page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/receipts/') &&
+          resp.request().method() === 'DELETE' &&
+          resp.status() >= 200 && resp.status() < 300,
+        { timeout: 15000 }
+      ),
+      this.deleteConfirmButton.click({ force: true })
+    ]);
+
+    return response;
   }
 }

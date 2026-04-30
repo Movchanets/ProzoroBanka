@@ -914,6 +914,10 @@
     "unattachedTitle": "Неприкріплені закупівлі",
     "unattachedBadge": "Неприкріплена",
     "unattachedEmpty": "Неприкріплених закупівель немає.",
+    "attachToCampaign": "Прикріпити до збору",
+    "attachedSuccessfully": "Закупівлю прикріплено до збору",
+    "draftTitle": "Draft закупівля",
+    "draftDescription": "Ця закупівля ще не прикріплена до збору.",
     "documentsPanel": "Документи закупівлі",
     "docType": "Тип документу",
     "upload": "Завантажити",
@@ -935,7 +939,8 @@
     "invalidWaybillItem": "Некоректні дані позиції",
     "confirmRerunOcr": "Документ вже розпізнано. Запустити OCR повторно?",
     "filters": {
-      "statusAll": "Усі статуси"
+      "statusAll": "Усі статуси",
+      "selectCampaign": "Оберіть збір"
     },
     "createDialog": {
       "title": "Створити закупівлю",
@@ -1074,6 +1079,68 @@
     "avatarAlt": "Фото профілю"
   },
   "admin": {
+    "users": {
+      "title": "Користувачі",
+      "subtitle": "Керування ролями, блокуванням та membership-зв'язками користувачів.",
+      "filters": {
+        "searchPlaceholder": "Пошук за email або ПІБ",
+        "statusAll": "Всі статуси",
+        "statusActive": "Активні",
+        "statusLocked": "Заблоковані",
+        "roleAll": "Всі ролі",
+        "refresh": "Оновити",
+        "reset": "Скинути"
+      },
+      "presets": {
+        "admins": "Тільки адміни",
+        "locked": "Тільки заблоковані",
+        "volunteersActive": "Активні волонтери"
+      },
+      "table": {
+        "user": "Користувач",
+        "roles": "Ролі",
+        "status": "Статус",
+        "registered": "Зареєстровано",
+        "actions": "Дії",
+        "loading": "Завантаження...",
+        "empty": "Немає користувачів",
+        "noRoles": "Немає",
+        "statusActive": "Активний",
+        "statusLocked": "Заблокований"
+      },
+      "actions": {
+        "profile": "Профіль",
+        "editRoles": "Змінити ролі",
+        "lock": "Заблокувати (бан)",
+        "unlock": "Зняти локаут",
+        "impersonate": "Увійти як",
+        "impersonating": "Перемикання...",
+        "delete": "Видалити"
+      },
+      "dialogs": {
+        "impersonateTitle": "Увійти як користувач?",
+        "impersonateDesc": "Ви увійдете в систему як {{email}}. Щоб повернутись до адмін-акаунта, потрібно виконати вихід і авторизуватись повторно.",
+        "lockTitle": "Заблокувати користувача?",
+        "unlockTitle": "Розблокувати користувача?",
+        "lockConfirmDesc": "Підтвердьте: заблокувати користувача {{email}}?",
+        "unlockConfirmDesc": "Підтвердьте: розблокувати користувача {{email}}?",
+        "deleteTitle": "Видалити користувача?",
+        "deleteDesc": "Ця дія є незворотною. Усі дані користувача будуть видалені. Будь ласка, введіть email користувача {{email}} для підтвердження.",
+        "deletePlaceholder": "Введіть email для підтвердження",
+        "deleteConfirmButton": "Видалити остаточно",
+        "removeOrgLinkTitle": "Видалити зв'язок з організацією?",
+        "removeOrgLinkDesc": "Видалити зв'язок користувача з організацією \"{{name}}\"?",
+        "editRolesTitle": "Управління дозволами ({{name}})",
+        "editRolesDesc": "Оберіть ролі для цього користувача. Вони визначають його дозволи в системі.",
+        "permissionsLabel": "Дозволи: {{list}}"
+      },
+      "toasts": {
+        "locked": "Користувача заблоковано",
+        "unlocked": "Користувача розблоковано",
+        "deleted": "Користувача видалено",
+        "orgLinkRemoved": "Звʼязок користувача з організацією видалено"
+      }
+    },
     "layout": {
       "title": "Адмін панель",
       "back": "Повернутись",

@@ -192,9 +192,13 @@ test.describe("Public pages", () => {
     await loginPage.goto();
     await expect(loginPage.publicPagesLink).toBeVisible();
 
-    await loginPage.publicPagesLink.click({ force: true });
-
-    await expect(page).toHaveURL("/");
+    await Promise.all([
+      page.waitForURL(url => url.pathname === '/' || url.pathname === '', { timeout: 10000 }),
+      loginPage.publicPagesLink.evaluate(el => (el as HTMLElement).click()),
+    ]);
+    
+    // Wait for target page content first to ensure navigation happened
     await expect(homePage.heroSection).toBeVisible();
+    await expect(page).toHaveURL("/", { timeout: 10000 });
   });
 });

@@ -78,7 +78,7 @@ for (const localeConfig of TEST_LOCALES) {
         adminUsersPage.getStatusBadge(createdUser.auth.user.email),
       ).toContainText(/Заблокований|Locked/i);
       await expect(
-        page.getByText(/Користувача заблоковано|User has been locked/i),
+        page.getByText(/Користувача заблоковано|User locked/i),
       ).toBeVisible({ timeout: 5000 });
 
       if (test.info().project.name === "Mobile Safari") {
@@ -88,7 +88,6 @@ for (const localeConfig of TEST_LOCALES) {
       await targetRow.scrollIntoViewIfNeeded();
       await adminUsersPage.toggleLockoutWithConfirmation(
         createdUser.auth.user.email,
-        { force: true },
       );
       await expect(
         adminUsersPage.getStatusBadge(createdUser.auth.user.email),

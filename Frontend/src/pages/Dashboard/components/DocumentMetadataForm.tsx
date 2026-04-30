@@ -24,15 +24,16 @@ export function DocumentMetadataForm({
   onAddWaybillItem,
   onUpdateWaybillItem,
   onDeleteWaybillItem,
-  isPending,
+  isPending: isPendingProp,
   t,
 }: DocumentMetadataFormProps) {
-  const { register, handleSubmit,  reset } = useForm<UpdateDocumentMetadataRequest>({
-
+  const isPending = isPendingProp;
+  
+  const { register, handleSubmit, reset } = useForm<UpdateDocumentMetadataRequest>({
     defaultValues: {
       amount: document.amount ? document.amount / 100 : 0,
       counterpartyName: document.counterpartyName ?? '',
-      documentDate: document.documentDate ?? '',
+      documentDate: document.documentDate ? document.documentDate.split('T')[0] : '',
       edrpou: (document as any).edrpou ?? '',
       payerFullName: (document as any).payerFullName ?? '',
       receiptCode: (document as any).receiptCode ?? '',
@@ -42,12 +43,11 @@ export function DocumentMetadataForm({
     },
   });
 
-  // Explicitly reset form when document changes (e.g. after OCR)
   useEffect(() => {
     reset({
       amount: document.amount ? document.amount / 100 : 0,
       counterpartyName: document.counterpartyName ?? '',
-      documentDate: document.documentDate ?? '',
+      documentDate: document.documentDate ? document.documentDate.split('T')[0] : '',
       edrpou: (document as any).edrpou ?? '',
       payerFullName: (document as any).payerFullName ?? '',
       receiptCode: (document as any).receiptCode ?? '',
@@ -55,21 +55,37 @@ export function DocumentMetadataForm({
       senderIban: (document as any).senderIban ?? '',
       receiverIban: (document as any).receiverIban ?? '',
     });
-  }, [document, reset]);
+  }, [document.id, document.ocrProcessingStatus, reset]);
 
   const isWaybill = document.type === DocumentType.Waybill || document.type === DocumentType.Invoice;
 
-  const onFormSubmit = (data: UpdateDocumentMetadataRequest) => {
+  const onFormSubmit = async (data: UpdateDocumentMetadataRequest) => {
+    console.log(`[DocumentMetadataForm] onFormSubmit for docId: ${document.id}`, data);
     const payload = {
       ...data,
       amount: data.amount ? Math.round(data.amount * 100) : 0,
     };
-    onSubmit(document.id, payload);
+    await onSubmit(document.id, payload);
+    console.log(`[DocumentMetadataForm] onSubmit finished for docId: ${document.id}`);
+  };
+
+  const handleManualSubmit = (e: React.MouseEvent) => {
+    e.preventDefault();
+    console.log(`[DocumentMetadataForm] Manual save button clicked for docId: ${document.id}`);
+    handleSubmit(onFormSubmit, (errors) => {
+      console.error(`[DocumentMetadataForm] Validation errors for docId: ${document.id}:`, errors);
+    })();
   };
 
   return (
     <div className="space-y-4 mt-2" data-testid={`purchase-document-metadata-form-${document.id}`}>
-      <form onSubmit={handleSubmit(onFormSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <form 
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit(onFormSubmit)();
+        }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-3"
+      >
         <div className="space-y-1">
           <Label className="text-xs">{t('purchases.docFields.counterparty', 'Контрагент')}</Label>
           <Input 
@@ -161,7 +177,13 @@ export function DocumentMetadataForm({
         )}
 
         <div className="md:col-span-2 flex justify-end">
-          <Button type="submit" size="sm" disabled={isPending} data-testid={`purchase-document-save-metadata-${document.id}`}>
+          <Button 
+            type="button" 
+            size="sm"
+            disabled={isPending} 
+            data-testid={`purchase-document-save-metadata-${document.id}`}
+            onClick={handleManualSubmit}
+          >
             {t('common.save', 'Зберегти зміни')}
           </Button>
         </div>

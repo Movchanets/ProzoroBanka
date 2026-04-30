@@ -18,11 +18,11 @@ export class OrganizationPurchasesPage {
     );
   }
 
-  async goto(orgId: string, campaignId: string) {
-    await gotoAppPath(
-      this.page,
-      `/dashboard/${orgId}/purchases?campaignId=${campaignId}`,
-    );
+  async goto(orgId: string, campaignId?: string) {
+    const url = campaignId 
+      ? `/dashboard/${orgId}/purchases?campaignId=${campaignId}`
+      : `/dashboard/${orgId}/purchases`;
+    await gotoAppPath(this.page, url);
   }
 
   async openCreatePurchase() {

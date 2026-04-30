@@ -106,7 +106,7 @@ test.describe('Dashboard — Receipts', () => {
     await receiptDetailPage.itemEditButton(0).click();
     await receiptDetailPage.itemEditNameInput(0).fill('Оновлена позиція');
     await receiptDetailPage.itemEditUnitPriceInput(0).fill('27.50');
-    await receiptDetailPage.itemSaveButton(0).click();
+    await receiptDetailPage.saveItem(0);
 
     await expect(receiptDetailPage.itemName(0)).toHaveText('Оновлена позиція');
     await expect(receiptDetailPage.itemUnitPrice(0)).toContainText('27,50');

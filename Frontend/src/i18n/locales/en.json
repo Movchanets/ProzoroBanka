@@ -914,6 +914,10 @@
     "unattachedTitle": "Unattached purchases",
     "unattachedBadge": "Unattached",
     "unattachedEmpty": "No unattached purchases.",
+    "attachToCampaign": "Attach to campaign",
+    "attachedSuccessfully": "Purchase attached to campaign",
+    "draftTitle": "Draft purchase",
+    "draftDescription": "This purchase is not yet attached to a campaign.",
     "documentsPanel": "Purchase documents",
     "docType": "Document type",
     "upload": "Upload",
@@ -935,7 +939,8 @@
     "invalidWaybillItem": "Invalid item data",
     "confirmRerunOcr": "This document is already recognized. Run OCR again?",
     "filters": {
-      "statusAll": "All statuses"
+      "statusAll": "All statuses",
+      "selectCampaign": "Select campaign"
     },
     "createDialog": {
       "title": "Create purchase",
@@ -1074,6 +1079,68 @@
     "avatarAlt": "Profile photo"
   },
   "admin": {
+    "users": {
+      "title": "Users",
+      "subtitle": "Manage roles, lockouts, and membership links.",
+      "filters": {
+        "searchPlaceholder": "Search by email or name",
+        "statusAll": "All statuses",
+        "statusActive": "Active",
+        "statusLocked": "Locked",
+        "roleAll": "All roles",
+        "refresh": "Refresh",
+        "reset": "Reset"
+      },
+      "presets": {
+        "admins": "Admins only",
+        "locked": "Locked only",
+        "volunteersActive": "Active volunteers"
+      },
+      "table": {
+        "user": "User",
+        "roles": "Roles",
+        "status": "Status",
+        "registered": "Registered",
+        "actions": "Actions",
+        "loading": "Loading...",
+        "empty": "No users",
+        "noRoles": "None",
+        "statusActive": "Active",
+        "statusLocked": "Locked"
+      },
+      "actions": {
+        "profile": "Profile",
+        "editRoles": "Edit roles",
+        "lock": "Lock (ban)",
+        "unlock": "Remove lockout",
+        "impersonate": "Sign in as",
+        "impersonating": "Switching...",
+        "delete": "Delete"
+      },
+      "dialogs": {
+        "impersonateTitle": "Sign in as user?",
+        "impersonateDesc": "You will sign in as {{email}}. To return, you will need to sign out and sign in again.",
+        "lockTitle": "Lock user?",
+        "unlockTitle": "Unlock user?",
+        "lockConfirmDesc": "Confirm: lock user {{email}}?",
+        "unlockConfirmDesc": "Confirm: unlock user {{email}}?",
+        "deleteTitle": "Delete user?",
+        "deleteDesc": "This action is irreversible. All user data will be deleted. Please enter user email {{email}} to confirm.",
+        "deletePlaceholder": "Enter email to confirm",
+        "deleteConfirmButton": "Delete permanently",
+        "removeOrgLinkTitle": "Remove organization link?",
+        "removeOrgLinkDesc": "Remove link between user and organization \"{{name}}\"?",
+        "editRolesTitle": "Manage permissions ({{name}})",
+        "editRolesDesc": "Select roles for this user. They define their permissions in the system.",
+        "permissionsLabel": "Permissions: {{list}}"
+      },
+      "toasts": {
+        "locked": "User locked",
+        "unlocked": "User unlocked",
+        "deleted": "User deleted",
+        "orgLinkRemoved": "Organization link removed"
+      }
+    },
     "layout": {
       "title": "Admin panel",
       "back": "Back",
