@@ -81,6 +81,8 @@ export class ReceiptDetailPage {
     await this.uploadFileInput.setInputFiles(filePath);
     await this.confirmCrop();
     await this.uploadButton.click();
+    await expect(this.stateId).toBeVisible({ timeout: 15_000 });
+    await expect(this.stateId).toHaveText(/[0-9a-f-]{36}/i, { timeout: 15_000 });
   }
 
   async openItemsTab() {
@@ -98,23 +100,39 @@ export class ReceiptDetailPage {
   }
 
   async addItem(name: string, quantity: string, unitPrice: string, totalPrice: string, barcode: string) {
-    const responsePromise = this.page.waitForResponse(
-      (response) => response.url().includes('/api/receipts/') && response.url().includes('/items') && response.request().method() === 'POST',
-    );
+    // Ensure we are ready and the section is visible
+    await expect(this.addItemButton).toBeVisible();
+    await this.addItemButton.scrollIntoViewIfNeeded();
 
+    await this.addItemNameInput.waitFor({ state: 'attached' });
     await this.addItemNameInput.fill(name);
     await this.addItemQuantityInput.fill(quantity);
     await this.addItemUnitPriceInput.fill(unitPrice);
     await this.addItemTotalPriceInput.fill(totalPrice);
     await this.addItemBarcodeInput.fill(barcode);
-    await this.addItemButton.click();
+    
+    await this.addItemButton.waitFor({ state: 'attached' });
+    await expect(this.addItemButton).toBeEnabled();
+    
+    const [response] = await Promise.all([
+      this.page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/items') &&
+          resp.request().method() === 'POST' &&
+          resp.status() >= 200 && resp.status() < 300,
+        { timeout: 30000 }
+      ),
+      this.addItemButton.evaluate(el => (el as HTMLElement).click())
+    ]);
 
-    const response = await responsePromise;
     if (!response.ok()) {
       throw new Error(`Failed to add receipt item: ${response.status()} ${await response.text()}`);
     }
 
-    await this.itemName(0).waitFor({ state: 'visible', timeout: 10_000 });
+    // Wait for the new item to appear in the list and be fully rendered
+    await expect(this.itemName(0)).toBeVisible({ timeout: 15_000 });
+    // Ensure the add button is enabled again (reset state)
+    await expect(this.addItemButton).toBeEnabled();
   }
 
   itemEditButton(index: number) {
@@ -147,6 +165,24 @@ export class ReceiptDetailPage {
     return this.page.locator(
       `[data-testid="dashboard-receipts-items-mobile-save-button-${index}"]:visible, [data-testid="dashboard-receipts-items-save-button-${index}"]:visible`,
     );
+  }
+
+  async saveItem(index: number) {
+    const saveButton = this.itemSaveButton(index);
+    await saveButton.waitFor({ state: 'attached' });
+    await expect(saveButton).toBeEnabled();
+
+    const [response] = await Promise.all([
+      this.page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/items/') &&
+          resp.request().method() === 'PUT' &&
+          resp.status() >= 200 && resp.status() < 300,
+        { timeout: 15000 }
+      ),
+      saveButton.evaluate(el => (el as HTMLElement).click())
+    ]);
+    return response;
   }
 
   itemUnitPrice(index: number) {

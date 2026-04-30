@@ -45,9 +45,6 @@ public class AttachPurchaseToCampaignHandler : IRequestHandler<AttachPurchaseToC
 		if (campaign is null)
 			return ServiceResponse.Failure("Збір не знайдено в цій організації");
 
-		if (campaign.Status != CampaignStatus.Active)
-			return ServiceResponse.Failure("Збір має бути активним для прикріплення закупівлі");
-
 		purchase.CampaignId = campaign.Id;
 		await _db.SaveChangesAsync(ct);
 

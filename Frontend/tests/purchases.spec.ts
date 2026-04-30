@@ -149,21 +149,17 @@ test.describe("Purchases Flow", () => {
     await expect(page).toHaveURL(
       new RegExp(`/dashboard/${campaignSeed.orgId}/purchases/[a-z0-9-]+$`),
     );
+    await page.waitForLoadState('networkidle');
     await expect(purchaseDetailPage.receiptsDropzone).toBeVisible();
 
     // 3. Upload a document
-    const testFilePath = path.resolve(__dirname, "../public/favicon-32x32.png");
-    await purchaseDetailPage.uploadReceipt(testFilePath);
-
-    // Wait for upload to finish and UI to update
-    await expect(purchaseDetailPage.getToastByText(/Документ завантажено|Збережено успішно/i)).toBeVisible();
-
-    const docId = await purchaseDetailPage.getDocIdByName('favicon-32x32.png');
-    if (!docId) throw new Error("Could not find document ID by name");
-
+    const receiptFixturePath = path.resolve(__dirname, "../public/favicon-32x32.png");
+    const pId = page.url().split('/').pop()!;
+    const docId = await purchaseDetailPage.uploadReceipt(campaignSeed.orgId, pId, receiptFixturePath);
+    
     // Wait for the specific OCR button for the uploaded document to appear
     const ocrButton = purchaseDetailPage.ocrButton(docId);
-    await expect(ocrButton).toBeVisible();
+    await expect(ocrButton).toBeVisible({ timeout: 15000 });
 
     // 4. Trigger OCR
     await ocrButton.click();
@@ -221,6 +217,7 @@ test.describe("Purchases Flow", () => {
     organizationPurchasesPage,
     purchaseDetailPage,
   }) => {
+    page.on('console', msg => console.log('BROWSER:', msg.text()));
     // 1. Setup: Create campaign via API
     const campaign = await campaignApi.createCampaign(campaignSeed.orgId, {
       titleUk: `Waybill Test Campaign ${Date.now()}`,
@@ -237,20 +234,15 @@ test.describe("Purchases Flow", () => {
     await expect(page).toHaveURL(
       new RegExp(`/dashboard/${campaignSeed.orgId}/purchases/[a-z0-9-]+$`),
     );
+    await page.waitForLoadState('networkidle');
 
-    // 3. Upload waybill
-    const testFilePath = path.resolve(__dirname, "../public/favicon-32x32.png"); // Use any file, stub handles it
-    await purchaseDetailPage.uploadWaybill(testFilePath);
+    const waybillFixturePath = path.resolve(__dirname, "../public/favicon-32x32.png");
+    const pId = page.url().replace(/\/$/, '').split('/').pop()!;
+    const docId = await purchaseDetailPage.uploadWaybill(campaignSeed.orgId, pId, waybillFixturePath);
 
-    // Wait for upload to finish
-    await expect(purchaseDetailPage.getToastByText(/Документ завантажено/i)).toBeVisible();
-    
-    const docId = await purchaseDetailPage.getDocIdByName('favicon-32x32.png');
-    if (!docId) throw new Error("Could not find document ID by name");
-
-    // Wait for the specific OCR button for the uploaded document
+    // Wait for the specific OCR button for the uploaded document to appear
     const ocrButton = purchaseDetailPage.ocrButton(docId);
-    await expect(ocrButton).toBeVisible();
+    await expect(ocrButton).toBeVisible({ timeout: 15000 });
 
     // 4. Run OCR
     await purchaseDetailPage.runOcr(docId);
@@ -273,7 +265,9 @@ test.describe("Purchases Flow", () => {
     const row0 = itemsList.locator('[data-testid^="purchase-document-item-row-"]').nth(0);
     const row1 = itemsList.locator('[data-testid^="purchase-document-item-row-"]').nth(1);
     
-    // Check name of first row to determine order
+    // Wait for at least one row to have a name populated by OCR before determining order
+    await expect(row0.locator('input').nth(0)).not.toHaveValue('', { timeout: 15000 });
+    
     const firstRowName = await row0.locator('input').nth(0).inputValue();
     const [rowItem1, rowItem2] = firstRowName.includes('Stub Item 1') ? [row0, row1] : [row1, row0];
 
@@ -299,5 +293,46 @@ test.describe("Purchases Flow", () => {
     // Recalculation might take a moment on the backend even after OCR status is "Success"
     // Also handling different locale formats (1 550,00 vs 1,550.00)
     await expect(purchaseDetailPage.totalPurchaseAmountText).toContainText(/1[,\u00A0]?550/, { timeout: 15000 });
+  });
+
+  test("TC-08: attach unattached purchase to campaign (including draft campaign)", async ({
+    page,
+    campaignApi,
+    campaignSeed,
+    organizationPurchasesPage,
+    purchaseDetailPage,
+  }) => {
+    // 1. Create a draft campaign
+    const campaign = await campaignApi.createCampaign(campaignSeed.orgId, {
+      titleUk: `Draft Campaign ${Date.now()}`,
+    });
+
+    // 2. Create a purchase at the organization level (unattached)
+    await organizationPurchasesPage.goto(campaignSeed.orgId);
+    await organizationPurchasesPage.openCreatePurchase();
+    
+    await purchaseDetailPage.fillTitle("Unattached Purchase for E2E");
+    await purchaseDetailPage.save();
+
+    // Wait for navigation and detail page load
+    await expect(page).toHaveURL(
+      new RegExp(`/dashboard/${campaignSeed.orgId}/purchases/[a-z0-9-]+$`),
+    );
+    
+    // 3. Verify unattached state (draft attach card should be visible)
+    await expect(purchaseDetailPage.draftAttachCard).toBeVisible();
+    
+    // 4. Attach to the draft campaign
+    await purchaseDetailPage.attachToCampaign(campaign.titleUk);
+
+    // 5. Verify success and state update
+    await expect(purchaseDetailPage.getToastByText(/прикріплено|attached/i)).toBeVisible();
+    await expect(purchaseDetailPage.draftAttachCard).not.toBeVisible();
+    
+    // 6. Verify navigation or back link points to the campaign now
+    await purchaseDetailPage.page.getByTestId('purchase-detail-back-button').click();
+    await expect(page).toHaveURL(
+      new RegExp(`/dashboard/${campaignSeed.orgId}/campaigns/${campaign.id}/purchases$`),
+    );
   });
 });

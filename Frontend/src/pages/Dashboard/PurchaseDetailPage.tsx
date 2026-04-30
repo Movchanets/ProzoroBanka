@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, useNavigation, useSubmit, redirect } from 'react-router-dom';
 import type { ActionFunctionArgs as ClientActionArgs } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -109,7 +109,7 @@ export default function PurchaseDetailPage() {
   );
 
   const { data: campaigns = [] } = useCampaigns(orgId!, undefined, { enabled: !isNew && !purchase?.campaignId });
-  const activeCampaigns = useMemo(() => campaigns.filter(c => c.status === 1), [campaigns]);
+  const selectableCampaigns = campaigns;
 
   const updatePurchaseMutation = useUpdatePurchaseShort();
   const deletePurchaseMutation = useDeletePurchaseShort();
@@ -189,13 +189,24 @@ export default function PurchaseDetailPage() {
   };
 
   const handleSaveDocumentMetadata = async (documentId: string, payload: UpdateDocumentMetadataRequest) => {
-    await updateMetadataMutation.mutateAsync({
-      organizationId: orgId!,
-      purchaseId: purchaseId!,
-      documentId,
-      payload,
-    });
-    toast.success(t('purchases.metadataSaved', 'Метадані документа оновлено'));
+    console.log(`[PurchaseDetail] Saving metadata for document ${documentId}...`, payload);
+    updateMetadataMutation.mutate(
+      {
+        organizationId: orgId!,
+        purchaseId: purchaseId!,
+        documentId,
+        payload,
+      },
+      {
+        onSuccess: () => {
+          console.log(`[PurchaseDetail] Metadata saved for document ${documentId}`);
+          toast.success(t('purchases.documentMetadataSaved', 'Метадані документа оновлено'));
+        },
+        onError: (error) => {
+          console.error(`[PurchaseDetail] Failed to save metadata for document ${documentId}:`, error);
+        }
+      }
+    );
   };
 
   const handleDeleteDocument = async (documentId: string) => {
@@ -401,7 +412,7 @@ export default function PurchaseDetailPage() {
                   {t('purchases.upload')}
                 </Button>
                 {receiptDocuments.map((doc: any) => (
-                  <div key={doc.id} className="p-3 border rounded-lg bg-background/50">
+                  <div key={doc.id} className="p-3 border rounded-lg bg-background/50" data-testid={`document-row-${doc.id}`}>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium truncate">{doc.originalFileName}</span>
                       <div className="flex gap-1">
@@ -453,34 +464,37 @@ export default function PurchaseDetailPage() {
                   {uploadDocumentMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UploadCloud className="h-4 w-4 mr-2" />}
                   {t('purchases.upload')}
                 </Button>
-                {waybillDocuments.map((doc: any) => (
-                  <div key={doc.id} className="p-3 border rounded-lg bg-background/50">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium truncate">{doc.originalFileName}</span>
-                      <div className="flex gap-1">
-                        <Button data-testid={`purchase-document-ocr-button-${doc.id}`} variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={processOcrMutation.isPending || doc.ocrProcessingStatus === OcrProcessingStatus.Processing}>
-                          {processOcrMutation.isPending || doc.ocrProcessingStatus === OcrProcessingStatus.Processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => openDocumentPreview(doc.fileUrl ?? '', doc.originalFileName)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteDocument(doc.id)} disabled={deleteDocumentMutation.isPending}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                {waybillDocuments.map((doc: any) => {
+                  console.log(`[PurchaseDetail] Rendering waybill doc ${doc.id}:`, doc);
+                  return (
+                    <div key={doc.id} className="p-3 border rounded-lg bg-background/50" data-testid={`document-row-${doc.id}`}>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium truncate">{doc.originalFileName}</span>
+                        <div className="flex gap-1">
+                          <Button data-testid={`purchase-document-ocr-button-${doc.id}`} variant="outline" size="sm" onClick={() => handleRunDocumentOcr(doc.id, false, doc.ocrProcessingStatus)} disabled={processOcrMutation.isPending || doc.ocrProcessingStatus === OcrProcessingStatus.Processing}>
+                            {processOcrMutation.isPending || doc.ocrProcessingStatus === OcrProcessingStatus.Processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => openDocumentPreview(doc.fileUrl ?? '', doc.originalFileName)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteDocument(doc.id)} disabled={deleteDocumentMutation.isPending}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
+                      <DocumentMetadataForm
+                        key={`${doc.id}-${doc.ocrProcessingStatus}`}
+                        document={doc}
+                        onSubmit={handleSaveDocumentMetadata}
+                        onAddWaybillItem={handleAddWaybillItem}
+                        onUpdateWaybillItem={handleUpdateWaybillItem}
+                        onDeleteWaybillItem={handleDeleteWaybillItem}
+                        isPending={updateMetadataMutation.isPending || addWaybillItemMutation.isPending || updateWaybillItemMutation.isPending || deleteWaybillItemMutation.isPending}
+                        t={t}
+                      />
                     </div>
-                    <DocumentMetadataForm
-                      key={`${doc.id}-${doc.ocrProcessingStatus}`}
-                      document={doc}
-                      onSubmit={handleSaveDocumentMetadata}
-                      onAddWaybillItem={handleAddWaybillItem}
-                      onUpdateWaybillItem={handleUpdateWaybillItem}
-                      onDeleteWaybillItem={handleDeleteWaybillItem}
-                      isPending={updateMetadataMutation.isPending || addWaybillItemMutation.isPending || updateWaybillItemMutation.isPending || deleteWaybillItemMutation.isPending}
-                      t={t}
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </section>
 
               {/* Transfer Act Section */}
@@ -503,7 +517,7 @@ export default function PurchaseDetailPage() {
                   {t('purchases.upload')}
                 </Button>
                 {transferDocuments.map((doc: any) => (
-                  <div key={doc.id} className="p-3 border rounded-lg bg-background/50">
+                  <div key={doc.id} className="p-3 border rounded-lg bg-background/50" data-testid={`document-row-${doc.id}`}>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium truncate">{doc.originalFileName}</span>
                       <div className="flex gap-1">
@@ -540,17 +554,19 @@ export default function PurchaseDetailPage() {
 
       <Dialog open={isAttachDialogOpen} onOpenChange={setIsAttachDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t('purchases.attachToCampaign')}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('purchases.attachToCampaign', 'Прикріпити до збору')}</DialogTitle></DialogHeader>
           <Select value={selectedAttachCampaignId} onValueChange={setSelectedAttachCampaignId}>
-            <SelectTrigger><SelectValue placeholder={t('purchases.filters.selectCampaign')} /></SelectTrigger>
+            <SelectTrigger data-testid="purchase-attach-campaign-select">
+              <SelectValue placeholder={t('purchases.filters.selectCampaign', 'Оберіть збір')} />
+            </SelectTrigger>
             <SelectContent>
-              {activeCampaigns.map((c) => (
+              {selectableCampaigns.map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.titleUk}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <div className="flex justify-end">
-            <Button onClick={handleAttachPurchase} disabled={isPending}>{t('common.save')}</Button>
+            <Button data-testid="purchase-attach-save-button" onClick={handleAttachPurchase} disabled={isPending}>{t('common.save')}</Button>
           </div>
         </DialogContent>
       </Dialog>

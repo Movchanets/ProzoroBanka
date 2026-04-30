@@ -13,6 +13,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/services/api';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import type { ServiceResponse } from '@/types';
 import type { AdminUserDto, AdminUserOrganizationLinkDto, AdminRoleDto } from '@/types/admin';
 import { OrganizationPermissions, OrganizationRole } from '@/types/domains/organizations';
@@ -99,6 +100,7 @@ function planLabel(planType: 1 | 2) {
 }
 
 export default function AdminUsersPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -132,7 +134,7 @@ export default function AdminUsersPage() {
         body: JSON.stringify({ locked }),
       }),
     onSuccess: (_: any, { locked }: { locked: boolean; userId: string }) => {
-      toast.success(locked ? 'Користувача заблоковано' : 'Користувача розблоковано');
+      toast.success(locked ? t('admin.users.toasts.locked') : t('admin.users.toasts.unlocked'));
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'users', viewingUserId, 'details'] });
     },
@@ -145,7 +147,7 @@ export default function AdminUsersPage() {
         method: 'DELETE',
       }),
     onSuccess: () => {
-      toast.success('Користувача видалено');
+      toast.success(t('admin.users.toasts.deleted'));
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setDeleteConfirm(null);
       setDeleteInput('');
@@ -159,7 +161,7 @@ export default function AdminUsersPage() {
         method: 'DELETE',
       }),
     onSuccess: (_: any, { userId }: { userId: string; organizationId: string }) => {
-      toast.success('Звʼязок користувача з організацією видалено');
+      toast.success(t('admin.users.toasts.orgLinkRemoved'));
       queryClient.invalidateQueries({ queryKey: adminQueryKeys.userDetails(userId) });
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setOrgLinkRemoveConfirm(null);
@@ -288,15 +290,15 @@ export default function AdminUsersPage() {
     <div className="space-y-6" data-testid="admin-users-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Користувачі</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Керування ролями, блокуванням та membership-зв&apos;язками користувачів.</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t('admin.users.title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('admin.users.subtitle')}</p>
         </div>
       </div>
 
       <div className="grid gap-3 rounded-xl border border-border bg-card p-4 md:grid-cols-[1fr_220px_220px_auto_auto]" data-testid="admin-users-filters">
         <Input
           data-testid="admin-users-search-input"
-          placeholder="Пошук за email або ПІБ"
+          placeholder={t('admin.users.filters.searchPlaceholder')}
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
         />
@@ -306,12 +308,12 @@ export default function AdminUsersPage() {
           onValueChange={(value: StatusFilter) => applyFilters({ status: value })}
         >
           <SelectTrigger data-testid="admin-users-status-filter" className="w-full">
-            <SelectValue placeholder="Статус" />
+            <SelectValue placeholder={t('admin.users.table.status')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Всі статуси</SelectItem>
-            <SelectItem value="active">Активні</SelectItem>
-            <SelectItem value="locked">Заблоковані</SelectItem>
+            <SelectItem value="all">{t('admin.users.filters.statusAll')}</SelectItem>
+            <SelectItem value="active">{t('admin.users.filters.statusActive')}</SelectItem>
+            <SelectItem value="locked">{t('admin.users.filters.statusLocked')}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -320,10 +322,10 @@ export default function AdminUsersPage() {
           onValueChange={(value) => applyFilters({ role: value })}
         >
           <SelectTrigger data-testid="admin-users-role-filter" className="w-full">
-            <SelectValue placeholder="Роль" />
+            <SelectValue placeholder={t('admin.users.table.roles')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Всі ролі</SelectItem>
+            <SelectItem value="all">{t('admin.users.filters.roleAll')}</SelectItem>
             {(roles ?? []).map((role) => (
               <SelectItem key={role.name} value={role.name}>
                 {role.name}
@@ -337,7 +339,7 @@ export default function AdminUsersPage() {
           variant="outline"
           onClick={() => queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })}
         >
-          Оновити
+          {t('admin.users.filters.refresh')}
         </Button>
 
         <Button
@@ -346,7 +348,7 @@ export default function AdminUsersPage() {
           onClick={resetFilters}
           disabled={!hasFilters}
         >
-          Скинути
+          {t('admin.users.filters.reset')}
         </Button>
       </div>
 
@@ -360,7 +362,7 @@ export default function AdminUsersPage() {
             applyFilters({ search: '', status: 'all', role: AppRoles.Admin });
           }}
         >
-          Тільки адміни
+          {t('admin.users.presets.admins')}
         </Button>
         <Button
           data-testid="admin-users-preset-locked"
@@ -371,7 +373,7 @@ export default function AdminUsersPage() {
             applyFilters({ search: '', status: 'locked', role: 'all' });
           }}
         >
-          Тільки заблоковані
+          {t('admin.users.presets.locked')}
         </Button>
         <Button
           data-testid="admin-users-preset-volunteers-active"
@@ -382,7 +384,7 @@ export default function AdminUsersPage() {
             applyFilters({ search: '', status: 'active', role: AppRoles.Volunteer });
           }}
         >
-          Активні волонтери
+          {t('admin.users.presets.volunteersActive')}
         </Button>
       </div>
 
@@ -390,21 +392,21 @@ export default function AdminUsersPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Користувач</TableHead>
-              <TableHead>Ролі</TableHead>
-              <TableHead>Статус</TableHead>
-              <TableHead>Зареєстровано</TableHead>
-              <TableHead className="text-right">Дії</TableHead>
+              <TableHead>{t('admin.users.table.user')}</TableHead>
+              <TableHead>{t('admin.users.table.roles')}</TableHead>
+              <TableHead>{t('admin.users.table.status')}</TableHead>
+              <TableHead>{t('admin.users.table.registered')}</TableHead>
+              <TableHead className="text-right">{t('admin.users.table.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">Завантаження...</TableCell>
+                <TableCell colSpan={5} className="h-24 text-center">{t('admin.users.table.loading')}</TableCell>
               </TableRow>
             ) : !users || users.items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">Немає користувачів</TableCell>
+                <TableCell colSpan={5} className="h-24 text-center">{t('admin.users.table.empty')}</TableCell>
               </TableRow>
             ) : (
               users.items.map((user) => (
@@ -437,7 +439,7 @@ export default function AdminUsersPage() {
               });
             }}
           >
-            Попередня
+            {t('admin.organizations.pagination.previous')}
           </Button>
           <Button
             data-testid="admin-users-next-page-button"
@@ -449,7 +451,7 @@ export default function AdminUsersPage() {
               });
             }}
           >
-            Наступна
+            {t('admin.organizations.pagination.next')}
           </Button>
         </div>
       )}
@@ -475,15 +477,15 @@ export default function AdminUsersPage() {
       <AlertDialog open={!!impersonateConfirm} onOpenChange={(open) => !open && setImpersonateConfirm(null)}>
         <AlertDialogContent data-testid="admin-users-impersonate-dialog">
           <AlertDialogHeader>
-            <AlertDialogTitle>Увійти як користувач?</AlertDialogTitle>
+            <AlertDialogTitle>{t('admin.users.dialogs.impersonateTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Ви увійдете в систему як {impersonateConfirm?.email}. Щоб повернутись до адмін-акаунта, потрібно виконати вихід і авторизуватись повторно.
+              {t('admin.users.dialogs.impersonateDesc', { email: impersonateConfirm?.email })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="admin-users-impersonate-cancel">Скасувати</AlertDialogCancel>
+            <AlertDialogCancel data-testid="admin-users-impersonate-cancel">{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction data-testid="admin-users-impersonate-confirm" onClick={executeImpersonate}>
-              Продовжити
+              {t('common.accept')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -494,14 +496,16 @@ export default function AdminUsersPage() {
         <AlertDialogContent data-testid="admin-users-lockout-dialog">
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {lockoutConfirm?.shouldLock ? 'Заблокувати користувача?' : 'Розблокувати користувача?'}
+              {lockoutConfirm?.shouldLock ? t('admin.users.dialogs.lockTitle') : t('admin.users.dialogs.unlockTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Підтвердьте: {lockoutConfirm?.shouldLock ? 'заблокувати' : 'розблокувати'} користувача {lockoutConfirm?.user.email}?
+              {lockoutConfirm?.shouldLock 
+                ? t('admin.users.dialogs.lockConfirmDesc', { email: lockoutConfirm?.user.email }) 
+                : t('admin.users.dialogs.unlockConfirmDesc', { email: lockoutConfirm?.user.email })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="admin-users-lockout-cancel">Скасувати</AlertDialogCancel>
+            <AlertDialogCancel data-testid="admin-users-lockout-cancel">{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               data-testid="admin-users-lockout-confirm"
               onClick={async () => {
@@ -512,7 +516,7 @@ export default function AdminUsersPage() {
                 }
               }}
             >
-              Підтвердити
+              {t('common.accept')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -527,10 +531,9 @@ export default function AdminUsersPage() {
       }}>
         <DialogContent data-testid="admin-users-delete-dialog">
           <DialogHeader>
-            <DialogTitle className="text-destructive">Видалити користувача?</DialogTitle>
+            <DialogTitle className="text-destructive">{t('admin.users.dialogs.deleteTitle')}</DialogTitle>
             <DialogDescription>
-              Ця дія є незворотною. Усі дані користувача будуть видалені.
-              Будь ласка, введіть email користувача <strong>{deleteConfirm?.email}</strong> для підтвердження.
+              {t('admin.users.dialogs.deleteDesc', { email: deleteConfirm?.email })}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -538,7 +541,7 @@ export default function AdminUsersPage() {
               data-testid="admin-users-delete-input"
               value={deleteInput}
               onChange={(e) => setDeleteInput(e.target.value)}
-              placeholder="Введіть email для підтвердження"
+              placeholder={t('admin.users.dialogs.deletePlaceholder')}
               className="w-full"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && deleteInput.toLowerCase() === deleteConfirm?.email.toLowerCase()) {
@@ -549,7 +552,7 @@ export default function AdminUsersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirm(null)} data-testid="admin-users-delete-cancel">
-              Скасувати
+              {t('common.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -561,7 +564,7 @@ export default function AdminUsersPage() {
                 }
               }}
             >
-              Видалити остаточно
+              {t('admin.users.dialogs.deleteConfirmButton')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -571,13 +574,13 @@ export default function AdminUsersPage() {
       <AlertDialog open={!!orgLinkRemoveConfirm} onOpenChange={(open) => !open && setOrgLinkRemoveConfirm(null)}>
         <AlertDialogContent data-testid="admin-users-remove-org-link-dialog">
           <AlertDialogHeader>
-            <AlertDialogTitle>Видалити зв&apos;язок з організацією?</AlertDialogTitle>
+            <AlertDialogTitle>{t('admin.users.dialogs.removeOrgLinkTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Видалити зв&apos;язок користувача з організацією &quot;{orgLinkRemoveConfirm?.organization.organizationName}&quot;?
+              {t('admin.users.dialogs.removeOrgLinkDesc', { name: orgLinkRemoveConfirm?.organization.organizationName })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="admin-users-remove-org-link-cancel">Скасувати</AlertDialogCancel>
+            <AlertDialogCancel data-testid="admin-users-remove-org-link-cancel">{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               data-testid="admin-users-remove-org-link-confirm"
               onClick={async () => {
@@ -589,7 +592,7 @@ export default function AdminUsersPage() {
                 }
               }}
             >
-              Видалити
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -617,6 +620,7 @@ function UserRow({
   canImpersonate: boolean;
   isImpersonating: boolean;
 }) {
+  const { t } = useTranslation();
   const initials = `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.trim().toUpperCase() || 'U';
   const handleToggleLockout = () => {
     onToggleLockout(user.isActive);
@@ -650,15 +654,15 @@ function UserRow({
               {role}
             </Badge>
           )) : (
-            <span className="text-xs text-muted-foreground">Немає</span>
+            <span className="text-xs text-muted-foreground">{t('admin.users.table.noRoles')}</span>
           )}
         </div>
       </TableCell>
       <TableCell>
         {user.isActive ? (
-          <Badge data-testid={`admin-users-status-${user.id}`} variant="outline" className="border-green-600 text-green-600">Активний</Badge>
+          <Badge data-testid={`admin-users-status-${user.id}`} variant="outline" className="border-green-600 text-green-600">{t('admin.users.table.statusActive')}</Badge>
         ) : (
-          <Badge data-testid={`admin-users-status-${user.id}`} variant="outline" className="border-red-600 text-red-600">Заблокований</Badge>
+          <Badge data-testid={`admin-users-status-${user.id}`} variant="outline" className="border-red-600 text-red-600">{t('admin.users.table.statusLocked')}</Badge>
         )}
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
@@ -672,7 +676,7 @@ function UserRow({
             size="sm"
             onClick={onOpenProfile}
           >
-            Профіль
+            {t('admin.users.actions.profile')}
           </Button>
 
           <Button
@@ -681,7 +685,7 @@ function UserRow({
             size="sm"
             onClick={onEditRoles}
           >
-            Змінити ролі
+            {t('admin.users.actions.editRoles')}
           </Button>
 
           <Button
@@ -691,7 +695,7 @@ function UserRow({
             onClick={handleToggleLockout}
             disabled={isImpersonating}
           >
-            {user.isActive ? 'Заблокувати (бан)' : 'Зняти локаут'}
+            {user.isActive ? t('admin.users.actions.lock') : t('admin.users.actions.unlock')}
           </Button>
 
           {canImpersonate ? (
@@ -704,7 +708,7 @@ function UserRow({
               }}
               disabled={isImpersonating}
             >
-              {isImpersonating ? 'Перемикання...' : 'Увійти як'}
+              {isImpersonating ? t('admin.users.actions.impersonating') : t('admin.users.actions.impersonate')}
             </Button>
           ) : null}
 
@@ -716,7 +720,7 @@ function UserRow({
             disabled={isImpersonating}
             className="text-destructive hover:bg-destructive/10"
           >
-            Видалити
+            {t('admin.users.actions.delete')}
           </Button>
         </div>
       </TableCell>
@@ -725,6 +729,7 @@ function UserRow({
 }
 
 function EditRolesDialog({ user, availableRoles, onClose }: { user: AdminUserDto; availableRoles: AdminRoleDto[]; onClose: () => void }) {
+  const { t } = useTranslation();
   const [selectedRoles, setSelectedRoles] = useState<string[]>(user.roles || []);
   const assignRolesMutation = useAdminAssignRoles(user.id);
 
@@ -743,9 +748,9 @@ function EditRolesDialog({ user, availableRoles, onClose }: { user: AdminUserDto
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Управління дозволами ({user.firstName} {user.lastName})</DialogTitle>
+          <DialogTitle>{t('admin.users.dialogs.editRolesTitle', { name: `${user.firstName} ${user.lastName}` })}</DialogTitle>
           <DialogDescription>
-            Оберіть ролі для цього користувача. Вони визначають його дозволи в системі.
+            {t('admin.users.dialogs.editRolesDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -770,7 +775,7 @@ function EditRolesDialog({ user, availableRoles, onClose }: { user: AdminUserDto
                     {role.description} ({role.name})
                   </label>
                   <p className="max-h-24 overflow-y-auto text-xs leading-snug text-muted-foreground">
-                    Дозволи: {role.permissions.join(', ')}
+                    {t('admin.users.dialogs.permissionsLabel', { list: role.permissions.join(', ') })}
                   </p>
                 </div>
               </div>
@@ -780,10 +785,10 @@ function EditRolesDialog({ user, availableRoles, onClose }: { user: AdminUserDto
 
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={assignRolesMutation.isPending}>
-            Скасувати
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleSave} disabled={assignRolesMutation.isPending}>
-            {assignRolesMutation.isPending ? 'Збереження...' : 'Зберегти'}
+            {assignRolesMutation.isPending ? t('common.saving') : t('common.save')}
           </Button>
         </div>
       </DialogContent>
