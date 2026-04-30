@@ -23,7 +23,7 @@ export async function clientAction({ request }: ActionFunctionArgs) {
 
   try {
     const response = await authService.register(data);
-    useAuthStore.getState().setAuth(response.accessToken, response.refreshToken, response.accessTokenExpiry, response.user);
+    useAuthStore.getState().setAuth(response.user);
 
     try {
       const profile = await profileService.getProfile();

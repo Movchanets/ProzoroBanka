@@ -9,17 +9,7 @@ export interface User {
 }
 
 export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  accessTokenExpiry: string;
   user: User;
-}
-
-export interface TokenResponse {
-  accessToken: string;
-  refreshToken: string;
-  accessTokenExpiry: string;
-  refreshTokenExpiry: string;
 }
 
 export interface ProfileUpdatePayload {

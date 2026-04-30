@@ -253,9 +253,7 @@ public class InvitationsEndpointsTests : IClassFixture<TestWebApplicationFactory
 			turnstileToken = "test-token"
 		});
 		loginResponse.EnsureSuccessStatusCode();
-
-		var loginJson = await loginResponse.Content.ReadFromJsonAsync<JsonElement>();
-		var accessToken = loginJson.GetProperty("accessToken").GetString();
-		_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            AuthTestHelpers.ApplyAccessTokenFromCookies(_client, loginResponse);
+            AuthTestHelpers.ApplyCsrfHeader(_client, loginResponse);
 	}
 }

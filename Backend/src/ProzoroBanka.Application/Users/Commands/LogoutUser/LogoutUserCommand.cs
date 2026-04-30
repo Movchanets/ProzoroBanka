@@ -8,24 +8,27 @@ namespace ProzoroBanka.Application.Users.Commands.LogoutUser;
 /// Команда виходу (відкликання refresh token).
 /// </summary>
 public record LogoutUserCommand(
-	Guid ApplicationUserId) : IRequest<ServiceResponse>;
+    Guid ApplicationUserId,
+    string SessionId) : IRequest<ServiceResponse>;
 
 /// <summary>
 /// Handler для виходу користувача.
 /// </summary>
 public class LogoutUserHandler : IRequestHandler<LogoutUserCommand, ServiceResponse>
 {
-	private readonly IUserService _identityService;
+    private readonly IUserService _identityService;
 
-	public LogoutUserHandler(IUserService identityService)
-	{
-		_identityService = identityService;
-	}
+    public LogoutUserHandler(IUserService identityService)
+    {
+        _identityService = identityService;
+    }
 
-	public async Task<ServiceResponse> Handle(
-		LogoutUserCommand request, CancellationToken cancellationToken)
-	{
-		return await _identityService.LogoutAsync(
-			request.ApplicationUserId, cancellationToken);
-	}
+    public async Task<ServiceResponse> Handle(
+        LogoutUserCommand request, CancellationToken cancellationToken)
+    {
+        return await _identityService.LogoutAsync(
+            request.ApplicationUserId,
+            request.SessionId,
+            cancellationToken);
+    }
 }

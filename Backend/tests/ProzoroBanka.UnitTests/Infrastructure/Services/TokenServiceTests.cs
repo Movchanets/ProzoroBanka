@@ -89,7 +89,7 @@ public class TokenServiceTests
 		var fileStorage = new Mock<IFileStorage>();
 		var logger = new Mock<ILogger<TokenService>>();
 
-		var service = new TokenService(configuration, db, fileStorage.Object, logger.Object);
+		var service = new TokenService(configuration, db, fileStorage.Object, new Mock<IAuthSessionStore>().Object, logger.Object);
 		var tokenResponse = await service.GenerateTokensForUserAsync(applicationUserId, CancellationToken.None);
 
 		var jwt = new JwtSecurityTokenHandler().ReadJwtToken(tokenResponse.AccessToken);
@@ -168,7 +168,7 @@ public class TokenServiceTests
 		var fileStorage = new Mock<IFileStorage>();
 		var logger = new Mock<ILogger<TokenService>>();
 
-		var service = new TokenService(configuration, db, fileStorage.Object, logger.Object);
+		var service = new TokenService(configuration, db, fileStorage.Object, new Mock<IAuthSessionStore>().Object, logger.Object);
 		var tokenResponse = await service.GenerateTokensForUserAsync(applicationUserId, CancellationToken.None);
 
 		var jwt = new JwtSecurityTokenHandler().ReadJwtToken(tokenResponse.AccessToken);

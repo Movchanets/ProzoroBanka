@@ -75,6 +75,7 @@ public class UserServiceTests
 				email,
 				It.IsAny<IList<string>>(),
 				It.IsAny<IList<string>>(),
+				It.IsAny<string?>(),
 				It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new TokenResponse(
 				"access-token",
