@@ -200,7 +200,7 @@ export default function PurchaseDetailPage() {
       {
         onSuccess: () => {
           console.log(`[PurchaseDetail] Metadata saved for document ${documentId}`);
-          toast.success(t('purchases.documentMetadataSaved', 'Метадані документа оновлено'));
+          toast.success(t('purchases.metadataSaved', 'Метадані документа оновлено'));
         },
         onError: (error) => {
           console.error(`[PurchaseDetail] Failed to save metadata for document ${documentId}:`, error);
