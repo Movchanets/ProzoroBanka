@@ -7,6 +7,8 @@ export const seededAdminAuth: AuthResponse = {
   accessToken: 'e2e-admin-token',
   refreshToken: 'e2e-admin-refresh-token',
   accessTokenExpiry: '2099-01-01T00:00:00Z',
+  refreshTokenExpiry: '2099-01-01T00:00:00Z',
+  csrfToken: 'e2e-admin-csrf-token',
   user: {
     id: 'e2e-admin-id',
     email: 'admin@example.com',

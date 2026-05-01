@@ -195,7 +195,6 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 			turnstileToken = "test-token"
 		});
 		loginResponse.EnsureSuccessStatusCode();
-            AuthTestHelpers.ApplyAccessTokenFromCookies(_client, loginResponse);
             AuthTestHelpers.ApplyCsrfHeader(_client, loginResponse);
 	}
 }

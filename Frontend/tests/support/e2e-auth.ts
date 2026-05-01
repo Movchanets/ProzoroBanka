@@ -1,9 +1,12 @@
-import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type APIResponse, type Page } from "@playwright/test";
 import { setTestLanguage } from "./i18n";
 import { gotoAppPath, waitForAppReady } from "./navigation";
 
 export const E2E_API_BASE_URL =
   process.env.E2E_API_URL ?? "http://localhost:5188";
+const ACCESS_TOKEN_COOKIE_NAME = "pb_access_token";
+const REFRESH_TOKEN_COOKIE_NAME = "pb_refresh_token";
+const CSRF_COOKIE_NAME = "pb_csrf_token";
 // Cloudflare official testing response token for server-side validation flows.
 export const E2E_TURNSTILE_TEST_TOKEN =
   process.env.E2E_TURNSTILE_TOKEN ?? "XXXX.DUMMY.TOKEN.XXXX";
@@ -69,10 +72,12 @@ export interface AuthUser {
 }
 
 export interface AuthResponse {
+  user: AuthUser;
   accessToken: string;
   refreshToken: string;
   accessTokenExpiry: string;
-  user: AuthUser;
+  refreshTokenExpiry?: string;
+  csrfToken: string;
 }
 
 export interface RegisteredUser {
@@ -83,14 +88,127 @@ export interface RegisteredUser {
 function buildAuthStorageState(auth: AuthResponse): string {
   return JSON.stringify({
     state: {
-      accessToken: auth.accessToken,
-      refreshToken: auth.refreshToken,
-      accessTokenExpiry: auth.accessTokenExpiry,
       user: auth.user,
       isAuthenticated: true,
     },
     version: 0,
   });
+}
+
+function buildCookieExpiry(
+  isoString: string | undefined,
+  fallbackMinutes: number,
+): number {
+  const parsed = isoString ? Date.parse(isoString) : Number.NaN;
+  if (!Number.isNaN(parsed)) {
+    return Math.floor(parsed / 1000);
+  }
+
+  return Math.floor((Date.now() + fallbackMinutes * 60_000) / 1000);
+}
+
+function createCsrfToken(): string {
+  return `e2e-csrf-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function parseSameSite(value: string | undefined): "Strict" | "Lax" | "None" | undefined {
+  const normalized = value?.trim().toLowerCase();
+  switch (normalized) {
+    case "strict":
+      return "Strict";
+    case "none":
+      return "None";
+    case "lax":
+      return "Lax";
+    default:
+      return undefined;
+  }
+}
+
+function parseSetCookieHeader(setCookieHeader: string) {
+  const [nameValue, ...attributeParts] = setCookieHeader.split(";");
+  const separatorIndex = nameValue.indexOf("=");
+  if (separatorIndex <= 0) {
+    return null;
+  }
+
+  const name = nameValue.slice(0, separatorIndex).trim();
+  const value = nameValue.slice(separatorIndex + 1).trim();
+  const attributes = new Map<string, string>();
+
+  for (const rawAttribute of attributeParts) {
+    const [attributeName, ...attributeValueParts] = rawAttribute.trim().split("=");
+    attributes.set(
+      attributeName.toLowerCase(),
+      attributeValueParts.join("=").trim(),
+    );
+  }
+
+  return {
+    name,
+    value,
+    expires: attributes.get("expires"),
+    httpOnly: attributes.has("httponly"),
+    secure: attributes.has("secure"),
+    sameSite: parseSameSite(attributes.get("samesite")),
+  };
+}
+
+async function readAuthResponse(response: APIResponse): Promise<AuthResponse> {
+  const payload = (await response.json()) as { user: AuthUser };
+  const auth: AuthResponse = {
+    user: payload.user,
+    accessToken: "",
+    refreshToken: "",
+    accessTokenExpiry: "",
+    refreshTokenExpiry: undefined,
+    csrfToken: "",
+  };
+
+  for (const header of response.headersArray()) {
+    if (header.name.toLowerCase() !== "set-cookie") {
+      continue;
+    }
+
+    const cookie = parseSetCookieHeader(header.value);
+    if (!cookie) {
+      continue;
+    }
+
+    const expiresAt = cookie.expires
+      ? new Date(cookie.expires).toISOString()
+      : undefined;
+
+    switch (cookie.name) {
+      case ACCESS_TOKEN_COOKIE_NAME:
+        auth.accessToken = cookie.value;
+        if (expiresAt) {
+          auth.accessTokenExpiry = expiresAt;
+        }
+        break;
+      case REFRESH_TOKEN_COOKIE_NAME:
+        auth.refreshToken = cookie.value;
+        auth.refreshTokenExpiry = expiresAt;
+        break;
+      case CSRF_COOKIE_NAME:
+        auth.csrfToken = cookie.value;
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (!auth.accessToken || !auth.refreshToken || !auth.csrfToken) {
+    throw new Error("Auth response is missing required auth cookies");
+  }
+
+  if (!auth.accessTokenExpiry) {
+    auth.accessTokenExpiry = new Date(
+      Date.now() + 15 * 60_000,
+    ).toISOString();
+  }
+
+  return auth;
 }
 
 export async function registerRandomUserViaApi(
@@ -130,7 +248,7 @@ export async function registerRandomUserViaApi(
   }
 
   return {
-    auth: (await registerResponse.json()) as AuthResponse,
+    auth: await readAuthResponse(registerResponse),
     password,
   };
 }
@@ -157,7 +275,7 @@ export async function loginViaApi(
       );
 
       if (response.ok()) {
-        return (await response.json()) as AuthResponse;
+        return readAuthResponse(response);
       }
 
       const status = response.status();
@@ -185,6 +303,32 @@ export async function setAuthStorage(
   auth: AuthResponse,
 ): Promise<void> {
   const serializedAuthState = buildAuthStorageState(auth);
+  await page.context().addCookies([
+    {
+      name: ACCESS_TOKEN_COOKIE_NAME,
+      value: auth.accessToken,
+      url: E2E_API_BASE_URL,
+      httpOnly: true,
+      sameSite: "Lax",
+      expires: buildCookieExpiry(auth.accessTokenExpiry, 15),
+    },
+    {
+      name: REFRESH_TOKEN_COOKIE_NAME,
+      value: auth.refreshToken,
+      url: E2E_API_BASE_URL,
+      httpOnly: true,
+      sameSite: "Lax",
+      expires: buildCookieExpiry(auth.refreshTokenExpiry, 7 * 24 * 60),
+    },
+    {
+      name: CSRF_COOKIE_NAME,
+      value: auth.csrfToken || createCsrfToken(),
+      url: E2E_API_BASE_URL,
+      httpOnly: false,
+      sameSite: "Lax",
+      expires: buildCookieExpiry(auth.refreshTokenExpiry, 7 * 24 * 60),
+    },
+  ]);
 
   await page.addInitScript((value) => {
     localStorage.removeItem("workspace-storage");
@@ -222,11 +366,20 @@ export async function setWorkspaceStorage(
 export async function getAccessTokenFromAuthStorage(
   page: Page,
 ): Promise<string> {
+  const authCookies = await page.context().cookies(E2E_API_BASE_URL);
+  const accessTokenCookie = authCookies.find(
+    (cookie) => cookie.name === ACCESS_TOKEN_COOKIE_NAME,
+  );
+
+  if (accessTokenCookie?.value) {
+    return accessTokenCookie.value;
+  }
+
   const authData = await page.evaluate(() =>
     localStorage.getItem("auth-storage"),
   );
   if (!authData) {
-    throw new Error("Missing auth-storage in localStorage");
+    throw new Error("Missing auth token in cookies and auth-storage");
   }
 
   const { state } = JSON.parse(authData) as {

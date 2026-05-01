@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
 const E2E_API_BASE_URL = process.env.E2E_API_URL ?? "http://localhost:5188";
+const ACCESS_TOKEN_COOKIE_NAME = "pb_access_token";
 
 export async function gotoAppPath(page: Page, path: string): Promise<void> {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
@@ -20,11 +21,20 @@ export async function gotoAppPath(page: Page, path: string): Promise<void> {
 }
 
 async function getAccessTokenFromAuthStorage(page: Page): Promise<string> {
+  const authCookies = await page.context().cookies(E2E_API_BASE_URL);
+  const accessTokenCookie = authCookies.find(
+    (cookie) => cookie.name === ACCESS_TOKEN_COOKIE_NAME,
+  );
+
+  if (accessTokenCookie?.value) {
+    return accessTokenCookie.value;
+  }
+
   const authData = await page.evaluate(() =>
     localStorage.getItem("auth-storage"),
   );
   if (!authData) {
-    throw new Error("Missing auth-storage in localStorage");
+    throw new Error("Missing auth token in cookies and auth-storage");
   }
 
   const { state } = JSON.parse(authData) as {

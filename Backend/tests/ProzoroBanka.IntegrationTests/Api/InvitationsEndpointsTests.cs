@@ -64,8 +64,8 @@ public class InvitationsEndpointsTests : IClassFixture<TestWebApplicationFactory
 		var orgId = await CreateOrganizationAsync();
 		var token = await CreateInviteLinkAsync(orgId);
 
-		_client.DefaultRequestHeaders.Authorization = null;
-		var acceptResponse = await _client.PostAsync($"/api/invitations/{token}/accept", content: null);
+		var unauthClient = _factory.CreateClient();
+		var acceptResponse = await unauthClient.PostAsync($"/api/invitations/{token}/accept", content: null);
 
 		Assert.Equal(HttpStatusCode.Unauthorized, acceptResponse.StatusCode);
 	}
@@ -227,7 +227,8 @@ public class InvitationsEndpointsTests : IClassFixture<TestWebApplicationFactory
 
 	private async Task RegisterAsync(string email, string password)
 	{
-		var response = await _client.PostAsJsonAsync("/api/auth/register", new
+		var tempClient = _factory.CreateClient();
+		var response = await tempClient.PostAsJsonAsync("/api/auth/register", new
 		{
 			email,
 			password,
@@ -253,7 +254,6 @@ public class InvitationsEndpointsTests : IClassFixture<TestWebApplicationFactory
 			turnstileToken = "test-token"
 		});
 		loginResponse.EnsureSuccessStatusCode();
-            AuthTestHelpers.ApplyAccessTokenFromCookies(_client, loginResponse);
             AuthTestHelpers.ApplyCsrfHeader(_client, loginResponse);
 	}
 }

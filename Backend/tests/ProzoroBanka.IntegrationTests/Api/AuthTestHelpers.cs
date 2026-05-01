@@ -24,14 +24,6 @@ internal static class AuthTestHelpers
 		return null;
 	}
 
-	public static void ApplyAccessTokenFromCookies(HttpClient client, HttpResponseMessage response)
-	{
-		var accessToken = ExtractCookieValue(response, AccessTokenCookieName);
-		if (string.IsNullOrWhiteSpace(accessToken))
-			return;
-
-		client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-	}
 
 	public static void ApplyCsrfHeader(HttpClient client, HttpResponseMessage response)
 	{

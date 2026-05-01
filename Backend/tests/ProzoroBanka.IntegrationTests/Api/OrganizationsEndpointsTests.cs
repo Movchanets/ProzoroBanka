@@ -131,8 +131,8 @@ public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFacto
 		await AuthenticateAsAdminAsync();
 		var orgId = await CreateOrganizationAsync($"Unauth Org {Guid.NewGuid():N}");
 
-		_client.DefaultRequestHeaders.Authorization = null;
-		var getResponse = await _client.GetAsync($"/api/organizations/{orgId}");
+		var unauthClient = _factory.CreateClient();
+		var getResponse = await unauthClient.GetAsync($"/api/organizations/{orgId}");
 		Assert.Equal(HttpStatusCode.Unauthorized, getResponse.StatusCode);
 	}
 
@@ -350,7 +350,8 @@ public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFacto
 
 	private async Task RegisterAsync(string email, string password)
 	{
-		var response = await _client.PostAsJsonAsync("/api/auth/register", new
+		var tempClient = _factory.CreateClient();
+		var response = await tempClient.PostAsJsonAsync("/api/auth/register", new
 		{
 			email,
 			password,
@@ -372,7 +373,6 @@ public class OrganizationsEndpointsTests : IClassFixture<TestWebApplicationFacto
 			turnstileToken = "test-token"
 		});
 		loginResponse.EnsureSuccessStatusCode();
-            AuthTestHelpers.ApplyAccessTokenFromCookies(_client, loginResponse);
             AuthTestHelpers.ApplyCsrfHeader(_client, loginResponse);
 	}
 }

@@ -513,7 +513,8 @@ public class AdminUserManagementEndpointsTests : IClassFixture<TestWebApplicatio
 
     private async Task RegisterAsync(string email, string password)
     {
-        var response = await _client.PostAsJsonAsync("/api/auth/register", new
+        var tempClient = _factory.CreateClient();
+        var response = await tempClient.PostAsJsonAsync("/api/auth/register", new
         {
             email,
             password,
@@ -566,7 +567,6 @@ public class AdminUserManagementEndpointsTests : IClassFixture<TestWebApplicatio
             turnstileToken = "test-token"
         });
         loginResponse.EnsureSuccessStatusCode();
-            AuthTestHelpers.ApplyAccessTokenFromCookies(_client, loginResponse);
             AuthTestHelpers.ApplyCsrfHeader(_client, loginResponse);
     }
 }
