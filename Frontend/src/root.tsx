@@ -6,6 +6,7 @@ import {
   ScrollRestoration,
 } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { queryClient } from "./services/queryClient";
 import { Toaster } from "./components/ui/sonner";
 import { I18nextProvider } from "react-i18next";
@@ -59,6 +60,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <QueryClientProvider client={queryClient}>
               {children}
               <Toaster />
+              <ReactQueryDevtools initialIsOpen={false} />
             </QueryClientProvider>
           </I18nextProvider>
         </ThemeProvider>
