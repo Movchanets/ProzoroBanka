@@ -43,13 +43,13 @@ test.describe("Team Invitations — Real Backend", () => {
 
     const orgId = await createOrganizationViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       `Invite Org ${Date.now()}`,
     );
 
     await createEmailInviteViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       orgId,
       invitee.auth.user.email,
       2,
@@ -130,7 +130,7 @@ test.describe("Team Invitations — Real Backend", () => {
     });
     const orgId = await createOrganizationViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       `Invite Link Org ${Date.now()}`,
     );
 
@@ -179,12 +179,12 @@ test.describe("Team Invitations — Real Backend", () => {
 
     const orgId = await createOrganizationViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       `Invite Decline Org ${Date.now()}`,
     );
     await createEmailInviteViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       orgId,
       invitee.auth.user.email,
       2,
@@ -240,13 +240,13 @@ test.describe("Team Invitations — Real Backend", () => {
 
     const orgId = await createOrganizationViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       `Invite Cancel Sent Org ${Date.now()}`,
     );
 
     await createEmailInviteViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       orgId,
       invitee.auth.user.email,
       2,
@@ -299,18 +299,18 @@ test.describe("Team Invitations — Real Backend", () => {
 
     const ownerOrgId = await createOrganizationViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       `Invite Badge Owner Org ${Date.now()}`,
     );
     const inviteeOrgId = await createOrganizationViaApi(
       page.request,
-      invitee.auth.accessToken,
+      invitee.auth,
       `Invite Badge Invitee Org ${Date.now()}`,
     );
 
     await createEmailInviteViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       ownerOrgId,
       invitee.auth.user.email,
       2,

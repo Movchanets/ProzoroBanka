@@ -321,7 +321,7 @@ test.describe("Dashboard — Organization Settings", () => {
 
     orgId = await createOrganizationViaApi(
       page.request,
-      adminAuth.accessToken,
+      adminAuth,
       `Settings Test ${Date.now()}`,
     );
 

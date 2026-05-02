@@ -53,6 +53,44 @@ public class AuthEndpointsTests : IClassFixture<TestWebApplicationFactory>
 	}
 
 	[Fact]
+	public async Task ProtectedEndpoint_WithBearerTokenOnly_ReturnsUnauthorized()
+	{
+		var loginResponse = await LoginAsync("admin@example.com", "Admin123!ChangeMe");
+		loginResponse.EnsureSuccessStatusCode();
+
+		var accessToken = AuthTestHelpers.ExtractCookieValue(loginResponse, AuthTestHelpers.AccessTokenCookieName);
+		Assert.False(string.IsNullOrWhiteSpace(accessToken));
+
+		var bearerOnlyClient = _factory.CreateClient();
+		bearerOnlyClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+		var meResponse = await bearerOnlyClient.GetAsync("/api/auth/me");
+		Assert.Equal(HttpStatusCode.Unauthorized, meResponse.StatusCode);
+	}
+
+	[Fact]
+	public async Task MutatingCookieRequest_WithoutCsrfHeader_ReturnsForbidden()
+	{
+		var cookieClient = _factory.CreateClient();
+		var loginResponse = await cookieClient.PostAsJsonAsync("/api/auth/login", new
+		{
+			email = "admin@example.com",
+			password = "Admin123!ChangeMe",
+			turnstileToken = "test-token"
+		});
+		loginResponse.EnsureSuccessStatusCode();
+
+		var updateResponse = await cookieClient.PutAsJsonAsync("/api/auth/me", new
+		{
+			firstName = "Updated",
+			lastName = "Volunteer",
+			phoneNumber = "+380671112233"
+		});
+
+		Assert.Equal(HttpStatusCode.Forbidden, updateResponse.StatusCode);
+	}
+
+	[Fact]
 	public async Task Me_WithCookieAuth_ReturnsCurrentUser()
 	{
 		var loginResponse = await LoginAsync("admin@example.com", "Admin123!ChangeMe");

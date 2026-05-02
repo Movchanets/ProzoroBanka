@@ -77,10 +77,6 @@ public sealed class CsrfValidationMiddleware
 		if (IgnoredPaths.Contains(request.Path.Value ?? string.Empty))
 			return true;
 
-		if (request.Headers.Authorization.Any(value =>
-			value.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)))
-			return true;
-
 		var hasAuthCookies = request.Cookies.ContainsKey(_settings.AccessTokenCookieName)
 			|| request.Cookies.ContainsKey(_settings.RefreshTokenCookieName);
 

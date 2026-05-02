@@ -264,10 +264,12 @@ public class AuthController : ApiControllerBase
 
 	private void SetAuthCookies(AuthResponse authResponse)
 	{
-		var refreshTokenDays = int.Parse(_configuration["Jwt:RefreshTokenExpirationDays"] ?? "7");
-		var refreshTokenExpiry = DateTime.UtcNow.AddDays(refreshTokenDays);
 		_authCookieManager.SetAuthCookies(
 			Response,
-			new TokenResponse(authResponse.AccessToken, authResponse.RefreshToken, authResponse.AccessTokenExpiry, refreshTokenExpiry));
+			new TokenResponse(
+				authResponse.AccessToken,
+				authResponse.RefreshToken,
+				authResponse.AccessTokenExpiry,
+				authResponse.RefreshTokenExpiry));
 	}
 }

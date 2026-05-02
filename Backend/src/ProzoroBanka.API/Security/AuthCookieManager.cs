@@ -18,7 +18,7 @@ public sealed class AuthCookieManager : IAuthCookieManager
 
     public void SetAuthCookies(HttpResponse response, TokenResponse tokens)
     {
-        response.Cookies.Append(_settings.AccessTokenCookieName, tokens.AccessToken, CreateCookieOptions(true, tokens.RefreshTokenExpiry));
+        response.Cookies.Append(_settings.AccessTokenCookieName, tokens.AccessToken, CreateCookieOptions(true, tokens.AccessTokenExpiry));
         response.Cookies.Append(_settings.RefreshTokenCookieName, tokens.RefreshToken, CreateCookieOptions(true, tokens.RefreshTokenExpiry));
         SetCsrfCookie(response, tokens.RefreshTokenExpiry);
     }

@@ -18,6 +18,7 @@ public class AuthenticateUserHandlerTests
 				"access-token",
 				"refresh-token",
 				new DateTime(2026, 3, 6, 12, 0, 0, DateTimeKind.Utc),
+				new DateTime(2026, 3, 13, 12, 0, 0, DateTimeKind.Utc),
 				Guid.Parse("11111111-1111-1111-1111-111111111111"),
 				"admin@example.com",
 				"System",

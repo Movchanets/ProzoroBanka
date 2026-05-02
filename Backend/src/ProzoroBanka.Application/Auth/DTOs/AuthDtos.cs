@@ -55,6 +55,7 @@ public record AuthResponse(
     string AccessToken,
     string RefreshToken,
     DateTime AccessTokenExpiry,
+    DateTime RefreshTokenExpiry,
     UserInfoDto User
 );
 

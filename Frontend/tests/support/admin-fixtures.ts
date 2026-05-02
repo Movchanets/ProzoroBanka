@@ -4,17 +4,35 @@ import { setAuthStorage, type AuthResponse } from './e2e-auth';
 import { applyLocale, type TestLanguage } from './locale-matrix';
 
 export const seededAdminAuth: AuthResponse = {
-  accessToken: 'e2e-admin-token',
-  refreshToken: 'e2e-admin-refresh-token',
-  accessTokenExpiry: '2099-01-01T00:00:00Z',
-  refreshTokenExpiry: '2099-01-01T00:00:00Z',
-  csrfToken: 'e2e-admin-csrf-token',
   user: {
     id: 'e2e-admin-id',
     email: 'admin@example.com',
     firstName: 'Admin',
     lastName: 'E2E',
     roles: ['Admin'],
+  },
+  cookies: {
+    accessToken: {
+      name: 'pb_access_token',
+      value: 'e2e-admin-token',
+      expiresAt: '2099-01-01T00:00:00Z',
+      httpOnly: true,
+      sameSite: 'Lax',
+    },
+    refreshToken: {
+      name: 'pb_refresh_token',
+      value: 'e2e-admin-refresh-token',
+      expiresAt: '2099-01-01T00:00:00Z',
+      httpOnly: true,
+      sameSite: 'Lax',
+    },
+    csrfToken: {
+      name: 'pb_csrf_token',
+      value: 'e2e-admin-csrf-token',
+      expiresAt: '2099-01-01T00:00:00Z',
+      httpOnly: false,
+      sameSite: 'Lax',
+    },
   },
 } as AuthResponse;
 

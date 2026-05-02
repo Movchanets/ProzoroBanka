@@ -106,6 +106,7 @@ public record AuthResult(
     string AccessToken,
     string RefreshToken,
     DateTime AccessTokenExpiry,
+    DateTime RefreshTokenExpiry,
     Guid DomainUserId,
     string Email,
     string FirstName,

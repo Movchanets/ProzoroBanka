@@ -88,13 +88,6 @@ try
         {
             OnMessageReceived = context =>
             {
-                if (!string.IsNullOrWhiteSpace(context.Token))
-                    return Task.CompletedTask;
-
-                var authorizationHeader = context.Request.Headers.Authorization.ToString();
-                if (authorizationHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                    return Task.CompletedTask;
-
                 var cookieSettings = context.HttpContext.RequestServices
                     .GetRequiredService<IOptions<AuthCookieSettings>>()
                     .Value;
@@ -103,6 +96,15 @@ try
                     && !string.IsNullOrWhiteSpace(cookieToken))
                 {
                     context.Token = cookieToken;
+                    return Task.CompletedTask;
+                }
+
+                var authorizationHeaders = context.Request.Headers.Authorization;
+                if (authorizationHeaders.Count > 0 && authorizationHeaders.Any(value =>
+                    !string.IsNullOrWhiteSpace(value) &&
+                    value.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)))
+                {
+                    context.NoResult();
                 }
 
                 return Task.CompletedTask;

@@ -71,14 +71,26 @@ export interface AuthUser {
   roles?: string[];
 }
 
-export interface AuthResponse {
-  user: AuthUser;
-  accessToken: string;
-  refreshToken: string;
-  accessTokenExpiry: string;
-  refreshTokenExpiry?: string;
-  csrfToken: string;
+type SameSiteValue = "Strict" | "Lax" | "None";
+
+export interface AuthCookieState {
+  name: string;
+  value: string;
+  expiresAt?: string;
+  httpOnly: boolean;
+  sameSite?: SameSiteValue;
 }
+
+export interface AuthSession {
+  user: AuthUser;
+  cookies: {
+    accessToken: AuthCookieState;
+    refreshToken: AuthCookieState;
+    csrfToken: AuthCookieState;
+  };
+}
+
+export type AuthResponse = AuthSession;
 
 export interface RegisteredUser {
   auth: AuthResponse;
@@ -107,11 +119,7 @@ function buildCookieExpiry(
   return Math.floor((Date.now() + fallbackMinutes * 60_000) / 1000);
 }
 
-function createCsrfToken(): string {
-  return `e2e-csrf-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-}
-
-function parseSameSite(value: string | undefined): "Strict" | "Lax" | "None" | undefined {
+function parseSameSite(value: string | undefined): SameSiteValue | undefined {
   const normalized = value?.trim().toLowerCase();
   switch (normalized) {
     case "strict":
@@ -158,11 +166,23 @@ async function readAuthResponse(response: APIResponse): Promise<AuthResponse> {
   const payload = (await response.json()) as { user: AuthUser };
   const auth: AuthResponse = {
     user: payload.user,
-    accessToken: "",
-    refreshToken: "",
-    accessTokenExpiry: "",
-    refreshTokenExpiry: undefined,
-    csrfToken: "",
+    cookies: {
+      accessToken: {
+        name: ACCESS_TOKEN_COOKIE_NAME,
+        value: "",
+        httpOnly: true,
+      },
+      refreshToken: {
+        name: REFRESH_TOKEN_COOKIE_NAME,
+        value: "",
+        httpOnly: true,
+      },
+      csrfToken: {
+        name: CSRF_COOKIE_NAME,
+        value: "",
+        httpOnly: false,
+      },
+    },
   };
 
   for (const header of response.headersArray()) {
@@ -181,34 +201,80 @@ async function readAuthResponse(response: APIResponse): Promise<AuthResponse> {
 
     switch (cookie.name) {
       case ACCESS_TOKEN_COOKIE_NAME:
-        auth.accessToken = cookie.value;
-        if (expiresAt) {
-          auth.accessTokenExpiry = expiresAt;
-        }
+        auth.cookies.accessToken = {
+          name: cookie.name,
+          value: cookie.value,
+          expiresAt,
+          httpOnly: cookie.httpOnly,
+          sameSite: cookie.sameSite,
+        };
         break;
       case REFRESH_TOKEN_COOKIE_NAME:
-        auth.refreshToken = cookie.value;
-        auth.refreshTokenExpiry = expiresAt;
+        auth.cookies.refreshToken = {
+          name: cookie.name,
+          value: cookie.value,
+          expiresAt,
+          httpOnly: cookie.httpOnly,
+          sameSite: cookie.sameSite,
+        };
         break;
       case CSRF_COOKIE_NAME:
-        auth.csrfToken = cookie.value;
+        auth.cookies.csrfToken = {
+          name: cookie.name,
+          value: cookie.value,
+          expiresAt,
+          httpOnly: cookie.httpOnly,
+          sameSite: cookie.sameSite,
+        };
         break;
       default:
         break;
     }
   }
 
-  if (!auth.accessToken || !auth.refreshToken || !auth.csrfToken) {
+  if (
+    !auth.cookies.accessToken.value ||
+    !auth.cookies.refreshToken.value ||
+    !auth.cookies.csrfToken.value
+  ) {
     throw new Error("Auth response is missing required auth cookies");
   }
 
-  if (!auth.accessTokenExpiry) {
-    auth.accessTokenExpiry = new Date(
+  if (!auth.cookies.accessToken.expiresAt) {
+    auth.cookies.accessToken.expiresAt = new Date(
       Date.now() + 15 * 60_000,
     ).toISOString();
   }
 
+  if (!auth.cookies.refreshToken.expiresAt) {
+    auth.cookies.refreshToken.expiresAt = new Date(
+      Date.now() + 7 * 24 * 60 * 60_000,
+    ).toISOString();
+  }
+
+  if (!auth.cookies.csrfToken.expiresAt) {
+    auth.cookies.csrfToken.expiresAt = auth.cookies.refreshToken.expiresAt;
+  }
+
   return auth;
+}
+
+function buildCookieHeader(auth: AuthSession): string {
+  return [
+    auth.cookies.accessToken,
+    auth.cookies.refreshToken,
+    auth.cookies.csrfToken,
+  ]
+    .map((cookie) => `${cookie.name}=${cookie.value}`)
+    .join("; ");
+}
+
+export function buildCookieAuthHeaders(auth: AuthSession): Record<string, string> {
+  return {
+    Cookie: buildCookieHeader(auth),
+    "Content-Type": "application/json",
+    "X-CSRF-TOKEN": auth.cookies.csrfToken.value,
+  };
 }
 
 export async function registerRandomUserViaApi(
@@ -305,28 +371,34 @@ export async function setAuthStorage(
   const serializedAuthState = buildAuthStorageState(auth);
   await page.context().addCookies([
     {
-      name: ACCESS_TOKEN_COOKIE_NAME,
-      value: auth.accessToken,
+      name: auth.cookies.accessToken.name,
+      value: auth.cookies.accessToken.value,
       url: E2E_API_BASE_URL,
-      httpOnly: true,
-      sameSite: "Lax",
-      expires: buildCookieExpiry(auth.accessTokenExpiry, 15),
+      httpOnly: auth.cookies.accessToken.httpOnly,
+      sameSite: auth.cookies.accessToken.sameSite ?? "Lax",
+      expires: buildCookieExpiry(auth.cookies.accessToken.expiresAt, 15),
     },
     {
-      name: REFRESH_TOKEN_COOKIE_NAME,
-      value: auth.refreshToken,
+      name: auth.cookies.refreshToken.name,
+      value: auth.cookies.refreshToken.value,
       url: E2E_API_BASE_URL,
-      httpOnly: true,
-      sameSite: "Lax",
-      expires: buildCookieExpiry(auth.refreshTokenExpiry, 7 * 24 * 60),
+      httpOnly: auth.cookies.refreshToken.httpOnly,
+      sameSite: auth.cookies.refreshToken.sameSite ?? "Lax",
+      expires: buildCookieExpiry(
+        auth.cookies.refreshToken.expiresAt,
+        7 * 24 * 60,
+      ),
     },
     {
-      name: CSRF_COOKIE_NAME,
-      value: auth.csrfToken || createCsrfToken(),
+      name: auth.cookies.csrfToken.name,
+      value: auth.cookies.csrfToken.value,
       url: E2E_API_BASE_URL,
-      httpOnly: false,
-      sameSite: "Lax",
-      expires: buildCookieExpiry(auth.refreshTokenExpiry, 7 * 24 * 60),
+      httpOnly: auth.cookies.csrfToken.httpOnly,
+      sameSite: auth.cookies.csrfToken.sameSite ?? "Lax",
+      expires: buildCookieExpiry(
+        auth.cookies.csrfToken.expiresAt,
+        7 * 24 * 60,
+      ),
     },
   ]);
 
@@ -363,38 +435,26 @@ export async function setWorkspaceStorage(
   }
 }
 
-export async function getAccessTokenFromAuthStorage(
-  page: Page,
-): Promise<string> {
+export async function expectCookieAuthSession(page: Page): Promise<void> {
   const authCookies = await page.context().cookies(E2E_API_BASE_URL);
   const accessTokenCookie = authCookies.find(
     (cookie) => cookie.name === ACCESS_TOKEN_COOKIE_NAME,
   );
-
-  if (accessTokenCookie?.value) {
-    return accessTokenCookie.value;
-  }
-
-  const authData = await page.evaluate(() =>
-    localStorage.getItem("auth-storage"),
+  const refreshTokenCookie = authCookies.find(
+    (cookie) => cookie.name === REFRESH_TOKEN_COOKIE_NAME,
   );
-  if (!authData) {
-    throw new Error("Missing auth token in cookies and auth-storage");
-  }
+  const csrfCookie = authCookies.find(
+    (cookie) => cookie.name === CSRF_COOKIE_NAME,
+  );
 
-  const { state } = JSON.parse(authData) as {
-    state?: { accessToken?: string };
-  };
-  if (!state?.accessToken) {
-    throw new Error("Missing access token in auth-storage");
+  if (!accessTokenCookie?.value || !refreshTokenCookie?.value || !csrfCookie?.value) {
+    throw new Error("Missing auth cookies for cookie-based session");
   }
-
-  return state.accessToken;
 }
 
 export async function createOrganizationViaApi(
   request: APIRequestContext,
-  accessToken: string,
+  auth: AuthSession,
   name: string,
 ): Promise<string> {
   let lastError = "";
@@ -410,10 +470,7 @@ export async function createOrganizationViaApi(
             .replace(/[^a-z0-9\s-]/g, "")
             .replace(/\s+/g, "-"),
         },
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+        headers: buildCookieAuthHeaders(auth),
       },
     );
 
@@ -438,7 +495,7 @@ export async function createOrganizationViaApi(
 
 export async function createInviteLinkViaApi(
   request: APIRequestContext,
-  accessToken: string,
+  auth: AuthSession,
   organizationId: string,
   role = 2,
   expiresInHours = 24,
@@ -447,10 +504,7 @@ export async function createInviteLinkViaApi(
     `${E2E_API_BASE_URL}/api/organizations/${organizationId}/invites/link`,
     {
       data: { role, expiresInHours },
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
+      headers: buildCookieAuthHeaders(auth),
     },
   );
 
@@ -466,7 +520,7 @@ export async function createInviteLinkViaApi(
 
 export async function createEmailInviteViaApi(
   request: APIRequestContext,
-  accessToken: string,
+  auth: AuthSession,
   organizationId: string,
   email: string,
   role: number,
@@ -475,10 +529,7 @@ export async function createEmailInviteViaApi(
     `${E2E_API_BASE_URL}/api/organizations/${organizationId}/invites/email`,
     {
       data: { email, role },
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
+      headers: buildCookieAuthHeaders(auth),
     },
   );
 
@@ -542,8 +593,34 @@ export async function createOrganizationForCurrentSession(
   page: Page,
   name: string,
 ): Promise<string> {
-  const token = await getAccessTokenFromAuthStorage(page);
-  return createOrganizationViaApi(page.request, token, name);
+  const authCookies = await page.context().cookies(E2E_API_BASE_URL);
+  const csrfCookie = authCookies.find((cookie) => cookie.name === CSRF_COOKIE_NAME);
+  if (!csrfCookie?.value) {
+    throw new Error("Missing CSRF cookie for authenticated session");
+  }
+
+  const response = await page.request.post(`${E2E_API_BASE_URL}/api/organizations`, {
+    data: {
+      name,
+      slug: name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-"),
+    },
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-TOKEN": csrfCookie.value,
+    },
+  });
+
+  if (!response.ok()) {
+    throw new Error(
+      `Failed to create organization: ${response.status()} ${await response.text()}`,
+    );
+  }
+
+  const org = (await response.json()) as { id: string };
+  return org.id;
 }
 
 /**
