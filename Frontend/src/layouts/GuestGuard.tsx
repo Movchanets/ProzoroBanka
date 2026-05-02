@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import { AppLoadingFallback } from "@/components/AppLoadingFallback";
 import { useAuthStore } from "@/stores/authStore";
@@ -15,11 +16,19 @@ function getGuestRedirectTarget(search: string) {
 
 export default function GuestGuard() {
   const isServer = typeof window === "undefined";
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const location = useLocation();
   const hasHydrated =  useAuthStore((state) => state._hasHydrated);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  if (isServer) return <Outlet />;
+  
+  if (isServer || !isMounted) {
+    return <Outlet />;
+  }
 
   if (!hasHydrated) {
     return <AppLoadingFallback />;
