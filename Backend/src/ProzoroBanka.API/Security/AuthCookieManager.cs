@@ -49,6 +49,7 @@ public sealed class AuthCookieManager : IAuthCookieManager
             SameSite = sameSite,
             Expires = expiresAtUtc,
             Path = _settings.Path,
+            Domain = _settings.Domain,
             IsEssential = true
         };
     }

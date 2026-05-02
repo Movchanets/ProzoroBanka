@@ -167,6 +167,12 @@ variable "turnstile_secret_key" {
   description = "Cloudflare Turnstile secret key for backend verification."
 }
 
+variable "auth_cookies_domain" {
+  type        = string
+  default     = ""
+  description = "Domain attribute for authentication and CSRF cookies (e.g. .prozorobanka.pp.ua)."
+}
+
 variable "google_client_id" {
   type        = string
   default     = ""

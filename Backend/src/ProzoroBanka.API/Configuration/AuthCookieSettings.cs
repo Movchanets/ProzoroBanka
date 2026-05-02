@@ -13,6 +13,7 @@ public sealed class AuthCookieSettings
 	public string SameSite { get; init; } = "Lax";
 	public bool Secure { get; init; } = true;
 	public string Path { get; init; } = "/";
+	public string? Domain { get; init; }
 	public int CsrfTokenSizeBytes { get; init; } = 32;
 	public bool Enabled { get; init; } = true;
 
