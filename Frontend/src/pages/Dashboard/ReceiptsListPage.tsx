@@ -149,9 +149,10 @@ export default function ReceiptsListPage() {
     status,
     false,
     !!orgId,
-    (data: any) => {
+    (query: any) => {
+      const data = query?.state?.data;
       if (!Array.isArray(data)) return false;
-      return data.some((r: any) => r.status === ReceiptStatus.PendingOcr) ? 3000 : false;
+      return data.some((r: any) => r.status === ReceiptStatus.PendingOcr || r.status === ReceiptStatus.PendingStateValidation) ? 3000 : false;
     }
   );
 

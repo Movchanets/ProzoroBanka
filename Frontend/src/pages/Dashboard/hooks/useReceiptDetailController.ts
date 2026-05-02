@@ -319,7 +319,7 @@ export function useReceiptDetailController({
     orgId ?? '',
     receiptId ?? '',
     Boolean(orgId && receiptId && receiptId !== 'new'),
-    (data) => (data?.status === ReceiptStatus.PendingOcr ? 3000 : false),
+    (query: any) => (query?.state?.data?.status === ReceiptStatus.PendingOcr ? 3000 : false),
   );
   const { data: ocrModels } = useOcrModels(Boolean(orgId));
 
