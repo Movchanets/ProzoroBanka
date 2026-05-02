@@ -33,6 +33,7 @@ public class AuthenticateUserHandler : IRequestHandler<AuthenticateUserCommand, 
 			auth.AccessToken,
 			auth.RefreshToken,
 			auth.AccessTokenExpiry,
+			auth.RefreshTokenExpiry,
 			new UserInfoDto(
 				auth.DomainUserId,
 				auth.Email,

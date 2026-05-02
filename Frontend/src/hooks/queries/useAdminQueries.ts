@@ -21,7 +21,6 @@ import { adminOcrService } from '../../services/adminOcrService';
 import { profileService } from '../../services/profileService';
 import { useAuthStore } from '../../stores/authStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
-import type { TokenResponse } from '../../types/domains/auth';
 
 export const adminQueryKeys = {
   organizations: (page: number, verifiedOnly?: boolean, search?: string) => ['admin', 'organizations', page, verifiedOnly, search] as const,
@@ -427,23 +426,20 @@ export function useAdminDeleteUser(userId: string) {
 export function useAdminImpersonateUser() {
   const queryClient = useQueryClient();
   const setAuth = useAuthStore((state) => state.setAuth);
-  const setTokens = useAuthStore((state) => state.setTokens);
   const logout = useAuthStore((state) => state.logout);
 
   return useMutation({
     mutationFn: (userId: string) =>
-      apiFetch<TokenResponse>(`/api/admin/users/${userId}/impersonate`, {
+      apiFetch<void>(`/api/admin/users/${userId}/impersonate`, {
         method: 'POST',
       }),
-    onSuccess: async (tokens) => {
-      setTokens(tokens.accessToken, tokens.refreshToken, tokens.accessTokenExpiry);
-
+    onSuccess: async () => {
       try {
         const profile = await profileService.getProfile();
 
         useWorkspaceStore.getState().clearActiveOrg();
         queryClient.clear();
-        setAuth(tokens.accessToken, tokens.refreshToken, tokens.accessTokenExpiry, profile);
+        setAuth(profile);
         toast.success('Сесію переключено. Щоб повернутись до адмін-акаунта, виконайте вихід і увійдіть повторно.');
       } catch {
         logout();

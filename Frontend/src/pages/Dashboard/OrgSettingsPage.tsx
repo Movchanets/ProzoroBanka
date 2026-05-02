@@ -23,7 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { Building2, CheckCircle2, Loader2, Upload } from 'lucide-react';
+import { Building2, CheckCircle2, Loader2, Upload, Eye, EyeOff } from 'lucide-react';
 import { queryClient } from '@/services/queryClient';
 import { orgKeys } from '@/hooks/queries/useOrganizations';
 
@@ -94,6 +94,7 @@ export default function OrgSettingsPage() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [localLogoPreview, setLocalLogoPreview] = useState<string | null>(null);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const schema = useMemo(() => createUpdateOrganizationSchema(t), [t]);
 
@@ -223,15 +224,27 @@ export default function OrgSettingsPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="state-registry-key">API key</Label>
-            <Input
-              id="state-registry-key"
-              data-testid="org-settings-state-registry-key-input"
-              placeholder="••••••••••••••••"
-              autoComplete="off"
-              value={stateRegistryUnifiedKeyInput}
-              onChange={(event) => setStateRegistryUnifiedKeyInput(event.target.value)}
-              disabled={isPending}
-            />
+            <div className="relative">
+              <Input
+                id="state-registry-key"
+                type={showApiKey ? "text" : "password"}
+                data-testid="org-settings-state-registry-key-input"
+                placeholder="••••••••••••••••"
+                autoComplete="off"
+                value={stateRegistryUnifiedKeyInput}
+                onChange={(event) => setStateRegistryUnifiedKeyInput(event.target.value)}
+                disabled={isPending}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                tabIndex={-1}
+              >
+                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
             <p className="text-xs text-muted-foreground" data-testid="org-settings-state-registry-key-masked-value">
               {hasUnifiedKeyConfigured
                 ? `Збережений ключ: ${unifiedMaskedKey ?? '********'}`

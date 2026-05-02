@@ -39,33 +39,21 @@ test.describe("Team Invitations — Real Backend", () => {
       lastName: "E2E",
       emailPrefix: "e2e-invite",
     });
+    await setAuthStorage(page, owner.auth);
 
     const orgId = await createOrganizationViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       `Invite Org ${Date.now()}`,
     );
 
-    await gotoAppPath(page, `/dashboard/${orgId}/team`);
-    await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
-
-    await teamPage.openInviteDialogButton.click();
-    await expect(teamPage.inviteDialog).toBeVisible();
-
-    await teamPage.inviteEmailTab.click();
-    await teamPage.inviteEmailInput.fill(invitee.auth.user.email);
-
-    const inviteResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes(`/api/organizations/${orgId}/invites/email`) &&
-        response.request().method() === "POST",
+    await createEmailInviteViaApi(
+      page.request,
+      owner.auth,
+      orgId,
+      invitee.auth.user.email,
+      2,
     );
-
-    await teamPage.sendEmailButton.click();
-    const inviteResponse = await inviteResponsePromise;
-    expect(inviteResponse.ok()).toBeTruthy();
-
-    await teamPage.closeInviteDialogButton.click();
 
     await setAuthStorage(page, invitee.auth);
     await gotoAppPath(page, "/onboarding");
@@ -98,6 +86,7 @@ test.describe("Team Invitations — Real Backend", () => {
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}`));
 
     await setAuthStorage(page, owner.auth);
+    await setWorkspaceStorage(page, orgId);
     await gotoAppPath(page, `/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
 
@@ -141,10 +130,11 @@ test.describe("Team Invitations — Real Backend", () => {
     });
     const orgId = await createOrganizationViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       `Invite Link Org ${Date.now()}`,
     );
 
+    await setWorkspaceStorage(page, orgId);
     await gotoAppPath(page, `/dashboard/${orgId}/team`);
     await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
 
@@ -189,12 +179,12 @@ test.describe("Team Invitations — Real Backend", () => {
 
     const orgId = await createOrganizationViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       `Invite Decline Org ${Date.now()}`,
     );
     await createEmailInviteViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       orgId,
       invitee.auth.user.email,
       2,
@@ -228,7 +218,6 @@ test.describe("Team Invitations — Real Backend", () => {
 
   test("TC-04: Owner cancels sent invitation from profile invitations tab on real backend", async ({
     page,
-    teamPage,
     profilePage,
   }) => {
     test.info().annotations.push({
@@ -247,30 +236,21 @@ test.describe("Team Invitations — Real Backend", () => {
       lastName: "CancelSent",
       emailPrefix: "e2e-invite",
     });
+    await setAuthStorage(page, owner.auth);
 
     const orgId = await createOrganizationViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       `Invite Cancel Sent Org ${Date.now()}`,
     );
 
-    await gotoAppPath(page, `/dashboard/${orgId}/team`);
-    await expect(page).toHaveURL(new RegExp(`/dashboard/${orgId}/team$`));
-
-    await teamPage.openInviteDialogButton.click();
-    await expect(teamPage.inviteDialog).toBeVisible();
-    await teamPage.inviteEmailTab.click();
-    await teamPage.inviteEmailInput.fill(invitee.auth.user.email);
-
-    const inviteResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes(`/api/organizations/${orgId}/invites/email`) &&
-        response.request().method() === "POST",
+    await createEmailInviteViaApi(
+      page.request,
+      owner.auth,
+      orgId,
+      invitee.auth.user.email,
+      2,
     );
-
-    await teamPage.sendEmailButton.click();
-    const inviteResponse = await inviteResponsePromise;
-    expect(inviteResponse.ok()).toBeTruthy();
 
     await setWorkspaceStorage(page, orgId);
     await gotoAppPath(page, "/profile");
@@ -319,18 +299,18 @@ test.describe("Team Invitations — Real Backend", () => {
 
     const ownerOrgId = await createOrganizationViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       `Invite Badge Owner Org ${Date.now()}`,
     );
     const inviteeOrgId = await createOrganizationViaApi(
       page.request,
-      invitee.auth.accessToken,
+      invitee.auth,
       `Invite Badge Invitee Org ${Date.now()}`,
     );
 
     await createEmailInviteViaApi(
       page.request,
-      owner.auth.accessToken,
+      owner.auth,
       ownerOrgId,
       invitee.auth.user.email,
       2,

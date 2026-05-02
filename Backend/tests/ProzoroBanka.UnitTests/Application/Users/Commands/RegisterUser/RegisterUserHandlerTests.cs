@@ -22,6 +22,7 @@ public class RegisterUserHandlerTests
 				"access-token",
 				"refresh-token",
 				new DateTime(2026, 3, 6, 12, 0, 0, DateTimeKind.Utc),
+				new DateTime(2026, 3, 13, 12, 0, 0, DateTimeKind.Utc),
 				Guid.Parse("22222222-2222-2222-2222-222222222222"),
 				"new@example.com",
 				"New",

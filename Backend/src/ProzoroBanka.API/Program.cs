@@ -1,13 +1,17 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using ProzoroBanka.API.Configuration;
 using ProzoroBanka.API.Authorization;
 using ProzoroBanka.API.Filters;
 using ProzoroBanka.API.Middleware;
+using ProzoroBanka.API.Security;
 using ProzoroBanka.API.Services;
 using ProzoroBanka.Application;
 using ProzoroBanka.Application.Common.Interfaces;
@@ -43,6 +47,10 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
+    builder.Services.Configure<AuthCookieSettings>(
+        builder.Configuration.GetSection(AuthCookieSettings.SectionName));
+    builder.Services.AddScoped<IAuthCookieManager, AuthCookieManager>();
+
     builder.Services.Configure<ProzoroBanka.Application.Common.Models.OrganizationPlansOptions>(
         builder.Configuration.GetSection(ProzoroBanka.Application.Common.Models.OrganizationPlansOptions.SectionName));
 
@@ -74,6 +82,59 @@ try
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(jwtSettings["Key"]!)),
             ClockSkew = TimeSpan.FromSeconds(30)
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var cookieSettings = context.HttpContext.RequestServices
+                    .GetRequiredService<IOptions<AuthCookieSettings>>()
+                    .Value;
+
+                if (context.Request.Cookies.TryGetValue(cookieSettings.AccessTokenCookieName, out var cookieToken)
+                    && !string.IsNullOrWhiteSpace(cookieToken))
+                {
+                    context.Token = cookieToken;
+                    return Task.CompletedTask;
+                }
+
+                var authorizationHeaders = context.Request.Headers.Authorization;
+                if (authorizationHeaders.Count > 0 && authorizationHeaders.Any(value =>
+                    !string.IsNullOrWhiteSpace(value) &&
+                    value.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)))
+                {
+                    context.NoResult();
+                }
+
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal;
+                if (principal is null)
+                {
+                    context.Fail("Token principal missing.");
+                    return;
+                }
+
+                var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+                var sessionId = principal.FindFirst(JwtRegisteredClaimNames.Sid)?.Value
+                    ?? principal.FindFirst("sid")?.Value;
+
+                if (!Guid.TryParse(userIdValue, out var userId) || string.IsNullOrWhiteSpace(sessionId))
+                {
+                    context.Fail("Token session claims are invalid.");
+                    return;
+                }
+
+                var authSessionStore = context.HttpContext.RequestServices.GetRequiredService<IAuthSessionStore>();
+                var isSessionActive = await authSessionStore.IsSessionActiveAsync(userId, sessionId, context.HttpContext.RequestAborted);
+                if (!isSessionActive)
+                {
+                    context.Fail("Session has been revoked.");
+                }
+            }
         };
     });
 
@@ -198,6 +259,7 @@ try
     app.UseHttpsRedirection();
 
     app.UseCors("Frontend");
+    app.UseMiddleware<CsrfValidationMiddleware>();
     if (rateLimitingSettings.Enabled)
     {
         app.UseRateLimiter();

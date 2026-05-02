@@ -1,10 +1,16 @@
 import { test as base, expect } from './fixtures';
 import type { APIRequestContext } from '@playwright/test';
-import { createOrganizationViaApi, E2E_API_BASE_URL, registerAndSetAuthStorage } from './e2e-auth';
+import {
+  buildCookieAuthHeaders,
+  createOrganizationViaApi,
+  E2E_API_BASE_URL,
+  registerAndSetAuthStorage,
+  type AuthSession,
+} from './e2e-auth';
 
 interface CampaignSeedContext {
   orgId: string;
-  accessToken: string;
+  auth: AuthSession;
 }
 
 interface CampaignPayload {
@@ -23,11 +29,11 @@ interface CampaignEntity {
 
 class CampaignApiSeeder {
   private readonly request: APIRequestContext;
-  private readonly accessToken: string;
+  private readonly auth: AuthSession;
 
-  constructor(request: APIRequestContext, accessToken: string) {
+  constructor(request: APIRequestContext, auth: AuthSession) {
     this.request = request;
-    this.accessToken = accessToken;
+    this.auth = auth;
   }
 
   async createCampaign(orgId: string, payload?: CampaignPayload): Promise<CampaignEntity> {
@@ -42,10 +48,7 @@ class CampaignApiSeeder {
         goalAmount: payload?.goalAmount ?? 50_000,
         deadline: payload?.deadline,
       },
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: buildCookieAuthHeaders(this.auth),
     });
 
     if (!response.ok()) {
@@ -64,10 +67,7 @@ class CampaignApiSeeder {
   async activateCampaign(campaignId: string): Promise<void> {
     const response = await this.request.put(`${E2E_API_BASE_URL}/api/campaigns/${campaignId}/status`, {
       data: { newStatus: 1 },
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: buildCookieAuthHeaders(this.auth),
     });
 
     if (!response.ok()) {
@@ -91,17 +91,17 @@ export const test = base.extend<CampaignFixtures>({
 
     const orgId = await createOrganizationViaApi(
       page.request,
-      user.auth.accessToken,
+      user.auth,
       `Campaigns Test Org ${Date.now()}`,
     );
 
     await finishFixture({
       orgId,
-      accessToken: user.auth.accessToken,
+      auth: user.auth,
     });
   },
   campaignApi: async ({ page, campaignSeed }, finishFixture) => {
-    await finishFixture(new CampaignApiSeeder(page.request, campaignSeed.accessToken));
+    await finishFixture(new CampaignApiSeeder(page.request, campaignSeed.auth));
   },
 });
 

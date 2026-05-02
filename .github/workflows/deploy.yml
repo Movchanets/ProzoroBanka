@@ -227,6 +227,7 @@ jobs:
           TF_VAR_static_web_app_root_custom_domain: ${{ vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN != '' && vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN || secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN }}
           TF_VAR_static_web_app_root_custom_domain_validation_type: ${{ vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN_VALIDATION_TYPE != '' && vars.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN_VALIDATION_TYPE || secrets.STATIC_WEB_APP_ROOT_CUSTOM_DOMAIN_VALIDATION_TYPE }}
           TF_VAR_api_custom_domain: ${{ vars.API_CUSTOM_DOMAIN != '' && vars.API_CUSTOM_DOMAIN || secrets.API_CUSTOM_DOMAIN }}
+          TF_VAR_auth_cookies_domain: ${{ secrets.AUTH_COOKIES_DOMAIN }}
         run: |
           terraform plan \
             -var-file="environments/${{ needs.determine-environment.outputs.deploy_environment }}/terraform.tfvars.example" \

@@ -1,7 +1,7 @@
 import { test, expect } from "./support/fixtures";
 import { expectAdminRoleInStorage } from "./support/admin-fixtures";
 import {
-  getAccessTokenFromAuthStorage,
+  expectCookieAuthSession,
   getSeededAdminCredentials,
   loginViaUi,
   registerAndSetAuthStorage,
@@ -29,7 +29,7 @@ for (const localeConfig of TEST_LOCALES) {
 
       await expectAdminRoleInStorage(page);
 
-      await getAccessTokenFromAuthStorage(page);
+      await expectCookieAuthSession(page);
       await ensureDashboardPath(
         page,
         `Admin Navigation ${localeConfig.key} ${Date.now()}`,

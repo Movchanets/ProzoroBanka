@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
 const E2E_API_BASE_URL = process.env.E2E_API_URL ?? "http://localhost:5188";
+const CSRF_COOKIE_NAME = "pb_csrf_token";
 
 export async function gotoAppPath(page: Page, path: string): Promise<void> {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
@@ -19,29 +20,24 @@ export async function gotoAppPath(page: Page, path: string): Promise<void> {
   }
 }
 
-async function getAccessTokenFromAuthStorage(page: Page): Promise<string> {
-  const authData = await page.evaluate(() =>
-    localStorage.getItem("auth-storage"),
+async function getCsrfTokenFromCookies(page: Page): Promise<string> {
+  const authCookies = await page.context().cookies(E2E_API_BASE_URL);
+  const csrfCookie = authCookies.find(
+    (cookie) => cookie.name === CSRF_COOKIE_NAME,
   );
-  if (!authData) {
-    throw new Error("Missing auth-storage in localStorage");
+
+  if (!csrfCookie?.value) {
+    throw new Error("Missing CSRF cookie for authenticated session");
   }
 
-  const { state } = JSON.parse(authData) as {
-    state?: { accessToken?: string };
-  };
-  if (!state?.accessToken) {
-    throw new Error("Missing access token in auth-storage");
-  }
-
-  return state.accessToken;
+  return csrfCookie.value;
 }
 
 async function createOrganizationForCurrentSession(
   page: Page,
   name: string,
 ): Promise<string> {
-  const accessToken = await getAccessTokenFromAuthStorage(page);
+  const csrfToken = await getCsrfTokenFromCookies(page);
   const response = await page.request.post(
     `${E2E_API_BASE_URL}/api/organizations`,
     {
@@ -53,8 +49,8 @@ async function createOrganizationForCurrentSession(
           .replace(/\s+/g, "-"),
       },
       headers: {
-        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
+        "X-CSRF-TOKEN": csrfToken,
       },
     },
   );

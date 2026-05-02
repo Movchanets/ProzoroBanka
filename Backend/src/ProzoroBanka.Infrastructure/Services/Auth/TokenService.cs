@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
@@ -12,13 +13,9 @@ using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
 using ProzoroBanka.Infrastructure.Data;
 using ProzoroBanka.Infrastructure.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace ProzoroBanka.Infrastructure.Services.Auth;
 
-/// <summary>
-/// JWT Access + Refresh Token Service.
-/// </summary>
 public class TokenService : ITokenService
 {
 	private const string PermissionClaimType = "permission";
@@ -29,37 +26,45 @@ public class TokenService : ITokenService
 	private readonly IConfiguration _configuration;
 	private readonly ApplicationDbContext _dbContext;
 	private readonly IFileStorage _fileStorage;
+	private readonly IAuthSessionStore _authSessionStore;
 	private readonly ILogger<TokenService> _logger;
 
 	public TokenService(
 		IConfiguration configuration,
 		ApplicationDbContext dbContext,
 		IFileStorage fileStorage,
+		IAuthSessionStore authSessionStore,
 		ILogger<TokenService> logger)
 	{
 		_configuration = configuration;
 		_dbContext = dbContext;
 		_fileStorage = fileStorage;
+		_authSessionStore = authSessionStore;
 		_logger = logger;
 	}
 
 	public async Task<TokenResponse> GenerateTokensAsync(
-		Guid applicationUserId, string email, IList<string> roles, IList<string> permissions,
+		Guid applicationUserId,
+		string email,
+		IList<string> roles,
+		IList<string> permissions,
+		string? sessionId = null,
 		CancellationToken ct = default)
 	{
 		var jwtSettings = _configuration.GetSection("Jwt");
 		var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
 		var refreshKey = jwtSettings["RefreshKey"] ?? jwtSettings["Key"]!;
 		var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+		sessionId ??= Guid.NewGuid().ToString("N");
 
 		var claims = new List<Claim>
 		{
 			new(ClaimTypes.NameIdentifier, applicationUserId.ToString()),
 			new(ClaimTypes.Email, email),
+			new(JwtRegisteredClaimNames.Sid, sessionId),
 			new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
 		};
 
-		// Додаємо claims доменного користувача
 		var appUser = await _dbContext.Set<ApplicationUser>()
 			.Include(user => user.DomainUser)
 			.FirstOrDefaultAsync(u => u.Id == applicationUserId, ct);
@@ -90,22 +95,18 @@ public class TokenService : ITokenService
 			signingCredentials: credentials);
 
 		var accessToken = new JwtSecurityTokenHandler().WriteToken(token);
-
-		// Refresh token
 		var refreshToken = GenerateRefreshToken(refreshKey);
 		var refreshTokenExpiry = DateTime.UtcNow.AddDays(
 			int.Parse(jwtSettings["RefreshTokenExpirationDays"] ?? "7"));
 
-		// Зберігаємо refresh token
-		if (appUser != null)
-		{
-			appUser.RefreshToken = HashRefreshToken(refreshToken, refreshKey);
-			appUser.RefreshTokenExpiryTime = refreshTokenExpiry;
-			await _dbContext.SaveChangesAsync(ct);
-		}
+		await _authSessionStore.StoreSessionAsync(
+			applicationUserId,
+			sessionId,
+			HashRefreshToken(refreshToken, refreshKey),
+			refreshTokenExpiry,
+			ct);
 
-		_logger.LogInformation("Tokens generated for user {UserId}", applicationUserId);
-
+		_logger.LogInformation("Tokens generated for user {UserId}, sid {SessionId}", applicationUserId, sessionId);
 		return new TokenResponse(accessToken, refreshToken, accessTokenExpiry, refreshTokenExpiry);
 	}
 
@@ -116,7 +117,7 @@ public class TokenService : ITokenService
 			.Include(applicationUser => applicationUser.UserRoles)
 				.ThenInclude(userRole => userRole.Role)
 					.ThenInclude(role => role.RoleClaims)
-				.FirstOrDefaultAsync(applicationUser => applicationUser.Id == applicationUserId, ct)
+			.FirstOrDefaultAsync(applicationUser => applicationUser.Id == applicationUserId, ct)
 			?? throw new SecurityTokenException("User not found");
 
 		var roles = user.UserRoles
@@ -148,6 +149,7 @@ public class TokenService : ITokenService
 			user.Email ?? string.Empty,
 			roles,
 			permissions.ToList(),
+			sessionId: null,
 			ct);
 	}
 
@@ -156,19 +158,30 @@ public class TokenService : ITokenService
 		var jwtSettings = _configuration.GetSection("Jwt");
 		var refreshKey = jwtSettings["RefreshKey"] ?? jwtSettings["Key"]!;
 		var principal = GetPrincipalFromExpiredToken(accessToken);
+
 		var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
 			?? throw new SecurityTokenException("Invalid access token: missing user id");
 
-		var userId = Guid.Parse(userIdClaim);
+		if (!Guid.TryParse(userIdClaim, out var userId))
+			throw new SecurityTokenException("Invalid access token: malformed user id");
+
+		var sessionId = principal.FindFirst(JwtRegisteredClaimNames.Sid)?.Value
+			?? principal.FindFirst("sid")?.Value
+			?? throw new SecurityTokenException("Invalid access token: missing sid");
+
+		var session = await _authSessionStore.GetSessionAsync(userId, sessionId, ct);
+		if (session is null || session.RefreshTokenExpiryUtc <= DateTime.UtcNow)
+			throw new SecurityTokenException("Invalid or expired refresh token");
+
+		if (!string.Equals(session.RefreshTokenHash, HashRefreshToken(refreshToken, refreshKey), StringComparison.Ordinal))
+			throw new SecurityTokenException("Invalid or expired refresh token");
+
 		var user = await _dbContext.Set<ApplicationUser>()
 			.Include(u => u.UserRoles)
 				.ThenInclude(userRole => userRole.Role)
 					.ThenInclude(role => role.RoleClaims)
 			.FirstOrDefaultAsync(u => u.Id == userId, ct)
 			?? throw new SecurityTokenException("User not found");
-
-		if (user.RefreshToken != HashRefreshToken(refreshToken, refreshKey) || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
-			throw new SecurityTokenException("Invalid or expired refresh token");
 
 		var roles = user.UserRoles
 			.Select(userRole => userRole.Role.Name)
@@ -195,23 +208,13 @@ public class TokenService : ITokenService
 		}
 
 		var email = user.Email ?? principal.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
-
-		return await GenerateTokensAsync(userId, email, roles, permissions.ToList(), ct);
+		return await GenerateTokensAsync(userId, email, roles, permissions.ToList(), sessionId, ct);
 	}
 
-	public async Task RevokeRefreshTokenAsync(Guid applicationUserId, CancellationToken ct = default)
+	public async Task RevokeSessionAsync(Guid applicationUserId, string sessionId, CancellationToken ct = default)
 	{
-		var user = await _dbContext.Set<ApplicationUser>()
-			.FirstOrDefaultAsync(u => u.Id == applicationUserId, ct);
-
-		if (user != null)
-		{
-			user.RefreshToken = null;
-			user.RefreshTokenExpiryTime = null;
-			await _dbContext.SaveChangesAsync(ct);
-		}
-
-		_logger.LogInformation("Refresh token revoked for user {UserId}", applicationUserId);
+		await _authSessionStore.RemoveSessionAsync(applicationUserId, sessionId, ct);
+		_logger.LogInformation("Session revoked for user {UserId}, sid {SessionId}", applicationUserId, sessionId);
 	}
 
 	private ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
@@ -225,14 +228,14 @@ public class TokenService : ITokenService
 			ValidAudience = jwtSettings["Audience"],
 			ValidateIssuerSigningKey = true,
 			IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!)),
-			ValidateLifetime = false, // Дозволяємо expired tokens
+			ValidateLifetime = false,
 		};
 
 		var handler = new JwtSecurityTokenHandler();
 		var principal = handler.ValidateToken(token, validationParameters, out var securityToken);
 
-		if (securityToken is not JwtSecurityToken jwtSecurityToken ||
-			!jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+		if (securityToken is not JwtSecurityToken jwtSecurityToken
+			|| !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
 		{
 			throw new SecurityTokenException("Invalid token");
 		}

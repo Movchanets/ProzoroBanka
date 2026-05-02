@@ -33,6 +33,7 @@ public class GoogleLoginHandler : IRequestHandler<GoogleLoginCommand, ServiceRes
 			auth.AccessToken,
 			auth.RefreshToken,
 			auth.AccessTokenExpiry,
+			auth.RefreshTokenExpiry,
 			new UserInfoDto(
 				auth.DomainUserId,
 				auth.Email,

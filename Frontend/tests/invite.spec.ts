@@ -29,8 +29,8 @@ async function createInviteScenario(
     emailPrefix: 'invite-e2e',
   });
 
-  const orgId = await createOrganizationViaApi(page.request, owner.auth.accessToken, `${flowName} Flow Org ${Date.now()}`);
-  const inviteToken = await createInviteLinkViaApi(page.request, owner.auth.accessToken, orgId);
+  const orgId = await createOrganizationViaApi(page.request, owner.auth, `${flowName} Flow Org ${Date.now()}`);
+  const inviteToken = await createInviteLinkViaApi(page.request, owner.auth, orgId);
 
   return { owner, invitee, inviteToken };
 }

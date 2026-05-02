@@ -33,6 +33,7 @@ public class RegisterUserHandler : IRequestHandler<RegisterUserCommand, ServiceR
 			auth.AccessToken,
 			auth.RefreshToken,
 			auth.AccessTokenExpiry,
+			auth.RefreshTokenExpiry,
 			new UserInfoDto(
 				auth.DomainUserId,
 				auth.Email,

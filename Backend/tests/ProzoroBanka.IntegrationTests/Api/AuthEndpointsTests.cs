@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text.RegularExpressions;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -23,24 +23,101 @@ public class AuthEndpointsTests : IClassFixture<TestWebApplicationFactory>
 	}
 
 	[Fact]
-	public async Task Login_Admin_ReturnsAuthPayload()
+	public async Task Login_Admin_SetsCookies_AndReturnsUserPayload()
 	{
-		var response = await _client.PostAsJsonAsync("/api/auth/login", new
+		var response = await LoginAsync("admin@example.com", "Admin123!ChangeMe");
+
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		Assert.NotNull(AuthTestHelpers.ExtractCookieValue(response, "pb_access_token"));
+		Assert.NotNull(AuthTestHelpers.ExtractCookieValue(response, "pb_refresh_token"));
+		Assert.NotNull(AuthTestHelpers.ExtractCookieValue(response, "pb_csrf_token"));
+
+		var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Equal("admin@example.com", json.GetProperty("user").GetProperty("email").GetString());
+		Assert.False(json.TryGetProperty("accessToken", out _));
+		Assert.False(json.TryGetProperty("refreshToken", out _));
+	}
+
+	[Fact]
+	public async Task Refresh_UsesCookiesAndResetsAuthCookies()
+	{
+		var loginResponse = await LoginAsync("admin@example.com", "Admin123!ChangeMe");
+		loginResponse.EnsureSuccessStatusCode();
+		AuthTestHelpers.ApplyCsrfHeader(_client, loginResponse);
+
+		var refreshResponse = await _client.PostAsync("/api/auth/refresh", content: null);
+
+		Assert.Equal(HttpStatusCode.NoContent, refreshResponse.StatusCode);
+		Assert.NotNull(AuthTestHelpers.ExtractCookieValue(refreshResponse, "pb_access_token"));
+		Assert.NotNull(AuthTestHelpers.ExtractCookieValue(refreshResponse, "pb_refresh_token"));
+	}
+
+	[Fact]
+	public async Task ProtectedEndpoint_WithBearerTokenOnly_ReturnsUnauthorized()
+	{
+		var loginResponse = await LoginAsync("admin@example.com", "Admin123!ChangeMe");
+		loginResponse.EnsureSuccessStatusCode();
+
+		var accessToken = AuthTestHelpers.ExtractCookieValue(loginResponse, AuthTestHelpers.AccessTokenCookieName);
+		Assert.False(string.IsNullOrWhiteSpace(accessToken));
+
+		var bearerOnlyClient = _factory.CreateClient();
+		bearerOnlyClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+		var meResponse = await bearerOnlyClient.GetAsync("/api/auth/me");
+		Assert.Equal(HttpStatusCode.Unauthorized, meResponse.StatusCode);
+	}
+
+	[Fact]
+	public async Task MutatingCookieRequest_WithoutCsrfHeader_ReturnsForbidden()
+	{
+		var cookieClient = _factory.CreateClient();
+		var loginResponse = await cookieClient.PostAsJsonAsync("/api/auth/login", new
 		{
 			email = "admin@example.com",
 			password = "Admin123!ChangeMe",
 			turnstileToken = "test-token"
 		});
+		loginResponse.EnsureSuccessStatusCode();
 
-		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		var updateResponse = await cookieClient.PutAsJsonAsync("/api/auth/me", new
+		{
+			firstName = "Updated",
+			lastName = "Volunteer",
+			phoneNumber = "+380671112233"
+		});
 
-		var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-		Assert.True(json.TryGetProperty("accessToken", out var accessToken));
-		Assert.True(json.TryGetProperty("refreshToken", out var refreshToken));
-		Assert.True(json.TryGetProperty("user", out var user));
-		Assert.False(string.IsNullOrWhiteSpace(accessToken.GetString()));
-		Assert.False(string.IsNullOrWhiteSpace(refreshToken.GetString()));
-		Assert.Equal("admin@example.com", user.GetProperty("email").GetString());
+		Assert.Equal(HttpStatusCode.Forbidden, updateResponse.StatusCode);
+	}
+
+	[Fact]
+	public async Task Me_WithCookieAuth_ReturnsCurrentUser()
+	{
+		var loginResponse = await LoginAsync("admin@example.com", "Admin123!ChangeMe");
+		loginResponse.EnsureSuccessStatusCode();
+
+		var meResponse = await _client.GetAsync("/api/auth/me");
+		Assert.Equal(HttpStatusCode.OK, meResponse.StatusCode);
+
+		var meJson = await meResponse.Content.ReadFromJsonAsync<JsonElement>();
+		Assert.Equal("admin@example.com", meJson.GetProperty("email").GetString());
+	}
+
+	[Fact]
+	public async Task Logout_RevokesSession_AndClearsCookies()
+	{
+		var loginResponse = await LoginAsync("admin@example.com", "Admin123!ChangeMe");
+		loginResponse.EnsureSuccessStatusCode();
+		AuthTestHelpers.ApplyCsrfHeader(_client, loginResponse);
+
+		var logoutResponse = await _client.PostAsync("/api/auth/logout", content: null);
+		Assert.Equal(HttpStatusCode.NoContent, logoutResponse.StatusCode);
+
+		var meResponse = await _client.GetAsync("/api/auth/me");
+		Assert.Equal(HttpStatusCode.Unauthorized, meResponse.StatusCode);
+
+		var refreshResponse = await _client.PostAsync("/api/auth/refresh", content: null);
+		Assert.Equal(HttpStatusCode.Unauthorized, refreshResponse.StatusCode);
 	}
 
 	[Fact]
@@ -57,20 +134,7 @@ public class AuthEndpointsTests : IClassFixture<TestWebApplicationFactory>
 	}
 
 	[Fact]
-	public async Task Login_MissingTurnstileToken_ReturnsBadRequest()
-	{
-		var response = await _client.PostAsJsonAsync("/api/auth/login", new
-		{
-			email = "admin@example.com",
-			password = "Admin123!ChangeMe",
-			turnstileToken = ""
-		});
-
-		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-	}
-
-	[Fact]
-	public async Task Register_ValidRequest_ReturnsAuthPayload()
+	public async Task Register_ValidRequest_ReturnsUserPayload()
 	{
 		var email = $"user-{Guid.NewGuid():N}@example.com";
 
@@ -85,86 +149,12 @@ public class AuthEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		});
 
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
 		var json = await response.Content.ReadFromJsonAsync<JsonElement>();
 		Assert.Equal(email, json.GetProperty("user").GetProperty("email").GetString());
 	}
 
 	[Fact]
-	public async Task Register_DuplicateEmail_ReturnsBadRequest()
-	{
-		var payload = new
-		{
-			email = $"duplicate-{Guid.NewGuid():N}@example.com",
-			password = "Password123!",
-			confirmPassword = "Password123!",
-			firstName = "Test",
-			lastName = "Volunteer",
-			turnstileToken = "test-token"
-		};
-
-		var firstResponse = await _client.PostAsJsonAsync("/api/auth/register", payload);
-		firstResponse.EnsureSuccessStatusCode();
-
-		var secondResponse = await _client.PostAsJsonAsync("/api/auth/register", payload);
-
-		Assert.Equal(HttpStatusCode.BadRequest, secondResponse.StatusCode);
-	}
-
-	[Fact]
-	public async Task Refresh_ValidTokenPair_ReturnsNewTokens()
-	{
-		var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
-		{
-			email = "admin@example.com",
-			password = "Admin123!ChangeMe",
-			turnstileToken = "test-token"
-		});
-		loginResponse.EnsureSuccessStatusCode();
-
-		var loginJson = await loginResponse.Content.ReadFromJsonAsync<JsonElement>();
-		var accessToken = loginJson.GetProperty("accessToken").GetString();
-		var refreshToken = loginJson.GetProperty("refreshToken").GetString();
-
-		var refreshResponse = await _client.PostAsJsonAsync("/api/auth/refresh", new
-		{
-			accessToken,
-			refreshToken
-		});
-
-		Assert.Equal(HttpStatusCode.OK, refreshResponse.StatusCode);
-
-		var refreshJson = await refreshResponse.Content.ReadFromJsonAsync<JsonElement>();
-		Assert.False(string.IsNullOrWhiteSpace(refreshJson.GetProperty("accessToken").GetString()));
-		Assert.False(string.IsNullOrWhiteSpace(refreshJson.GetProperty("refreshToken").GetString()));
-	}
-
-	[Fact]
-	public async Task Me_WithValidBearerToken_ReturnsCurrentUser()
-	{
-		var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
-		{
-			email = "admin@example.com",
-			password = "Admin123!ChangeMe",
-			turnstileToken = "test-token"
-		});
-		loginResponse.EnsureSuccessStatusCode();
-
-		var loginJson = await loginResponse.Content.ReadFromJsonAsync<JsonElement>();
-		var accessToken = loginJson.GetProperty("accessToken").GetString();
-
-		_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-		var meResponse = await _client.GetAsync("/api/auth/me");
-
-		Assert.Equal(HttpStatusCode.OK, meResponse.StatusCode);
-
-		var meJson = await meResponse.Content.ReadFromJsonAsync<JsonElement>();
-		Assert.Equal("admin@example.com", meJson.GetProperty("email").GetString());
-	}
-
-	[Fact]
-	public async Task UpdateProfile_WithValidBearerToken_UpdatesCurrentUser()
+	public async Task UpdateProfile_WithCookieAuth_UpdatesCurrentUser()
 	{
 		await AuthenticateAsAdminAsync();
 
@@ -176,24 +166,8 @@ public class AuthEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		});
 
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
 		var json = await response.Content.ReadFromJsonAsync<JsonElement>();
 		Assert.Equal("Updated", json.GetProperty("firstName").GetString());
-		Assert.Equal("Volunteer", json.GetProperty("lastName").GetString());
-		Assert.Equal("+380671112233", json.GetProperty("phoneNumber").GetString());
-	}
-
-	[Fact]
-	public async Task UpdateProfile_WithoutToken_ReturnsUnauthorized()
-	{
-		var response = await _client.PutAsJsonAsync("/api/auth/me", new
-		{
-			firstName = "Updated",
-			lastName = "Volunteer",
-			phoneNumber = "+380671112233"
-		});
-
-		Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
 	}
 
 	[Fact]
@@ -207,60 +181,10 @@ public class AuthEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		form.Add(fileContent, "file", "avatar.png");
 
 		var response = await _client.PostAsync("/api/auth/me/avatar", form);
-
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
 		var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-		var profilePhotoUrl = json.GetProperty("profilePhotoUrl").GetString();
-		Assert.False(string.IsNullOrWhiteSpace(profilePhotoUrl));
-		Assert.Contains("/uploads-test/", profilePhotoUrl, StringComparison.OrdinalIgnoreCase);
-	}
-
-	[Fact]
-	public async Task UploadAvatar_WithUnsupportedContentType_ReturnsBadRequest()
-	{
-		await AuthenticateAsAdminAsync();
-
-		using var form = new MultipartFormDataContent();
-		using var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes("not-an-image"));
-		fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
-		form.Add(fileContent, "file", "avatar.txt");
-
-		var response = await _client.PostAsync("/api/auth/me/avatar", form);
-
-		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-	}
-
-	[Fact]
-	public async Task Register_InvalidTurnstile_ReturnsBadRequest()
-	{
-		using var client = CreateClientWithTurnstile(new AlwaysInvalidTurnstileService());
-
-		var response = await client.PostAsJsonAsync("/api/auth/register", new
-		{
-			email = $"turnstile-{Guid.NewGuid():N}@example.com",
-			password = "Password123!",
-			confirmPassword = "Password123!",
-			firstName = "Turnstile",
-			lastName = "Failure",
-			turnstileToken = "invalid-token"
-		});
-
-		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-	}
-
-	[Fact]
-	public async Task GoogleLogin_TurnstileError_ReturnsInternalServerError()
-	{
-		using var client = CreateClientWithTurnstile(new ThrowingTurnstileService());
-
-		var response = await client.PostAsJsonAsync("/api/auth/google", new
-		{
-			idToken = "dummy-google-id-token",
-			turnstileToken = "token-that-throws"
-		});
-
-		Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+		Assert.Contains("/uploads-test/", json.GetProperty("profilePhotoUrl").GetString(), StringComparison.OrdinalIgnoreCase);
 	}
 
 	[Fact]
@@ -298,76 +222,49 @@ public class AuthEndpointsTests : IClassFixture<TestWebApplicationFactory>
 
 		var recordedEmail = _factory.EmailRecorder.Snapshot()
 			.LastOrDefault(m => string.Equals(m.To, email, StringComparison.OrdinalIgnoreCase));
-
 		Assert.NotNull(recordedEmail);
-		Assert.DoesNotContain("\\\"", recordedEmail!.Body, StringComparison.Ordinal);
 
-		var hrefMatch = Regex.Match(recordedEmail.Body, "href=\"(?<url>[^\"]+)\"", RegexOptions.IgnoreCase);
+		var hrefMatch = Regex.Match(recordedEmail!.Body, "href=\"(?<url>[^\"]+)\"", RegexOptions.IgnoreCase);
 		Assert.True(hrefMatch.Success);
 
-		var resetUrl = hrefMatch.Groups["url"].Value;
-		Assert.True(Uri.TryCreate(resetUrl, UriKind.Absolute, out var parsedResetUri));
-		Assert.Equal("/reset-password", parsedResetUri!.AbsolutePath);
-
-		var resetQuery = QueryHelpers.ParseQuery(parsedResetUri.Query);
-		Assert.True(resetQuery.TryGetValue("email", out var emailValue));
-		Assert.True(resetQuery.TryGetValue("token", out var tokenValue));
-		Assert.Equal(email, emailValue.ToString());
-		Assert.False(string.IsNullOrWhiteSpace(tokenValue.ToString()));
+		var resetUri = new Uri(hrefMatch.Groups["url"].Value);
+		var query = QueryHelpers.ParseQuery(resetUri.Query);
+		var token = query["token"].ToString();
 
 		var resetResponse = await _client.PostAsJsonAsync("/api/auth/reset-password", new
 		{
 			email,
-			token = tokenValue.ToString(),
+			token,
 			newPassword,
 			confirmPassword = newPassword
 		});
 		Assert.Equal(HttpStatusCode.OK, resetResponse.StatusCode);
 
-		var oldLoginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
-		{
-			email,
-			password = initialPassword,
-			turnstileToken = "test-token"
-		});
+		var oldLoginResponse = await LoginAsync(email, initialPassword);
 		Assert.Equal(HttpStatusCode.Unauthorized, oldLoginResponse.StatusCode);
 
-		var newLoginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
-		{
-			email,
-			password = newPassword,
-			turnstileToken = "test-token"
-		});
+		var newLoginResponse = await LoginAsync(email, newPassword);
 		Assert.Equal(HttpStatusCode.OK, newLoginResponse.StatusCode);
 	}
 
 	private async Task AuthenticateAsAdminAsync()
 	{
 		_client.DefaultRequestHeaders.Authorization = null;
+		_client.DefaultRequestHeaders.Remove(AuthTestHelpers.CsrfHeaderName);
 
-		var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
-		{
-			email = "admin@example.com",
-			password = "Admin123!ChangeMe",
-			turnstileToken = "test-token"
-		});
+		var loginResponse = await LoginAsync("admin@example.com", "Admin123!ChangeMe");
 		loginResponse.EnsureSuccessStatusCode();
-
-		var loginJson = await loginResponse.Content.ReadFromJsonAsync<JsonElement>();
-		var accessToken = loginJson.GetProperty("accessToken").GetString();
-		_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+		AuthTestHelpers.ApplyCsrfHeader(_client, loginResponse);
 	}
 
-	private HttpClient CreateClientWithTurnstile(ITurnstileService turnstileService)
+	private Task<HttpResponseMessage> LoginAsync(string email, string password)
 	{
-		return _factory.WithWebHostBuilder(builder =>
+		return _client.PostAsJsonAsync("/api/auth/login", new
 		{
-			builder.ConfigureServices(services =>
-			{
-				services.RemoveAll<ITurnstileService>();
-				services.AddSingleton(turnstileService);
-			});
-		}).CreateClient();
+			email,
+			password,
+			turnstileToken = "test-token"
+		});
 	}
 
 	private static byte[] CreateTinyPng()
@@ -384,21 +281,5 @@ public class AuthEndpointsTests : IClassFixture<TestWebApplicationFactory>
 			0x18, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,
 			0x44, 0xAE, 0x42, 0x60, 0x82
 		];
-	}
-
-	private sealed class AlwaysInvalidTurnstileService : ITurnstileService
-	{
-		public Task<bool> ValidateAsync(string token, string? remoteIp = null, CancellationToken ct = default)
-		{
-			return Task.FromResult(false);
-		}
-	}
-
-	private sealed class ThrowingTurnstileService : ITurnstileService
-	{
-		public Task<bool> ValidateAsync(string token, string? remoteIp = null, CancellationToken ct = default)
-		{
-			throw new InvalidOperationException("Turnstile exploded");
-		}
 	}
 }

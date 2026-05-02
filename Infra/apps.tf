@@ -257,6 +257,11 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
+        name  = "AuthCookies__Domain"
+        value = var.auth_cookies_domain
+      }
+
+      env {
         name  = "Redis__Enabled"
         value = tostring(var.redis_enabled)
       }

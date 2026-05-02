@@ -2,7 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProzoroBanka.API.Authorization;
-using ProzoroBanka.Application.Common.Models;
+using ProzoroBanka.API.Security;
 using ProzoroBanka.Application.Users.Commands.ImpersonateUser;
 
 namespace ProzoroBanka.API.Controllers;
@@ -13,15 +13,17 @@ namespace ProzoroBanka.API.Controllers;
 public class UserImpersonationController : ApiControllerBase
 {
 	private readonly ISender _sender;
+	private readonly IAuthCookieManager _authCookieManager;
 
-	public UserImpersonationController(ISender sender)
+	public UserImpersonationController(ISender sender, IAuthCookieManager authCookieManager)
 	{
 		_sender = sender;
+		_authCookieManager = authCookieManager;
 	}
 
 	[HttpPost("{id:guid}/impersonate")]
 	[HasPermission(Permissions.UsersImpersonate)]
-	[ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	[ProducesResponseType(StatusCodes.Status404NotFound)]
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
 	public async Task<IActionResult> Impersonate(Guid id, CancellationToken ct)
@@ -30,6 +32,7 @@ public class UserImpersonationController : ApiControllerBase
 		if (!result.IsSuccess)
 			return NotFound(new { Error = result.Message });
 
-		return Ok(result.Payload);
+		_authCookieManager.SetAuthCookies(Response, result.Payload!);
+		return NoContent();
 	}
 }

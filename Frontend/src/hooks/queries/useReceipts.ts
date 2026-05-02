@@ -30,7 +30,7 @@ export function useMyReceipts(
   status?: ReceiptStatus,
   onlyUnattached = false,
   enabled = true,
-  refetchInterval?: number | false | ((data: any) => number | false),
+  refetchInterval?: number | false | ((query: any) => number | false),
 ) {
   return useQuery({
     queryKey: receiptKeys.list(organizationId, search, status, onlyUnattached),
@@ -147,7 +147,7 @@ export function useReceiptDetail(
   organizationId: string,
   receiptId: string,
   enabled = true,
-  refetchInterval?: number | false | ((data: any) => number | false),
+  refetchInterval?: number | false | ((query: any) => number | false),
 ) {
   return useQuery({
     ...getReceiptDetailOptions(organizationId, receiptId),

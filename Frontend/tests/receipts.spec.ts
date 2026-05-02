@@ -17,7 +17,7 @@ test.describe('Dashboard — Receipts', () => {
     const user = await registerAndSetAuthStorage(page);
     const orgId = await createOrganizationViaApi(
       page.request,
-      user.auth.accessToken,
+      user.auth,
       `Receipts Registry ${Date.now()}`,
     );
 
@@ -39,7 +39,7 @@ test.describe('Dashboard — Receipts', () => {
     const user = await registerAndSetAuthStorage(page);
     const orgId = await createOrganizationViaApi(
       page.request,
-      user.auth.accessToken,
+      user.auth,
       `Receipts Pipeline ${Date.now()}`,
     );
 
@@ -89,7 +89,7 @@ test.describe('Dashboard — Receipts', () => {
     const user = await registerAndSetAuthStorage(page);
     const orgId = await createOrganizationViaApi(
       page.request,
-      user.auth.accessToken,
+      user.auth,
       `Receipt Items ${Date.now()}`,
     );
 
@@ -120,7 +120,7 @@ test.describe('Dashboard — Receipts', () => {
     const user = await registerAndSetAuthStorage(page);
     const orgId = await createOrganizationViaApi(
       page.request,
-      user.auth.accessToken,
+      user.auth,
       `Receipts Delete ${Date.now()}`,
     );
 
@@ -147,7 +147,7 @@ test.describe('Dashboard — Receipts', () => {
     const user = await registerAndSetAuthStorage(page);
     const orgId = await createOrganizationViaApi(
       page.request,
-      user.auth.accessToken,
+      user.auth,
       `Receipt Pending OCR ${Date.now()}`,
     );
 

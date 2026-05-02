@@ -497,15 +497,13 @@ public class PurchasesOperationsEndpointsTests : IClassFixture<TestWebApplicatio
         });
 
         loginResponse.EnsureSuccessStatusCode();
-
-        var loginJson = await loginResponse.Content.ReadFromJsonAsync<JsonElement>();
-        var accessToken = loginJson.GetProperty("accessToken").GetString();
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            AuthTestHelpers.ApplyCsrfHeader(_client, loginResponse);
     }
 
     private async Task RegisterAsync(string email, string password)
     {
-        var response = await _client.PostAsJsonAsync("/api/auth/register", new
+        var tempClient = _factory.CreateClient();
+        var response = await tempClient.PostAsJsonAsync("/api/auth/register", new
         {
             email,
             password,
@@ -528,9 +526,6 @@ public class PurchasesOperationsEndpointsTests : IClassFixture<TestWebApplicatio
         });
 
         loginResponse.EnsureSuccessStatusCode();
-
-        var loginJson = await loginResponse.Content.ReadFromJsonAsync<JsonElement>();
-        var accessToken = loginJson.GetProperty("accessToken").GetString();
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            AuthTestHelpers.ApplyCsrfHeader(_client, loginResponse);
     }
 }

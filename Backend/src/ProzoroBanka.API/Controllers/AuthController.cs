@@ -1,9 +1,13 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using ProzoroBanka.API.Authorization;
+using ProzoroBanka.API.Configuration;
 using ProzoroBanka.API.Filters;
+using ProzoroBanka.API.Security;
 using ProzoroBanka.Application.Auth.DTOs;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Users.Commands.AuthenticateUser;
@@ -18,27 +22,28 @@ using ProzoroBanka.Application.Users.Queries.Profile;
 
 namespace ProzoroBanka.API.Controllers;
 
-/// <summary>
-/// Автентифікація та авторизація (Register / Login / Refresh / Logout / Google / Me).
-/// Тонкий контролер — вся бізнес-логіка делегується MediatR handlers.
-/// </summary>
 [ServiceFilter(typeof(TurnstileValidationFilter))]
 public class AuthController : ApiControllerBase
 {
 	private readonly ISender _sender;
 	private readonly IConfiguration _configuration;
+	private readonly IAuthCookieManager _authCookieManager;
+	private readonly AuthCookieSettings _authCookieSettings;
 
-	public AuthController(ISender sender, IConfiguration configuration)
+	public AuthController(
+		ISender sender,
+		IConfiguration configuration,
+		IAuthCookieManager authCookieManager,
+		IOptions<AuthCookieSettings> authCookieSettings)
 	{
 		_sender = sender;
 		_configuration = configuration;
+		_authCookieManager = authCookieManager;
+		_authCookieSettings = authCookieSettings.Value;
 	}
 
-	/// <summary>
-	/// Реєстрація нового користувача.
-	/// </summary>
 	[HttpPost("register")]
-	[ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken ct)
 	{
@@ -50,16 +55,15 @@ public class AuthController : ApiControllerBase
 			request.LastName);
 
 		var result = await _sender.Send(command, ct);
-		return result.IsSuccess
-			? Ok(result.Payload)
-			: BadRequest(new { Error = result.Message });
+		if (!result.IsSuccess)
+			return BadRequest(new { Error = result.Message });
+
+		SetAuthCookies(result.Payload!);
+		return Ok(new { result.Payload!.User });
 	}
 
-	/// <summary>
-	/// Вхід за логіном та паролем.
-	/// </summary>
 	[HttpPost("login")]
-	[ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 	public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
 	{
@@ -68,45 +72,47 @@ public class AuthController : ApiControllerBase
 			request.Password);
 
 		var result = await _sender.Send(command, ct);
-		return result.IsSuccess
-			? Ok(result.Payload)
-			: Unauthorized(new { Error = result.Message });
+		if (!result.IsSuccess)
+			return Unauthorized(new { Error = result.Message });
+
+		SetAuthCookies(result.Payload!);
+		return Ok(new { result.Payload!.User });
 	}
 
-	/// <summary>
-	/// Оновлення токенів за допомогою refresh token.
-	/// </summary>
 	[HttpPost("refresh")]
-	[ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	[ProducesResponseType(StatusCodes.Status401Unauthorized)]
-	public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request, CancellationToken ct)
+	public async Task<IActionResult> Refresh(CancellationToken ct)
 	{
-		var command = new RefreshTokenCommand(request.AccessToken, request.RefreshToken);
+		if (!TryGetAuthCookies(out var accessToken, out var refreshToken))
+			return Unauthorized();
+
+		var command = new RefreshTokenCommand(accessToken, refreshToken);
 		var result = await _sender.Send(command, ct);
-		return result.IsSuccess
-			? Ok(result.Payload)
-			: Unauthorized(new { Error = result.Message });
+		if (!result.IsSuccess)
+		{
+			_authCookieManager.ClearAuthCookies(Response);
+			return Unauthorized(new { Error = result.Message });
+		}
+
+		_authCookieManager.SetAuthCookies(Response, result.Payload!);
+		return NoContent();
 	}
 
-	/// <summary>
-	/// Вхід через Google OAuth.
-	/// </summary>
 	[HttpPost("google")]
-	[ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request, CancellationToken ct)
 	{
 		var command = new GoogleLoginCommand(request.IdToken);
-
 		var result = await _sender.Send(command, ct);
-		return result.IsSuccess
-			? Ok(result.Payload)
-			: BadRequest(new { Error = result.Message });
+		if (!result.IsSuccess)
+			return BadRequest(new { Error = result.Message });
+
+		SetAuthCookies(result.Payload!);
+		return Ok(new { result.Payload!.User });
 	}
 
-	/// <summary>
-	/// Ініціація скидання пароля.
-	/// </summary>
 	[HttpPost("forgot-password")]
 	[ProducesResponseType(StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -135,9 +141,6 @@ public class AuthController : ApiControllerBase
 			: BadRequest(new { Error = result.Message });
 	}
 
-	/// <summary>
-	/// Підтвердження скидання пароля за токеном.
-	/// </summary>
 	[HttpPost("reset-password")]
 	[ProducesResponseType(StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -155,26 +158,24 @@ public class AuthController : ApiControllerBase
 			: BadRequest(new { Error = result.Message });
 	}
 
-	/// <summary>
-	/// Вихід — відкликання refresh token.
-	/// </summary>
 	[Authorize]
 	[HttpPost("logout")]
 	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> Logout(CancellationToken ct)
 	{
 		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-		if (userId is null)
+		var sessionId = User.FindFirst(JwtRegisteredClaimNames.Sid)?.Value
+			?? User.FindFirst("sid")?.Value;
+
+		if (userId is null || string.IsNullOrWhiteSpace(sessionId))
 			return Unauthorized();
 
-		var command = new Application.Users.Commands.LogoutUser.LogoutUserCommand(Guid.Parse(userId));
+		var command = new Application.Users.Commands.LogoutUser.LogoutUserCommand(Guid.Parse(userId), sessionId);
 		var result = await _sender.Send(command, ct);
+		_authCookieManager.ClearAuthCookies(Response);
 		return result.IsSuccess ? NoContent() : BadRequest(new { Error = result.Message });
 	}
 
-	/// <summary>
-	/// Отримання інформації про поточного користувача.
-	/// </summary>
 	[Authorize]
 	[HttpGet("me")]
 	[HasPermission(Permissions.UsersSelf)]
@@ -192,9 +193,6 @@ public class AuthController : ApiControllerBase
 			: NotFound(new { Error = result.Message });
 	}
 
-	/// <summary>
-	/// Оновлення базових даних профілю поточного користувача.
-	/// </summary>
 	[Authorize]
 	[HttpPut("me")]
 	[HasPermission(Permissions.UsersSelf)]
@@ -218,9 +216,6 @@ public class AuthController : ApiControllerBase
 			: BadRequest(new { Error = result.Message });
 	}
 
-	/// <summary>
-	/// Завантаження або оновлення фото профілю.
-	/// </summary>
 	[Authorize]
 	[HttpPost("me/avatar")]
 	[HasPermission(Permissions.UsersSelf)]
@@ -248,5 +243,33 @@ public class AuthController : ApiControllerBase
 		return result.IsSuccess
 			? Ok(result.Payload)
 			: BadRequest(new { Error = result.Message });
+	}
+
+	private bool TryGetAuthCookies(out string accessToken, out string refreshToken)
+	{
+		if (Request.Cookies.TryGetValue(_authCookieSettings.AccessTokenCookieName, out var accessTokenValue)
+			&& !string.IsNullOrWhiteSpace(accessTokenValue)
+			&& Request.Cookies.TryGetValue(_authCookieSettings.RefreshTokenCookieName, out var refreshTokenValue)
+			&& !string.IsNullOrWhiteSpace(refreshTokenValue))
+		{
+			accessToken = accessTokenValue;
+			refreshToken = refreshTokenValue;
+			return true;
+		}
+
+		accessToken = string.Empty;
+		refreshToken = string.Empty;
+		return false;
+	}
+
+	private void SetAuthCookies(AuthResponse authResponse)
+	{
+		_authCookieManager.SetAuthCookies(
+			Response,
+			new TokenResponse(
+				authResponse.AccessToken,
+				authResponse.RefreshToken,
+				authResponse.AccessTokenExpiry,
+				authResponse.RefreshTokenExpiry));
 	}
 }

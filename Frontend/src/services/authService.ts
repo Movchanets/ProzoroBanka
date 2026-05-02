@@ -1,5 +1,5 @@
 import { apiFetch } from './api';
-import type { AuthResponse, TokenResponse } from '../types';
+import type { AuthResponse } from '../types';
 
 export interface LoginPayload {
   email: string;
@@ -64,10 +64,9 @@ export const authService = {
       body: JSON.stringify(payload),
     }),
 
-  refresh: (accessToken: string, refreshToken: string) =>
-    apiFetch<TokenResponse>('/api/auth/refresh', {
+  refresh: () =>
+    apiFetch<void>('/api/auth/refresh', {
       method: 'POST',
-      body: JSON.stringify({ accessToken, refreshToken }),
     }),
 
   logout: () =>

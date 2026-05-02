@@ -56,6 +56,11 @@ public class GlobalExceptionHandlerMiddleware
 			await context.Response.WriteAsync(
 				JsonSerializer.Serialize(new { Error = "Доступ заборонено." }));
 		}
+		catch (OperationCanceledException)
+		{
+			_logger.LogInformation("Request was cancelled");
+			context.Response.StatusCode = 499; // Client Closed Request
+		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Unhandled exception: {Message}", ex.Message);

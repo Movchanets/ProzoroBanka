@@ -29,12 +29,11 @@ public class PublicEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		var campaignId = await CreateCampaignAsync(orgId, $"Public Campaign {Guid.NewGuid():N}");
 		await ActivateCampaignAsync(campaignId);
 
-		_client.DefaultRequestHeaders.Authorization = null;
-
-		var orgResponse = await _client.GetAsync($"/api/public/organizations/{org.GetProperty("slug").GetString()}");
+		var publicClient = _factory.CreateClient();
+		var orgResponse = await publicClient.GetAsync($"/api/public/organizations/{org.GetProperty("slug").GetString()}");
 		Assert.Equal(HttpStatusCode.OK, orgResponse.StatusCode);
 
-		var campaignResponse = await _client.GetAsync($"/api/public/campaigns/{campaignId}");
+		var campaignResponse = await publicClient.GetAsync($"/api/public/campaigns/{campaignId}");
 		Assert.Equal(HttpStatusCode.OK, campaignResponse.StatusCode);
 	}
 
@@ -48,9 +47,8 @@ public class PublicEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		var campaignId = await CreateCampaignAsync(orgId, $"Search Campaign {unique}");
 		await ActivateCampaignAsync(campaignId);
 
-		_client.DefaultRequestHeaders.Authorization = null;
-
-		var response = await _client.GetAsync($"/api/public/campaigns/search?query={Uri.EscapeDataString(unique)}&verifiedOnly=false&page=1&pageSize=12");
+		var publicClient = _factory.CreateClient();
+		var response = await publicClient.GetAsync($"/api/public/campaigns/search?query={Uri.EscapeDataString(unique)}&verifiedOnly=false&page=1&pageSize=12");
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
 		var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -89,12 +87,11 @@ public class PublicEndpointsTests : IClassFixture<TestWebApplicationFactory>
 			await db.SaveChangesAsync();
 		}
 
-		_client.DefaultRequestHeaders.Authorization = null;
-
-		var orgCampaignsResponse = await _client.GetAsync($"/api/public/organizations/{org.GetProperty("slug").GetString()}/campaigns");
+		var publicClient = _factory.CreateClient();
+		var orgCampaignsResponse = await publicClient.GetAsync($"/api/public/organizations/{org.GetProperty("slug").GetString()}/campaigns");
 		Assert.Equal(HttpStatusCode.OK, orgCampaignsResponse.StatusCode);
 
-		var receiptResponse = await _client.GetAsync($"/api/public/receipts/{draftReceiptId}");
+		var receiptResponse = await publicClient.GetAsync($"/api/public/receipts/{draftReceiptId}");
 		Assert.Equal(HttpStatusCode.NotFound, receiptResponse.StatusCode);
 	}
 
@@ -158,9 +155,8 @@ public class PublicEndpointsTests : IClassFixture<TestWebApplicationFactory>
 			await db.SaveChangesAsync();
 		}
 
-		_client.DefaultRequestHeaders.Authorization = null;
-
-		var response = await _client.GetAsync($"/api/public/receipts/{receiptId}");
+		var publicClient = _factory.CreateClient();
+		var response = await publicClient.GetAsync($"/api/public/receipts/{receiptId}");
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
 		var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -182,10 +178,7 @@ public class PublicEndpointsTests : IClassFixture<TestWebApplicationFactory>
 			turnstileToken = "test-token"
 		});
 		loginResponse.EnsureSuccessStatusCode();
-
-		var loginJson = await loginResponse.Content.ReadFromJsonAsync<JsonElement>();
-		var accessToken = loginJson.GetProperty("accessToken").GetString();
-		_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            AuthTestHelpers.ApplyCsrfHeader(_client, loginResponse);
 	}
 
 	private async Task<Guid> CreateOrganizationAsync(string name)
