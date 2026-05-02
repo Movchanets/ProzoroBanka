@@ -1,3 +1,4 @@
+import Cookies from "js-cookie";
 import { useAuthStore, waitAuthHydration } from "../stores/authStore";
 import type { ApiError } from "../types";
 
@@ -5,25 +6,35 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const CSRF_COOKIE_NAME = "pb_csrf_token";
 const CSRF_HEADER_NAME = "X-CSRF-TOKEN";
 
+const AUTH_ENDPOINTS = [
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/google",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
+];
+
 let refreshPromise: Promise<void> | null = null;
 
+/**
+ * Checks if the method is one that requires CSRF protection
+ */
 function isMutatingMethod(method: string): boolean {
   return !["GET", "HEAD", "OPTIONS", "TRACE"].includes(method.toUpperCase());
 }
 
+/**
+ * Gets a cookie value by name using js-cookie
+ */
 function getCookieValue(name: string): string | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-  return match ? decodeURIComponent(match[2]) : null;
+  return Cookies.get(name) ?? null;
 }
 
+/**
+ * Appends the CSRF header to the provided Headers object if applicable
+ */
 function appendCsrfHeader(headers: Headers, method?: string): void {
-  if (!method || !isMutatingMethod(method)) {
-    return;
-  }
+  if (!method || !isMutatingMethod(method)) return;
 
   const csrfToken = getCookieValue(CSRF_COOKIE_NAME);
   if (csrfToken && !headers.has(CSRF_HEADER_NAME)) {
@@ -31,6 +42,9 @@ function appendCsrfHeader(headers: Headers, method?: string): void {
   }
 }
 
+/**
+ * Performs the actual token refresh call
+ */
 async function refreshTokens(): Promise<void> {
   const headers = new Headers({ "Content-Type": "application/json" });
   appendCsrfHeader(headers, "POST");
@@ -41,57 +55,67 @@ async function refreshTokens(): Promise<void> {
     credentials: "include",
   });
 
-  if (!response.ok) {
-    throw new Error("Refresh failed");
-  }
+  if (!response.ok) throw new Error("Refresh failed");
 }
 
+/**
+ * Prevents multiple concurrent refresh calls
+ */
 async function getRefreshToken(): Promise<void> {
   if (!refreshPromise) {
     refreshPromise = refreshTokens().finally(() => {
       refreshPromise = null;
     });
   }
-
   return refreshPromise;
 }
 
-async function readResponseBody<T>(response: Response): Promise<T> {
-  if (response.status === 204) {
-    return undefined as T;
+/**
+ * Detects if the response is a CSRF validation failure
+ */
+async function detectCsrfFailure(response: Response): Promise<boolean> {
+  if (response.status !== 403) return false;
+  
+  try {
+    const body = await response.clone().json();
+    const msg = (body?.error || body?.Error || "").toLowerCase();
+    return msg.includes("csrf validation failed");
+  } catch {
+    const text = await response.clone().text().catch(() => "");
+    return text.toLowerCase().includes("csrf validation failed");
   }
+}
+
+/**
+ * Parses response body based on content type
+ */
+async function readResponseBody<T>(response: Response): Promise<T> {
+  if (response.status === 204) return undefined as T;
 
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
     return response.json() as Promise<T>;
   }
-
   return (await response.text()) as T;
 }
 
+/**
+ * Extracts a human-readable error message from the API error object
+ */
 function getErrorMessage(error: ApiError, status: number): string {
-  const firstValidationError = error.errors
-    ? Object.values(error.errors).flat()[0]
-    : undefined;
-
-  return (
-    error.error ||
-    error.message ||
-    firstValidationError ||
-    error.title ||
-    `API Error: ${status}`
-  );
+  const firstValError = error.errors ? Object.values(error.errors).flat()[0] : undefined;
+  return error.error || error.message || firstValError || error.title || `API Error: ${status}`;
 }
 
-export async function apiFetch<T>(
-  endpoint: string,
-  options: RequestInit = {},
-): Promise<T> {
+/**
+ * Main API fetch wrapper with automatic 401/403(CSRF) retry logic
+ */
+export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   await waitAuthHydration();
 
+  const method = (options.method ?? "GET").toUpperCase();
   const headers = new Headers(options.headers);
   const isFormData = options.body instanceof FormData;
-  const method = (options.method ?? "GET").toUpperCase();
 
   if (!isFormData && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -99,36 +123,33 @@ export async function apiFetch<T>(
 
   appendCsrfHeader(headers, method);
 
-  let response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const executeFetch = () => fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     method,
     headers,
     credentials: "include",
   });
 
-  const isCsrfFailure = (res: Response, body: any) =>
-    res.status === 403 &&
-    (body?.error?.toLowerCase().includes("csrf validation failed") ||
-      body?.Error?.toLowerCase().includes("csrf validation failed") ||
-      (typeof body === "string" && body.toLowerCase().includes("csrf validation failed")));
+  let response = await executeFetch();
 
-  if (response.status === 401 && endpoint !== "/api/auth/refresh") {
+  // Handle Auth/CSRF failures with a single retry
+  const isUnauthorized = response.status === 401 && endpoint !== "/api/auth/refresh" && !AUTH_ENDPOINTS.includes(endpoint);
+  const isCsrf = await detectCsrfFailure(response);
+
+  if (isUnauthorized || isCsrf) {
     try {
       await getRefreshToken();
-      appendCsrfHeader(headers, method);
-
-      response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...options,
-        method,
-        headers,
-        credentials: "include",
-      });
-    } catch {
-      useAuthStore.getState().logout();
-      throw new Error("Session expired");
+      appendCsrfHeader(headers, method); // Refresh might have updated CSRF token
+      response = await executeFetch();
+    } catch (err) {
+      if (isUnauthorized) {
+        useAuthStore.getState().logout();
+        throw new Error("Session expired");
+      }
+      throw err;
     }
 
-    if (response.status === 401) {
+    if (response.status === 401 && !AUTH_ENDPOINTS.includes(endpoint)) {
       useAuthStore.getState().logout();
       throw new Error("Unauthorized");
     }
@@ -136,47 +157,11 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     let err: ApiError = {} as ApiError;
-    let body: any;
     try {
-      body = await response.json();
-      err = body;
+      err = await response.json();
     } catch {
-      // If JSON parsing fails, try reading as text for the CSRF check
-      try {
-        body = await response.clone().text();
-      } catch {
-        // no-op
-      }
+      // Fallback for non-JSON errors
     }
-
-    // Handle CSRF recovery: refresh token and retry once
-    if (isCsrfFailure(response, body)) {
-      try {
-        await getRefreshToken();
-        appendCsrfHeader(headers, method);
-
-        response = await fetch(`${API_BASE_URL}${endpoint}`, {
-          ...options,
-          method,
-          headers,
-          credentials: "include",
-        });
-
-        if (response.ok) {
-          return readResponseBody<T>(response);
-        }
-
-        // If retry also fails with CSRF, parse the new error
-        try {
-          err = await response.json();
-        } catch {
-          // no-op
-        }
-      } catch (refreshErr) {
-        throw new Error("CSRF recovery failed: " + (refreshErr instanceof Error ? refreshErr.message : "Unknown error"));
-      }
-    }
-
     throw new Error(getErrorMessage(err, response.status));
   }
 
