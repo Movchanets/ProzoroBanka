@@ -21,7 +21,8 @@ public sealed class CsrfValidationMiddleware
 		"/api/auth/register",
 		"/api/auth/google",
 		"/api/auth/forgot-password",
-		"/api/auth/reset-password"
+		"/api/auth/reset-password",
+		"/api/auth/refresh"
 	];
 
 	private readonly RequestDelegate _next;
@@ -68,6 +69,9 @@ public sealed class CsrfValidationMiddleware
 
 	private bool ShouldSkipValidation(HttpRequest request)
 	{
+		if (!_settings.Enabled)
+			return true;
+
 		if (SafeMethods.Contains(request.Method))
 			return true;
 

@@ -16,12 +16,8 @@ function getCookieValue(name: string): string | null {
     return null;
   }
 
-  const token = document.cookie
-    .split("; ")
-    .find((item) => item.startsWith(`${name}=`))
-    ?.split("=")[1];
-
-  return token ? decodeURIComponent(token) : null;
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return match ? decodeURIComponent(match[2]) : null;
 }
 
 function appendCsrfHeader(headers: Headers, method?: string): void {
@@ -110,6 +106,12 @@ export async function apiFetch<T>(
     credentials: "include",
   });
 
+  const isCsrfFailure = (res: Response, body: any) =>
+    res.status === 403 &&
+    (body?.error?.toLowerCase().includes("csrf validation failed") ||
+      body?.Error?.toLowerCase().includes("csrf validation failed") ||
+      (typeof body === "string" && body.toLowerCase().includes("csrf validation failed")));
+
   if (response.status === 401 && endpoint !== "/api/auth/refresh") {
     try {
       await getRefreshToken();
@@ -134,10 +136,45 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     let err: ApiError = {} as ApiError;
+    let body: any;
     try {
-      err = await response.json();
+      body = await response.json();
+      err = body;
     } catch {
-      // no-op
+      // If JSON parsing fails, try reading as text for the CSRF check
+      try {
+        body = await response.clone().text();
+      } catch {
+        // no-op
+      }
+    }
+
+    // Handle CSRF recovery: refresh token and retry once
+    if (isCsrfFailure(response, body)) {
+      try {
+        await getRefreshToken();
+        appendCsrfHeader(headers, method);
+
+        response = await fetch(`${API_BASE_URL}${endpoint}`, {
+          ...options,
+          method,
+          headers,
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          return readResponseBody<T>(response);
+        }
+
+        // If retry also fails with CSRF, parse the new error
+        try {
+          err = await response.json();
+        } catch {
+          // no-op
+        }
+      } catch (refreshErr) {
+        throw new Error("CSRF recovery failed: " + (refreshErr instanceof Error ? refreshErr.message : "Unknown error"));
+      }
     }
 
     throw new Error(getErrorMessage(err, response.status));

@@ -14,6 +14,7 @@ public sealed class AuthCookieSettings
 	public bool Secure { get; init; } = true;
 	public string Path { get; init; } = "/";
 	public int CsrfTokenSizeBytes { get; init; } = 32;
+	public bool Enabled { get; init; } = true;
 
 	public SameSiteMode ResolveSameSiteMode()
 	{
