@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -8,8 +9,12 @@ import { useAuthStore } from '@/stores/authStore';
 
 export function PublicHeader() {
   const { t } = useTranslation();
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => setIsMounted(true), []);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const entryLabel = isAuthenticated ? t('common.goToDashboard') : t('common.volunteerSignIn');
+  
+  const showDashboardLink = isMounted && isAuthenticated;
+  const entryLabel = showDashboardLink ? t('common.goToDashboard') : t('common.volunteerSignIn');
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl" data-testid="public-page-toolbar">
@@ -38,7 +43,7 @@ export function PublicHeader() {
             className="touch-manipulation bg-secondary text-white! shadow-[0_4px_14px_hsl(216_66%_28%/0.18)] hover:bg-secondary/90 [&_svg]:text-white! sm:ml-1"
             data-testid="public-page-toolbar-entry-link"
           >
-            <Link to={isAuthenticated ? '/dashboard' : '/login'} aria-label={entryLabel} className="text-white!">
+            <Link to={showDashboardLink ? '/dashboard' : '/login'} aria-label={entryLabel} className="text-white!">
               <Compass className="h-4 w-4" aria-hidden="true" />
               <span className="hidden lg:inline">{entryLabel}</span>
               <ArrowRight className="hidden h-4 w-4 lg:inline" aria-hidden="true" />

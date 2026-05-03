@@ -12,7 +12,7 @@ import { ComingSoonStub } from '@/components/public/ComingSoonStub';
 import { useHomeCampaignFeed, usePublicCampaignCategories, useSearchOrganizations } from '@/hooks/queries/usePublic';
 import { useTranslation } from 'react-i18next';
 import { resolveLocalizedText } from '@/lib/localizedText';
-import { useLocation, useNavigate } from 'react-router';
+import { useLoaderData, useLocation, useNavigate } from 'react-router';
 import type { MetaDescriptor } from 'react-router';
 import { ensureQueryData } from '@/utils/routerHelpers';
 import { getHomeCampaignFeedOptions, getPublicCampaignCategoriesOptions, getSearchOrganizationsOptions } from '@/hooks/queries/usePublic';
@@ -48,30 +48,23 @@ export function meta(): MetaDescriptor[] {
 //   return null;
 // }
 export async function loader() {
-  // Визначаємо, чи ми на сервері під час білду
   const isServer = typeof window === 'undefined';
 
   try {
-    // Намагаємося стягнути дані для SSG
-    await Promise.all([
+    const [categories, campaigns, organizations] = await Promise.all([
       ensureQueryData(getPublicCampaignCategoriesOptions()),
       ensureQueryData(getHomeCampaignFeedOptions('', undefined, 'all', true, 24)),
       ensureQueryData(getSearchOrganizationsOptions('', 1, false, false, 'activeCampaigns', 12)),
     ]);
     
-    return null;
+    return { categories, campaigns, organizations };
   } catch (error) {
-    // 1. Виводимо реальну помилку в термінал, щоб ви могли її прочитати!
     console.error("❌ Помилка лоадера під час SSG-збірки:", error);
 
-    // 2. Якщо ми в браузері, прокидаємо помилку далі (щоб спрацював ErrorBoundary)
     if (!isServer) {
       throw error;
     }
 
-    // 3. АЛЕ якщо ми на етапі SSG-білду, МИ НЕ КИДАЄМО ПОМИЛКУ.
-    // Повертаємо null. Білд пройде успішно (без 500 статусу). 
-    // HTML згенерується пустим, і клієнтський React сам зробить запит.
     return null;
   }
 }
@@ -91,6 +84,8 @@ export default function HomePage() {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const loaderData = useLoaderData<typeof loader>();
+  
   const [query, setQuery] = useState('');
   const [campaignStatus, setCampaignStatus] = useState<CampaignFilterStatus>('all');
   const [campaignCategorySlug, setCampaignCategorySlug] = useState<string>('all');
@@ -98,9 +93,17 @@ export default function HomePage() {
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [activeOnly, setActiveOnly] = useState(false);
   const deferredQuery = useDeferredValue(query);
-  const tab = parseHomeTabFromHash(location.hash) ?? 'campaigns';
 
-  const campaignCategoriesQuery = usePublicCampaignCategories(tab === 'campaigns');
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  const tab = isMounted ? (parseHomeTabFromHash(location.hash) ?? 'campaigns') : 'campaigns';
+
+  const campaignCategoriesQuery = usePublicCampaignCategories({
+    enabled: tab === 'campaigns',
+    initialData: loaderData?.categories ?? undefined
+  });
 
   const organizationSearch = useSearchOrganizations(
     deferredQuery,
@@ -109,7 +112,7 @@ export default function HomePage() {
     activeOnly,
     'activeCampaigns',
     12,
-    tab === 'organizations',
+    { enabled: tab === 'organizations', initialData: loaderData?.organizations ?? undefined },
   );
   const campaignSearch = useHomeCampaignFeed(
     deferredQuery,
@@ -117,7 +120,7 @@ export default function HomePage() {
     campaignStatus,
     campaignVerifiedOnly,
     24,
-    tab === 'campaigns',
+    { enabled: tab === 'campaigns', initialData: loaderData?.campaigns ?? undefined },
   );
 
   const organizations = organizationSearch.data?.items ?? [];

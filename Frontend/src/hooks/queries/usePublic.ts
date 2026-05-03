@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { CampaignStatus, type CampaignStatus as CampaignStatusType } from '@/types';
 import { publicService } from '@/services/publicService';
-import type { PublicListResponse, PublicReceipt, PublicCampaignDetail, PublicOrganization, PublicReceiptDetail } from '@/types';
+import type { PublicListResponse, PublicReceipt, PublicCampaignDetail, PublicOrganization, PublicReceiptDetail, PublicCampaign, PublicCampaignCategory } from '@/types';
 
 type HomeCampaignStatusFilter = 'all' | 'active' | 'completed';
 
@@ -53,13 +53,14 @@ export function useSearchOrganizations(
   activeOnly: boolean,
   sortBy?: 'verified' | 'totalRaised' | 'activeCampaigns',
   pageSize = 12,
-  enabled = true,
+  options?: { enabled?: boolean; initialData?: PublicListResponse<PublicOrganization> },
 ) {
   return useQuery({
     queryKey: publicKeys.organizations(query, page, verifiedOnly, activeOnly, sortBy, pageSize),
     queryFn: () => publicService.searchOrganizations(query, page, verifiedOnly, activeOnly, sortBy, pageSize),
-    enabled,
+    enabled: options?.enabled ?? true,
     ...publicQueryDefaults,
+    ...options,
   });
 }
 
@@ -69,7 +70,7 @@ export function useHomeCampaignFeed(
   status: HomeCampaignStatusFilter,
   verifiedOnly: boolean,
   pageSize = 24,
-  enabled = true,
+  options?: { enabled?: boolean; initialData?: PublicCampaign[] },
 ) {
   return useQuery({
     queryKey: publicKeys.campaignSearchWithCategory(query, categorySlug, status, verifiedOnly, pageSize),
@@ -85,17 +86,19 @@ export function useHomeCampaignFeed(
 
       return response.items;
     },
-    enabled,
+    enabled: options?.enabled ?? true,
     ...publicQueryDefaults,
+    ...options,
   });
 }
 
-export function usePublicCampaignCategories(enabled = true) {
+export function usePublicCampaignCategories(options?: { enabled?: boolean; initialData?: PublicCampaignCategory[] }) {
   return useQuery({
     queryKey: publicKeys.campaignCategories(),
     queryFn: () => publicService.getCampaignCategories(),
-    enabled,
+    enabled: options?.enabled ?? true,
     ...publicQueryDefaults,
+    ...options,
   });
 }
 
