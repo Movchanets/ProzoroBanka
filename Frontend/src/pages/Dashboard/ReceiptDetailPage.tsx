@@ -89,8 +89,8 @@ export default function ReceiptDetailPage() {
     isActionBusy,
     isPendingOcr,
     missingOcrFields,
-    canRetry,
     canExtract,
+    requiresExtractConfirmation,
     isExtractTemporarilyLocked,
     isUpdateDraftMode,
     displayedReceiptPreview,
@@ -113,7 +113,6 @@ export default function ReceiptDetailPage() {
     onVerify,
     onOpenVerificationLink,
     onActivate,
-    onRetry,
     onRefresh,
     onChangeOcrField,
     onSaveOcrDraft,
@@ -192,15 +191,14 @@ export default function ReceiptDetailPage() {
         selectedModelIdentifier={selectedModelIdentifier}
         ocrModels={ocrModels ?? []}
         canExtract={canExtract}
+        requiresExtractConfirmation={requiresExtractConfirmation}
         isActionBusy={isActionBusy}
         isExtractTemporarilyLocked={isExtractTemporarilyLocked}
-        canRetry={canRetry}
         isPendingOcr={isPendingOcr}
         hasVerificationUrl={Boolean(receipt?.verificationUrl)}
         canVerify={Boolean(orgId && activeReceiptId)}
         canActivate={Boolean(activeReceiptId)}
         canRefresh={Boolean(activeReceiptId)}
-        retryTitle={!canRetry && activeReceiptId ? t('receipts.detail.pipeline.retryDisabledHint') : undefined}
         onReceiptIdChange={setReceiptIdInput}
         onTaxXmlSelected={onTaxXmlSelected}
         onTaxXmlDrop={(event) => {
@@ -210,11 +208,16 @@ export default function ReceiptDetailPage() {
         onExtract={() => {
           void onExtract();
         }}
-        onVerify={onVerify}
+        onVerify={() => {
+          void onVerify();
+        }}
         onOpenVerificationLink={onOpenVerificationLink}
-        onActivate={onActivate}
-        onRetry={onRetry}
-        onRefresh={onRefresh}
+        onActivate={() => {
+          void onActivate();
+        }}
+        onRefresh={() => {
+          void onRefresh();
+        }}
       />
 
       <ReceiptOcrEditorCard

@@ -1211,6 +1211,7 @@ export function useReceiptDetailController({
     missingOcrFields,
     canRetry,
     canExtract,
+    requiresExtractConfirmation,
     isExtractTemporarilyLocked,
     isUpdateDraftMode,
     displayedReceiptPreview,
