@@ -12,7 +12,7 @@ import { ComingSoonStub } from '@/components/public/ComingSoonStub';
 import { useHomeCampaignFeed, usePublicCampaignCategories, useSearchOrganizations } from '@/hooks/queries/usePublic';
 import { useTranslation } from 'react-i18next';
 import { resolveLocalizedText } from '@/lib/localizedText';
-import { useLoaderData, useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import type { MetaDescriptor } from 'react-router';
 import { ensureQueryData } from '@/utils/routerHelpers';
 import { getHomeCampaignFeedOptions, getPublicCampaignCategoriesOptions, getSearchOrganizationsOptions } from '@/hooks/queries/usePublic';
@@ -39,14 +39,14 @@ export function meta(): MetaDescriptor[] {
   ];
 }
 
-// export async function clientLoader() {
-//   await Promise.all([
-//     ensureQueryData(getPublicCampaignCategoriesOptions()),
-//     ensureQueryData(getHomeCampaignFeedOptions('', undefined, 'all', true, 24)),
-//     ensureQueryData(getSearchOrganizationsOptions('', 1, false, false, 'activeCampaigns', 12)),
-//   ]);
-//   return null;
-// }
+export async function clientLoader() {
+  await Promise.all([
+    ensureQueryData(getPublicCampaignCategoriesOptions()),
+    ensureQueryData(getHomeCampaignFeedOptions('', undefined, 'all', true, 24)),
+    ensureQueryData(getSearchOrganizationsOptions('', 1, false, false, 'activeCampaigns', 12)),
+  ]);
+  return null;
+}
 export async function loader() {
   const isServer = typeof window === 'undefined';
 
@@ -84,7 +84,6 @@ export default function HomePage() {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const loaderData = useLoaderData<typeof loader>();
   
   const [query, setQuery] = useState('');
   const [campaignStatus, setCampaignStatus] = useState<CampaignFilterStatus>('all');
@@ -102,7 +101,6 @@ export default function HomePage() {
 
   const campaignCategoriesQuery = usePublicCampaignCategories({
     enabled: tab === 'campaigns',
-    initialData: loaderData?.categories ?? undefined
   });
 
   const organizationSearch = useSearchOrganizations(
@@ -112,7 +110,7 @@ export default function HomePage() {
     activeOnly,
     'activeCampaigns',
     12,
-    { enabled: tab === 'organizations', initialData: loaderData?.organizations ?? undefined },
+    { enabled: tab === 'organizations' },
   );
   const campaignSearch = useHomeCampaignFeed(
     deferredQuery,
@@ -120,7 +118,7 @@ export default function HomePage() {
     campaignStatus,
     campaignVerifiedOnly,
     24,
-    { enabled: tab === 'campaigns', initialData: loaderData?.campaigns ?? undefined },
+    { enabled: tab === 'campaigns' },
   );
 
   const organizations = organizationSearch.data?.items ?? [];
