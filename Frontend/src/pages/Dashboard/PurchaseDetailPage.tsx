@@ -342,7 +342,7 @@ export default function PurchaseDetailPage() {
               <div className="space-y-2 md:col-span-2" data-testid="purchase-detail-total-amount-display">
                 <Label>{t('purchases.computedAmount', 'Загальна сума закупівлі')}</Label>
                 <div className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm font-semibold">
-                  {new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'UAH' }).format((purchase?.totalAmount ?? 0) / 100)}
+                  {new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'UAH' }).format((purchase?.totalAmount ?? 0))}
                 </div>
                 <p className="text-xs text-muted-foreground" data-testid="purchase-detail-total-amount-hint">
                   {t('purchases.computedAmountHint', 'Сума обчислюється автоматично: накладні (позиції) → квитанції → 0.')}

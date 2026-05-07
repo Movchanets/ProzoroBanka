@@ -96,7 +96,7 @@ function parsePlainNumber(value: string) {
 
 function formatMoneyInputValue(value?: number) {
   if (typeof value !== 'number') return '';
-  return (value / 100).toString();
+  return value.toString();
 }
 
 function buildItemDraft(item: {
@@ -158,10 +158,10 @@ function parseReceiptItems(structuredOutputJson?: string | null, persistedItems?
   }
 }
 
-function formatMoney(value: number | string | undefined, locale: string, isPersisted = false, fallback = '—') {
+function formatMoney(value: number | string | undefined, locale: string, fallback = '—') {
   const amount = parseNumber(value);
   if (amount === undefined) return fallback;
-  const displayAmount = isPersisted ? amount / 100 : amount;
+  const displayAmount = amount;
   return new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(displayAmount);
 }
 
@@ -263,7 +263,7 @@ export function ReceiptItemsTable({
           const vatAmount = parseNumber(item.vat_amount ?? item.vatAmount);
           const isEditable = Boolean(item.id && (onUpdateItem || onDeleteItem));
           const isEditing = editingItemId === item.id;
-          const isPersisted = Boolean(item.isPersisted);
+
 
           return (
             <div key={`${item.name}-${index}`} className="rounded-2xl border border-border bg-card p-3" data-testid={`${testIdPrefix}-mobile-row-${index}`}>
@@ -320,9 +320,9 @@ export function ReceiptItemsTable({
                     <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.quantity')}</dt>
                     <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-mobile-item-quantity-${index}`}>{formatText(quantity ?? item.quantity, t('common.na'))}</dd>
                     <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.unitPrice')}</dt>
-                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-mobile-item-unit-price-${index}`}>{formatMoney(unitPrice ?? item.unit_price, locale, isPersisted, t('common.na'))}</dd>
+                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-mobile-item-unit-price-${index}`}>{formatMoney(unitPrice ?? item.unit_price, locale, t('common.na'))}</dd>
                     <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.totalPrice')}</dt>
-                    <dd className="text-right tabular-nums font-medium" data-testid={`${testIdPrefix}-mobile-item-total-price-${index}`}>{formatMoney(totalPrice ?? item.total_price, locale, isPersisted, t('common.na'))}</dd>
+                    <dd className="text-right tabular-nums font-medium" data-testid={`${testIdPrefix}-mobile-item-total-price-${index}`}>{formatMoney(totalPrice ?? item.total_price, locale, t('common.na'))}</dd>
                     <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.barcode')}</dt>
                     <dd className="break-words text-right" data-testid={`${testIdPrefix}-mobile-item-barcode-${index}`}>{item.barcode || t('common.na')}</dd>
                     <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.vatRate')}</dt>
@@ -332,7 +332,7 @@ export function ReceiptItemsTable({
                         : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(vatRate)}%`}
                     </dd>
                     <dt className="text-muted-foreground">{t('receipts.detail.itemsTable.columns.vatAmount')}</dt>
-                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-mobile-item-vat-amount-${index}`}>{formatMoney(vatAmount ?? item.vat_amount, locale, isPersisted, t('common.na'))}</dd>
+                    <dd className="text-right tabular-nums" data-testid={`${testIdPrefix}-mobile-item-vat-amount-${index}`}>{formatMoney(vatAmount ?? item.vat_amount, locale, t('common.na'))}</dd>
                   </dl>
                 </div>
               )}
@@ -420,7 +420,7 @@ export function ReceiptItemsTable({
                 const isEditable = Boolean(item.id && (onUpdateItem || onDeleteItem));
                 const isEditing = editingItemId === item.id;
                 const itemId = item.id;
-                const isPersisted = Boolean(item.isPersisted);
+
 
                 return (
                   <TableRow key={`${item.name}-${index}`} data-testid={`${testIdPrefix}-row-${index}`}>
@@ -458,7 +458,7 @@ export function ReceiptItemsTable({
                           data-testid={`${testIdPrefix}-edit-unit-price-${index}`}
                         />
                       ) : (
-                        formatMoney(unitPrice ?? item.unit_price, locale, isPersisted, t('common.na'))
+                        formatMoney(unitPrice ?? item.unit_price, locale, t('common.na'))
                       )}
                     </TableCell>
                     <TableCell className="align-top text-right tabular-nums font-medium whitespace-nowrap" data-testid={`${testIdPrefix}-item-total-price-${index}`}>
@@ -470,7 +470,7 @@ export function ReceiptItemsTable({
                           data-testid={`${testIdPrefix}-edit-total-price-${index}`}
                         />
                       ) : (
-                        formatMoney(totalPrice ?? item.total_price, locale, isPersisted, t('common.na'))
+                        formatMoney(totalPrice ?? item.total_price, locale, t('common.na'))
                       )}
                     </TableCell>
                     <TableCell className="align-top text-sm text-muted-foreground" data-testid={`${testIdPrefix}-item-barcode-${index}`}>
@@ -507,7 +507,7 @@ export function ReceiptItemsTable({
                           data-testid={`${testIdPrefix}-edit-vat-amount-${index}`}
                         />
                       ) : (
-                        formatMoney(vatAmount ?? item.vat_amount, locale, isPersisted, t('common.na'))
+                        formatMoney(vatAmount ?? item.vat_amount, locale, t('common.na'))
                       )}
                     </TableCell>
                     <TableCell className="align-top text-right">

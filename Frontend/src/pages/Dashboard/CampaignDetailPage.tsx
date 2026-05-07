@@ -57,7 +57,7 @@ function formatCampaignMoney(value: number, locale: string) {
     style: 'currency',
     currency: 'UAH',
     maximumFractionDigits: 2,
-  }).format(value / 100);
+  }).format(value);
 }
 
 function formatCampaignDateTime(value: string | undefined, locale: string) {
@@ -152,7 +152,7 @@ export default function CampaignDetailPage() {
 
   const campaignTitle = resolveLocalizedText(campaign.titleUk, campaign.titleEn, i18n.language);
 
-  const withdrawn = new Intl.NumberFormat('uk-UA').format(campaign.withdrawnAmount / 100);
+  const withdrawn = new Intl.NumberFormat('uk-UA').format(campaign.withdrawnAmount);
 
   const handleAttachReceipt = async (receiptId: string) => {
     if (!campaignId) {
@@ -214,7 +214,7 @@ export default function CampaignDetailPage() {
   const handleManualProgressUpdate = async () => {
     setManualUpdateError(null);
 
-    const effectiveAmount = manualAmountUah || (campaign.currentAmount / 100).toFixed(2);
+    const effectiveAmount = manualAmountUah || (campaign.currentAmount).toFixed(2);
     const parsedAmount = Number(effectiveAmount.replace(',', '.'));
     if (!Number.isFinite(parsedAmount) || parsedAmount < 0) {
       setManualUpdateError(t('campaigns.manualProgress.amountInvalid', 'Введіть коректну суму'));
@@ -225,7 +225,7 @@ export default function CampaignDetailPage() {
       await updateCampaignBalance.mutateAsync({
         id: campaign.id,
         payload: {
-          newCurrentAmount: Math.round(parsedAmount * 100),
+          newCurrentAmount: parsedAmount,
           reason: manualReason.trim() || undefined,
         },
       });
@@ -307,9 +307,9 @@ export default function CampaignDetailPage() {
               
               <div className="space-y-2">
                 <CampaignProgressBar
-                  currentAmount={campaign.currentAmount / 100}
-                  goalAmount={campaign.goalAmount / 100}
-                  documentedAmount={documentedAmountMinor / 100}
+                  currentAmount={campaign.currentAmount}
+                  goalAmount={campaign.goalAmount}
+                  documentedAmount={documentedAmountMinor}
                   documentationPercent={campaign.documentationPercent}
                   testId="campaign-detail-progress"
                 />
@@ -763,7 +763,7 @@ export default function CampaignDetailPage() {
                   type="number"
                   min="0"
                   step="0.01"
-                  value={manualAmountUah || (campaign.currentAmount / 100).toFixed(2)}
+                  value={manualAmountUah || (campaign.currentAmount).toFixed(2)}
                   onChange={(event) => setManualAmountUah(event.target.value)}
                   data-testid="campaign-detail-manual-progress-amount-input"
                 />

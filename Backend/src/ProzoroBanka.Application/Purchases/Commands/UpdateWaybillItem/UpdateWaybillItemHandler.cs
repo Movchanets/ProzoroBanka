@@ -48,8 +48,8 @@ public class UpdateWaybillItemHandler : IRequestHandler<UpdateWaybillItemCommand
 
 		item.Name = request.Name.Trim();
 		item.Quantity = request.Quantity;
-		item.UnitPrice = request.UnitPrice;
-		item.TotalPrice = checked((long)decimal.Round(request.Quantity * request.UnitPrice, 0, MidpointRounding.AwayFromZero));
+		item.UnitPrice = ProzoroBanka.Application.Common.Helpers.MoneyConversion.ToMinorUnits(request.UnitPrice);
+		item.TotalPrice = checked((long)decimal.Round(request.Quantity * ProzoroBanka.Application.Common.Helpers.MoneyConversion.ToMinorUnits(request.UnitPrice), 0, MidpointRounding.AwayFromZero));
 
 		await _db.SaveChangesAsync(ct);
 		await PurchaseTotalAmountCalculator.RecalculateAndApplyAsync(_db, document.PurchaseId, ct);

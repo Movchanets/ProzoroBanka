@@ -39,7 +39,7 @@ function CampaignCard({
 }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const withdrawn = new Intl.NumberFormat('uk-UA').format(campaign.withdrawnAmount / 100);
+  const withdrawn = new Intl.NumberFormat('uk-UA').format(campaign.withdrawnAmount);
   const campaignTitle = resolveLocalizedText(campaign.titleUk, campaign.titleEn, i18n.language);
 
   return (
@@ -65,9 +65,9 @@ function CampaignCard({
         )}
         
         <CampaignProgressBar
-          currentAmount={campaign.currentAmount / 100}
-          goalAmount={campaign.goalAmount / 100}
-          documentedAmount={campaign.documentedAmount / 100}
+          currentAmount={campaign.currentAmount}
+          goalAmount={campaign.goalAmount}
+          documentedAmount={campaign.documentedAmount}
           documentationPercent={campaign.documentationPercent}
           testId={`campaign-card-progress-${campaign.id}`}
         />

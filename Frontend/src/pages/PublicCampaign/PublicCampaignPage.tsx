@@ -410,7 +410,7 @@ export default function PublicCampaignPage({ loaderData }: { loaderData?: { camp
                     </span>
                     <Badge variant="outline" data-testid="public-campaign-spending-total-badge">
                       {t('campaigns.public.spending.total', {
-                        amount: formatPublicAmount(publicPurchasesTotal / 100, locale, t('common.na')),
+                        amount: formatPublicAmount(publicPurchasesTotal, locale, t('common.na')),
                       })}
                     </Badge>
                   </CardTitle>
@@ -445,7 +445,7 @@ export default function PublicCampaignPage({ loaderData }: { loaderData?: { camp
                                   </p>
                                 </div>
                                 <p className="font-semibold" data-testid={`public-campaign-spending-amount-${index}`}>
-                                  {formatPublicAmount(purchase.totalAmount / 100, locale, t('common.na'))}
+                                  {formatPublicAmount(purchase.totalAmount, locale, t('common.na'))}
                                 </p>
                               </div>
 
@@ -472,7 +472,7 @@ export default function PublicCampaignPage({ loaderData }: { loaderData?: { camp
                               ) : (
                                 <div className="mt-4 space-y-2" data-testid={`public-campaign-spending-documents-${index}`}>
                                   {visibleDocuments.map((document, documentIndex) => {
-                                    const documentAmount = document.amount === null ? undefined : document.amount / 100;
+                                    const documentAmount = document.amount === null ? undefined : document.amount;
                                     const documentDateLabel = document.documentDate
                                       ? new Date(document.documentDate).toLocaleDateString(locale)
                                       : t('campaigns.public.receiptDateFallback');
