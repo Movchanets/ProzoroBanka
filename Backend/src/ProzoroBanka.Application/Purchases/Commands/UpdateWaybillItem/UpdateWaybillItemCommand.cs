@@ -10,5 +10,5 @@ public record UpdateWaybillItemCommand(
 	Guid WaybillItemId,
 	string Name,
 	decimal Quantity,
-	long UnitPrice
+	decimal UnitPrice
 ) : IRequest<ServiceResponse<DocumentDto>>;

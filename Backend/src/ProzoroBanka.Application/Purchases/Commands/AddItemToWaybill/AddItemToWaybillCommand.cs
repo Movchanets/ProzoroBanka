@@ -8,5 +8,5 @@ public record AddItemToWaybillCommand(
     Guid WaybillDocumentId,
     string Name,
     decimal Quantity,
-    long UnitPrice
+    decimal UnitPrice
 ) : IRequest<ServiceResponse<Guid>>;
