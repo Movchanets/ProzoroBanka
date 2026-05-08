@@ -176,7 +176,7 @@ test.describe("Purchases Flow", () => {
     await expect(purchaseDetailPage.payerInput(docId)).toHaveValue("Ivanov Ivan", { timeout: 5000 });
 
     // Check Amount (stub returns 123.45)
-    await expect(purchaseDetailPage.amountInput(docId)).toHaveValue(/123\.45/);
+    await expect(purchaseDetailPage.amountInput(docId)).toHaveValue('123.45');
 
     // Check Counterparty (stub returns "OCR Stub Counterparty")
     await expect(purchaseDetailPage.counterpartyInput(docId)).toHaveValue(
@@ -255,7 +255,7 @@ test.describe("Purchases Flow", () => {
     await expect(purchaseDetailPage.counterpartyInput(docId)).toHaveValue('OCR Stub Counterparty');
     
     // Document amount (1550.00 from stub)
-    await expect(purchaseDetailPage.amountInput(docId)).toHaveValue(/1550(\.00)?/);
+    await expect(purchaseDetailPage.amountInput(docId)).toHaveValue('1550');
 
     // Verify items list via POM
     const itemsList = purchaseDetailPage.itemsList(docId);
@@ -274,13 +274,13 @@ test.describe("Purchases Flow", () => {
     // "Stub Item 1": qty 10.5, price 100, total 1050
     await expect(rowItem1.locator('input').nth(0)).toHaveValue(/Stub Item 1/i);
     await expect(rowItem1.locator('input').nth(1)).toHaveValue('10.5');
-    await expect(rowItem1.locator('input').nth(2)).toHaveValue(/100(\.00)?/);
-    await expect(rowItem1.getByText(/1050\.00/)).toBeVisible();
+    await expect(rowItem1.locator('input').nth(2)).toHaveValue('100');
+    await expect(rowItem1.getByText('1 050,00')).toBeVisible();
 
     // "Stub Item 2": qty 1, price 500, total 500
     await expect(rowItem2.locator('input').nth(0)).toHaveValue(/Stub Item 2/i);
     await expect(rowItem2.locator('input').nth(1)).toHaveValue('1');
-    await expect(rowItem2.locator('input').nth(2)).toHaveValue(/500(\.00)?/);
+    await expect(rowItem2.locator('input').nth(2)).toHaveValue('500');
     await expect(rowItem2.getByText(/500\.00/)).toBeVisible();
 
     // 6. Save metadata

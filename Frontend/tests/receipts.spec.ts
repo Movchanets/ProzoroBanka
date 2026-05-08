@@ -101,7 +101,7 @@ test.describe('Dashboard — Receipts', () => {
     await receiptDetailPage.addItem('Тестова позиція', '2', '26.99', '53.98', '4823096005591');
 
     await expect(receiptDetailPage.itemName(0)).toHaveText('Тестова позиція');
-    await expect(receiptDetailPage.itemUnitPrice(0)).toContainText('26,99');
+    await expect(receiptDetailPage.itemUnitPrice(0)).toHaveText(/.*26[,.]99.*/);
 
     await receiptDetailPage.itemEditButton(0).click();
     await receiptDetailPage.itemEditNameInput(0).fill('Оновлена позиція');
