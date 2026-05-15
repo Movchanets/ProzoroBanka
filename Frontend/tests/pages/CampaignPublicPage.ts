@@ -26,6 +26,7 @@ export class CampaignPublicPage {
   readonly publicCampaignSpendingCard: Locator;
   readonly publicCampaignSpendingList: Locator;
   readonly publicCampaignSpendingTotalBadge: Locator;
+  readonly publicCampaignSpendingError: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -82,6 +83,9 @@ export class CampaignPublicPage {
     );
     this.publicCampaignSpendingTotalBadge = page.getByTestId(
       "public-campaign-spending-total-badge",
+    );
+    this.publicCampaignSpendingError = page.getByTestId(
+      "public-campaign-spending-error",
     );
   }
 

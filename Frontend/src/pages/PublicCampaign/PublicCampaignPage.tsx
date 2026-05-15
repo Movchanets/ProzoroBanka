@@ -417,7 +417,12 @@ export default function PublicCampaignPage({ loaderData }: { loaderData?: { camp
                 </CardHeader>
                 <CardContent className="space-y-3" data-testid="public-campaign-spending-list">
                   {purchasesQuery.isLoading ? <Skeleton className="h-24 rounded-2xl" /> : null}
-                  {!purchasesQuery.isLoading && publicPurchasesSorted.length === 0 ? (
+                  {purchasesQuery.isError ? (
+                    <Alert variant="destructive" data-testid="public-campaign-spending-error">
+                      <AlertDescription>{t('campaigns.public.spending.error')}</AlertDescription>
+                    </Alert>
+                  ) : null}
+                  {!purchasesQuery.isLoading && !purchasesQuery.isError && publicPurchasesSorted.length === 0 ? (
                     <div data-testid="public-campaign-spending-empty" className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
                       {t('campaigns.public.spending.empty')}
                     </div>
