@@ -54,15 +54,15 @@ public class GetOrganizationTransparencyHandler
 			.Where(r => r.TotalAmount.HasValue)
 			.ToList();
 
-		var totalSpent = validReceipts.Sum(r => r.TotalAmount ?? 0m);
+		var totalSpent = validReceipts.Sum(r => (r.TotalAmount ?? 0m) / 100m);
 
 		var categories = validReceipts
 			.GroupBy(r => string.IsNullOrWhiteSpace(r.MerchantName) ? "Інше" : r.MerchantName!)
-			.OrderByDescending(g => g.Sum(x => x.TotalAmount ?? 0m))
+			.OrderByDescending(g => g.Sum(x => (x.TotalAmount ?? 0m) / 100m))
 			.Take(6)
 			.Select(g =>
 			{
-				var amount = g.Sum(x => x.TotalAmount ?? 0m);
+				var amount = g.Sum(x => (x.TotalAmount ?? 0m) / 100m);
 				var pct = totalSpent <= 0 ? 0 : (double)(amount / totalSpent * 100);
 				return new TransparencyCategoryDto(g.Key, amount, pct);
 			})
@@ -73,7 +73,7 @@ public class GetOrganizationTransparencyHandler
 			.OrderBy(g => g.Key)
 			.Select(g => new TransparencyMonthlyDto(
 				g.Key,
-				g.Sum(x => x.TotalAmount ?? 0m)))
+				g.Sum(x => (x.TotalAmount ?? 0m) / 100m)))
 			.ToList();
 
 		return ServiceResponse<TransparencyDto>.Success(new TransparencyDto(

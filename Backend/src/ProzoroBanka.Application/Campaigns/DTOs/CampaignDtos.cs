@@ -8,10 +8,10 @@ public record CampaignDto(
 	string TitleEn,
 	string? Description,
 	string? CoverImageUrl,
-	long GoalAmount,
-	long CurrentAmount,
-	long WithdrawnAmount,
-	long DocumentedAmount,
+	decimal GoalAmount,
+	decimal CurrentAmount,
+	decimal WithdrawnAmount,
+	decimal DocumentedAmount,
 	double DocumentationPercent,
 	CampaignStatus Status,
 	DateTime? StartDate,
@@ -28,10 +28,10 @@ public record CampaignDetailDto(
 	string TitleEn,
 	string? Description,
 	string? CoverImageUrl,
-	long GoalAmount,
-	long CurrentAmount,
-	long WithdrawnAmount,
-	long DocumentedAmount,
+	decimal GoalAmount,
+	decimal CurrentAmount,
+	decimal WithdrawnAmount,
+	decimal DocumentedAmount,
 	double DocumentationPercent,
 	CampaignStatus Status,
 	DateTime? StartDate,
@@ -56,8 +56,8 @@ public record CampaignCategoryDto(
 public record CampaignStatsDto(
 	int TotalCampaigns,
 	int ActiveCampaigns,
-	long TotalRaised,
-	long TotalDocumented,
+	decimal TotalRaised,
+	decimal TotalDocumented,
 	double DocumentationPercent);
 
 // ── Controller request models ──
@@ -66,7 +66,7 @@ public record CreateCampaignRequest(
 	string TitleUk,
 	string TitleEn,
 	string? Description,
-	long GoalAmount,
+	decimal GoalAmount,
 	DateTime? Deadline,
 	IReadOnlyList<Guid>? CategoryIds,
 	string? SendUrl);
@@ -75,7 +75,7 @@ public record UpdateCampaignRequest(
 	string? TitleUk,
 	string? TitleEn,
 	string? Description,
-	long? GoalAmount,
+	decimal? GoalAmount,
 	DateTime? Deadline,
 	IReadOnlyList<Guid>? CategoryIds,
 	string? SendUrl);
@@ -84,12 +84,12 @@ public record ChangeCampaignStatusRequest(
 	CampaignStatus NewStatus);
 
 public record UpdateCampaignBalanceRequest(
-	long NewCurrentAmount,
+	decimal NewCurrentAmount,
 	string? Reason);
 
 public record CampaignTransactionDto(
 	Guid Id,
-	long Amount,
+	decimal Amount,
 	string? Description,
 	DateTime TransactionTimeUtc,
 	string Source,

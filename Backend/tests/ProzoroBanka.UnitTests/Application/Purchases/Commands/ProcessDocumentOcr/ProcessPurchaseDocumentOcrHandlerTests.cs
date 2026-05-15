@@ -100,7 +100,7 @@ public class ProcessPurchaseDocumentOcrHandlerTests
 		Assert.True(result.IsSuccess);
 		Assert.Equal(OcrProcessingStatus.Success, result.Payload!.OcrProcessingStatus);
 		Assert.Equal("Rozetka", result.Payload.CounterpartyName);
-		Assert.Equal(50050, result.Payload.Amount);
+		Assert.Equal(500.50m, result.Payload.Amount);
 		Assert.Equal(ocrDate, result.Payload.DocumentDate);
 		Assert.Equal("12345678", result.Payload.Edrpou);
 		Assert.Equal("Іваненко Іван Іванович", result.Payload.PayerFullName);
@@ -225,8 +225,8 @@ public class ProcessPurchaseDocumentOcrHandlerTests
 		Assert.Equal(OcrProcessingStatus.Success, result.Payload!.OcrProcessingStatus);
 		Assert.NotNull(result.Payload.Items);
 		Assert.Equal(2, result.Payload.Items!.Count);
-		Assert.Contains(result.Payload.Items, x => x.Name == "Кеди Nike Court Vision" && x.UnitPrice == 254500 && x.TotalPrice == 254500);
-		Assert.Contains(result.Payload.Items, x => x.Name == "Доставка" && x.UnitPrice == 9000 && x.TotalPrice == 9000);
+		Assert.Contains(result.Payload.Items, x => x.Name == "Кеди Nike Court Vision" && x.UnitPrice == 2545m && x.TotalPrice == 2545m);
+		Assert.Contains(result.Payload.Items, x => x.Name == "Доставка" && x.UnitPrice == 90m && x.TotalPrice == 90m);
 	}
 
 	[Fact]

@@ -53,7 +53,7 @@ public class GetPublicCampaignReceiptsHandler
 			.Select(r => new PublicReceiptDto(
 				r.Id,
 				r.MerchantName,
-				r.TotalAmount,
+				r.TotalAmount / 100m,
 				r.TransactionDate,
 				r.User.FirstName + " " + r.User.LastName))
 			.ToListAsync(cancellationToken);

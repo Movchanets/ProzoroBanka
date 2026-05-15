@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Purchases.Common;
@@ -79,7 +80,9 @@ public class UploadDocumentHandler : IRequestHandler<UploadDocumentCommand, Serv
 		document.StorageKey = storageKey;
 		document.OriginalFileName = request.FileName;
 		document.DocumentDate = request.DocumentDate;
-		document.Amount = request.Amount;
+		document.Amount = request.Amount.HasValue
+			? MoneyConversion.ToMinorUnits(request.Amount.Value)
+			: null;
 		document.CounterpartyName = request.CounterpartyName;
 		document.OcrProcessingStatus = ocrStatus;
 		document.IsDataVerifiedByUser = false;

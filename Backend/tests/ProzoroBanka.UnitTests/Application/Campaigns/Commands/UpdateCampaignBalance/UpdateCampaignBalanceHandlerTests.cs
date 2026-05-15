@@ -69,7 +69,7 @@ public class UpdateCampaignBalanceHandlerTests
 
 		var handler = new UpdateCampaignBalanceHandler(db, orgAuth.Object, logger.Object);
 		var result = await handler.Handle(
-			new UpdateCampaignBalanceCommand(userId, campaignId, 5000, "Тестове оновлення"),
+			new UpdateCampaignBalanceCommand(userId, campaignId, 50.00m, "Тестове оновлення"),
 			CancellationToken.None);
 
 		Assert.True(result.IsSuccess);

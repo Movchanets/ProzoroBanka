@@ -167,7 +167,7 @@ public class UploadDocumentHandlerTests
 			"application/pdf",
 			DocumentType.BankReceipt,
 			DateTime.UtcNow,
-			32100,
+			321.00m,
 			"Nova Poshta");
 
 		var result = await handler.Handle(command, CancellationToken.None);

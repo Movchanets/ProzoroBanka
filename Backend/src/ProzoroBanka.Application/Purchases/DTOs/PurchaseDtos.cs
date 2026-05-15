@@ -5,7 +5,7 @@ namespace ProzoroBanka.Application.Purchases.DTOs;
 public record PurchaseListItemDto(
 	Guid Id,
 	string Title,
-	long TotalAmount,
+	decimal TotalAmount,
 	PurchaseStatus Status,
 	int DocumentCount,
 	int VerifiedDocumentCount,
@@ -17,7 +17,7 @@ public record PurchaseDetailDto(
 	Guid CreatedByUserId,
 	string Title,
 	string? Description,
-	long TotalAmount,
+	decimal TotalAmount,
 	PurchaseStatus Status,
 	IReadOnlyList<DocumentDto> Documents,
 	DateTime CreatedAt);
@@ -26,8 +26,8 @@ public record DocumentItemDto(
 	Guid Id,
 	string Name,
 	decimal Quantity,
-	long UnitPrice,
-	long TotalPrice);
+	decimal UnitPrice,
+	decimal TotalPrice);
 
 public record DocumentDto(
 	Guid Id,
@@ -37,7 +37,7 @@ public record DocumentDto(
 	string OriginalFileName,
 	string? FileUrl,
 	DateTime? DocumentDate,
-	long? Amount,
+	decimal? Amount,
 	string? CounterpartyName,
 	OcrProcessingStatus OcrProcessingStatus,
 	bool IsDataVerifiedByUser,
@@ -63,24 +63,24 @@ public record AttachPurchaseToCampaignRequest(
 public record AddItemToWaybillRequest(
 	string Name,
 	decimal Quantity,
-	long UnitPrice);
+	decimal UnitPrice);
 
 public record UpdateWaybillItemRequest(
 	string Name,
 	decimal Quantity,
-	long UnitPrice);
+	decimal UnitPrice);
 
 public record CreatePurchaseRequest(
 	string Title,
-	long TotalAmount);
+	decimal TotalAmount);
 
 public record UpdatePurchaseRequest(
 	string? Title,
-	long? TotalAmount,
+	decimal? TotalAmount,
 	PurchaseStatus? Status);
 
 public record UpdateDocumentMetadataRequest(
-	long? Amount,
+	decimal? Amount,
 	string? CounterpartyName,
 	DateTime? DocumentDate,
 	string? Edrpou = null,

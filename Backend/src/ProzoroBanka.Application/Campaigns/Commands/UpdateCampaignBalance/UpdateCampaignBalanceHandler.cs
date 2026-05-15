@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Domain.Entities;
@@ -41,9 +42,10 @@ public class UpdateCampaignBalanceHandler : IRequestHandler<UpdateCampaignBalanc
 			return ServiceResponse.Failure("Недостатньо прав для оновлення балансу збору");
 
 		var previousAmount = campaign.CurrentAmount;
-		var delta = request.NewCurrentAmount - previousAmount;
+		var newAmountKopecks = MoneyConversion.ToMinorUnits(request.NewCurrentAmount);
+		var delta = newAmountKopecks - previousAmount;
 
-		campaign.CurrentAmount = request.NewCurrentAmount;
+		campaign.CurrentAmount = newAmountKopecks;
 
 		// Create audit transaction record
 		_db.CampaignTransactions.Add(new CampaignTransaction

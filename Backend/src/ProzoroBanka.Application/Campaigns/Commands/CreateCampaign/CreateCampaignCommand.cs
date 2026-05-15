@@ -13,7 +13,7 @@ public record CreateCampaignCommand(
 	string TitleUk,
 	string TitleEn,
 	string? Description,
-	long GoalAmount,
+	decimal GoalAmount,
 	DateTime? Deadline,
 	IReadOnlyList<Guid>? CategoryIds,
 	string? SendUrl) : IRequest<ServiceResponse<CampaignDto>>, ICacheInvalidatingCommand

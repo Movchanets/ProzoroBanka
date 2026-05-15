@@ -111,10 +111,10 @@ public class GetOrganizationCampaignsHandler
 			return new CampaignDto(
 				c.Id, c.TitleUk, c.TitleEn, c.Description,
 				_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
-				c.GoalAmount,
-				c.CurrentAmount,
-				c.WithdrawnAmount,
-				documentedAmount,
+				MoneyConversion.ToUah(c.GoalAmount),
+				MoneyConversion.ToUah(c.CurrentAmount),
+				MoneyConversion.ToUah(c.WithdrawnAmount),
+				MoneyConversion.ToUah(documentedAmount),
 				documentationPercent,
 				c.Status, c.StartDate, c.Deadline,
 				c.MonobankAccountId, c.SendUrl, c.Categories, c.ReceiptCount, c.CreatedAt);

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Purchases.DTOs;
@@ -42,7 +43,7 @@ public class GetPublicPurchaseByIdHandler
 			purchase.CreatedByUserId,
 			purchase.Title,
 			purchase.Description,
-			purchase.TotalAmount,
+			MoneyConversion.ToUah(purchase.TotalAmount),
 			purchase.Status,
 			purchase.Documents
 				.Where(d => !d.IsDeleted)

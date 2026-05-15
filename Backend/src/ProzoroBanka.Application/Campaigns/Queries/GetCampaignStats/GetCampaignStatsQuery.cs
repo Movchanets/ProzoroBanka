@@ -67,16 +67,16 @@ public class GetCampaignStatsHandler
 			.AsNoTracking()
 			.Where(c => c.OrganizationId == request.OrganizationId)
 			.GroupBy(_ => 1)
-			.Select(g => new CampaignStatsDto(
-				g.Count(),
-				g.Count(c => c.Status == CampaignStatus.Active),
-				g.Sum(c => c.CurrentAmount),
-				0,
-				0))
+			.Select(g => new
+			{
+				TotalCampaigns = g.Count(),
+				ActiveCampaigns = g.Count(c => c.Status == CampaignStatus.Active),
+				TotalRaised = g.Sum(c => c.CurrentAmount)
+			})
 			.FirstOrDefaultAsync(cancellationToken);
 
 		if (stats is null)
-			return ServiceResponse<CampaignStatsDto>.Success(new CampaignStatsDto(0, 0, 0, 0, 0));
+			return ServiceResponse<CampaignStatsDto>.Success(new CampaignStatsDto(0, 0, 0m, 0m, 0));
 
 		var boundedDocumented = Math.Min(stats.TotalRaised, totalDocumentedMinorUnits);
 		var documentationPercent = CampaignDocumentationMetrics.CalculateDocumentedSharePercent(
@@ -87,8 +87,8 @@ public class GetCampaignStatsHandler
 			new CampaignStatsDto(
 				stats.TotalCampaigns,
 				stats.ActiveCampaigns,
-				stats.TotalRaised,
-				boundedDocumented,
+				MoneyConversion.ToUah(stats.TotalRaised),
+				MoneyConversion.ToUah(boundedDocumented),
 				documentationPercent));
 	}
 }

@@ -281,7 +281,7 @@ test.describe("Purchases Flow", () => {
     await expect(rowItem2.locator('input').nth(0)).toHaveValue(/Stub Item 2/i);
     await expect(rowItem2.locator('input').nth(1)).toHaveValue('1');
     await expect(rowItem2.locator('input').nth(2)).toHaveValue('500');
-    await expect(rowItem2.getByText(/500\.00/)).toBeVisible();
+    await expect(rowItem2.getByText(/500[,.]00/)).toBeVisible();
 
     // 6. Save metadata
     await purchaseDetailPage.saveMetadata(docId);

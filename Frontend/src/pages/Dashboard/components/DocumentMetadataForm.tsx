@@ -236,7 +236,7 @@ export function DocumentMetadataForm({
                   />
                 </div>
                 <div className="w-24 pb-1.5 text-xs text-right font-medium">
-                  {(item.quantity * item.unitPrice).toFixed(2)} ₴
+                  {new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.quantity * item.unitPrice)} ₴
                 </div>
                 <Button
                   variant="ghost"

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Campaigns.DTOs;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Domain.Enums;
@@ -45,7 +46,7 @@ public class GetCampaignTransactionsHandler
 			.Take(request.PageSize)
 			.Select(t => new CampaignTransactionDto(
 				t.Id,
-				t.Amount,
+				MoneyConversion.ToUah(t.Amount),
 				t.Description,
 				t.TransactionTimeUtc,
 				t.Source.ToString(),

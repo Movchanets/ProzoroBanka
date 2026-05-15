@@ -116,7 +116,7 @@ public class GetCampaignDetailsHandlerTests
 		var result = await handler.Handle(new GetCampaignDetailsQuery(ownerId, campaignId), CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
-		Assert.Equal(61613, result.Payload!.DocumentedAmount);
+		Assert.Equal(616.13m, result.Payload!.DocumentedAmount);
 		Assert.Equal(100, result.Payload.DocumentationPercent, 3);
 	}
 }

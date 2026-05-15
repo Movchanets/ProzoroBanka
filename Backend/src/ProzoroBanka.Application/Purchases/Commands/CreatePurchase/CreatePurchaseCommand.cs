@@ -9,4 +9,4 @@ public record CreatePurchaseCommand(
 	Guid OrganizationId,
 	Guid CampaignId,
 	string Title,
-	long TotalAmount) : IRequest<ServiceResponse<PurchaseDetailDto>>;
+	decimal TotalAmount) : IRequest<ServiceResponse<PurchaseDetailDto>>;
