@@ -106,6 +106,6 @@ public class GetPublicCampaignReceiptsHandlerTests
 
 		Assert.True(result.IsSuccess);
 		Assert.Single(result.Payload!.Items);
-		Assert.Equal(120m, result.Payload.Items[0].TotalAmount);
+		Assert.Equal(1.20m, result.Payload.Items[0].TotalAmount);
 	}
 }

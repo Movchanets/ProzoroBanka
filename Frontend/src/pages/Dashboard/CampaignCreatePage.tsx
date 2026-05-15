@@ -32,7 +32,7 @@ export async function clientAction({ request, params }: ClientActionArgs) {
       titleUk: data.titleUk,
       titleEn: data.titleEn,
       description: data.description || undefined,
-      goalAmount: Math.round(Number(data.goalAmount) * 100),
+      goalAmount: Number(data.goalAmount),
       deadline: data.deadline || undefined,
       categoryIds: categoryIds,
       sendUrl: data.sendUrl || undefined,

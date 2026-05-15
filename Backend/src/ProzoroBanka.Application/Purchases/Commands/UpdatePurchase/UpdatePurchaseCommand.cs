@@ -11,5 +11,5 @@ public record UpdatePurchaseCommand(
 	Guid? CampaignId,
 	Guid PurchaseId,
 	string? Title,
-	long? TotalAmount,
+	decimal? TotalAmount,
 	PurchaseStatus? Status) : IRequest<ServiceResponse<PurchaseDetailDto>>;

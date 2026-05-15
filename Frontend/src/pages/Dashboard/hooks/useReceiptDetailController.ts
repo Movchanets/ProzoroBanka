@@ -83,7 +83,7 @@ interface UseReceiptDetailControllerParams {
 
 function formatAmountInputValue(value?: number) {
   if (typeof value !== 'number') return '';
-  return (value / 100).toString();
+  return value.toString();
 }
 
 function parseReceiptLocalDate(value: string) {
@@ -1093,7 +1093,7 @@ export function useReceiptDetailController({
         payload: {
           alias: normalizeText(aliasInput),
           merchantName: normalizeText(ocrDraft.merchantName),
-          totalAmount: draftTotalAmount === null ? null : Math.round(draftTotalAmount * 100),
+          totalAmount: draftTotalAmount === null ? null : draftTotalAmount,
           purchaseDateUtc: ocrDraft.purchaseDateUtc ? `${ocrDraft.purchaseDateUtc}:00` : null,
           fiscalNumber: normalizeText(ocrDraft.fiscalNumber),
           receiptCode: normalizeText(ocrDraft.receiptCode),

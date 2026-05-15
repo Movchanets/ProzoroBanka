@@ -6,6 +6,7 @@ using ProzoroBanka.Application.Purchases.Common;
 using ProzoroBanka.Application.Purchases.DTOs;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
+using ProzoroBanka.Application.Common.Helpers;
 
 namespace ProzoroBanka.Application.Purchases.Commands.UpdateWaybillItem;
 
@@ -48,8 +49,8 @@ public class UpdateWaybillItemHandler : IRequestHandler<UpdateWaybillItemCommand
 
 		item.Name = request.Name.Trim();
 		item.Quantity = request.Quantity;
-		item.UnitPrice = request.UnitPrice;
-		item.TotalPrice = checked((long)decimal.Round(request.Quantity * request.UnitPrice, 0, MidpointRounding.AwayFromZero));
+		item.UnitPrice = MoneyConversion.ToMinorUnits(request.UnitPrice);
+		item.TotalPrice = checked((long)decimal.Round(request.Quantity * MoneyConversion.ToMinorUnits(request.UnitPrice), 0, MidpointRounding.AwayFromZero));
 
 		await _db.SaveChangesAsync(ct);
 		await PurchaseTotalAmountCalculator.RecalculateAndApplyAsync(_db, document.PurchaseId, ct);

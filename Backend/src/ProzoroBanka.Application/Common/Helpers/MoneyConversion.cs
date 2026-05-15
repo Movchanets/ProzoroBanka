@@ -14,4 +14,14 @@ public static class MoneyConversion
 	{
 		return amount.HasValue ? ToMinorUnits(amount.Value) : 0;
 	}
+
+	public static decimal ToUah(long minorUnits)
+	{
+		return minorUnits / 100m;
+	}
+
+	public static decimal? ToUah(long? minorUnits)
+	{
+		return minorUnits.HasValue ? ToUah(minorUnits.Value) : null;
+	}
 }

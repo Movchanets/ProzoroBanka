@@ -15,5 +15,5 @@ public record UploadDocumentCommand(
 	string ContentType,
 	DocumentType Type,
 	DateTime? DocumentDate,
-	long? Amount,
+	decimal? Amount,
 	string? CounterpartyName) : IRequest<ServiceResponse<DocumentDto>>;

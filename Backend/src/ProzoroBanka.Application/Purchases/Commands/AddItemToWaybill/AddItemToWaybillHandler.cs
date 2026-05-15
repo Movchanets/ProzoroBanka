@@ -5,6 +5,7 @@ using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Purchases.Common;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
+using ProzoroBanka.Application.Common.Helpers;
 
 namespace ProzoroBanka.Application.Purchases.Commands.AddItemToWaybill;
 
@@ -51,14 +52,14 @@ public class AddItemToWaybillHandler : IRequestHandler<AddItemToWaybillCommand, 
 			? maxSortOrder + 1
 			: 0;
 
-		var totalPrice = checked((long)decimal.Round(request.Quantity * request.UnitPrice, 0, MidpointRounding.AwayFromZero));
+		var totalPrice = checked((long)decimal.Round(request.Quantity * MoneyConversion.ToMinorUnits(request.UnitPrice), 0, MidpointRounding.AwayFromZero));
 		var item = new CampaignItem
 		{
 			CampaignId = document.Purchase.CampaignId,
 			CampaignDocumentId = document.Id,
 			Name = request.Name.Trim(),
 			Quantity = request.Quantity,
-			UnitPrice = request.UnitPrice,
+			UnitPrice = MoneyConversion.ToMinorUnits(request.UnitPrice),
 			TotalPrice = totalPrice,
 			SortOrder = nextSortOrder
 		};

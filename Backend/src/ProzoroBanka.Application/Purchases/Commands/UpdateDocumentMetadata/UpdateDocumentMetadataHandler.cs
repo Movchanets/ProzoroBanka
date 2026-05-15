@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Purchases.Common;
@@ -59,7 +60,7 @@ public class UpdateDocumentMetadataHandler : IRequestHandler<UpdateDocumentMetad
 			return ServiceResponse<DocumentDto>.Failure("Документ не знайдено");
 
 		if (request.Amount.HasValue)
-			document.Amount = request.Amount.Value;
+			document.Amount = MoneyConversion.ToMinorUnits(request.Amount.Value);
 
 		if (request.CounterpartyName is not null)
 			document.CounterpartyName = request.CounterpartyName;

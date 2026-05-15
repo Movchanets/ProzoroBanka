@@ -69,7 +69,7 @@ function formatAmount(value?: number) {
     return '—';
   }
 
-  const hryvnias = value / 100;
+  const hryvnias = value;
 
   return new Intl.NumberFormat('uk-UA', {
     style: 'currency',

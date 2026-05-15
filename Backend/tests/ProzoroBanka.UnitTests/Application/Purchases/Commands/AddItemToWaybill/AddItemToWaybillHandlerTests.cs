@@ -61,14 +61,14 @@ public class AddItemToWaybillHandlerTests
 
         var handler = new AddItemToWaybillHandler(db, orgAuthMock.Object);
 
-        var result = await handler.Handle(new AddItemToWaybillCommand(userId, documentId, "Drone", 2, 150000), CancellationToken.None);
+        var result = await handler.Handle(new AddItemToWaybillCommand(userId, documentId, "Drone", 2, 1500), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         var item = await db.CampaignItems.FindAsync(result.Payload);
         Assert.NotNull(item);
         Assert.Equal("Drone", item!.Name);
         Assert.Equal(2, item.Quantity);
-        Assert.Equal(150000, item.UnitPrice);
+        Assert.Equal(150000L, item.UnitPrice);
         Assert.Equal(300000, item.TotalPrice);
 
         var reloadedWaybill = await db.CampaignDocuments

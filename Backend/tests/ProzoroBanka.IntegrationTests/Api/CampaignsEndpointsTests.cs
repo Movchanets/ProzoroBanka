@@ -55,7 +55,7 @@ public class CampaignsEndpointsTests : IClassFixture<TestWebApplicationFactory>
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
 		var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
-		Assert.Equal(61613, payload.GetProperty("documentedAmount").GetInt64());
+		Assert.Equal(616.13m, payload.GetProperty("documentedAmount").GetDecimal());
 		Assert.Equal(100, payload.GetProperty("documentationPercent").GetDouble());
 	}
 

@@ -10,7 +10,7 @@ public record UpdateDocumentMetadataCommand(
 	Guid? CampaignId,
 	Guid PurchaseId,
 	Guid DocumentId,
-	long? Amount,
+	decimal? Amount,
 	string? CounterpartyName,
 	DateTime? DocumentDate,
 	string? Edrpou = null,

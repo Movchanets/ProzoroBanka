@@ -41,7 +41,7 @@ export async function clientAction({ request, params }: ClientActionArgs) {
         titleUk: data.titleUk,
         titleEn: data.titleEn,
         description: data.description || undefined,
-        goalAmount: Math.round(Number(data.goalAmount) * 100),
+        goalAmount: Number(data.goalAmount),
         deadline: data.deadline || undefined,
         categoryIds: categoryIds,
         sendUrl: data.sendUrl || undefined,
@@ -105,7 +105,7 @@ export default function CampaignEditPage() {
   };
 
   const formatAmount = (amountMinorUnits: number, currencyCode: number) => {
-    const amount = amountMinorUnits / 100;
+    const amount = amountMinorUnits;
     const currency = currencyCode === 840 ? 'USD' : currencyCode === 978 ? 'EUR' : 'UAH';
 
     return new Intl.NumberFormat('uk-UA', {
@@ -139,7 +139,7 @@ export default function CampaignEditPage() {
       titleUk: campaign.titleUk,
       titleEn: campaign.titleEn,
       description: campaign.description ?? '',
-      goalAmount: campaign.goalAmount / 100,
+      goalAmount: campaign.goalAmount,
       deadline: campaign.deadline?.split('T')[0] ?? '',
       sendUrl: campaign.sendUrl ?? '',
       categoryIds: campaign.categories?.map((category: any) => category.id) ?? [],

@@ -127,7 +127,7 @@ export default function PublicSpendingPage({ loaderData }: { loaderData?: { purc
 
   const visibleDocuments = (purchase.documents || []).filter((document: DocumentDto) => document.type !== DocumentType.TransferAct);
   const restrictedDocuments = purchase.documents.length - visibleDocuments.length;
-  const purchaseAmount = formatPublicAmount(purchase.totalAmount / 100, locale, t('common.na'));
+  const purchaseAmount = formatPublicAmount(purchase.totalAmount, locale, t('common.na'));
 
   return (
     <main className="mx-auto flex w-[min(1100px,calc(100%-24px))] flex-col gap-6 py-8 sm:w-[min(1100px,calc(100%-40px))]" data-testid="public-spending-page">
@@ -230,7 +230,7 @@ export default function PublicSpendingPage({ loaderData }: { loaderData?: { purc
             ) : null}
 
             {visibleDocuments.map((document: DocumentDto, index: number) => {
-              const documentAmount = document.amount === null ? undefined : document.amount / 100;
+              const documentAmount = document.amount === null ? undefined : document.amount;
               return (
                 <article
                   key={document.id}

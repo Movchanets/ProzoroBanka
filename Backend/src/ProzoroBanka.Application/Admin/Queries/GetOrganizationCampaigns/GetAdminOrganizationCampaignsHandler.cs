@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Admin.DTOs;
 using ProzoroBanka.Application.Common.Extensions;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 
@@ -70,8 +71,8 @@ public class GetAdminOrganizationCampaignsHandler
 			c.TitleEn,
 			c.Description,
 			_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
-			c.GoalAmount,
-			c.CurrentAmount,
+			MoneyConversion.ToUah(c.GoalAmount),
+			MoneyConversion.ToUah(c.CurrentAmount),
 			c.SendUrl,
 			c.Status,
 			c.StartDate,

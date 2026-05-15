@@ -31,7 +31,7 @@ export function DocumentMetadataForm({
   
   const { register, handleSubmit, reset } = useForm<UpdateDocumentMetadataRequest>({
     defaultValues: {
-      amount: document.amount ? document.amount / 100 : 0,
+      amount: document.amount ? document.amount : 0,
       counterpartyName: document.counterpartyName ?? '',
       documentDate: document.documentDate ? document.documentDate.split('T')[0] : '',
       edrpou: (document as any).edrpou ?? '',
@@ -45,7 +45,7 @@ export function DocumentMetadataForm({
 
   useEffect(() => {
     reset({
-      amount: document.amount ? document.amount / 100 : 0,
+      amount: document.amount ? document.amount : 0,
       counterpartyName: document.counterpartyName ?? '',
       documentDate: document.documentDate ? document.documentDate.split('T')[0] : '',
       edrpou: (document as any).edrpou ?? '',
@@ -63,7 +63,7 @@ export function DocumentMetadataForm({
     console.log(`[DocumentMetadataForm] onFormSubmit for docId: ${document.id}`, data);
     const payload = {
       ...data,
-      amount: data.amount ? Math.round(data.amount * 100) : 0,
+      amount: data.amount ? data.amount : 0,
     };
     await onSubmit(document.id, payload);
     console.log(`[DocumentMetadataForm] onSubmit finished for docId: ${document.id}`);
@@ -229,14 +229,14 @@ export function DocumentMetadataForm({
                     className="h-7 text-xs"
                     type="number"
                     step="0.01"
-                    defaultValue={item.unitPrice / 100}
-                    onBlur={(e) => onUpdateWaybillItem?.(document.id, item.id, item.name, item.quantity, Math.round(Number(e.target.value) * 100))}
+                    defaultValue={item.unitPrice}
+                    onBlur={(e) => onUpdateWaybillItem?.(document.id, item.id, item.name, item.quantity, Number(e.target.value))}
                     disabled={isPending}
                     data-testid={`purchase-document-item-unit-price-${item.id}`}
                   />
                 </div>
                 <div className="w-24 pb-1.5 text-xs text-right font-medium">
-                  {(item.quantity * item.unitPrice / 100).toFixed(2)} ₴
+                  {new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.quantity * item.unitPrice)} ₴
                 </div>
                 <Button
                   variant="ghost"

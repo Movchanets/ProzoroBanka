@@ -104,8 +104,8 @@ public class GetCampaignDetailsHandler
 		return ServiceResponse<CampaignDetailDto>.Success(new CampaignDetailDto(
 			campaign.Id, campaign.TitleUk, campaign.TitleEn, campaign.Description,
 			_fileStorage.ResolvePublicUrl(campaign.CoverImageStorageKey),
-			campaign.GoalAmount, campaign.CurrentAmount, campaign.WithdrawnAmount,
-			documentedAmount, documentationPercent,
+			MoneyConversion.ToUah(campaign.GoalAmount), MoneyConversion.ToUah(campaign.CurrentAmount), MoneyConversion.ToUah(campaign.WithdrawnAmount),
+			MoneyConversion.ToUah(documentedAmount), documentationPercent,
 			campaign.Status, campaign.StartDate, campaign.Deadline,
 			campaign.MonobankAccountId, campaign.SendUrl, campaign.Categories, receiptCount, campaign.OrganizationId,
 			campaign.OrganizationName, campaign.CreatedByName,

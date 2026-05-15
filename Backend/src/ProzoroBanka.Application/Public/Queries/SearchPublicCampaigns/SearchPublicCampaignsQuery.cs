@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Common.Extensions;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Application.Public.DTOs;
@@ -82,9 +83,9 @@ public class SearchPublicCampaignsHandler
 				c.Description,
 				_fileStorage.ResolvePublicUrl(c.CoverImageStorageKey),
 				c.SendUrl,
-				c.GoalAmount,
-				c.CurrentAmount,
-				0,
+				MoneyConversion.ToUah(c.GoalAmount),
+				MoneyConversion.ToUah(c.CurrentAmount),
+				0m,
 				0,
 				c.Status,
 				c.StartDate,

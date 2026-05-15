@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Campaigns.DTOs;
 using ProzoroBanka.Application.Common.Extensions;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Domain.Entities;
@@ -70,7 +71,7 @@ public class CreateCampaignHandler : IRequestHandler<CreateCampaignCommand, Serv
 			TitleUk = request.TitleUk.Trim(),
 			TitleEn = request.TitleEn.Trim(),
 			Description = request.Description,
-			GoalAmount = request.GoalAmount,
+			GoalAmount = MoneyConversion.ToMinorUnits(request.GoalAmount),
 			Deadline = request.Deadline?.ToUniversalTime(),
 			SendUrl = string.IsNullOrWhiteSpace(request.SendUrl) ? null : request.SendUrl.Trim(),
 			Status = CampaignStatus.Draft,
@@ -102,7 +103,7 @@ public class CreateCampaignHandler : IRequestHandler<CreateCampaignCommand, Serv
 		return ServiceResponse<CampaignDto>.Success(new CampaignDto(
 			campaign.Id, campaign.TitleUk, campaign.TitleEn, campaign.Description,
 			_fileStorage.ResolvePublicUrl(campaign.CoverImageStorageKey),
-			campaign.GoalAmount, campaign.CurrentAmount, 0, 0, 0,
+			MoneyConversion.ToUah(campaign.GoalAmount), MoneyConversion.ToUah(campaign.CurrentAmount), 0m, 0m, 0,
 			campaign.Status, campaign.StartDate, campaign.Deadline,
 			campaign.MonobankAccountId, campaign.SendUrl, categories, 0, campaign.CreatedAt));
 	}

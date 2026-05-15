@@ -14,7 +14,7 @@ public static class ReceiptDtoMapper
 			fileStorage.ResolvePublicUrl(receipt.ReceiptImageStorageKey ?? receipt.StorageKey),
 			receipt.Alias,
 			receipt.MerchantName,
-			receipt.TotalAmount,
+			receipt.TotalAmount / 100m,
 			receipt.PurchaseDateUtc,
 			receipt.Status,
 			receipt.PublicationStatus,
@@ -33,11 +33,11 @@ public static class ReceiptDtoMapper
 					item.Id,
 					item.Name,
 					item.Quantity,
-					item.UnitPrice,
-					item.TotalPrice,
+					item.UnitPrice / 100m,
+					item.TotalPrice / 100m,
 					item.Barcode,
 					item.VatRate,
-					item.VatAmount,
+					item.VatAmount / 100m,
 					item.SortOrder))
 				.ToList(),
 			receipt.ItemPhotos

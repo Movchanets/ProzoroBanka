@@ -201,7 +201,7 @@ export default function CampaignPurchasesListPage() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
-                    <p className="font-semibold">{new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'UAH' }).format(purchase.totalAmount / 100)}</p>
+                    <p className="font-semibold">{new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'UAH' }).format(purchase.totalAmount)}</p>
                     <Badge variant={purchase.status === PurchaseStatus.Completed ? 'default' : 'secondary'}>
                       {getPurchaseStatusLabel(purchase.status, t)}
                     </Badge>

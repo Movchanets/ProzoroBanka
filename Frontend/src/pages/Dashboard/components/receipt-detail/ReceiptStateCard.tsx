@@ -43,7 +43,7 @@ function parseReceiptLocalDate(value: string) {
 
 function formatAmount(value: number | undefined, locale: string, fallback: string) {
   if (typeof value !== 'number') return fallback;
-  const hryvnias = value / 100;
+  const hryvnias = value;
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'UAH',

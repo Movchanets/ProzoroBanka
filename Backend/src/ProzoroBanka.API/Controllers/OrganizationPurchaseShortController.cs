@@ -129,7 +129,7 @@ public class OrganizationPurchaseShortController : ApiControllerBase
 		[FromForm] IFormFile? file,
 		[FromForm] DocumentType type,
 		[FromForm] DateTime? documentDate,
-		[FromForm] long? amount,
+		[FromForm] decimal? amount,
 		[FromForm] string? counterpartyName,
 		CancellationToken ct)
 	{

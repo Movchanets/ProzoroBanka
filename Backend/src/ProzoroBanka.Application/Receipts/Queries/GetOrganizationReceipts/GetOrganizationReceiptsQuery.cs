@@ -66,7 +66,7 @@ public class GetOrganizationReceiptsHandler
 				r.MerchantName,
 				($"{r.User.FirstName} {r.User.LastName}").Trim(),
 				r.User.Email,
-				r.TotalAmount,
+				r.TotalAmount / 100m,
 				r.PurchaseDateUtc,
 				r.Status,
 				r.PublicationStatus,

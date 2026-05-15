@@ -95,7 +95,7 @@ public class PurchasesOperationsEndpointsTests : IClassFixture<TestWebApplicatio
         {
             name = "Thermal scope",
             quantity = 3m,
-            unitPrice = 250000L
+            unitPrice = 2500
         });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

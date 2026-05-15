@@ -47,7 +47,7 @@ export default function DashboardHomePage() {
   const activeCampaigns = campaigns?.filter((c) => c.status === CampaignStatus.Active).length ?? 0;
   const totalRaised = campaigns?.reduce((sum, c) => sum + c.currentAmount, 0) ?? 0;
   const totalReceipts = campaigns?.reduce((sum, c) => sum + (c.receiptCount ?? 0), 0) ?? 0;
-  const raisedFormatted = new Intl.NumberFormat('uk-UA').format(totalRaised / 100);
+  const raisedFormatted = new Intl.NumberFormat('uk-UA').format(totalRaised);
 
   const stats = [
     { icon: <Users className="h-5 w-5" />, label: t('dashboard.statMembers'), value: org?.memberCount ?? 0 },

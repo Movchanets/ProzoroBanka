@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ProzoroBanka.Application.Admin.DTOs;
 using ProzoroBanka.Application.Common.Extensions;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Application.Common.Models;
 using ProzoroBanka.Domain.Enums;
@@ -84,7 +85,7 @@ public class GetAllOrganizationsHandler
 			o.OwnerEmail,
 			o.MemberCount,
 			o.CampaignCount,
-			o.TotalRaised,
+			MoneyConversion.ToUah(o.TotalRaised),
 			o.CreatedAt,
 			o.PlanType == 0 ? OrganizationPlanType.Free : o.PlanType,
 			o.IsBlocked,

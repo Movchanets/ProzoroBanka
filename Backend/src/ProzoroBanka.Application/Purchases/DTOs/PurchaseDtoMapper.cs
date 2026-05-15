@@ -1,4 +1,5 @@
 using ProzoroBanka.Application.Common.Extensions;
+using ProzoroBanka.Application.Common.Helpers;
 using ProzoroBanka.Application.Common.Interfaces;
 using ProzoroBanka.Domain.Entities;
 using ProzoroBanka.Domain.Enums;
@@ -11,7 +12,7 @@ public static class PurchaseDtoMapper
 		new(
 			purchase.Id,
 			purchase.Title,
-			purchase.TotalAmount,
+			MoneyConversion.ToUah(purchase.TotalAmount),
 			purchase.Status,
 			purchase.Documents.Count(d => !d.IsDeleted),
 			purchase.Documents.Count(d => !d.IsDeleted && d.IsDataVerifiedByUser),
@@ -24,7 +25,7 @@ public static class PurchaseDtoMapper
 			purchase.CreatedByUserId,
 			purchase.Title,
 			purchase.Description,
-			purchase.TotalAmount,
+			MoneyConversion.ToUah(purchase.TotalAmount),
 			purchase.Status,
 			purchase.Documents
 				.Where(d => !d.IsDeleted)
@@ -42,7 +43,7 @@ public static class PurchaseDtoMapper
 			document.OriginalFileName,
 			fileStorage.ResolvePublicUrl(document.StorageKey),
 			document.DocumentDate,
-			document.Amount,
+			MoneyConversion.ToUah(document.Amount),
 			document.CounterpartyName,
 			document.OcrProcessingStatus,
 			document.IsDataVerifiedByUser,
@@ -67,7 +68,7 @@ public static class PurchaseDtoMapper
 			document.OriginalFileName,
 			document.Type == DocumentType.TransferAct ? null : fileStorage.ResolvePublicUrl(document.StorageKey),
 			document.DocumentDate,
-			document.Amount,
+			MoneyConversion.ToUah(document.Amount),
 			document.CounterpartyName,
 			document.OcrProcessingStatus,
 			document.IsDataVerifiedByUser,
@@ -98,8 +99,8 @@ public static class PurchaseDtoMapper
 					item.Id,
 					item.Name,
 					item.Quantity,
-					item.UnitPrice,
-					item.TotalPrice))
+					MoneyConversion.ToUah(item.UnitPrice),
+					MoneyConversion.ToUah(item.TotalPrice)))
 				.ToList();
 	}
 
