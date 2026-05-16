@@ -9,3 +9,8 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Expose for E2E test debugging
+if (typeof window !== "undefined") {
+  (window as unknown as Record<string, unknown>).__REACT_QUERY_CLIENT__ = queryClient;
+}

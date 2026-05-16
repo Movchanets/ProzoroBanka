@@ -583,6 +583,7 @@
       "spending": {
         "title": "Витрати",
         "total": "Разом: {{amount}}",
+        "error": "Помилка завантаження витрат",
         "empty": "Поки що немає публічних витрат",
         "documentsCount": "Документів: {{count}}",
         "transferActSecured": "Є захищені Transfer Act документи",

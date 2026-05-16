@@ -101,6 +101,41 @@ test.describe("Purchases Flow", () => {
     await expect(campaignPublicPage.publicCampaignSpendingCard).toBeVisible();
   });
 
+  test("TC-04b: spending tab shows error alert when purchases API fails", async ({
+    page,
+    campaignApi,
+    campaignSeed,
+    campaignPublicPage,
+  }) => {
+    test.info().annotations.push({
+      type: "description",
+      description: "Mocks a 500 error on the public purchases endpoint and verifies the spending tab displays an error alert.",
+    });
+
+    const campaign = await campaignApi.createCampaign(campaignSeed.orgId, {
+      titleUk: `Помилка витрат ${Date.now()}`,
+      titleEn: `Spending error ${Date.now()}`,
+      goalAmount: 15_000,
+    });
+
+    await campaignApi.activateCampaign(campaign.id);
+
+    await page.route('**/*purchases*', (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: "Internal Server Error" }),
+      }),
+    );
+
+    await campaignPublicPage.goto(campaign.id);
+    await expect(campaignPublicPage.publicCampaignMainTabs).toBeVisible();
+    await campaignPublicPage.openSpendingTab();
+
+    await expect(campaignPublicPage.publicCampaignSpendingError).toBeVisible();
+    await expect(campaignPublicPage.getSpendingItem(0)).toHaveCount(0);
+  });
+
   test("TC-05: purchase detail shows three document blocks and OCR controls shell", async ({
     campaignApi,
     campaignSeed,

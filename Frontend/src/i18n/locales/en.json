@@ -583,6 +583,7 @@
       "spending": {
         "title": "Spending",
         "total": "Total: {{amount}}",
+        "error": "Failed to load spending data",
         "empty": "No public spending records yet",
         "documentsCount": "Documents: {{count}}",
         "transferActSecured": "Contains secured Transfer Act documents",
