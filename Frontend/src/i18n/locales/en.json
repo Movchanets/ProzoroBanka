@@ -611,6 +611,16 @@
       },
       "moreReceiptsNote": "{{count}} more receipt(s) are available via full receipt pages.",
       "daysRemaining": "Days until campaign end: {{count}}."
+    },
+    "feedTimeline": {
+      "error": "Failed to load updates feed",
+      "empty": "The updates feed is empty",
+      "loadMore": "Show more",
+      "showing": "Showing {{shown}} of {{total}}",
+      "typePost": "Update",
+      "typePurchase": "Expense",
+      "typeTransaction": "Donation",
+      "sourceManual": "Manual"
     }
   },
   "team": {

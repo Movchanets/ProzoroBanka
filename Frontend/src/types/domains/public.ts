@@ -159,3 +159,24 @@ export interface Transparency {
   receiptCount: number;
   verifiedReceiptCount: number;
 }
+
+// ── Campaign Feed (unified timeline) ──
+
+export type CampaignFeedItemType = 'post' | 'purchase' | 'transaction';
+
+export interface CampaignFeedItem {
+  type: CampaignFeedItemType;
+  id: string;
+  eventDate: string;
+  campaignId?: string;
+  campaignTitle?: string;
+  purchaseId?: string;
+  title?: string;
+  description?: string;
+  amount?: number;
+  source?: string;
+  postContentJson?: string;
+  images?: PublicCampaignPostImage[];
+  createdByName?: string;
+  createdAt: string;
+}

@@ -13,16 +13,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CampaignProgressBar } from '@/components/public/CampaignProgressBar';
 import { Breadcrumbs } from '@/components/public/Breadcrumbs';
 import { CrossLinkingSection } from '@/components/public/CrossLinkingSection';
+import { CampaignTimeline } from '@/components/public/CampaignTimeline';
 import { usePublicCampaign, usePublicCampaignReceipts } from '@/hooks/queries/usePublic';
 import { usePublicPurchases } from '@/hooks/queries/usePurchases';
 import { resolveLocalizedText } from '@/lib/localizedText';
-import { extractTextFromTiptapJson } from '@/lib/tiptapContent';
 import { DocumentType } from '@/types';
 import type { MetaDescriptor } from 'react-router';
 import type { PublicCampaignDetail } from '@/types';
 import type { LoaderFunctionArgs } from 'react-router';
 import { ensureQueryData } from '@/utils/routerHelpers';
-import { getPublicCampaignOptions, getPublicCampaignReceiptsOptions } from '@/hooks/queries/usePublic';
+import { getPublicCampaignOptions, getPublicCampaignReceiptsOptions, getCampaignFeedOptions } from '@/hooks/queries/usePublic';
 import { getPublicPurchasesOptions } from '@/hooks/queries/usePurchases';
 
  
@@ -33,6 +33,7 @@ export async function clientLoader({ params }: LoaderFunctionArgs) {
       ensureQueryData(getPublicCampaignOptions(id)),
       ensureQueryData(getPublicCampaignReceiptsOptions(id, 1)),
       ensureQueryData(getPublicPurchasesOptions(id)),
+      ensureQueryData(getCampaignFeedOptions(id, 1)),
     ]);
     return { campaign };
   } catch (error) {
@@ -117,7 +118,6 @@ export default function PublicCampaignPage({ loaderData }: { loaderData?: { camp
     (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
   );
   const publicPurchasesTotal = publicPurchases.reduce((accumulator, purchase) => accumulator + purchase.totalAmount, 0);
-  const posts = campaignQuery.data?.posts ?? [];
 
   const receiptDetailQueries = useQueries({
     queries: receipts.map((receipt) => ({
@@ -161,26 +161,6 @@ export default function PublicCampaignPage({ loaderData }: { loaderData?: { camp
     setActiveGalleryTitle(campaignTitle);
     setActiveGalleryDescription(t('campaigns.public.coverGalleryDescription'));
     openGalleryAt(0);
-  };
-
-  const openPostGallery = (postId: string, startIndex: number) => {
-    const post = posts.find((item) => item.id === postId);
-    if (!post || post.images.length === 0) {
-      return;
-    }
-
-    const textContent = extractTextFromTiptapJson(post.postContentJson, t('campaigns.public.postTextFallback'));
-    setActiveGalleryImages(
-      post.images.map((image) => ({
-        src: image.imageUrl,
-        alt: textContent,
-        caption: textContent,
-        richContentJson: post.postContentJson,
-      })),
-    );
-    setActiveGalleryTitle(t('campaigns.public.postGalleryTitle', { id: postId.slice(0, 8) }));
-    setActiveGalleryDescription(t('campaigns.public.postGalleryDescription'));
-    openGalleryAt(startIndex);
   };
 
   return (
@@ -284,56 +264,8 @@ export default function PublicCampaignPage({ loaderData }: { loaderData?: { camp
                     {t('campaigns.public.updatesTitle')}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {posts.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground" data-testid="public-campaign-empty-posts">
-                      {t('campaigns.public.postsEmpty')}
-                    </div>
-                  ) : null}
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {posts.map((post, index) => {
-                      const selectedImage = post.images[0];
-                      const textContent = extractTextFromTiptapJson(post.postContentJson, t('campaigns.public.postTextFallback'));
-
-                      return (
-                        <article key={post.id} className="overflow-hidden rounded-2xl border border-border/70 bg-muted/15 shadow-[0_10px_24px_var(--shadow-soft)]" data-testid={`public-campaign-post-${index}`}>
-                          {selectedImage ? (
-                            <div className="relative">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  openPostGallery(post.id, 0);
-                                }}
-                                className="group block w-full cursor-pointer"
-                                data-testid={`public-campaign-post-open-button-${index}`}
-                                aria-label={t('campaigns.public.openPostImage')}
-                              >
-                                <img
-                                  src={selectedImage.imageUrl}
-                                  alt={textContent}
-                                  className="h-36 w-full object-cover transition-transform duration-300 motion-reduce:transition-none group-hover:scale-[1.02]"
-                                  data-testid={`public-campaign-post-image-${index}`}
-                                />
-                              </button>
-                            </div>
-                          ) : null}
-                          <div className="space-y-2 p-3">
-                            <p className="text-xs text-muted-foreground" data-testid={`public-campaign-post-time-${index}`}>
-                              {new Date(post.createdAt).toLocaleString(locale)}
-                            </p>
-                            <p className="line-clamp-2 text-sm leading-6" data-testid={`public-campaign-post-text-${index}`}>
-                              {textContent}
-                            </p>
-                            {post.images.length > 0 ? (
-                              <p className="text-xs text-muted-foreground" data-testid={`public-campaign-post-images-count-${index}`}>
-                                {t('campaigns.posts.imagesCount', { count: post.images.length })}
-                              </p>
-                            ) : null}
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
+                <CardContent>
+                  <CampaignTimeline campaignId={campaign.id} />
                 </CardContent>
               </Card>
             </TabsContent>

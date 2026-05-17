@@ -20,6 +20,9 @@ export class HomePage {
   readonly orgGrid: Locator;
   readonly verifiedFilterToggle: Locator;
   readonly activeFilterToggle: Locator;
+  readonly publicFeedSection: Locator;
+  readonly publicFeed: Locator;
+  readonly publicFeedEmpty: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -44,6 +47,9 @@ export class HomePage {
     this.orgGrid = page.getByTestId("home-org-grid");
     this.verifiedFilterToggle = page.getByTestId("home-verified-filter-toggle");
     this.activeFilterToggle = page.getByTestId("home-active-filter-toggle");
+    this.publicFeedSection = page.getByTestId("home-public-feed-section");
+    this.publicFeed = page.getByTestId("public-feed");
+    this.publicFeedEmpty = page.getByTestId("public-feed-empty");
   }
 
   async goto() {

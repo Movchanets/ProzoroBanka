@@ -6,6 +6,8 @@ using ProzoroBanka.Application.Public.DTOs;
 using ProzoroBanka.Application.Public.Queries.GetOrganizationTransparency;
 using ProzoroBanka.Application.Public.Queries.GetPublicCampaign;
 using ProzoroBanka.Application.Public.Queries.GetPublicCampaignCategories;
+using ProzoroBanka.Application.Public.Queries.GetCampaignFeed;
+using ProzoroBanka.Application.Public.Queries.GetPublicFeed;
 using ProzoroBanka.Application.Public.Queries.GetPublicCampaignPosts;
 using ProzoroBanka.Application.Public.Queries.GetPublicCampaignReceipts;
 using ProzoroBanka.Application.Public.Queries.GetPublicOrganization;
@@ -145,6 +147,39 @@ public class PublicController : ApiControllerBase
 		CancellationToken ct = default)
 	{
 		var result = await _sender.Send(new GetPublicCampaignReceiptsQuery(id, page, pageSize), ct);
+		if (!result.IsSuccess)
+			return NotFound(new { Error = result.Message });
+
+		return Ok(result.Payload);
+	}
+
+	[HttpGet("/api/public/feed")]
+	[OutputCache(
+		PolicyName = "PublicFeed",
+		VaryByQueryKeys = ["page", "pageSize"])]
+	[ProducesResponseType(typeof(PublicListResponse<CampaignFeedItemDto>), StatusCodes.Status200OK)]
+	public async Task<IActionResult> GetPublicFeed(
+		[FromQuery] int page = 1,
+		[FromQuery] int pageSize = 20,
+		CancellationToken ct = default)
+	{
+		var result = await _sender.Send(new GetPublicFeedQuery(page, pageSize), ct);
+		return Ok(result.Payload);
+	}
+
+	[HttpGet("/api/public/campaigns/{id:guid}/feed")]
+	[OutputCache(
+		PolicyName = "PublicCampaignFeed",
+		VaryByQueryKeys = ["page", "pageSize"])]
+	[ProducesResponseType(typeof(PublicListResponse<CampaignFeedItemDto>), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	public async Task<IActionResult> GetCampaignFeed(
+		Guid id,
+		[FromQuery] int page = 1,
+		[FromQuery] int pageSize = 20,
+		CancellationToken ct = default)
+	{
+		var result = await _sender.Send(new GetCampaignFeedQuery(id, page, pageSize), ct);
 		if (!result.IsSuccess)
 			return NotFound(new { Error = result.Message });
 

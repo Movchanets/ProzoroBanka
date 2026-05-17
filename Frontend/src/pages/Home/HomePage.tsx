@@ -8,14 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CampaignStatus } from '@/types';
 import { OrganizationCard } from '@/components/public/OrganizationCard';
 import { CampaignCard } from '@/components/public/CampaignCard';
-import { ComingSoonStub } from '@/components/public/ComingSoonStub';
+import { PublicFeedTimeline } from '@/components/public/PublicFeedTimeline';
 import { useHomeCampaignFeed, usePublicCampaignCategories, useSearchOrganizations } from '@/hooks/queries/usePublic';
 import { useTranslation } from 'react-i18next';
 import { resolveLocalizedText } from '@/lib/localizedText';
 import { useLocation, useNavigate } from 'react-router';
 import type { MetaDescriptor } from 'react-router';
 import { ensureQueryData } from '@/utils/routerHelpers';
-import { getHomeCampaignFeedOptions, getPublicCampaignCategoriesOptions, getSearchOrganizationsOptions } from '@/hooks/queries/usePublic';
+import { getHomeCampaignFeedOptions, getPublicCampaignCategoriesOptions, getSearchOrganizationsOptions, getPublicFeedOptions } from '@/hooks/queries/usePublic';
 
 type HomeTab = 'campaigns' | 'organizations';
 type CampaignFilterStatus = 'all' | 'active' | 'completed';
@@ -44,6 +44,7 @@ export async function clientLoader() {
     ensureQueryData(getPublicCampaignCategoriesOptions()),
     ensureQueryData(getHomeCampaignFeedOptions('', undefined, 'all', true, 24)),
     ensureQueryData(getSearchOrganizationsOptions('', 1, false, false, 'activeCampaigns', 12)),
+    ensureQueryData(getPublicFeedOptions(1)),
   ]);
   return null;
 }
@@ -51,13 +52,14 @@ export async function loader() {
   const isServer = typeof window === 'undefined';
 
   try {
-    const [categories, campaigns, organizations] = await Promise.all([
+    const [categories, campaigns, organizations, feed] = await Promise.all([
       ensureQueryData(getPublicCampaignCategoriesOptions()),
       ensureQueryData(getHomeCampaignFeedOptions('', undefined, 'all', true, 24)),
       ensureQueryData(getSearchOrganizationsOptions('', 1, false, false, 'activeCampaigns', 12)),
+      ensureQueryData(getPublicFeedOptions(1)),
     ]);
-    
-    return { categories, campaigns, organizations };
+
+    return { categories, campaigns, organizations, feed };
   } catch (error) {
     console.error("❌ Помилка лоадера під час SSG-збірки:", error);
 
@@ -374,11 +376,10 @@ export default function HomePage() {
             ))}
           </section>
 
-          <ComingSoonStub
-            testId="home-coming-soon-donations-feed"
-            title={t('home.comingSoon.feedTitle')}
-            description={t('home.comingSoon.feedDescription')}
-          />
+          <section data-testid="home-public-feed-section" className="rounded-3xl border border-border/80 bg-card/92 p-5 shadow-[0_16px_40px_var(--shadow-soft)] sm:p-6">
+            <h2 className="mb-4 text-xl font-bold text-foreground">{t('home.comingSoon.feedTitle')}</h2>
+            <PublicFeedTimeline />
+          </section>
         </TabsContent>
 
         <TabsContent value="organizations" className="space-y-4" data-testid="home-organizations-panel">

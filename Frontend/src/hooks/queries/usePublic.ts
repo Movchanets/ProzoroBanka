@@ -38,6 +38,10 @@ export const publicKeys = {
   campaignReceipts: (campaignId: string, page: number) =>
     [...publicKeys.all, 'campaignReceipts', campaignId, page] as const,
   receipt: (receiptId: string) => [...publicKeys.all, 'receipt', receiptId] as const,
+  campaignFeed: (campaignId: string, page: number) =>
+    [...publicKeys.all, 'campaignFeed', campaignId, page] as const,
+  publicFeed: (page: number) =>
+    [...publicKeys.all, 'publicFeed', page] as const,
   transparency: (slug: string) => [...publicKeys.all, 'transparency', slug] as const,
 };
 
@@ -161,6 +165,23 @@ export function usePublicCampaignReceipts(campaignId: string | null | undefined,
   });
 }
 
+export function useCampaignFeed(campaignId: string | null | undefined, page = 1, pageSize = 20) {
+  return useQuery({
+    queryKey: publicKeys.campaignFeed(campaignId ?? '', page),
+    queryFn: () => publicService.getCampaignFeed(campaignId ?? '', page, pageSize),
+    enabled: Boolean(campaignId),
+    ...publicQueryDefaults,
+  });
+}
+
+export function usePublicFeed(page = 1, pageSize = 20) {
+  return useQuery({
+    queryKey: publicKeys.publicFeed(page),
+    queryFn: () => publicService.getPublicFeed(page, pageSize),
+    ...publicQueryDefaults,
+  });
+}
+
 export function usePublicReceipt(receiptId: string | null | undefined, options?: { initialData?: PublicReceiptDetail }) {
   return useQuery({
     queryKey: publicKeys.receipt(receiptId ?? ''),
@@ -255,5 +276,17 @@ export const getPublicCampaignReceiptsOptions = (campaignId: string, page = 1) =
 export const getOrgTransparencyOptions = (slug: string) => ({
   queryKey: publicKeys.transparency(slug),
   queryFn: () => publicService.getOrganizationTransparency(slug),
+  ...publicQueryDefaults,
+});
+
+export const getCampaignFeedOptions = (campaignId: string, page = 1, pageSize = 20) => ({
+  queryKey: publicKeys.campaignFeed(campaignId, page),
+  queryFn: () => publicService.getCampaignFeed(campaignId, page, pageSize),
+  ...publicQueryDefaults,
+});
+
+export const getPublicFeedOptions = (page = 1, pageSize = 20) => ({
+  queryKey: publicKeys.publicFeed(page),
+  queryFn: () => publicService.getPublicFeed(page, pageSize),
   ...publicQueryDefaults,
 });

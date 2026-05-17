@@ -26,6 +26,24 @@ test.describe("Public pages", () => {
     await expect(homePage.campaignOrgLink.first()).toBeVisible();
   });
 
+  test("TC-01B: home page shows public feed timeline", async ({
+    homePage,
+  }) => {
+    await homePage.goto();
+
+    await expect(homePage.publicFeedSection).toBeVisible();
+    await expect(homePage.publicFeed).toBeVisible();
+    await expect(
+      homePage.page.getByTestId("public-feed-item-post-post-1"),
+    ).toBeVisible();
+    await expect(
+      homePage.page.getByTestId("public-feed-item-purchase-purchase-1"),
+    ).toBeVisible();
+    await expect(
+      homePage.page.getByTestId("public-feed-item-transaction-tx-1"),
+    ).toBeVisible();
+  });
+
   test("TC-02: home search and filters are interactive", async ({
     page,
     homePage,
@@ -84,6 +102,81 @@ test.describe("Public pages", () => {
       .click();
     await expect(campaignPublicPage.receiptsList).toBeVisible();
     await expect(campaignPublicPage.receiptLink).toBeVisible();
+  });
+
+  test("TC-04B: campaign feed timeline loads and shows items", async ({
+    campaignPublicPage,
+  }) => {
+    await campaignPublicPage.goto("camp-1");
+
+    await expect(campaignPublicPage.campaignFeed).toBeVisible();
+    await expect(campaignPublicPage.campaignFeedCounter).toBeVisible();
+
+    // Verify feed items are rendered with correct types
+    await expect(
+      campaignPublicPage.getFeedItem("post", "post-1"),
+    ).toBeVisible();
+    await expect(
+      campaignPublicPage.getFeedItem("purchase", "purchase-1"),
+    ).toBeVisible();
+    await expect(
+      campaignPublicPage.getFeedItem("transaction", "tx-1"),
+    ).toBeVisible();
+  });
+
+  test("TC-04C: campaign feed shows post content and purchase details", async ({
+    campaignPublicPage,
+  }) => {
+    await campaignPublicPage.goto("camp-1");
+
+    // Wait for feed to load
+    await expect(campaignPublicPage.campaignFeed).toBeVisible();
+
+    // Wait for all 3 feed items to render
+    await expect(campaignPublicPage.getFeedItem("post", "post-1")).toBeVisible();
+    await expect(campaignPublicPage.getFeedItem("purchase", "purchase-1")).toBeVisible();
+    await expect(campaignPublicPage.getFeedItem("transaction", "tx-1")).toBeVisible();
+
+    // Post content is rendered
+    await expect(
+      campaignPublicPage.page.getByText("Оновлення по закупівлі для тестування галереї"),
+    ).toBeVisible();
+
+    // Purchase title is rendered
+    await expect(
+      campaignPublicPage.page.getByText("Тепловізійний модуль Pulsar"),
+    ).toBeVisible();
+
+    // Transaction amount is rendered (contains "2,500")
+    await expect(
+      campaignPublicPage.page.getByText(/2[,.]?500/),
+    ).toBeVisible();
+  });
+
+  test("TC-04D: campaign feed empty state", async ({ page, campaignPublicPage }) => {
+    // Override feed mock to return empty
+    await page.route('**/api/public/campaigns/camp-1/feed**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [], page: 1, pageSize: 20, totalCount: 0 }),
+      });
+    });
+
+    await campaignPublicPage.goto("camp-1");
+
+    await expect(campaignPublicPage.campaignFeedEmpty).toBeVisible();
+  });
+
+  test("TC-04E: campaign feed error state", async ({ page, campaignPublicPage }) => {
+    // Override feed mock to return error
+    await page.route('**/api/public/campaigns/camp-1/feed**', async (route) => {
+      await route.fulfill({ status: 500, body: JSON.stringify({ error: 'Server error' }) });
+    });
+
+    await campaignPublicPage.goto("camp-1");
+
+    await expect(campaignPublicPage.campaignFeedError).toBeVisible();
   });
 
   test("TC-04A: navigation from campaign receipt to receipt page works", async ({
