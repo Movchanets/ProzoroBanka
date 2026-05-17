@@ -21,6 +21,13 @@ export class CampaignPublicPage {
   readonly galleryCounter: Locator;
   readonly galleryNextButton: Locator;
   readonly publicCampaignMainTabs: Locator;
+  readonly publicCampaignTabUpdates: Locator;
+  readonly publicCampaignPanelUpdates: Locator;
+  readonly campaignFeed: Locator;
+  readonly campaignFeedEmpty: Locator;
+  readonly campaignFeedError: Locator;
+  readonly campaignFeedLoadMore: Locator;
+  readonly campaignFeedCounter: Locator;
   readonly publicCampaignTabSpending: Locator;
   readonly publicCampaignPanelSpending: Locator;
   readonly publicCampaignSpendingCard: Locator;
@@ -69,6 +76,17 @@ export class CampaignPublicPage {
       "public-campaign-gallery-next-button",
     );
     this.publicCampaignMainTabs = page.getByTestId("public-campaign-main-tabs");
+    this.publicCampaignTabUpdates = page.getByTestId(
+      "public-campaign-tab-updates",
+    );
+    this.publicCampaignPanelUpdates = page.getByTestId(
+      "public-campaign-panel-updates",
+    );
+    this.campaignFeed = page.getByTestId("campaign-feed");
+    this.campaignFeedEmpty = page.getByTestId("campaign-feed-empty");
+    this.campaignFeedError = page.getByTestId("campaign-feed-error");
+    this.campaignFeedLoadMore = page.getByTestId("campaign-feed-load-more");
+    this.campaignFeedCounter = page.getByTestId("campaign-feed-counter");
     this.publicCampaignTabSpending = page.getByTestId(
       "public-campaign-tab-spending",
     );
@@ -109,8 +127,16 @@ export class CampaignPublicPage {
     await this.firstPostOpenButton.click();
   }
 
+  async openUpdatesTab() {
+    await this.publicCampaignTabUpdates.click();
+  }
+
   async openSpendingTab() {
     await this.publicCampaignTabSpending.click();
+  }
+
+  getFeedItem(type: string, id: string) {
+    return this.page.getByTestId(`campaign-feed-item-${type}-${id}`);
   }
 
   getSpendingItem(index: number) {

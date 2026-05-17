@@ -126,6 +126,55 @@ const receiptsPayload = {
   totalCount: 1,
 };
 
+const feedPayload = {
+  items: [
+    {
+      type: 'post',
+      id: 'post-1',
+      eventDate: '2026-03-21T10:00:00Z',
+      postContentJson: JSON.stringify({
+        type: 'doc',
+        content: [
+          { type: 'paragraph', content: [{ type: 'text', text: 'Оновлення по закупівлі для тестування галереї' }] },
+        ],
+      }),
+      images: [
+        {
+          id: 'post-1-img-1',
+          imageUrl: 'https://cdn.example.com/post-1-image-1.png',
+          originalFileName: 'post-1-image-1.png',
+          sortOrder: 0,
+        },
+      ],
+      createdByName: 'Ірина Коваль',
+      createdAt: '2026-03-21T10:00:00Z',
+    },
+    {
+      type: 'purchase',
+      id: 'purchase-1',
+      eventDate: '2026-03-20T14:30:00Z',
+      purchaseId: 'purchase-1',
+      title: 'Тепловізійний модуль Pulsar',
+      description: 'Закупівля обладнання для евакуаційної бригади',
+      amount: 54000,
+      createdByName: 'Тарас Мельник',
+      createdAt: '2026-03-20T14:30:00Z',
+    },
+    {
+      type: 'transaction',
+      id: 'tx-1',
+      eventDate: '2026-03-19T09:15:00Z',
+      description: 'Поповнення збору',
+      amount: 2500,
+      source: 'MonobankWebhook',
+      createdAt: '2026-03-19T09:15:00Z',
+    },
+  ],
+  page: 1,
+  pageSize: 20,
+  totalCount: 3,
+};
+
 const receiptDetailPayload = {
   id: 'r1',
   merchantName: 'Епіцентр',
@@ -257,15 +306,48 @@ export async function setupPublicPagesMocks(page: Page): Promise<void> {
     });
   });
 
-  await page.route('**/api/public/campaigns/camp-1', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(campaignPayload) });
-  });
-
+  // More specific routes must come BEFORE the general campaign route
+  // because Playwright uses first-match semantics
   await page.route('**/api/public/campaigns/camp-1/receipts**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(receiptsPayload) });
   });
 
+  await page.route('**/api/public/campaigns/camp-1/feed**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(feedPayload) });
+  });
+
+  await page.route('**/api/public/campaigns/camp-1/purchases', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: 'purchase-1',
+          title: 'Тепловізійний модуль Pulsar',
+          description: 'Закупівля обладнання для евакуаційної бригади',
+          totalAmount: 54000,
+          status: 2,
+          campaignId: 'camp-1',
+          campaignTitle: 'Тепловізори для евакуаційної бригади',
+          organizationId: 'org-1',
+          documents: [],
+          createdByName: 'Тарас Мельник',
+          createdAt: '2026-03-20T14:30:00Z',
+          updatedAt: '2026-03-20T14:30:00Z',
+        },
+      ]),
+    });
+  });
+
+  await page.route('**/api/public/campaigns/camp-1', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(campaignPayload) });
+  });
+
   await page.route('**/api/public/receipts/r1', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(receiptDetailPayload) });
+  });
+
+  await page.route('**/api/public/feed**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(feedPayload) });
   });
 }

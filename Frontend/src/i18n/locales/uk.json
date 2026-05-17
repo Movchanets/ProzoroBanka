@@ -611,6 +611,16 @@
       },
       "moreReceiptsNote": "Ще {{count}} чек(ів) доступно через повні сторінки чеків.",
       "daysRemaining": "До завершення кампанії: {{count}} днів."
+    },
+    "feedTimeline": {
+      "error": "Не вдалося завантажити стрічку оновлень",
+      "empty": "Стрічка оновлень поки порожня",
+      "loadMore": "Показати ще",
+      "showing": "Показано {{shown}} з {{total}}",
+      "typePost": "Оновлення",
+      "typePurchase": "Витрата",
+      "typeTransaction": "Пожертва",
+      "sourceManual": "Ручне"
     }
   },
   "team": {

@@ -246,6 +246,19 @@ public static class DependencyInjection
                 .SetVaryByRouteValue("id")
                 .Tag("campaigns"));
 
+            // Загальна стрічка оновлень — 2 хв
+            options.AddPolicy("PublicFeed", builder => builder
+                .Expire(TimeSpan.FromMinutes(2))
+                .SetVaryByQuery("page", "pageSize")
+                .Tag("campaigns"));
+
+            // Стрічка оновлень збору — 2 хв
+            options.AddPolicy("PublicCampaignFeed", builder => builder
+                .Expire(TimeSpan.FromMinutes(2))
+                .SetVaryByRouteValue("id")
+                .SetVaryByQuery("page", "pageSize")
+                .Tag("campaigns"));
+
             // Чеки збору — 5 хв
             options.AddPolicy("PublicCampaignReceipts", builder => builder
                 .Expire(TimeSpan.FromMinutes(5))

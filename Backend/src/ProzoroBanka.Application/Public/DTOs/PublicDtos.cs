@@ -146,3 +146,21 @@ public record TransparencyDto(
 	IReadOnlyList<TransparencyMonthlyDto> MonthlySpendings,
 	int ReceiptCount,
 	int VerifiedReceiptCount);
+
+// ── Campaign Feed (unified timeline) ──
+
+public record CampaignFeedItemDto(
+	string Type,
+	Guid Id,
+	DateTime EventDate,
+	Guid? CampaignId,
+	string? CampaignTitle,
+	Guid? PurchaseId,
+	string? Title,
+	string? Description,
+	decimal? Amount,
+	string? Source,
+	string? PostContentJson,
+	IReadOnlyList<PublicCampaignPostImageDto>? Images,
+	string? CreatedByName,
+	DateTime CreatedAt);

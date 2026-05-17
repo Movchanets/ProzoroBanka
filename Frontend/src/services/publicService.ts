@@ -9,6 +9,7 @@ import type {
   PublicReceiptDetail,
   Transparency,
   PublicCampaignCategory,
+  CampaignFeedItem,
 } from '../types';
 
 export const publicService = {
@@ -74,6 +75,20 @@ export const publicService = {
 
   getCampaignPosts: (campaignId: string) =>
     apiFetch<PublicCampaignDetail['posts']>(`/api/public/campaigns/${campaignId}/posts`),
+
+  getCampaignFeed: (campaignId: string, page = 1, pageSize = 20) => {
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('pageSize', String(pageSize));
+    return apiFetch<PublicListResponse<CampaignFeedItem>>(`/api/public/campaigns/${campaignId}/feed?${params.toString()}`);
+  },
+
+  getPublicFeed: (page = 1, pageSize = 20) => {
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('pageSize', String(pageSize));
+    return apiFetch<PublicListResponse<CampaignFeedItem>>(`/api/public/feed?${params.toString()}`);
+  },
 
   getCampaignReceipts: (campaignId: string, page = 1, pageSize = 20) => {
     const params = new URLSearchParams();
